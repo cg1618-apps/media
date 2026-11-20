@@ -28,7 +28,7 @@ const STUDIO = {
   remark: "The one with the pretty water.",
   founded_date: "1981-11-12",
   defunct_date: null,
-  country: "Japan",
+  countries: ["Japan", "China"],
   website_url: "https://www.kyotoanimation.co.jp/",
   mal_id: 2,
   mal_link: "https://myanimelist.net/anime/producer/2",
@@ -139,6 +139,12 @@ describe("Studio detail page", () => {
     // The displayed name is listed too, as on the person and character pages.
     expect(within(naming).getByText("KyoAni")).toBeInTheDocument();
     expect(within(naming).getByText("京都アニメーション")).toBeInTheDocument();
+  });
+
+  it("lists every country the studio names, in order", async () => {
+    renderPage();
+    expect(await screen.findByText("Japan, China")).toBeInTheDocument();
+    expect(screen.getByText("Countries")).toBeInTheDocument();
   });
 
   it("shows the founding date without inventing a defunct one", async () => {
@@ -336,5 +342,31 @@ describe("Studio Autofill & update", () => {
     await waitFor(() =>
       expect(toast.showToast).toHaveBeenCalledWith("success", "Autofill completed"),
     );
+  });
+});
+
+describe("Studio detail page logo", () => {
+  it("shows the server-resolved display logo with its focus", async () => {
+    mockFetch({
+      studio: {
+        ...STUDIO,
+        display_logo_file: "library/violet.jpg",
+        display_logo_focus: "30% 40%",
+      },
+    });
+    renderPage();
+    const img = await screen.findByAltText("KyoAni logo");
+    expect(img).toHaveAttribute("src", "/static/library/violet.jpg");
+    expect(img.style.objectPosition).toBe("30% 40%");
+  });
+
+  it("falls back to logo_file for a payload without display_logo", async () => {
+    mockFetch({
+      studio: { ...STUDIO, logo_file: "library/own.png", logo_focus: "10% 20%" },
+    });
+    renderPage();
+    const img = await screen.findByAltText("KyoAni logo");
+    expect(img).toHaveAttribute("src", "/static/library/own.png");
+    expect(img.style.objectPosition).toBe("10% 20%");
   });
 });

@@ -779,7 +779,7 @@ Returns a status dict; the route streams it as the last event, `"status": "error
 4. For every non-blank data row:
    - `parse_row_to_dict(headers, row)` then the tab's parser from `TAB_PARSERS`.
    - **Header filter**: keep only keys that were in the sheet's header row. Parsers emit their full key set, so without this a sheet predating a migration would null the new column on every Pull. A blank cell under a present header is kept and still means "clear this value".
-   - **Image focal points** travel with their images: `cover_image_focus` on the `Media` tab (the entry parsers name it too, beside `cover_image_file`), `photo_focus` on `Person`, `Character` and `Character Casting`, `logo_focus` on `Studio` and `Publisher`. Backup writes them with no code of its own — they are table columns. Pull checks each cell against the API's rule (`coerce_image_focus`, `"X% Y%"` with whole numbers 0-100) and restores a blank or malformed cell as NULL — centred — rather than refusing the row, the way `gender` and `my_rating` fold an unknown value. See [data-model.md](data-model.md#image-focal-points).
+   - **Image focal points** travel with their images: `cover_image_focus` on the `Media` tab (the entry parsers name it too, beside `cover_image_file`), `photo_focus` on `Person`, `Character` and `Character Casting`, `logo_focus` on `Studio` and `Publisher`. Backup writes them with no code of its own — they are table columns. Pull checks each cell against the API's rule (`coerce_image_focus`: `"X% Y%"` with whole numbers 0-100, optionally followed by a zoom or `fit`) and restores a blank or malformed cell as NULL — centred — rather than refusing the row, the way `gender` and `my_rating` fold an unknown value. See [data-model.md](data-model.md#image-focal-points).
    - **Link columns popped**: for entry tabs, each credit role and tag field header (`sheet_column_for(media_type, key)`) is popped out of the dict into `pending_credits` / `pending_tags` — they are no longer real columns on the model. Pull keeps only the keys the tab's parser emits, so a link header reaches this step only if the parser names it; `genre_main`, `genre_sub` and `label` are named by the parser of every tab that writes them (`tests/api/test_credits_sheets.py` walks the tabs to hold that).
    - **Parent resolution** (names in the sheet → UUIDs):
 
@@ -1011,6 +1011,14 @@ the remainder — the same bargain Comic Vine makes with its hourly quota.
 itself, and it now paces the whole game pipeline since Steam's window is far
 tighter than IGDB's. See [external-apis.md](external-apis.md#igdb) and
 [external-apis.md](external-apis.md#steam).
+
+**IGDB credits existing companies and creates none.** A game's (and an
+h-game's) developer and publisher from IGDB are credited only when a studio
+or publisher of that name is already on file; one matching no row, or
+several, is logged as a warning and skipped, like an un-aliased genre. That
+holds wherever IGDB runs - Fill, Replace and the write hook a save triggers -
+so saving a linked game never mints a company either. Companies are made from
+the Studio and Publisher tabs ([external-apis.md](external-apis.md#igdb)).
 
 **H-Comic reads Tenrai's manga record.** `PIPELINES["h-comic"]` is manga's
 spec minus AniList and the ratings, which `h_comic` has no column for:

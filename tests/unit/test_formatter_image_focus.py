@@ -23,12 +23,15 @@ PARSERS = [
 
 
 @pytest.mark.parametrize("parser, key", PARSERS)
-def test_a_well_formed_focus_is_kept(parser, key):
-    assert parser({key: "50% 20%"})[key] == "50% 20%"
+@pytest.mark.parametrize("cell", ["50% 20%", "50% 20% 1.5", "50% 50% fit"])
+def test_a_well_formed_focus_is_kept(parser, key, cell):
+    assert parser({key: cell})[key] == cell
 
 
 @pytest.mark.parametrize("parser, key", PARSERS)
-@pytest.mark.parametrize("cell", ["", None, "left top", "101% 0%"])
+@pytest.mark.parametrize(
+    "cell", ["", None, "left top", "101% 0%", "50% 20% 1", "50% 20% 5", "50% 20% fill"]
+)
 def test_a_blank_or_malformed_cell_restores_as_null(parser, key, cell):
     assert parser({key: cell})[key] is None
 

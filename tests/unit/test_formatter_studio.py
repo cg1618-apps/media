@@ -1,7 +1,7 @@
 """parse_studio_from_sheet — sheet strings in, typed values out.
 
 Covers the four name columns Task 1 added in place of name_native, plus the
-six profile columns (display_name_field, founded_date, defunct_date, country,
+six profile columns (display_name_field, founded_date, defunct_date, countries,
 website_url, mal_id, mal_link). Without these, a Google Sheets Backup/Pull
 round-trip silently drops them.
 """
@@ -37,7 +37,7 @@ class TestParseStudioFromSheet:
                 "display_name_field": "alt",
                 "founded_date": "1985-11",
                 "defunct_date": "",
-                "country": "Japan",
+                "countries": '["Japan", "China"]',
                 "website_url": "https://www.kyotoanimation.co.jp/",
                 "mal_id": "2",
                 "mal_link": "https://myanimelist.net/anime/producer/2",
@@ -46,10 +46,22 @@ class TestParseStudioFromSheet:
         assert parsed["display_name_field"] == "alt"
         assert parsed["founded_date"] == "1985-11"
         assert parsed["defunct_date"] is None
-        assert parsed["country"] == "Japan"
+        assert parsed["countries"] == ["Japan", "China"]
         assert parsed["website_url"] == "https://www.kyotoanimation.co.jp/"
         assert parsed["mal_id"] == 2
         assert parsed["mal_link"] == "https://myanimelist.net/anime/producer/2"
+
+    def test_a_backup_from_before_countries_restores_its_one_country(self):
+        """The old header, one value: what a sheet backed up before a studio
+        could name several countries carries."""
+        assert parse_studio_from_sheet({"country": " Japan "})["countries"] == ["Japan"]
+
+    def test_a_hand_typed_comma_list_restores_as_several(self):
+        parsed = parse_studio_from_sheet({"countries": "Japan, China, , Japan"})
+        assert parsed["countries"] == ["Japan", "China"]
+
+    def test_a_blank_cell_restores_as_null(self):
+        assert parse_studio_from_sheet({"countries": "", "country": ""})["countries"] is None
 
     def test_created_at_parses_as_datetime(self):
         parsed = parse_studio_from_sheet(

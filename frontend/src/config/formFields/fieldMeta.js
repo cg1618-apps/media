@@ -328,6 +328,12 @@ function genreLabelMeta(mediaType) {
 
 export const ANIME_STUDIO_SOURCE = Object.freeze({ kind: "studio", scope: "anime" });
 
+// A game's developer and publisher: entity rows picked from these lists, never
+// created by the game form (GameAddTab, lib/gameForm.js). The publisher list
+// is the game-scoped one; an unscoped publisher descriptor suggests nothing.
+export const GAME_STUDIO_SOURCE = Object.freeze({ kind: "studio" });
+export const GAME_PUBLISHER_SOURCE = Object.freeze({ kind: "publisher", scope: "game" });
+
 export const TYPE_FIELD_META = {
   anime: {
     anime_name_en: { label: "Name (EN)", group: "Names" },
@@ -1032,13 +1038,13 @@ export const TYPE_FIELD_META = {
     publisher: {
       label: "Publisher",
       control: "tags",
-      source: { kind: "publisher", scope: "game" },
+      source: GAME_PUBLISHER_SOURCE,
       group: "Credits",
     },
     studio: {
       label: "Developer",
       control: "tags",
-      source: { kind: "studio" },
+      source: GAME_STUDIO_SOURCE,
       group: "Credits",
     },
     director: {
@@ -1574,7 +1580,8 @@ export const TYPE_FIELD_META = {
       group: "Names",
       autofillable: false,
     },
-    country: { label: "Country", group: "Classification", autofillable: false },
+    // Comma-separated text, as the form holds it ("Japan, China").
+    countries: { label: "Countries", group: "Classification", autofillable: false },
     logo_file: {
       label: "Logo File",
       control: "none",

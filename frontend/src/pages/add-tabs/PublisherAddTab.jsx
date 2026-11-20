@@ -8,7 +8,10 @@
 // Two fields the studio form has are deliberately absent — MAL ID and MAL
 // Link. MAL has no record of a games publisher or a Taiwanese distributor,
 // so the publisher table carries no MAL columns at all.
+import { useCommonOptionValues } from "../../api/mutations/useCommonOptions";
+import { COUNTRY_CATEGORY } from "../../components/forms/CountryInput";
 import MyRatingFields from "../../components/forms/MyRatingFields";
+import SuggestInput from "../../components/forms/SuggestInput";
 import {
   Field,
   SectionHeader,
@@ -35,6 +38,7 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
   const hasAnyName = STUDIO_NAME_FIELDS.some(
     ({ field }) => publisherForm[field]?.trim(),
   );
+  const { data: countries } = useCommonOptionValues(COUNTRY_CATEGORY);
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -91,11 +95,16 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
         </Field>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* One country, free text, suggested from the "Country" common
+            options a studio's Countries field reads too. A country typed
+            that is not in the list is saved as typed and never added to it. */}
         <Field label="Country">
-          <input
+          <SuggestInput
+            aria-label="Country"
             className={inputCls}
             value={publisherForm.country ?? ""}
-            onChange={(e) => upf("country", e.target.value)}
+            onChange={(value) => upf("country", value)}
+            options={countries ?? []}
           />
         </Field>
         <Field label="Website">

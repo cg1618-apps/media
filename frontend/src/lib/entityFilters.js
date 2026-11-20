@@ -32,6 +32,10 @@ export const UNRATED = "Unrated";
 export const GENDER_NOT_SET = "Not set";
 export const ROLE_NOT_SET = "Not set";
 export const COUNTRY_NOT_SET = "Not set";
+// The studio Country chip for every country that has no chip of its own.
+export const COUNTRY_OTHERS = "Others";
+// A country gets its own studio chip when MORE than this many studios name it.
+export const COUNTRY_CHIP_MIN_EXCLUSIVE = 5;
 export const TAGS_NOT_SET = "Not set";
 // The entry-type chip for a row whose media_types is empty.
 export const NO_ENTRIES = "No entries";
@@ -248,7 +252,8 @@ export function personFilterDefs(auth, role = null, { ownData = true } = {}) {
   ];
 }
 
-// The countries on record, sorted, plus Not set when a row has none.
+// The publisher's one country: the countries on record, sorted, plus Not set
+// when a row has none.
 const countryDef = {
   key: "country",
   label: "Country",
@@ -273,12 +278,66 @@ const studioRelationDef = {
   match: (item, active) => active.has(item.has_relations ? HAS_RELATIONS : NO_RELATIONS),
 };
 
-/** The studio library's defs: entry type, rating, country, relation. */
-export function studioFilterDefs(auth, { ownData = true } = {}) {
+/**
+ * The countries a studio Country chip of its own goes to: those more than
+ * COUNTRY_CHIP_MIN_EXCLUSIVE of `rows` name, the most-named first, ties by
+ * name. A studio naming several countries counts once for each.
+ */
+export function studioChipCountries(rows) {
+  const counts = new Map();
+  for (const row of rows || []) {
+    for (const country of new Set(row.countries || [])) {
+      counts.set(country, (counts.get(country) ?? 0) + 1);
+    }
+  }
+  return [...counts]
+    .filter(([, n]) => n > COUNTRY_CHIP_MIN_EXCLUSIVE)
+    .sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
+    .map(([country]) => country);
+}
+
+/**
+ * A studio's countries are a list, and only the common ones get a chip: the
+ * chip countries of `rows` (studioChipCountries), then Others for a studio
+ * naming any country without a chip, then Not set for one naming none - each
+ * of the two only when a row needs it. A studio matches every chip one of its
+ * countries falls under.
+ */
+function studioCountryDef(rows) {
+  const chips = new Set(studioChipCountries(rows));
+  const chipsOf = (item) => {
+    const countries = item.countries || [];
+    if (countries.length === 0) return [COUNTRY_NOT_SET];
+    return countries.map((c) => (chips.has(c) ? c : COUNTRY_OTHERS));
+  };
+  return {
+    key: "country",
+    label: "Country",
+    type: "set-dynamic",
+    deriveOptions: (data) => {
+      const listed = studioChipCountries(data);
+      const shown = new Set(listed);
+      const rest = (data || []).map((r) => r.countries || []);
+      return [
+        ...listed,
+        ...(rest.some((cs) => cs.some((c) => !shown.has(c))) ? [COUNTRY_OTHERS] : []),
+        ...(rest.some((cs) => cs.length === 0) ? [COUNTRY_NOT_SET] : []),
+      ];
+    },
+    match: (item, active) => chipsOf(item).some((chip) => active.has(chip)),
+  };
+}
+
+/**
+ * The studio library's defs: entry type, rating, country, relation. `studios`
+ * is the list the library filters: which countries get a chip of their own is
+ * decided over it.
+ */
+export function studioFilterDefs(auth, { ownData = true, studios = [] } = {}) {
   return [
     mediaTypeDef(auth, STUDIO_MEDIA_TYPES, STUDIO_RESTRICTED_TYPES),
     ...(ownData ? [ratingDef] : []),
-    countryDef,
+    studioCountryDef(studios),
     studioRelationDef,
   ];
 }

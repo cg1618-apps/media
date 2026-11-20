@@ -17,8 +17,6 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 
-from app import models
-
 ROOT = Path(__file__).resolve().parents[2]
 REVISION = ROOT / "alembic" / "versions" / "c1o2untryopt3_country_common_options.py"
 
@@ -32,8 +30,17 @@ def revision():
 
 
 def _studio(db, name, country):
-    db.add(models.Studio(system_id=uuid.uuid4(), name_en=name, country=country))
-    db.flush()
+    """A studio in the shape this revision read: one `country` column.
+
+    The models now hold `countries` (revision s1c2ountries3), so the column
+    this revision seeds from is put back for the test's own transaction -
+    DDL is transactional in PostgreSQL, and the session's rollback removes it.
+    """
+    db.execute(text("ALTER TABLE studio ADD COLUMN IF NOT EXISTS country varchar"))
+    db.execute(
+        text("INSERT INTO studio (system_id, name_en, country) VALUES (:id, :name, :country)"),
+        {"id": uuid.uuid4(), "name": name, "country": country},
+    )
 
 
 def _countries(db):

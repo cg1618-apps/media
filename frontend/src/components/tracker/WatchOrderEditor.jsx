@@ -270,16 +270,18 @@ function ItemRow({
           </span>
         ) : (
           <>
-            <LazyImage
-              src={thumbUrl(getCoverUrl(item.cover_image_file))}
-              alt=""
+            <div className="w-9 h-12 shrink-0 overflow-hidden bg-surface-2 border border-border">
+              <LazyImage
+                src={thumbUrl(getCoverUrl(item.cover_image_file))}
+                alt=""
 
-              onError={(e) => {
-                e.currentTarget.src = FALLBACK_SVG;
-              }}
-              className="w-9 h-12 shrink-0 object-cover bg-surface-2 border border-border"
-              style={focusStyle(item.cover_image_focus)}
-            />
+                onError={(e) => {
+                  e.currentTarget.src = FALLBACK_SVG;
+                }}
+                className="h-full w-full object-cover"
+                style={focusStyle(item.cover_image_focus)}
+              />
+            </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-display font-bold text-text truncate">
                 {item.display_name}

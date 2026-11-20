@@ -45,8 +45,9 @@ class Media(Base):
 
     display_name = Column(String, nullable=False, index=True)
     cover_image_file = Column(String, nullable=True)
-    # The cover's focal point, "X% Y%" (integers 0-100), applied as CSS
-    # object-position where the cover is cropped. NULL centres it. It belongs
+    # The cover's focal point and zoom where it is cropped: "X% Y%" (integers
+    # 0-100), optionally followed by a zoom ("X% Y% 1.5") or "fit"; the grammar
+    # is app/schemas/image_focus.py. NULL centres it at zoom 1. It belongs
     # to the picture it was set on, so attaching, detaching or clearing the
     # cover resets it (app/routers/images.py, mirror_to_owner_column).
     cover_image_focus = Column(String, nullable=True)

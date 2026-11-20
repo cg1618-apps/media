@@ -1,7 +1,9 @@
-// Frontend: a studio's Country field suggests the "Country" common options
-// and still keeps whatever is typed.
+// Frontend: a studio's Countries field suggests the "Country" common options,
+// takes several, and still keeps whatever is typed. Suggestions only: no
+// chip row of quick picks.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import CountryInput from "./CountryInput";
@@ -44,28 +46,43 @@ function mount(props) {
 }
 
 describe("CountryInput", () => {
-  it("reads the Country common option category", async () => {
+  it("suggests the Country common option category", async () => {
     mockOptions(["Japan", "USA"]);
     mount();
-    await screen.findByRole("button", { name: "Japan" });
+    await userEvent.setup().click(screen.getByRole("combobox"));
+    expect(await screen.findByRole("option", { name: "Japan" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "USA" })).toBeInTheDocument();
     expect(String(fetch.mock.calls[0][0])).toBe("/api/options/Country");
   });
 
-  it("picks a common country with one click, and clears it with another", async () => {
+  it("draws no chip row of quick picks", async () => {
     mockOptions(["Japan", "USA"]);
-    const onValue = vi.fn();
-    mount({ onValue });
-    fireEvent.click(await screen.findByRole("button", { name: "Japan" }));
-    expect(screen.getByRole("combobox", { name: "Country" })).toHaveValue("Japan");
-    fireEvent.click(screen.getByRole("button", { name: "Japan" }));
-    expect(onValue).toHaveBeenLastCalledWith("");
+    mount();
+    await userEvent.setup().click(screen.getByRole("combobox"));
+    await screen.findByRole("option", { name: "Japan" });
+    expect(screen.queryByRole("group", { name: "Common countries" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Japan" })).toBeNull();
   });
 
-  it("keeps a country the list does not hold, as typed", async () => {
+  it("takes several common countries from the suggestions", async () => {
+    mockOptions(["Japan", "USA", "China"]);
+    const onValue = vi.fn();
+    mount({ onValue });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "Japan" }));
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "China" }));
+    expect(onValue).toHaveBeenLastCalledWith("Japan, China");
+  });
+
+  it("keeps a country the list does not hold, beside a common one", async () => {
     mockOptions(["Japan"]);
-    mount();
-    const field = screen.getByRole("combobox", { name: "Country" });
-    fireEvent.change(field, { target: { value: "Poland" } });
-    expect(field).toHaveValue("Poland");
+    const onValue = vi.fn();
+    mount({ initial: "Japan", onValue });
+    const user = userEvent.setup();
+    // The placeholder shows only while nothing is held, so the box is found by role.
+    await user.type(screen.getByRole("combobox"), "Poland{Enter}");
+    expect(onValue).toHaveBeenLastCalledWith("Japan, Poland");
   });
 });

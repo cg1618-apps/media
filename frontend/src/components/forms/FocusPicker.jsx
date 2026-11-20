@@ -1,24 +1,35 @@
-// Frontend: the modal that sets an image's focal point.
+// Frontend: the modal that sets an image's focal point and zoom.
 //
 // Images are drawn cropped (object-cover) almost everywhere, and a crop keeps
 // the centre unless it is told otherwise. This shows the WHOLE image with a
 // marker on the point that should stay in frame; a click or a drag on the
 // image moves it, and the arrow keys nudge it by 1% (10% with Shift) while the
-// marker has focus. Beside it, the image is previewed in the two frames it is
-// most often cropped to - a 2:3 portrait card and a square - so the effect is
-// visible before it is saved.
+// marker has focus. Below it, a zoom slider and +/- buttons zoom in about that
+// point (1 to 4), and "Fit whole image" zooms fully out: the whole picture,
+// letterboxed, with the point placing it between the bars. Zooming out from 1
+// is fit; zooming in from fit is 1. Beside it, the image is previewed through
+// focusStyle() in the two frames it is most often cropped to - a 2:3 portrait
+// card and a square - so the effect is visible before it is saved.
 //
-// The value is the string the API stores and CSS reads as object-position,
-// "X% Y%" (lib/covers.js parseFocus / formatFocus). The centre is null: Done
-// on a centred marker, or Reset to centre, hands back null.
+// The value is the string the API stores, "X% Y%", "X% Y% Z" or "X% Y% fit"
+// (lib/covers.js parseFocus / formatFocus). The centre at zoom 1 is null:
+// Done on it, or Reset to centre, hands back null.
 import { useEffect, useRef, useState } from "react";
 
-import { focusStyle, formatFocus, parseFocus } from "../../lib/covers";
+import {
+  MAX_ZOOM,
+  clampZoom,
+  focusStyle,
+  formatFocus,
+  parseFocus,
+} from "../../lib/covers";
 import { Button } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
 const NUDGE = 1;
 const NUDGE_SHIFT = 10;
+const ZOOM_STEP = 0.25;
+const SLIDER_STEP = 0.05;
 
 const ARROWS = {
   ArrowLeft: [-1, 0],
@@ -33,6 +44,7 @@ function clamp(n) {
 
 export default function FocusPicker({ src, focus, onDone, onCancel }) {
   const [point, setPoint] = useState(() => parseFocus(focus));
+  const { zoom, fit } = point;
   const frameRef = useRef(null);
   const dragging = useRef(false);
   const current = formatFocus(point);
@@ -62,17 +74,39 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
     e.preventDefault();
     dragging.current = true;
     e.currentTarget.setPointerCapture?.(e.pointerId);
-    setPoint(next);
+    setPoint((p) => ({ ...p, ...next }));
   }
 
   function handlePointerMove(e) {
     if (!dragging.current) return;
     const next = pointFromEvent(e);
-    if (next) setPoint(next);
+    if (next) setPoint((p) => ({ ...p, ...next }));
   }
 
   function endDrag() {
     dragging.current = false;
+  }
+
+  // The slider sets the zoom outright, which leaves fit.
+  function setZoom(z) {
+    setPoint((p) => ({ ...p, zoom: clampZoom(z), fit: false }));
+  }
+
+  function zoomIn() {
+    setPoint((p) =>
+      p.fit
+        ? { ...p, zoom: 1, fit: false }
+        : { ...p, zoom: clampZoom(p.zoom + ZOOM_STEP) },
+    );
+  }
+
+  // Zooming out past 1 is fit, the fully-zoomed-out end of the scale.
+  function zoomOut() {
+    setPoint((p) =>
+      p.zoom <= 1
+        ? { ...p, zoom: 1, fit: true }
+        : { ...p, zoom: clampZoom(p.zoom - ZOOM_STEP) },
+    );
   }
 
   function handleMarkerKey(e) {
@@ -81,6 +115,7 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
     e.preventDefault();
     const step = e.shiftKey ? NUDGE_SHIFT : NUDGE;
     setPoint((p) => ({
+      ...p,
       x: clamp(p.x + dir[0] * step),
       y: clamp(p.y + dir[1] * step),
     }));
@@ -112,7 +147,7 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
             id="focus-picker-title"
             className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted"
           >
-            Adjust position
+            Adjust position &amp; zoom
           </h3>
           <button
             type="button"
@@ -153,6 +188,47 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
             <p className="text-xs text-text-muted">
               Click or drag on the image to choose what stays in frame.
             </p>
+            <div className="flex w-full max-w-sm items-center gap-2">
+              <button
+                type="button"
+                onClick={zoomOut}
+                disabled={fit}
+                aria-label="Zoom out"
+                title="Zoom out"
+                className="px-1.5 py-1 text-text-faint hover:text-text disabled:opacity-40"
+              >
+                <i className="fas fa-minus"></i>
+              </button>
+              <input
+                type="range"
+                aria-label="Zoom"
+                min={1}
+                max={MAX_ZOOM}
+                step={SLIDER_STEP}
+                value={fit ? 1 : zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="min-w-0 flex-1 accent-brand"
+              />
+              <button
+                type="button"
+                onClick={zoomIn}
+                disabled={!fit && zoom >= MAX_ZOOM}
+                aria-label="Zoom in"
+                title="Zoom in"
+                className="px-1.5 py-1 text-text-faint hover:text-text disabled:opacity-40"
+              >
+                <i className="fas fa-plus"></i>
+              </button>
+              <Button
+                type="button"
+                kind={fit ? "primary" : "outline"}
+                size="sm"
+                aria-pressed={fit}
+                onClick={() => setPoint((p) => ({ ...p, zoom: 1, fit: true }))}
+              >
+                Fit whole image
+              </Button>
+            </div>
           </div>
 
           <div className="flex shrink-0 flex-row gap-4 sm:flex-col">
@@ -187,6 +263,7 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
               aria-live="polite"
             >
               {point.x}% {point.y}%
+              {fit ? " · fit" : zoom > 1 ? ` · ${zoom}×` : ""}
             </p>
           </div>
         </div>

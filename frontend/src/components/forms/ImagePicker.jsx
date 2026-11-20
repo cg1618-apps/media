@@ -28,9 +28,9 @@
 // (and `compact`) for good, and the key rides in the row's photo_file.
 //
 // The focal point (`focus` / `onFocusChange`) is optional: an owner image is
-// drawn cropped, and its focus - "X% Y%", see lib/covers.js - says which part
-// stays in frame. A caller that passes onFocusChange gets an "Adjust position"
-// control that opens FocusPicker. Picking, uploading or removing an image
+// drawn cropped, and its focus - see lib/covers.js - says which part stays in
+// frame and how far it is zoomed. A caller that passes onFocusChange gets an
+// "Adjust position & zoom" control that opens FocusPicker. Picking, uploading or removing an image
 // calls onFocusChange(null): a focus belongs to the picture it was set on, and
 // the server resets it on every attach and clear for the same reason - a form
 // that kept the old value would re-stamp it onto the new picture on save.
@@ -198,20 +198,24 @@ export default function ImagePicker({
       <div className="min-w-0">
         <div className="flex items-center gap-1">
           {value ? (
-            <LazyImage
-              src={previewUrl}
-              alt="Current image"
-              className="w-8 h-8 rounded object-cover shrink-0 border border-border"
-              style={focusStyle(focus)}
-            />
+            <span className="block w-8 h-8 shrink-0 overflow-hidden rounded border border-border">
+              <LazyImage
+                src={previewUrl}
+                alt="Current image"
+                className="h-full w-full object-cover"
+                style={focusStyle(focus)}
+              />
+            </span>
           ) : fallback?.file ? (
-            <LazyImage
-              src={getCoverUrl(fallback.file)}
-              alt="Fallback image"
-              title="None of its own - showing the one it falls back to"
-              className="w-8 h-8 rounded object-cover shrink-0 border border-dashed border-border opacity-50"
-              style={focusStyle(fallback.focus)}
-            />
+            <span className="block w-8 h-8 shrink-0 overflow-hidden rounded border border-dashed border-border opacity-50">
+              <LazyImage
+                src={getCoverUrl(fallback.file)}
+                alt="Fallback image"
+                title="None of its own - showing the one it falls back to"
+                className="h-full w-full object-cover"
+                style={focusStyle(fallback.focus)}
+              />
+            </span>
           ) : (
             <span className="w-8 h-8 rounded shrink-0 border border-dashed border-border" />
           )}
@@ -246,8 +250,8 @@ export default function ImagePicker({
               className={iconCls}
               disabled={busy}
               onClick={() => setFocusOpen(true)}
-              aria-label="Adjust position"
-              title="Adjust position"
+              aria-label="Adjust position & zoom"
+              title="Adjust position & zoom"
             >
               <i className="fas fa-crosshairs" />
             </button>
@@ -317,7 +321,7 @@ export default function ImagePicker({
             disabled={busy}
             onClick={() => setFocusOpen(true)}
           >
-            Adjust position
+            Adjust position &amp; zoom
           </Button>
         )}
 

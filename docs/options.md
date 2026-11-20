@@ -643,14 +643,37 @@ below) plus `Needs Work Note` and `Country`, and the sub-tab's picker groups the
 | Note Suggestion | `Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Side Quest Type`, `Geography Group` - what a game guide note field's `option_category` names (`NOTE_SUGGESTION_CATEGORIES` in `app/utils/note_sections.py`) |
 | Music | `Song Type`, `Song Source` - named by a music section's `kind_category` and `link_text_category` |
 | Needs Work | `Needs Work Note` - the 待補充 note's common values |
-| Studio | `Country` - a studio's common countries |
+| Studio & Publisher | `Country` - the common countries of a studio and of a publisher |
 
 The grouping is presentation (`TIER2_GROUPS` in
 `frontend/src/lib/optionsPageGroups.js`, the same groups the /options page
-reads); the set is the server's. Navigation only, like the Tags split.
-Derived from the registry, so a section that names a new category is a
-common option with no second edit. See
+reads); the set is the server's. Derived from the registry, so a section
+that names a new category is a common option with no second edit. See
 [systems/notes.md](systems/notes.md#suggestion-categories).
+
+### Common option scopes
+
+Unlike the Tags split, the Common Options one is not navigation only: a
+common option category owns its values' scope, so the Common Options
+sub-tab draws no **Scopes** picker on Add, and the Modify editor draws none
+for a common option. `COMMON_OPTION_SCOPES` (`app/utils/credit_roles.py`)
+gives each category the media types its field is read on - for a note
+category, the owners of the note sections that name it; for `Needs Work
+Note` (read on every type) and `Country` (a studio's or a publisher's, not
+a media type's), none:
+
+| Category | Scope a new value is given |
+|---|---|
+| `Song Type`, `Song Source` | `anime` |
+| the seven game guide categories | `game`, `h-game` |
+| `Needs Work Note`, `Country` | none (offered everywhere) |
+
+`POST /api/options` applies it whatever the body's `scopes` say, so the API
+rather than the form keeps a new `Song Type` from being offered on every
+type. `PUT` leaves a common option's scope rows as they are, including a
+row a seed gave it that the category would not (the game guide values
+seeded unscoped stay unscoped; a note field only asks for its category on
+the owner types its sections apply to, so the two read the same).
 
 `FILTER_ONLY_CATEGORIES`: `Franchise for Filter` and `Reference Source` (Tier
 2 categories with no `TagField` behind them — `Reference Source` instead
@@ -766,17 +789,17 @@ ones in `OPTION_CATEGORIES`:
 | `Character Appearance` | unscoped (every character) | character tag field `appearance`; admin-managed, ships empty, and a value typed into the character form creates itself |
 | `Character Trait` | unscoped (every character) | character tag field `trait`; admin-managed, ships empty, and a value typed into the character form creates itself |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
-| `Song Type` | anime | suggestions for the Song Type (`note.kind`) of an `op` or `ed` row; `normal`, `different version`, `all inclusive version` seeded by `m1s2ongstat3`. Suggestions only - a value not in the list is stored as typed |
-| `Song Source` | anime | suggestions for a song link's title (`text` of a titled link on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |
-| `Character Group` | unscoped (read by game and h-game notes) | suggestions for a 角色 Characters row's group (`characters_guide`, `note.kind`); `商人`, `重要NPC`, `主角`, `同伴`, `可攻略`, `反派` seeded by `n1o2tesrwk3`. Suggestions only |
-| `Collectible Type` | unscoped (read by game and h-game notes) | suggestions for a 收集物 Collectibles row's type (`collectibles`, `note.kind`); `重要物品` seeded by `n1o2tesrwk3`. Suggestions only |
-| `Item Type` | unscoped (read by game and h-game notes) | suggestions for a 道具 Items row's type (`items`, `note.kind`); `重要道具`, `任務道具` seeded by `n1o2tesrwk3`. Suggestions only |
-| `Weapon & Gear Type` | unscoped (read by game and h-game notes) | suggestions for a 武器&裝備 Weapons & Gear row's type (`weapons_and_gear`, `note.kind`); ships empty. Suggestions only |
-| `Enemy Tier` | unscoped (read by game and h-game notes) | suggestions for a 敵人 Enemies row's tier (`enemies`, `note.kind`); ships empty. Suggestions only |
-| `Side Quest Type` | unscoped (read by game and h-game notes) | suggestions for a 支線任務 Side Quests row's type (`side_quests`, `note.kind`); `大支線` and `小支線` seeded by `s1q2uests345`. Suggestions only |
-| `Geography Group` | unscoped (read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
+| `Song Type` | anime (`COMMON_OPTION_SCOPES`) | suggestions for the Song Type (`note.kind`) of an `op` or `ed` row; `normal`, `different version`, `all inclusive version` seeded by `m1s2ongstat3`. Suggestions only - a value not in the list is stored as typed |
+| `Song Source` | anime (`COMMON_OPTION_SCOPES`) | suggestions for a song link's title (`text` of a titled link on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |
+| `Character Group` | seeded values unscoped, a value added since `game`, `h-game` (`COMMON_OPTION_SCOPES`; read by game and h-game notes) | suggestions for a 角色 Characters row's group (`characters_guide`, `note.kind`); `商人`, `重要NPC`, `主角`, `同伴`, `可攻略`, `反派` seeded by `n1o2tesrwk3`. Suggestions only |
+| `Collectible Type` | seeded values unscoped, a value added since `game`, `h-game` (`COMMON_OPTION_SCOPES`; read by game and h-game notes) | suggestions for a 收集物 Collectibles row's type (`collectibles`, `note.kind`); `重要物品` seeded by `n1o2tesrwk3`. Suggestions only |
+| `Item Type` | seeded values unscoped, a value added since `game`, `h-game` (`COMMON_OPTION_SCOPES`; read by game and h-game notes) | suggestions for a 道具 Items row's type (`items`, `note.kind`); `重要道具`, `任務道具` seeded by `n1o2tesrwk3`. Suggestions only |
+| `Weapon & Gear Type` | seeded values unscoped, a value added since `game`, `h-game` (`COMMON_OPTION_SCOPES`; read by game and h-game notes) | suggestions for a 武器&裝備 Weapons & Gear row's type (`weapons_and_gear`, `note.kind`); ships empty. Suggestions only |
+| `Enemy Tier` | seeded values unscoped, a value added since `game`, `h-game` (`COMMON_OPTION_SCOPES`; read by game and h-game notes) | suggestions for a 敵人 Enemies row's tier (`enemies`, `note.kind`); ships empty. Suggestions only |
+| `Side Quest Type` | seeded values unscoped, a value added since `game`, `h-game` (`COMMON_OPTION_SCOPES`; read by game and h-game notes) | suggestions for a 支線任務 Side Quests row's type (`side_quests`, `note.kind`); `大支線` and `小支線` seeded by `s1q2uests345`. Suggestions only |
+| `Geography Group` | seeded values unscoped, a value added since `game`, `h-game` (`COMMON_OPTION_SCOPES`; read by game and h-game notes) | suggestions for a 地理 Geography row's group (`geography`, `note.kind`); ships empty. Suggestions only |
 | `Needs Work Note` | unscoped (read by the 待補充 note field) | the common notes a 待補充 Needs Work mark is given (`NEEDS_WORK_NOTE_CATEGORY`, `app/utils/credit_roles.py`): one-click picks beside the note field on Add, Modify, the detail page badge and the Needs Work page, and the field's only suggestions - the notes other marks carry are not offered; ships empty. A common option: suggestions only - the note is free text and a value not in the list is stored as typed, never added to it |
-| `Country` | unscoped (read by the studio Country field) | a studio's common countries (`COUNTRY_CATEGORY`, `app/utils/credit_roles.py`): one-click picks beside the Country field on the studio Add and Modify tabs, and the field's suggestions; seeded by `c1o2untryopt3` with every distinct country a studio already held, most-used first. A common option: suggestions only - a country not in the list is stored as typed, never added to it |
+| `Country` | unscoped (read by the studio Countries field and the publisher Country field) | the common countries of a studio and of a publisher (`COUNTRY_CATEGORY`, `app/utils/credit_roles.py`): the typing suggestions of the Countries field on the studio Add and Modify tabs and of the single Country field on the publisher Add and Modify tabs, with no chip picks; seeded by `c1o2untryopt3` with every distinct country a studio already held, most-used first. A common option: suggestions only - a country not in the list is stored as typed, never added to it |
 
 **h-comic has Platform values of its own**, scoped to `h-comic` alone and
 split by usage (migration `h5c6malsrc7`). The regional storefronts an
@@ -972,11 +995,14 @@ the key of the Add and Modify forms where an option is written, which `super`
 holds and the admin does not. `manage.options`, the Note pages' key, opens
 only reads. Add and update reject an exact
 `(category, value)` duplicate (`uq_system_option_value`); update replaces the
-scope, usage and alias lists wholesale with the ones in the payload; delete logs a tombstone to
+scope, usage and alias lists wholesale with the ones in the payload (a common
+option keeps its scope rows, see [Common option scopes](#common-option-scopes)); delete logs a tombstone to
 `deleted_record` under type `System Options` and cascades to the scope rows.
 Scopes are edited under System → System Option on Add / Modify
-(`frontend/src/components/forms/ScopePicker.jsx`, used by `OptionsAddTab.jsx`),
-alongside `UsagePicker.jsx` and `AliasPicker.jsx`. Those pages ask
+(`frontend/src/components/forms/ScopePicker.jsx`, used by `OptionsAddTab.jsx`
+and `OptionsModifyTab.jsx`), alongside `UsagePicker.jsx` and `AliasPicker.jsx`,
+for every category but a common option, whose scope is its category's (see
+[Common option scopes](#common-option-scopes)). Those pages ask
 `manage.catalog`, the same key the writes do; the admin's Note pages are
 read-only.
 

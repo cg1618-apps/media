@@ -45,7 +45,7 @@ describe("DefaultsTab", () => {
     // dashes is noise on a tab where auto-fill does not exist at all.
     expect(screen.queryAllByText("—")).toHaveLength(0);
     // The fields themselves still render.
-    expect(screen.getByText("Country")).toBeInTheDocument();
+    expect(screen.getByText("Countries")).toBeInTheDocument();
   });
 
   it("edits the sources default with the same editor the Add form uses", () => {

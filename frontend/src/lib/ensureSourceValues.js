@@ -4,6 +4,8 @@
 // is an entity with a profile and a genre is a vocabulary value. Used by
 // both Add.jsx and Modify.jsx, which differ only in what they do with the
 // refreshed sources bag afterward (both re-fetch via fetchAllSources()).
+// A pick-only field (a game's developer and publisher) is never handed to
+// ensureSourceValues: pickOnlyRefusal checks it instead.
 import { endpoints } from "../api/endpoints";
 import { getSourceValues } from "./formatters";
 
@@ -21,6 +23,29 @@ export function computeMissingSourceValues(fields, sources) {
     }
   }
   return toCreate;
+}
+
+/**
+ * Pure: the refusal for pick-only fields - fields whose values must already
+ * exist and are never created here, like a game's developer and publisher.
+ * `fields` is [{source, values, label, tab}], `tab` naming the Add tab the
+ * entity is made from. Returns the message naming every value that matches
+ * nothing, or null when all of them exist. Checked before anything is
+ * saved, so a refusal leaves the catalogue untouched.
+ */
+export function pickOnlyRefusal(fields, sources) {
+  const problems = (fields || []).flatMap((field) => {
+    const missing = computeMissingSourceValues([field], sources);
+    return missing.length === 0
+      ? []
+      : [
+          `${field.label} ${missing.map((m) => `"${m.value}"`).join(", ")} ` +
+            `- add it on the ${field.tab} tab first`,
+        ];
+  });
+  return problems.length === 0
+    ? null
+    : `Not saved. Pick an existing value: ${problems.join("; ")}.`;
 }
 
 /**

@@ -8,6 +8,7 @@ import UsagePicker, {
   categoryHasUsages,
 } from "../../components/forms/UsagePicker";
 import { MEDIA_TYPES } from "../../config/fieldOptions";
+import { isCommonOptionCategory } from "../../lib/optionCategoryGroups";
 
 export default function OptionsModifyTab({
   editingItem,
@@ -38,12 +39,17 @@ export default function OptionsModifyTab({
         />
       </Field>
       {/* The only place an existing value's scopes can be repaired by hand.
-          Nothing derives them any more (Ruling R27). */}
-      <ScopePicker
-        scopes={optScopes}
-        setScopes={setOptScopes}
-        mediaTypes={MEDIA_TYPES}
-      />
+          Nothing derives them any more (Ruling R27). Not for a common
+          option: its scope is its category's (COMMON_OPTION_SCOPES in
+          app/utils/credit_roles.py), and the API leaves it untouched on
+          update. */}
+      {!isCommonOptionCategory(editingItem.category) && (
+        <ScopePicker
+          scopes={optScopes}
+          setScopes={setOptScopes}
+          mediaTypes={MEDIA_TYPES}
+        />
+      )}
       {/* Shown only on Platform (USAGE_CATEGORIES), the one category whose
           values feed both Main Sources and Official Source. */}
       {categoryHasUsages(editingItem.category) && (

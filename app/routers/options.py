@@ -27,6 +27,7 @@ from app.services.rbac.shared_visibility import (
     hidden_scopes,
     require_visible_shared,
 )
+from app.utils.credit_roles import COMMON_OPTION_SCOPES
 from app.utils.data_control_utils import log_deleted_record
 
 logger = logging.getLogger(__name__)
@@ -249,9 +250,11 @@ def add_system_option(
         sort_order=payload.sort_order,
         remark=payload.remark,
     )
-    new_option.scopes = [
-        models.SystemOptionScope(scope=s) for s in payload.scopes
-    ]
+    # A common option's scope is its category's (COMMON_OPTION_SCOPES), never
+    # the payload's: the form shows no scope picker for one, and a value with
+    # no scope rows would be offered on every type.
+    scopes = COMMON_OPTION_SCOPES.get(payload.category, payload.scopes)
+    new_option.scopes = [models.SystemOptionScope(scope=s) for s in scopes]
     new_option.usages = [
         models.SystemOptionUsage(usage=u) for u in payload.usages
     ]
@@ -306,6 +309,13 @@ def update_system_option(
     if duplicate_check:
         raise HTTPException(status_code=400, detail="This exact option already exists.")
 
+    # A common option keeps the scope rows it has: the Modify form shows no
+    # scope picker for one, so the payload's scopes say nothing. A value moved
+    # INTO a common category from another takes that category's scope.
+    common_scopes = COMMON_OPTION_SCOPES.get(payload.category)
+    keep_scopes = common_scopes is not None and db_option.category == payload.category
+    new_scopes = payload.scopes if common_scopes is None else common_scopes
+
     db_option.category = payload.category
     db_option.value = payload.value
     db_option.sort_order = payload.sort_order
@@ -329,15 +339,16 @@ def update_system_option(
     #
     # A scope naming a gated type this editor cannot see is kept: the form
     # never showed it, so its absence from the payload is not a removal.
-    hidden = hidden_scopes(db, admin)
-    replaced = db.query(models.SystemOptionScope).filter_by(option_id=option_id)
-    if hidden:
-        replaced = replaced.filter(models.SystemOptionScope.scope.notin_(hidden))
-    replaced.delete(synchronize_session=False)
-    for scope in payload.scopes:
-        if scope in hidden:
-            continue
-        db.add(models.SystemOptionScope(option_id=option_id, scope=scope))
+    if not keep_scopes:
+        hidden = hidden_scopes(db, admin)
+        replaced = db.query(models.SystemOptionScope).filter_by(option_id=option_id)
+        if hidden:
+            replaced = replaced.filter(models.SystemOptionScope.scope.notin_(hidden))
+        replaced.delete(synchronize_session=False)
+        for scope in new_scopes:
+            if scope in hidden:
+                continue
+            db.add(models.SystemOptionScope(option_id=option_id, scope=scope))
 
     db.query(models.SystemOptionUsage).filter_by(option_id=option_id).delete(
         synchronize_session=False

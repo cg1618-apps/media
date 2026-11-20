@@ -35,6 +35,7 @@ import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
+import { formatCountries } from "../../lib/countries";
 
 // "founded – defunct", or "Since founded" while the studio is still working.
 // Both empty means the row is dropped entirely rather than shown as a dash.
@@ -114,7 +115,7 @@ export default function Studio() {
     );
   }
 
-  const logoUrl = getCoverUrl(studio.logo_file);
+  const logoUrl = getCoverUrl(studio.display_logo_file ?? studio.logo_file);
   const span = lifespan(studio);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
@@ -170,7 +171,7 @@ export default function Studio() {
                 src={logoUrl}
                 alt={`${name} logo`}
                 className="w-full h-full object-cover"
-                style={focusStyle(studio.logo_focus)}
+                style={focusStyle(studio.display_logo_focus ?? studio.logo_focus)}
                 onError={(e) => {
                   e.target.src = FALLBACK_SVG;
                 }}
@@ -213,7 +214,7 @@ export default function Studio() {
             title="Profile"
             fields={[
               [
-                { label: "Country", value: studio.country },
+                { label: "Countries", value: formatCountries(studio.countries) },
                 { label: "Active", value: span },
               ],
               [

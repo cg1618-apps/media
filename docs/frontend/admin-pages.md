@@ -270,9 +270,9 @@ submit handlers and the shared modals.
 
 **Every image has a focal point.** Each entry, person, character, studio and
 publisher form's `ImagePicker` carries the image's focus beside its key
-(`cover_image_focus`, `photo_focus`, `logo_focus`), so **Adjust position**
-opens `FocusPicker` and the chosen `"X% Y%"` is saved with the rest of the
-form, on Add as on `/modify`. Picking, uploading or removing an image clears
+(`cover_image_focus`, `photo_focus`, `logo_focus`), so **Adjust position &
+zoom** opens `FocusPicker` and the chosen point, zoom or fit is saved with
+the rest of the form, on Add as on `/modify`. Picking, uploading or removing an image clears
 it to null in the form, matching the server, which resets the focus whenever
 an owner's picture changes. A cast row's photo has its own `photo_focus` the
 same way.
@@ -708,12 +708,19 @@ status, release date, current patch, the three HLTB tiers and the platform,
 mode and combat vocabularies - picking a platform console picks its family
 too, and a family stays picked while one of its consoles is
 (`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
-is a **studio** row, Publisher a **publisher** row; director and composer are
-people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; **Cast** (`CastEditor`
+is a **studio** row, Publisher a **publisher** row offered from the
+`game`-scoped list, both **picked, never created here** - the field has no
+add row, and a new company is made on the Studio or Publisher tab first;
+director and composer are people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; **Cast** (`CastEditor`
 with `mediaType="game"`, seiyuu included - and no `franchiseId` or `malLink`,
 so neither **Import cast from…** nor the MAL import is offered; **Sync from
 original** is); the IGDB and Steam
-ids and links with the sources; cover. Submit needs a CN or EN name, `POST /api/game/` then
+ids and links with the sources; cover. Submit needs a CN or EN name, and is
+refused before anything is written - a new franchise included - while the
+Developer or Publisher names a value that is not an existing row
+(`pickOnlyRefusal` over `gamePickOnlyFields`, `lib/gameForm.js`; the toast
+names each value and the tab to add it on); it then quick-creates the other
+credit and tag values (`gameSourceFields`), `POST /api/game/` then
 `saveCredits` and the cast (`PUT /api/casting/game/<id>`); **games are never enriched on Add** — the toast is a plain "Game
 appended successfully."
 
@@ -961,13 +968,17 @@ sub-tab, whose categories are one group — renders flat rather than under a
 heading repeating the sub-tab's own name. The Common Options sub-tab's picker
 reads as four groups: **Note Suggestion** (the seven game guide
 categories), **Music** (`Song Type`, `Song Source`), **Needs Work**
-(`Needs Work Note`) and **Studio** (`Country`).
+(`Needs Work Note`) and **Studio & Publisher** (`Country`). The sub-tab's
+form has no **Scopes** picker on Add, and the Modify editor has none for a
+common option: a common option's scope is its category's
+(`COMMON_OPTION_SCOPES`, see [options.md](../options.md)), which the API
+applies on create and leaves untouched on update.
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
-to show, plus logo key, country (`CountryInput`: the `Country` common
-options as one-click chips above a `SuggestInput` offering the same values; a
-country not in the list is stored as typed and never added to it), founded/defunct dates
+to show, plus logo key, countries (`CountryInput`: any number, a `MultiSelect`
+suggesting the `Country` common options as it is typed into; a country not
+in the list is kept as typed and never added to it), founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
 and remark, with **My Rating** above it for a list keeper (see "The viewer's
 own rating" above). Submit is blocked client-side until at least one name is filled,
@@ -982,8 +993,10 @@ studio tab and split the same way (`PublisherFields` exported beside the page
 wrapper, so `PublisherModifyTab` renders the identical inputs). Same four name
 fields with the "Display name" select — it is the third consumer of the shared
 `STUDIO_NAME_FIELDS` list in `lib/naming.js`, after studio and person — plus
-logo key, country, founded/defunct `ReleaseDateInput`s, website and
-remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
+logo key, country (one, free text: a `SuggestInput` suggesting the
+`Country` common options the studio Countries field reads, with no chip
+picks; what is typed is stored, and never added to the list),
+founded/defunct `ReleaseDateInput`s, website and remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
 carries no MAL columns, because MAL has no record of a games publisher or a
 Taiwanese distributor. Submit is blocked until at least one name is filled,
 matching `ck_publisher_has_a_name`. Below the name fields sits
@@ -1142,7 +1155,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   form layout" under /add); besides the entry's id it passes `excludeGameId`,
   which drops the row being edited from its own Base Game picker. The Modify
   tab has **no IGDB search box** — identification happens once, on Add — and
-  it saves with `PATCH /api/game/{id}`, without enrichment.
+  it saves with `PATCH /api/game/{id}`, without enrichment, under the Add
+  tab's pick-only rule for Developer and Publisher.
 - **H-Comic tab.** `HComicModifyTab.jsx` renders `HComicAddTab`'s exported
   `HComicRegionField`, `HComicLineageFields` and `HComicFormBody`, the game
   pattern. It loads the cast like the other cast-carrying tabs, and saves with
@@ -1201,8 +1215,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   **scope chips** (`ScopeChips`) over the media types the studios are
   credited on — a studio stores no scope, so its `media_types` stand in — and
   they narrow the grid the way the person tab's do. The editor shows the
-  stored record as it is: an unset `country` opens empty and saves as
-  `null`, so clearing the field is how a country is unset. No value is
+  stored record as it is: a studio with no `countries` opens empty and saves
+  `null`, so removing every country is how they are unset. No value is
   seeded on load, because a seed cannot be told apart from a stored value
   and would be written back on the next save of any field.
 - **Publisher tab (Entity).** `PublisherModifyTab.jsx`, self-contained the

@@ -168,9 +168,15 @@ counts). `h1` is display by default.
    cover, a person's or character's photo, a studio's or publisher's logo, a
    cast photo - is drawn cropped with `object-cover`, which shows the centre
    unless told otherwise. Each one carries a focus (`cover_image_focus`,
-   `photo_focus`, `logo_focus`, `display_photo_focus`: `"X% Y%"`, null for
-   centred), and every cropped render applies it with
-   `style={focusStyle(focus)}` from `lib/covers.js`. A group's cover is
+   `photo_focus`, `logo_focus`, `display_photo_focus`, `display_logo_focus`:
+   `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`), null for centred), and every cropped render applies it with
+   `style={focusStyle(focus)}` from `lib/covers.js`, the one place the value
+   becomes CSS: `object-position` for the point, a `scale()` about that point
+   for a zoom, and `object-fit: contain` on the `--color-surface-2` inset
+   colour for fit. Because a zoom scales the image, every focused image
+   fills (`w-full h-full`) a frame of its own that is `overflow-hidden`; an
+   image sized as its own frame would spill over its neighbours, so it is
+   wrapped in one instead. A group's cover is
    borrowed from an entry, so the group resolvers return `{ url, focus }` and
    the borrowed focus travels with the URL. An image with `object-cover`
    that is not an owner's image says so with `data-focus="none"`: the image
@@ -180,7 +186,7 @@ counts). `h1` is display by default.
    stored at all. One owner's image keeps no focus either: a book unit's
    cover (`UnitCoverThumb`), drawn only as a small thumbnail beside the
    unit's name, where `book_unit` has no focus column to aim it, and so it
-   too says `data-focus="none"`. `src/focus-images.test.js` guards this. Quote and meme
+   too says `data-focus="none"`. `src/focus-images.test.js` guards both the focus and the clipping frame. Quote and meme
    images are drawn uncropped, so they carry no focus.
 10. **Entry forms follow the detail page.** Every media type's Add and Modify
     form is one shared body, with its sections in the order the detail page

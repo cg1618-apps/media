@@ -1176,7 +1176,7 @@ One human credited on a media entry (Tier 3 entity - see
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `gender` | String | yes | | PERSON_GENDERS (`男` / `女`), or NULL for not set — narrower than a character's GENDERS. On the base table, not a seiyuu extension: a fact about the person, not the role. |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for a seiyuu with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data) |
-| `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
+| `photo_focus` | String | yes | | `photo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | A real column here (not a note row) |
 | `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Seiyuu Fill, or typed directly. Held by any person; only a person holding the `seiyuu` role is ever filled from it |
@@ -1290,11 +1290,11 @@ every type it applies to is not wrong in the way a distributor list offering
 | `name_en` | String | yes | | Indexed |
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `logo_file` | String | yes | | Storage key under `static/covers/`, `studio/<system_id>.jpg`. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data) |
-| `logo_focus` | String | yes | | `logo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
+| `logo_file` | String | yes | | Storage key under `static/covers/`, `studio/<system_id>.jpg`. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data). When NULL, readers show a visible credited entry's cover instead (`display_logo_file`, resolved at read time - [systems/credits-and-tags.md](systems/credits-and-tags.md#logo-fallback)) |
+| `logo_focus` | String | yes | | `logo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
-| `country` | String | yes | | |
+| `countries` | JSONB | yes | | Every country the studio is from, a list of free-text names in the order given; NULL when none is known, never `[]`. Each name trimmed, blanks and repeats dropped (`app/utils/countries.py`). Suggested from the `Country` common options, never added to them. The Studio sheet tab carries it as a JSON list; a backup from before a studio could name several carries one value under the old `country` header, which Pull reads as a one-name list |
 | `website_url` | String | yes | | |
 | `mal_id` | Integer | yes | | MAL producer id. Derived from `mal_link` by `extract_mal_id_producer` on write and on Fill, or typed directly. Setting it is what makes a studio fillable |
 | `mal_link` | String | yes | | |
@@ -1348,11 +1348,11 @@ mean something vaguer than it does.
 | `name_en` | String | yes | | Indexed |
 | `name_cn` / `name_jp` / `name_alt` | String | yes | | |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `logo_file` | String | yes | | Storage key under `static/covers/`, `publisher/<system_id>.jpg`. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor |
-| `logo_focus` | String | yes | | `logo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
+| `logo_file` | String | yes | | Storage key under `static/covers/`, `publisher/<system_id>.jpg`. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor. When NULL, readers show a visible credited entry's cover instead (`display_logo_file` - [systems/credits-and-tags.md](systems/credits-and-tags.md#logo-fallback)) |
+| `logo_focus` | String | yes | | `logo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
-| `country` | String | yes | | |
+| `country` | String | yes | | One free-text country, suggested from the `Country` common options, never added to them |
 | `website_url` | String | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -1445,7 +1445,7 @@ with one intentional deviation - see the constraints note below.
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain. NULL becomes `cn` on save and in Calculate All while `name_cn` is filled ([business-rules.md](business-rules.md) §10a) |
 | `gender` | String | yes | | GENDERS (`男` / `女` / `中性/無性` / `雙性混和` / `其他`), or NULL for not set - wider than `person.gender`, which is `男` / `女` only |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character/<system_id>.jpg`; the canonical portrait. A casting may override it with its own `photo_file` for how the character looked in that entry. Filled from MAL's character picture for a character with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-character--map_tenrai_to_character_data) |
-| `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
+| `photo_focus` | String | yes | | `photo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. While NULL it is filled from the highest-ranked `character_casting.role` (`CHARACTER_ROLES` order) on each cast save and by Calculate All; a set value is never overwritten |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose picture stands in when `photo_file` is NULL; must be an entry the character is cast on. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | |
@@ -1519,7 +1519,7 @@ never held twice.
 | `remark` | Text | yes | | |
 | `first_mention` / `first_appearance` / `first_encounter` | Text | yes | | As on `character`, and the identity's own: NULL means unrecorded, never the character's |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character-identity/<system_id>.jpg` (hyphenated, like the owner type). NULL shows the character's displayed picture |
-| `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Reset when the photo changes - see [image focal points](#image-focal-points) |
+| `photo_focus` | String | yes | | `photo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset when the photo changes - see [image focal points](#image-focal-points) |
 | `position` | Integer | no | `0` (server default too) | Order on the character page and in `CharacterResponse.identities`. A create takes the character's highest position plus one |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -1567,7 +1567,7 @@ the casting, because one character may have several seiyuu in one entry.
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES` (`Main`, `Core`, `Important Supporting`, `Supporting`, `Other`), or NULL for no role recorded - what the character is in this entry. A blank value from the API or a Sheets cell is stored as NULL. Fills a NULL `character.role`; never written from it |
 | `position` | Integer | no | `0` (server default too) | Display / drag-reorder order |
 | `photo_file` | String | yes | | Storage key: this character as she appears in this entry, usually a library image (`library/<checksum>.jpg`) set through the cast editor's picker. NULL stays NULL in the row; readers display the row's identity's `photo_file` when it names one with a photo, then `character.photo_file` (the cast response's `display_photo_file`, resolved at read time). Not an attachment - castings are re-inserted on every cast save, so their ids cannot own one - so the image library reads this column itself when it asks whether an image is in use. |
-| `photo_focus` | String | yes | | `photo_file`'s focal point, `"X% Y%"`; NULL centres it. Written by the cast save with the photo. Displayed with the photo: a casting with no `photo_file` is shown with the focus of the identity's or character's photo that stands in for it (`display_photo_focus`). A forced image delete that NULLs `photo_file` NULLs this too |
+| `photo_focus` | String | yes | | `photo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Written by the cast save with the photo. Displayed with the photo: a casting with no `photo_file` is shown with the focus of the identity's or character's photo that stands in for it (`display_photo_focus`). A forced image delete that NULLs `photo_file` NULLs this too |
 | `credited_name` | String | yes | | The name the character goes by in **this** entry, when it is not its own (or its identity's) - free text. NULL is no override; the cast save trims it and stores a blank one as NULL. Readers show it as the row's name, with the identity's or character's own name beneath it, and as "as …" on the character's and the identity's appearances. Written only by the cast editor's save: Calculate's cast sync, MAL cast import and Sync from original never write it. Character merge and identity fold carry it with the casting, and a casting absorbed into another fills a blank one |
 | `remark` | Text | yes | | |
 | `created_at` | DateTime | yes | now | No `updated_at` |
@@ -2013,7 +2013,7 @@ still editable, and the API stops taking uploads for it.
 
 Covers, photos and logos are drawn cropped (CSS `object-fit: cover`), which
 shows the middle of the picture. A focal point says where to aim the crop
-instead. It is stored beside the image column it qualifies, named by
+instead, and how far to zoom. It is stored beside the image column it qualifies, named by
 replacing `_file` with `_focus`:
 
 | Image column | Focus column |
@@ -2022,12 +2022,23 @@ replacing `_file` with `_focus`:
 | `person.photo_file`, `character.photo_file`, `character_casting.photo_file` | `photo_focus` on the same table |
 | `studio.logo_file`, `publisher.logo_file` | `logo_focus` on the same table |
 
-- **Value.** The CSS `object-position` the SPA applies verbatim: `"X% Y%"`,
-  each a whole number 0-100 (`"50% 20%"`). One Pydantic type,
+- **Value.** One of three forms, X and Y each a whole number 0-100:
+  - `"X% Y%"` fills the frame aimed at that point (`"50% 20%"`), applied as
+    the CSS `object-position`.
+  - `"X% Y% Z"` is the same zoomed in by Z, above 1 and at most 4, with at
+    most two decimals and no trailing zeros (`"50% 20% 1.5"`, `"30% 15%
+    2.25"`). Zoom 1 is written by leaving Z out, so an explicit `1` is
+    refused.
+  - `"X% Y% fit"` shows the whole picture, letterboxed, placed at X% Y%
+    between the bars.
+
+  The SPA turns the value into CSS in one place, `focusStyle` in
+  `frontend/src/lib/covers.js`. One Pydantic type,
   `ImageFocus` in `app/schemas/image_focus.py`, validates it on every write
   schema, on entity PATCH and on entry PATCH (`_patch_cover_focus` in
   `app/routers/_factory.py`); an empty string is stored as NULL.
-- **NULL means centred**, the default for every image.
+- **NULL means centred at zoom 1**, the default for every image. A fit focus
+  is never NULL: a centred fit is `"50% 50% fit"`.
 - **It belongs to the picture it was set on.** `mirror_to_owner_column` in
   `app/routers/images.py` is the one place an owner's image key is written
   (attach, detach, clear, forced delete); whenever it changes the key it sets
@@ -2763,7 +2774,7 @@ pair, and so the fields all twelve types share can be queried in one place.
 | `public_id` | Integer | no | The entry's id, drawn from that type's own `<table>_public_id_seq` - numbering stays per type |
 | `display_name` | String | no | Derived, see below |
 | `cover_image_file` | String | yes | |
-| `cover_image_focus` | String | yes | `cover_image_file`'s focal point, `"X% Y%"`; NULL centres it. Reset to NULL when the cover changes — see [image focal points](#image-focal-points) |
+| `cover_image_focus` | String | yes | `cover_image_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the cover changes — see [image focal points](#image-focal-points) |
 | `franchise_id` | UUID | yes | FK `franchise.system_id` ON DELETE SET NULL |
 | `series_id` | UUID | yes | FK `series.system_id` ON DELETE SET NULL - always NULL for `anime-movie` |
 | `created_at` / `updated_at` | DateTime | yes | |

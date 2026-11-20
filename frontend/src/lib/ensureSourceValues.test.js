@@ -4,6 +4,7 @@ import {
   buildCreateRequest,
   ensureSourceValues,
   findOutOfScopeOption,
+  pickOnlyRefusal,
 } from "./ensureSourceValues";
 
 const sources = {
@@ -276,5 +277,46 @@ describe("scope widening for an option scoped elsewhere", () => {
       value: "新類型",
       scopes: ["movie"],
     });
+  });
+});
+
+describe("pickOnlyRefusal", () => {
+  // A known studio and a game publisher exist beside the unknown names, so a
+  // refusal proves each value was checked, not that the lists were empty.
+  const bag = {
+    studios: [{ system_id: "s1", display_name: "FromSoftware" }],
+    publishers: {
+      game: [{ system_id: "p1", display_name: "Bandai Namco" }],
+      manga: [{ system_id: "p2", display_name: "Kadokawa" }],
+    },
+  };
+  const fields = (studios, publishers) => [
+    { source: { kind: "studio" }, values: studios, label: "Developer", tab: "Studio" },
+    {
+      source: { kind: "publisher", scope: "game" },
+      values: publishers,
+      label: "Publisher",
+      tab: "Publisher",
+    },
+  ];
+
+  it("is null when every value is an existing row", () => {
+    expect(pickOnlyRefusal(fields(["FromSoftware"], ["Bandai Namco"]), bag)).toBeNull();
+  });
+
+  it("names every value that matches nothing, and only those", () => {
+    const message = pickOnlyRefusal(
+      fields(["FromSoftware", "Zvornik Dev"], ["Bandai Namco", "Zvornik Pub"]),
+      bag,
+    );
+    expect(message).toContain('Developer "Zvornik Dev"');
+    expect(message).toContain("Studio tab");
+    expect(message).toContain('Publisher "Zvornik Pub"');
+    expect(message).not.toContain("FromSoftware");
+    expect(message).not.toContain("Bandai Namco");
+  });
+
+  it("refuses a publisher offered on another type only", () => {
+    expect(pickOnlyRefusal(fields([], ["Kadokawa"]), bag)).toContain('"Kadokawa"');
   });
 });

@@ -20,7 +20,13 @@ export function pickValue(value, option) {
   return value === option ? "" : option;
 }
 
-export default function QuickPicks({ options, value, onChange, label, className = "" }) {
+export default function QuickPicks({
+  options,
+  value,
+  onChange,
+  label,
+  className = "",
+}) {
   return (
     <div
       className={`flex flex-wrap items-center gap-1.5 ${className}`.trim()}

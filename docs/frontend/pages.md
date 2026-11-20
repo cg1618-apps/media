@@ -765,7 +765,7 @@ alongside `CollectionLibrary`, `FranchiseLibrary` and `SeriesLibrary`; its route
 before `/library/:type` so the generic library page never claims it.
 
 Raw `fetch` of `/api/studio/` alone — the response already carries
-`display_name`, `credit_count`, `logo_file`, `country`, `my_rating` and
+`display_name`, `credit_count`, `logo_file`, `display_logo_file`, `countries`, `my_rating` and
 `media_types`, so no per-studio request and no entry lists are needed, and
 every filter runs client-side. Search runs over **all four** name fields
 (`STUDIO_NAME_FIELDS`), not just the displayed one, so typing "Kyoto
@@ -785,8 +785,12 @@ toggles a `FilterPanel` over `studioFilterDefs(auth)` from
 - **My Rating** — `MY_RATINGS` plus Unrated (null), the viewer's own
   rating; only for a holder of `self.list` (`studioFilterDefs(auth,
   { ownData })`).
-- **Country** — the countries the loaded studios carry, sorted, plus Not set
-  when one has none.
+- **Country** — a chip for each country more than five of the loaded studios
+  name (a studio naming several counts for each), the most-named first and
+  ties by name; then **Others**, for a studio naming any country without a
+  chip of its own, and **Not set**, for one naming none, each only when a
+  studio needs it. A studio matches every chip one of its countries falls
+  under, so one from Japan and Poland is found under Japan and under Others.
 - **Relation** — Has relation / No relation, off `has_relations`, which
   counts only related studios the viewer may see.
 
@@ -800,7 +804,8 @@ state is off the default, puts the default back. The empty state's **show
 everything** link clears the search and every filter.
 
 Each `StudioCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
-shows the logo with the `my_rating` stamp in its corner (none when unrated),
+shows the logo — `display_logo_file`, the studio's own or else the newest
+visible credited entry's cover, falling back to `logo_file` — with the `my_rating` stamp in its corner (none when unrated),
 the display name and the credit count, and links to `/studio/:system_id`.
 
 ### PublisherLibrary — `/library/publisher`
@@ -832,11 +837,13 @@ offers the six publisher types — anime, anime movie, manga, book, comic,
 game — and No entries, with no Restricted parent (no publisher type is
 gated), and matches `media_types` **or** `scopes`: a publisher offered on
 manga but not yet credited on one is still found under Manga. No entries
-still means no visible credits, whatever the scopes. **My Rating** and
-**Country** are the studio library's.
+still means no visible credits, whatever the scopes. **My Rating** is the
+studio library's. **Country** is simpler than the studio one, because a
+publisher names one country: every country on record, sorted, plus Not set
+when a publisher has none.
 
 Each `PublisherCard` (`components/cards/StaffCard.jsx`, beside `StudioCard`)
-shows the logo with the `my_rating` stamp in its corner (none when unrated),
+shows the logo — `display_logo_file`, as on `StudioCard` — with the `my_rating` stamp in its corner (none when unrated),
 the display name and the credit count, and links to `/publisher/:system_id`.
 
 ### PersonLibrary — `/library/person`
@@ -1147,14 +1154,16 @@ Layout:
    `/modify?id=<system_id>&type=studio`, and **Autofill & update** for a
    studio with a MAL link (`POST /api/studio/{system_id}/autofill`, as on the
    person page: blank columns only, then the response is the page's state).
-3. **Left column** — logo with the rating stamp, (admin) the **My rating**
+3. **Left column** — logo with the rating stamp (`display_logo_file` /
+   `display_logo_focus`, the logo or the server-resolved fallback cover, else
+   `logo_file`), (admin) the **My rating**
    select, then the **Naming** card (`NamingCard`, each of the four names that is set —
    English, Chinese, Japanese, Alternative — the displayed one included, as
    on the person and character pages).
 4. **Right column** — the display name, a credited-entry count and, for a
    studio with a `mal_link`, a **MyAnimeList** button beside it (`MalButton`,
    as on the person and character pages; none without one), a "Profile"
-   `InfoCard` (country; `founded – defunct`, or `Since founded` while the
+   `InfoCard` (countries, comma-joined in order; `founded – defunct`, or `Since founded` while the
    studio is still working, and no invented span when both are empty;
    website and MAL — `Producer #<mal_id>` — as external links; the remark
    for a non-admin), (admin) the **Remarks** textarea, the **Related

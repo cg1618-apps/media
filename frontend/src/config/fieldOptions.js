@@ -461,7 +461,7 @@ export const OPTION_CATEGORIES = [
   "Geography Group",
   // The 待補充 note's common values (NEEDS_WORK_NOTE_CATEGORY there).
   "Needs Work Note",
-  // A studio's common countries (COUNTRY_CATEGORY there).
+  // The common countries of a studio and a publisher (COUNTRY_CATEGORY there).
   "Country",
 ];
 
@@ -474,7 +474,7 @@ export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label"];
 // Options" sub-tab (COMMON_OPTION_CATEGORIES in app/utils/credit_roles.py):
 // the suggestion-only vocabularies - the note sections' field suggestions,
 // the music sections' Song Type and Song Source, the 待補充 note's common
-// values, and a studio's common countries. A value in one is added on Add and edited on Modify, and is never
+// values, and the common countries of a studio and a publisher. A value in one is added on Add and edited on Modify, and is never
 // created from what was typed into the field it suggests for. Navigation
 // only, like TAG_CATEGORIES; the order is the server's.
 export const COMMON_OPTION_CATEGORIES = [

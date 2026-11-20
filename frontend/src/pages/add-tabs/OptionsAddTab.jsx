@@ -1,9 +1,10 @@
 // Frontend: add tab page file for OptionsAddTab.
 //
-// Two sub-tabs share the "System Options" nav entry: Options and Tags, two
-// halves of one closed-vocabulary table split for navigation only - the form
-// and the endpoint are identical. See lib/optionCategoryGroups.js for the
-// split. People and Studio both used to live here as well; both are credited
+// Three sub-tabs share the "System Options" nav entry: Options, Tags and
+// Common Options, three parts of one closed-vocabulary table. The form and
+// the endpoint are the same on all three, but for the Common Options
+// sub-tab's missing scope picker: a common option's scope is its category's.
+// See lib/optionCategoryGroups.js for the split. People and Studio both used to live here as well; both are credited
 // entities with their own public pages rather than closed vocabularies, and
 // both moved to the Entity tab group - see PersonAddTab.jsx and
 // StudioAddTab.jsx.
@@ -40,6 +41,7 @@ function OptionsForm({
   optValues,
   setOptValues,
   optionCategories,
+  showScopes,
   optScopes,
   setOptScopes,
   optUsages,
@@ -106,11 +108,16 @@ function OptionsForm({
           <i className="fas fa-plus-circle"></i> Add Another Entry
         </button>
       </div>
-      <ScopePicker
-        scopes={optScopes}
-        setScopes={setOptScopes}
-        mediaTypes={MEDIA_TYPES}
-      />
+      {/* Not on the Common Options sub-tab: a common option's scope is its
+          category's (COMMON_OPTION_SCOPES in app/utils/credit_roles.py), which
+          the API applies whatever the form sends. */}
+      {showScopes && (
+        <ScopePicker
+          scopes={optScopes}
+          setScopes={setOptScopes}
+          mediaTypes={MEDIA_TYPES}
+        />
+      )}
       {/* Hidden off Platform for the same reason as aliases below: no other
           category feeds two pickers, so there is nothing a usage could do. */}
       {categoryHasUsages(optCategory) && (
@@ -164,6 +171,7 @@ export default function OptionsAddTab({
             optionCategories,
             optionsSubTab,
           )}
+          showScopes={optionsSubTab !== "common"}
           optScopes={optScopes}
           setOptScopes={setOptScopes}
           optUsages={optUsages}

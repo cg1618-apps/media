@@ -75,6 +75,9 @@ def _to_response(
             db, "studio", [studio.system_id], viewer_user_id(viewer)
         )
     own = ratings.get(studio.system_id)
+    display_logo_file, display_logo_focus = summary.display_logo(
+        studio.logo_file, studio.logo_focus
+    )
     # Like `summary` and `ratings`: the list route passes the whole page's
     # counts in; a single-entity route asks for its own.
     if relation_counts is None:
@@ -91,10 +94,12 @@ def _to_response(
         my_rating=own.my_rating if own is not None else None,
         logo_file=studio.logo_file,
         logo_focus=studio.logo_focus,
+        display_logo_file=display_logo_file,
+        display_logo_focus=display_logo_focus,
         remark=studio.remark,
         founded_date=studio.founded_date,
         defunct_date=studio.defunct_date,
-        country=studio.country,
+        countries=studio.countries,
         website_url=studio.website_url,
         mal_id=studio.mal_id,
         mal_link=studio.mal_link,

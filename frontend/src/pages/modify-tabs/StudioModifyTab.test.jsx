@@ -24,7 +24,7 @@ const STUDIOS = [
     my_rating: null,
     founded_date: null,
     defunct_date: null,
-    country: null,
+    countries: null,
     website_url: null,
     mal_id: null,
     mal_link: null,
@@ -43,7 +43,7 @@ const STUDIOS = [
     my_rating: null,
     founded_date: null,
     defunct_date: null,
-    country: null,
+    countries: ["Japan", "China"],
     website_url: null,
     mal_id: null,
     mal_link: null,
@@ -52,6 +52,7 @@ const STUDIOS = [
 
 function respond(url) {
   if (url.startsWith("/api/studio/s1")) return STUDIOS[0];
+  if (url.startsWith("/api/studio/s2")) return STUDIOS[1];
   if (url.startsWith("/api/studio/")) return STUDIOS;
   return [];
 }
@@ -178,10 +179,10 @@ it("offers no rating without a list, and the catalogue PUT carries none", async 
   expect(JSON.parse(put()[1].body)).not.toHaveProperty("my_rating");
 });
 
-// An unset country is a value the admin can choose, so the editor shows it as
+// No country is a value the admin can choose, so the editor shows it as
 // empty rather than seeding one: a seed on load cannot be told apart from a
 // stored value, and would write itself back on the next save of any field.
-it("leaves an unset country empty and saves it as null", async () => {
+it("leaves unset countries empty and saves them as null", async () => {
   const user = userEvent.setup();
   mount();
   await waitFor(() =>
@@ -196,7 +197,7 @@ it("leaves an unset country empty and saves it as null", async () => {
   await user.click(screen.getByRole("button", { name: /save changes/i }));
   const put = () => fetch.mock.calls.find(([, o]) => o?.method === "PUT");
   await waitFor(() => expect(put()).toBeDefined());
-  expect(JSON.parse(put()[1].body).country).toBeNull();
+  expect(JSON.parse(put()[1].body).countries).toBeNull();
   // The form is rebuilt from the saved record, which must not re-seed either.
   await waitFor(() =>
     expect(screen.getByRole("button", { name: /save changes/i })).toBeEnabled(),
@@ -235,4 +236,23 @@ it("opens the editor for initialId without a pick", async () => {
   expect(
     screen.queryByPlaceholderText("Search studios to modify..."),
   ).not.toBeInTheDocument();
+});
+
+// Several countries load as pills and save back as the same list, in order.
+it("keeps a studio's several countries through a save", async () => {
+  const user = userEvent.setup();
+  mount();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Kyoto Animation" })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole("button", { name: "Kyoto Animation" }));
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Kyoto Animation")).toBeInTheDocument(),
+  );
+  expect(screen.getByText("China")).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  const put = () => fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  await waitFor(() => expect(put()).toBeDefined());
+  expect(JSON.parse(put()[1].body).countries).toEqual(["Japan", "China"]);
 });
