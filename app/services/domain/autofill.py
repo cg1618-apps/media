@@ -58,7 +58,10 @@ from app.services.integrations.tenrai import (
     fetch_tenrai_person_data,
     fetch_tenrai_producer_data,
 )
-from app.services.integrations.tmdb import fetch_tmdb_tv_season_data
+from app.services.integrations.tmdb import (
+    fetch_tmdb_person_data,
+    fetch_tmdb_tv_season_data,
+)
 from app.utils.anidb_utils import map_anidb_to_hentai_data
 from app.utils.anilist_utils import map_anilist_record
 from app.utils.comicvine_utils import map_comicvine_to_comic_data
@@ -93,6 +96,7 @@ from app.utils.tenrai_utils import (
     map_tenrai_to_person_data,
     map_tenrai_to_studio_data,
 )
+from app.utils.tmdb_utils import map_tmdb_to_person_data
 
 logger = logging.getLogger(__name__)
 
@@ -1126,19 +1130,58 @@ def _person_name_taken(db: Session, person: Person, names: dict) -> bool:
         return query.first() is not None
 
 
+def _fill_person_names(
+    db: Session, person: Person, incoming: dict, source: str, external_id
+) -> None:
+    """
+    Fills the person's blank name columns from `incoming`, together or not at
+    all: if the filled tuple would equal another person's (uq_person_name),
+    none is written and a warning names the source. Checked with a query
+    first, because an IntegrityError at commit would cost the whole save.
+    """
+    current = {column: getattr(person, column) for column in _PERSON_NAME_COLUMNS}
+    filled = {
+        column: current[column] or incoming.get(column)
+        for column in _PERSON_NAME_COLUMNS
+    }
+    if filled == current:
+        return
+    if _person_name_taken(db, person, filled):
+        logger.warning(
+            "%s Autofill skipped the names of Person ID %s (%s %s): "
+            "they would collide with another person's.",
+            source,
+            person.system_id,
+            source,
+            external_id,
+        )
+        return
+    for column, value in filled.items():
+        setattr(person, column, value)
+
+
+def _fill_person_photo(person: Person, photo_url: Optional[str]) -> None:
+    """Downloads the photo when the person has none. Done last by each
+    autofill, so a download failure cannot cost the cheap columns."""
+    if cover_needs_download(person.photo_file, "staff", str(person.system_id)) and photo_url:
+        key = download_cover_image(photo_url, "staff", str(person.system_id))
+        if key:
+            person.photo_file = key
+
+
 def autofill_person_from_mal(person: Person, db: Session) -> None:
     """
-    Enriches one seiyuu from MAL's people record, via Tenrai.
+    Enriches one person - seiyuu, director, author or anyone else MAL lists -
+    from MAL's people record, via Tenrai.
 
     Strictly fill-only, like the studio autofill: a column is written only
     when it is empty, so a curated person is a no-op. The names are written
-    together or not at all: if the filled tuple would equal another person's
-    (uq_person_name), they are skipped with a warning and the photo and link
-    still land - checked with a query first, because an IntegrityError at
-    commit would cost the whole save.
+    together or not at all (_fill_person_names): if the filled tuple would
+    equal another person's, they are skipped with a warning and the photo and
+    link still land.
 
-    Who is filled is the caller's decision (the seiyuu spec's fill_eligible,
-    the person router's seiyuu check); this only needs a mal_id. Failures are
+    Who is filled is the caller's decision (the person-mal spec's
+    fill_eligible, the person router); this only needs a mal_id. Failures are
     logged and swallowed because it runs inside the person write request.
     """
     mal_id = person.mal_id
@@ -1155,39 +1198,55 @@ def autofill_person_from_mal(person: Person, db: Session) -> None:
         if not person.mal_link and j_data.get("mal_link"):
             person.mal_link = j_data["mal_link"]
 
-        current = {column: getattr(person, column) for column in _PERSON_NAME_COLUMNS}
-        filled = {
-            column: current[column] or j_data.get(column)
-            for column in _PERSON_NAME_COLUMNS
-        }
-        if filled != current:
-            if _person_name_taken(db, person, filled):
-                logger.warning(
-                    "MAL Autofill skipped the names of Person ID %s (MAL %s): "
-                    "they would collide with another person's.",
-                    person.system_id,
-                    mal_id,
-                )
-            else:
-                for column, value in filled.items():
-                    setattr(person, column, value)
-
-        # Last, so a download failure cannot cost us the cheap columns above.
-        if (
-            cover_needs_download(person.photo_file, "staff", str(person.system_id))
-            and j_data.get("photo_url")
-        ):
-            key = download_cover_image(
-                j_data["photo_url"], "staff", str(person.system_id)
-            )
-            if key:
-                person.photo_file = key
+        _fill_person_names(db, person, j_data, "MAL", mal_id)
+        _fill_person_photo(person, j_data.get("photo_url"))
 
     except Exception as e:
         logger.error(
             "MAL Autofill failed for Person ID %s (MAL %s): %s",
             person.system_id,
             mal_id,
+            e,
+        )
+
+
+def autofill_person_from_tmdb(person: Person, db: Session) -> None:
+    """
+    Enriches one person from TMDB's person record, found through the
+    person's IMDb name id (fetch_tmdb_person_data: /find, then /person).
+
+    Fill-only, like the MAL fill, and meant to run after it: it writes the
+    English name (under the same together-or-not-at-all collision rule,
+    _fill_person_names), the profile photo, and the gender - the last only
+    when TMDB says male or female (map_tmdb_to_person_data); an unknown or
+    non-binary gender leaves the column NULL.
+
+    Who is filled is the caller's decision (the person-tmdb spec's
+    fill_eligible, the person router); this only needs an imdb_id. Failures
+    are logged and swallowed because it runs inside the person write request.
+    """
+    imdb_id = person.imdb_id
+    if not imdb_id:
+        return
+
+    try:
+        raw_data = fetch_tmdb_person_data(imdb_id)
+        if not raw_data:
+            return
+
+        t_data = map_tmdb_to_person_data(raw_data)
+
+        if not person.gender and t_data.get("gender"):
+            person.gender = t_data["gender"]
+
+        _fill_person_names(db, person, {"name_en": t_data.get("name_en")}, "TMDB", imdb_id)
+        _fill_person_photo(person, t_data.get("photo_url"))
+
+    except Exception as e:
+        logger.error(
+            "TMDB Autofill failed for Person ID %s (IMDb %s): %s",
+            person.system_id,
+            imdb_id,
             e,
         )
 
@@ -1201,7 +1260,7 @@ def autofill_character_from_mal(character: Character) -> None:
     English (western-order) and kanji names, the nicknames as name_alt, and
     the portrait.
 
-    Fill-only, like the seiyuu autofill: a column is written only when it is
+    Fill-only, like the person autofill: a column is written only when it is
     empty, so a curated character is a no-op. Unlike a person there is no
     name constraint to collide with (Decision G). The character must already
     have a system_id - the portrait is stored under it. Failures are logged

@@ -199,6 +199,17 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
           placeholder="https://myanimelist.net/people/..."
         />
       </Field>
+      <Field
+        label="IMDb Link"
+        hint="The person's imdb.com/name/nm<id> page; the IMDb id is read from it, and TMDB fills what MAL leaves blank."
+      >
+        <input
+          className={inputCls}
+          value={personForm.imdb_link ?? ""}
+          onChange={(e) => upf("imdb_link", e.target.value)}
+          placeholder="https://www.imdb.com/name/..."
+        />
+      </Field>
       <Field label="Photo">
         <ImagePicker
           ownerType="staff"
@@ -261,14 +272,14 @@ export default function PersonAddTab({
   return (
     <>
       {/* The tab's only search box: a person has no "copy an existing
-          record" search. The server fills from MAL on save only for a
-          person holding the seiyuu role, as the Seiyuu Fill does. */}
+          record" search. The server fills on save from MAL, then TMDB,
+          for whichever link the person has, as the two Person Fills do. */}
       <ExternalSearchBox
         source="MAL"
         searchUrl={endpoints.person.searchMal}
         onPick={applyMalPick}
         placeholder="Search MAL — type a name to link this person..."
-        hint="Links the MAL page. Names and photo are filled from MAL on save only for a seiyuu."
+        hint="Links the MAL page. Names and photo are filled from MAL on save."
       />
       <PersonFields
         personForm={personForm}

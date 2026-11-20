@@ -184,4 +184,37 @@ describe("Add page — Person tab image attach", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("carries the IMDb link in the create payload", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch({ system_id: "person-4", display_name: "Kana Hanazawa" }),
+    );
+    const user = userEvent.setup();
+
+    mount();
+    await goToPersonTab(user);
+
+    await user.type(firstNameInput(), "Kana Hanazawa");
+    await user.type(
+      screen.getByPlaceholderText("https://www.imdb.com/name/..."),
+      "https://www.imdb.com/name/nm2017929/",
+    );
+    await user.click(screen.getByRole("button", { name: /append entry/i }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/person/",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const [, init] = fetch.mock.calls.find(
+      ([u, o]) => u === "/api/person/" && o?.method === "POST",
+    );
+    expect(JSON.parse(init.body)).toMatchObject({
+      imdb_link: "https://www.imdb.com/name/nm2017929/",
+    });
+
+    vi.unstubAllGlobals();
+  });
 });

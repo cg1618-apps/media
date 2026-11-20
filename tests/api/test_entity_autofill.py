@@ -3,8 +3,9 @@ POST /api/{studio|person|character}/{system_id}/autofill - the detail page's
 Autofill & update button.
 
 It runs the fill a save already runs (blank columns only, from MAL through
-Tenrai), commits, and answers the same body as GET. With nothing to fetch -
-no MAL link, or a person who is not a seiyuu - it is a 422 saying why.
+Tenrai - and for a person, then from TMDB through its IMDb link), commits, and
+answers the same body as GET. With nothing to fetch - no MAL link, or for a
+person neither a MAL nor an IMDb link - it is a 422 saying why.
 
 Tenrai and the picture download are patched at the autofill module's own
 names, so these exercise the real router -> autofill wiring without a network
@@ -192,23 +193,23 @@ def test_person_autofill_fills_a_seiyuu(owner_client, db_session, fetched):
     assert body["photo_file"] == f"staff/{person.system_id}.jpg"
 
 
-def test_person_autofill_of_a_non_seiyuu_is_a_422(owner_client, db_session, fetched):
+def test_person_autofill_fills_a_non_seiyuu_too(owner_client, db_session, fetched):
     person = _person(db_session, role="director", name_en="Someone", mal_link=KANA_LINK)
 
     res = owner_client.post(f"/api/person/{person.system_id}/autofill")
 
-    assert res.status_code == 422
-    assert "seiyuu" in res.json()["detail"]
-    assert fetched["person"] == []
+    assert res.status_code == 200
+    assert fetched["person"] == [185]
+    assert res.json()["name_jp"] == "花澤香菜"
 
 
-def test_person_autofill_without_a_mal_link_is_a_422(owner_client, db_session, fetched):
+def test_person_autofill_without_either_link_is_a_422(owner_client, db_session, fetched):
     person = _person(db_session, name_en="Kana Hanazawa")
 
     res = owner_client.post(f"/api/person/{person.system_id}/autofill")
 
     assert res.status_code == 422
-    assert "MAL link" in res.json()["detail"]
+    assert "MAL or IMDb link" in res.json()["detail"]
     assert fetched["person"] == []
 
 

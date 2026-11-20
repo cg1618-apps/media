@@ -1531,10 +1531,12 @@ export default function Admin() {
                 // founding facts from MAL's producer record. Replace has no
                 // Studio row to match - see PipelineSpec.fill_only.
                 { label: "Studio", url: "/api/data-control/fill/studio" },
-                // A person holding the seiyuu role fills
-                // from MAL's people record. Only seiyuu - no other person
-                // is filled. Fill All runs it too.
-                { label: "Seiyuu", url: "/api/data-control/fill/seiyuu" },
+                // Every person with a MAL link fills from MAL's people
+                // record, whatever their role; then every person with an
+                // IMDb link fills what is still blank from TMDB's person
+                // record. Fill All runs both, MAL first.
+                { label: "Person (MAL)", url: "/api/data-control/fill/person-mal" },
+                { label: "Person (TMDB)", url: "/api/data-control/fill/person-tmdb" },
                 // A character with a MAL link fills its names and portrait
                 // from MAL's character record, in Fill All too. Identities
                 // have no MAL record, so only the character row is filled.

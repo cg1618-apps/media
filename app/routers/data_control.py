@@ -170,7 +170,7 @@ def _register_replace_routes(spec) -> None:
 
 for _spec in PIPELINES.values():
     _register_fill_route(_spec)
-    # A fill_only type (Studio, Seiyuu, Character) has no Replace, bulk or single - see
+    # A fill_only type (Studio, both Persons, Character) has no Replace, bulk or single - see
     # PipelineSpec.fill_only.
     if not _spec.fill_only:
         _register_replace_routes(_spec)

@@ -37,6 +37,7 @@ from app.utils.utils import (
     SEASON_PATTERN,
     calculate_seasonal_from_month,
     extract_imdb_id,
+    extract_imdb_id_person,
     extract_mal_id_anime,
     extract_mal_id_character,
     extract_mal_id_manga_book,
@@ -100,6 +101,25 @@ def apply_extract_mal_id_person(person: Person) -> bool:
         person.mal_id = mal_id
         return True
     return False
+
+
+def apply_extract_imdb_id_person(person: Person) -> bool:
+    """Extracts the IMDb name id (nm...) from imdb_link onto imdb_id. True if
+    set. A link with no name id leaves an existing imdb_id untouched."""
+    imdb_id = extract_imdb_id_person(person.imdb_link)
+    if imdb_id:
+        person.imdb_id = imdb_id
+        return True
+    return False
+
+
+def apply_extract_person_ids(person: Person) -> bool:
+    """Both of a person's external ids, as every person write derives them.
+    Each extractor runs, rather than short-circuiting on the first - a person
+    can carry a MAL link, an IMDb link, or both (as apply_extract_game_ids)."""
+    mal = apply_extract_mal_id_person(person)
+    imdb = apply_extract_imdb_id_person(person)
+    return mal or imdb
 
 
 def apply_extract_mal_id_character(character: Character) -> bool:

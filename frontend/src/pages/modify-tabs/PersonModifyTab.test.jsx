@@ -26,6 +26,8 @@ const DIRECTORS = [
     photo_file: null,
     mal_id: 1870,
     mal_link: "https://myanimelist.net/people/1870",
+    imdb_id: "nm0594503",
+    imdb_link: "https://www.imdb.com/name/nm0594503/",
     credit_count: 3,
     roles: [{ role: "director", scope: "anime" }],
   },
@@ -362,6 +364,31 @@ it("loads the MAL link and sends the edited one on save", async () => {
   const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
   expect(JSON.parse(init.body)).toMatchObject({
     mal_link: "https://myanimelist.net/people/1871",
+  });
+});
+
+it("loads the IMDb link and sends the edited one on save", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "p1" });
+  const imdb = await screen.findByPlaceholderText("https://www.imdb.com/name/...");
+  expect(imdb).toHaveValue("https://www.imdb.com/name/nm0594503/");
+
+  await user.clear(imdb);
+  await user.type(imdb, "https://www.imdb.com/name/nm0000001/");
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/person/p1",
+      expect.objectContaining({ method: "PUT" }),
+    ),
+  );
+  const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  expect(JSON.parse(init.body)).toMatchObject({
+    imdb_link: "https://www.imdb.com/name/nm0000001/",
+    // The MAL link beside it is sent untouched.
+    mal_link: "https://myanimelist.net/people/1870",
   });
 });
 

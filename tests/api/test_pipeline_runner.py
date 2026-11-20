@@ -75,9 +75,10 @@ def movies(db_session):
 
 
 # Non-media types in the registry: Studio fills from MAL's producer endpoint,
-# Seiyuu from its people endpoint and Character from its characters endpoint,
-# and none is a media entry, so none is in MEDIA_TABLES.
-NON_MEDIA_KEYS = {"studio", "seiyuu", "character"}
+# Person (MAL) from its people endpoint, Person (TMDB) from TMDB's person
+# record and Character from MAL's characters endpoint, and none is a media
+# entry, so none is in MEDIA_TABLES.
+NON_MEDIA_KEYS = {"studio", "person-mal", "person-tmdb", "character"}
 
 
 def test_every_media_type_has_a_pipeline_spec():
@@ -93,13 +94,14 @@ def test_fill_all_skips_comic_but_includes_game_and_the_non_media_types():
     # quota. IGDB has no such quota, so Game rides along with the rest.
     assert [s.key for s in FILL_ALL] == [
         "anime", "anime-movie", "movie", "tv-show", "cartoon", "manga", "book",
-        "game", "h-comic", "hentai", "h-game", "studio", "seiyuu", "character",
+        "game", "h-comic", "hentai", "h-game", "studio", "person-mal", "person-tmdb",
+        "character",
     ]
 
 
 def test_replace_all_skips_comic_and_the_non_media_types():
-    # Studio, Seiyuu and Character are fill_only: a MAL producer, people or
-    # character record carries nothing that drifts.
+    # Studio, both Person pipelines and Character are fill_only: a producer,
+    # people or character record carries nothing that drifts.
     # Game now joins the rest - Steam's prices and Metacritic score drift,
     # even though nothing in an IGDB record does.
     assert [s.key for s in REPLACE_ALL] == [
