@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 ## What this is for
 
@@ -308,7 +308,7 @@ All.
 | `PUT /api/person/{id}/clubs` `{club_ids}` | admin | Whole-list replace. Each id must be a person the writer may see (422 otherwise) holding the `club` role (422), and not the person itself (422). A new membership joins the end of its club's list. Memberships of clubs the writer cannot see are kept. Returns the new list. |
 | `GET /api/person/{id}/members` | `view.person` | A club's members in `position` order, as `MembershipRef`; hidden members are omitted, and a person who is not a club answers `[]`. 404 when the club is hidden. |
 | `PUT /api/person/{id}/members` `{member_ids}` | admin | Whole-list replace, in display order (`position` = index). The person must hold the `club` role (422); each id must be a visible person and not the club (422). Members the writer cannot see keep their rows, after the visible ones. |
-| `GET /api/studio/`, `GET /{id}`, `POST /`, `PUT /{id}`, `PATCH /{id}`, `DELETE /{id}`, `POST /{id}/merge` | reads `view.studio`, writes admin | Same shape minus roles, and `POST /` is find-or-create for the same reason. The list is sorted by resolved `display_name`, and both reads carry it. `credit_count`, `media_types` and `restricted` are resolved from only the credited entries the viewer may see, from one `credits.credit_summaries` pass for the whole list. `PATCH` is the inline rating and remark edit, under the `PUT` rules (`_entity_patch.prepare_patch`). Renaming a studio changes what every credited entry shows — no propagation step. |
+| `GET /api/studio/`, `GET /{id}`, `POST /`, `PUT /{id}`, `PATCH /{id}`, `DELETE /{id}`, `POST /{id}/merge` | reads `view.studio`, writes admin | Same shape minus roles, and `POST /` is find-or-create for the same reason. The list is sorted by resolved `display_name`, and both reads carry it. `credit_count`, `media_types`, `restricted` and `display_logo_file` / `display_logo_focus` (see [Logo fallback](#logo-fallback)) are resolved from only the credited entries the viewer may see, from one `credits.credit_summaries` pass for the whole list. `PATCH` is the inline rating and remark edit, under the `PUT` rules (`_entity_patch.prepare_patch`). Renaming a studio changes what every credited entry shows — no propagation step. |
 | `GET /api/studio/{id}/entries` | `view.studio` | The reverse of `GET /api/credits/...`: the entries this studio is credited on, grouped by media type, filtered through the same `filter_visible_pairs` as `credit_count` so the two can never disagree. 404 when the studio is hidden — every credit on a label-hidden entry. |
 | `GET /api/publisher/?scope=`, `GET /{id}`, `GET /{id}/entries`, `POST /`, `PUT /{id}`, `PATCH /{id}`, `DELETE /{id}`, `POST /{id}/merge` | reads `view.publisher`, writes admin | `app/routers/publisher.py` mirrors `app/routers/studio.py` endpoint for endpoint, minus the MAL derivation and autofill (there is no MAL record to enrich a publisher from) — and minus the delete guard: `DELETE` takes no `?credits=N`, exactly as studio's does not. One deliberate divergence, below. Studio has no counterpart for the `scopes` list every publisher payload carries: `?scope=<media-type>` narrows the list to publishers offered on one type (omitted, it returns everything, including publishers holding no scope at all — the admin list page must be able to see a publisher in order to give it one); `POST` inserts scopes additively, `PUT` replaces the whole set, and merge unions both sides'. There is no `/api/publisher/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
 | `GET/POST/PUT/DELETE /api/options/...` | read public, write admin | The Tier 2 vocabulary `media_tag` points at; see [options.md](../options.md). |
@@ -837,6 +837,28 @@ gated type. Every query in it is per page or per media type, never per row;
 `tests/api/test_entity_photos.py` walks each step, proves a hidden entry's
 cover is not used by reading one record as the guest and as the admin, and
 counts the list's queries.
+
+## Logo fallback
+
+A studio or publisher with no `logo_file` of its own shows the cover of an
+entry it is credited on instead, returned as `display_logo_file` /
+`display_logo_focus` on its list, detail, `PUT`, `PATCH` and `/api/search`
+responses. It is the person rule's automatic step and nothing more - there is
+no chosen entry and no column for one:
+
+1. `logo_file`, with `logo_focus`.
+2. The newest visible credited entry that has a cover, with its
+   `media.cover_image_focus` - "newest" as above, ties in `media_credit`
+   position order.
+3. `null`.
+
+`credits.credit_summaries` resolves it from the same visible pairs as
+`credit_count`, through `entity_photos.newest_covers`, so a hidden entry's
+cover is never shown and the list costs the same queries for 5 rows as for
+500. The real `logo_file` is still what every form edits; the fallback is
+never written back. `tests/api/test_studio_publisher_logo_fallback.py` walks
+the order, proves the hidden-entry refusal on one record read as the guest
+and as the owner, and counts the list's queries.
 
 ## Tests
 

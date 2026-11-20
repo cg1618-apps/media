@@ -318,8 +318,8 @@ _CREDIT_OWNER_COLUMN = {
 
 def _attach_credit_counts(db: Session, viewer, spec: SearchableType, entries: list):
     """
-    Set `credit_count`, `media_types` and `restricted` on studio/publisher
-    rows, for every result at once.
+    Set `credit_count`, `media_types`, `restricted` and the display logo on
+    studio/publisher rows, for every result at once.
 
     What the library cards show, from the same credits.credit_summaries pass
     the studio and publisher list routes use - one query and ONE
@@ -337,6 +337,9 @@ def _attach_credit_counts(db: Session, viewer, spec: SearchableType, entries: li
         entry.credit_count = summary.count
         entry.media_types = summary.media_types
         entry.restricted = summary.restricted
+        entry.display_logo_file, entry.display_logo_focus = summary.display_logo(
+            entry.logo_file, entry.logo_focus
+        )
 
 
 def _person_results(db: Session, viewer, entries: list) -> list:

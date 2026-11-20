@@ -319,7 +319,10 @@ columns.
   draw it; each carries the entity's `my_rating` as a `RatingStamp`, as the
   franchise and collection cards do; `PersonCard` shows `display_photo_file`,
   the server-resolved photo or fallback cover, positioned by
-  `display_photo_focus`, the focus of whichever source won). Every card crops
+  `display_photo_focus`, the focus of whichever source won; `StudioCard` and
+  `PublisherCard` show `display_logo_file` / `display_logo_focus` the same way —
+  the logo or the newest visible credited entry's cover — and fall back to
+  `logo_file` / `logo_focus` for a payload without them). Every card crops
   its image at the image's focal point (design-system.md, rule 9).
 - **`components/dashboard`** — the per-viewer parts of the dashboard (`/`),
   each one small component asking its own endpoint; which viewer gets which

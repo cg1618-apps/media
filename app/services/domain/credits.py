@@ -1401,6 +1401,19 @@ class CreditSummary:
     media_types: list[str] = dataclass_field(default_factory=list)
     # True when one of media_types is a gated type.
     restricted: bool = False
+    # The cover, and the focal point stored beside it, of the newest visible
+    # credited entry that has one - the picture a company without a logo
+    # shows. See display_logo.
+    fallback_file: Optional[str] = None
+    fallback_focus: Optional[str] = None
+
+    def display_logo(
+        self, logo_file: Optional[str], logo_focus: Optional[str]
+    ) -> tuple[Optional[str], Optional[str]]:
+        """(file, focus) to show: the company's own logo, else the fallback."""
+        if logo_file:
+            return logo_file, logo_focus
+        return self.fallback_file, self.fallback_focus
 
 
 def credit_summaries(
@@ -1423,10 +1436,16 @@ def credit_summaries(
     one studio under two roles counts once. The count and the media types come
     from the same visible pairs, so a card can never name a type its count
     leaves out.
+
+    The fallback picture comes from the same visible pairs too, on the person
+    rule (entity_photos.newest_covers): the cover of the newest visible
+    credited entry that has one, ties in credit position order - so a hidden
+    entry's cover is never shown.
     """
     # Imported here rather than at module scope: enforcement imports this
     # module for credit resolution, and a top-level import would close the
-    # cycle.
+    # cycle (entity_photos imports enforcement).
+    from app.services.domain.entity_photos import newest_covers
     from app.services.rbac.enforcement import filter_visible_pairs
     from app.services.rbac.gated_types import gated_types
 
@@ -1438,27 +1457,36 @@ def credit_summaries(
         db.query(fk_column, models.Media.media_type, models.MediaCredit.media_id)
         .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
         .filter(fk_column.in_(ids))
+        .order_by(models.MediaCredit.position)
         .all()
     )
 
-    by_entity: dict[UUID, set] = {entity_id: set() for entity_id in ids}
+    # A dict as an ordered set: distinct pairs, in credit position order.
+    by_entity: dict[UUID, dict] = {entity_id: {} for entity_id in ids}
     every_pair: set = set()
     for entity_id, media_type, entry_id in rows:
         if not media_type or not entry_id or entity_id not in by_entity:
             continue
-        by_entity[entity_id].add((media_type, entry_id))
+        by_entity[entity_id][(media_type, entry_id)] = None
         every_pair.add((media_type, entry_id))
 
     visible = filter_visible_pairs(db, viewer, every_pair)
     gated = gated_types()
+    shown_by_entity = {
+        entity_id: [pair for pair in pairs if pair in visible]
+        for entity_id, pairs in by_entity.items()
+    }
+    covers = newest_covers(db, shown_by_entity)
     out: dict[UUID, CreditSummary] = {}
-    for entity_id, pairs in by_entity.items():
-        shown = pairs & visible
+    for entity_id, shown in shown_by_entity.items():
         media_types = sorted({media_type for media_type, _ in shown})
+        fallback_file, fallback_focus = covers.get(entity_id, (None, None))
         out[entity_id] = CreditSummary(
             count=len(shown),
             media_types=media_types,
             restricted=bool(set(media_types) & gated),
+            fallback_file=fallback_file,
+            fallback_focus=fallback_focus,
         )
     return out
 

@@ -85,6 +85,9 @@ def _to_response(
             db, "publisher", [publisher.system_id], viewer_user_id(viewer)
         )
     own = ratings.get(publisher.system_id)
+    display_logo_file, display_logo_focus = summary.display_logo(
+        publisher.logo_file, publisher.logo_focus
+    )
     return schemas.PublisherResponse(
         system_id=publisher.system_id,
         public_id=publisher.public_id,
@@ -97,6 +100,8 @@ def _to_response(
         my_rating=own.my_rating if own is not None else None,
         logo_file=publisher.logo_file,
         logo_focus=publisher.logo_focus,
+        display_logo_file=display_logo_file,
+        display_logo_focus=display_logo_focus,
         remark=publisher.remark,
         founded_date=publisher.founded_date,
         defunct_date=publisher.defunct_date,

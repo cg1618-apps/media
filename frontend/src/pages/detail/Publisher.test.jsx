@@ -176,3 +176,25 @@ describe("Publisher detail page", () => {
     });
   });
 });
+
+describe("Publisher detail page logo", () => {
+  it("shows the server-resolved display logo with its focus", async () => {
+    mockFetch({
+      ...PUBLISHER,
+      display_logo_file: "library/cover.jpg",
+      display_logo_focus: "30% 40%",
+    });
+    renderPage();
+    const img = await screen.findByAltText("木棉花 logo");
+    expect(img).toHaveAttribute("src", "/static/library/cover.jpg");
+    expect(img.style.objectPosition).toBe("30% 40%");
+  });
+
+  it("falls back to logo_file for a payload without display_logo", async () => {
+    mockFetch({ ...PUBLISHER, logo_file: "library/own.png", logo_focus: "10% 20%" });
+    renderPage();
+    const img = await screen.findByAltText("木棉花 logo");
+    expect(img).toHaveAttribute("src", "/static/library/own.png");
+    expect(img.style.objectPosition).toBe("10% 20%");
+  });
+});

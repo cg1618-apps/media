@@ -168,8 +168,8 @@ counts). `h1` is display by default.
    cover, a person's or character's photo, a studio's or publisher's logo, a
    cast photo - is drawn cropped with `object-cover`, which shows the centre
    unless told otherwise. Each one carries a focus (`cover_image_focus`,
-   `photo_focus`, `logo_focus`, `display_photo_focus`: `"X% Y%"`, null for
-   centred), and every cropped render applies it with
+   `photo_focus`, `logo_focus`, `display_photo_focus`, `display_logo_focus`:
+   `"X% Y%"`, null for centred), and every cropped render applies it with
    `style={focusStyle(focus)}` from `lib/covers.js`. A group's cover is
    borrowed from an entry, so the group resolvers return `{ url, focus }` and
    the borrowed focus travels with the URL. An image with `object-cover`
