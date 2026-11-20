@@ -25,6 +25,7 @@ import {
 import { clearedForRegion } from "../../lib/hComicRegion";
 import { hComicSourceFields } from "../../lib/hComicForm";
 import { hGameSourceFields } from "../../lib/hGameForm";
+import { gamePickOnlyFields, gameSourceFields } from "../../lib/gameForm";
 import { hentaiSourceFields } from "../../lib/hentaiForm";
 import {
   requiredLabelsForFranchiseType,
@@ -32,7 +33,10 @@ import {
 } from "../../lib/gatedTypes";
 import { fetchAllSources } from "../../lib/sources";
 import { withMediaType } from "../../lib/suggestionOrder";
-import { ensureSourceValues as ensureSourceValuesLib } from "../../lib/ensureSourceValues";
+import {
+  ensureSourceValues as ensureSourceValuesLib,
+  pickOnlyRefusal,
+} from "../../lib/ensureSourceValues";
 import { genreLabelSourceFields } from "../../lib/genreLabelFields";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import OptionValueGroups from "../../components/forms/OptionValueGroups";
@@ -2021,6 +2025,15 @@ export default function Modify() {
   }
 
   async function saveGame() {
+    // The developer and publisher are picked, never created here: refuse
+    // before anything is saved, so nothing - not even a new franchise -
+    // is left behind (lib/gameForm.js).
+    const refusal = pickOnlyRefusal(gamePickOnlyFields(cgmf, splitTags), sources);
+    if (refusal) {
+      showToast("warning", refusal);
+      return;
+    }
+
     let franchiseId = cgmf.franchise_id;
     let seriesId = cgmf.series_id;
     const groups = await createMissingGroups({
@@ -2036,44 +2049,9 @@ export default function Modify() {
     if (!groups) return;
     ({ franchiseId, seriesId } = groups);
 
-    // Auto-create missing entities for every game credit/tag field. Developer
-    // and publisher resolve to entity rows; the four vocabularies do not.
-    await ensureSourceValues([
-      { source: { kind: "studio" }, values: splitTags(cgmf.studio) },
-      { source: { kind: "publisher" }, values: splitTags(cgmf.publisher) },
-      {
-        source: { kind: "person", role: "director", scope: "game" },
-        values: splitTags(cgmf.director),
-      },
-      {
-        source: { kind: "person", role: "composer", scope: "game" },
-        values: splitTags(cgmf.composer),
-      },
-      {
-        source: { kind: "option", category: "Game Genre", scope: "game" },
-        values: splitTags(cgmf.game_genre),
-      },
-      {
-        source: { kind: "option", category: "Game Theme", scope: "game" },
-        values: splitTags(cgmf.game_theme),
-      },
-      {
-        source: { kind: "option", category: "Game Mode", scope: "game" },
-        values: splitTags(cgmf.game_mode),
-      },
-      {
-        source: { kind: "option", category: "Combat Mode", scope: "game" },
-        values: splitTags(cgmf.combat_mode),
-      },
-      {
-        source: { kind: "option", category: "Game Platform", scope: "game" },
-        values: splitTags(cgmf.game_platform),
-      },
-      {
-        source: { kind: "option", category: "Label", scope: "game" },
-        values: splitTags(cgmf.label),
-      },
-    ]);
+    // Every other game credit/tag field is quick-created when new; the
+    // developer and publisher were checked above and are never created.
+    await ensureSourceValues(gameSourceFields(cgmf, splitTags));
 
     const payload = {
       ...gameFieldsPayload(cgmf),

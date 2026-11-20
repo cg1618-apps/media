@@ -708,12 +708,19 @@ status, release date, current patch, the three HLTB tiers and the platform,
 mode and combat vocabularies - picking a platform console picks its family
 too, and a family stays picked while one of its consoles is
 (`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
-is a **studio** row, Publisher a **publisher** row; director and composer are
-people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; **Cast** (`CastEditor`
+is a **studio** row, Publisher a **publisher** row offered from the
+`game`-scoped list, both **picked, never created here** - the field has no
+add row, and a new company is made on the Studio or Publisher tab first;
+director and composer are people scoped to `game`); the three **Prices** (the MSRP per region); **Copies**; **Cast** (`CastEditor`
 with `mediaType="game"`, seiyuu included - and no `franchiseId` or `malLink`,
 so neither **Import cast from…** nor the MAL import is offered; **Sync from
 original** is); the IGDB and Steam
-ids and links with the sources; cover. Submit needs a CN or EN name, `POST /api/game/` then
+ids and links with the sources; cover. Submit needs a CN or EN name, and is
+refused before anything is written - a new franchise included - while the
+Developer or Publisher names a value that is not an existing row
+(`pickOnlyRefusal` over `gamePickOnlyFields`, `lib/gameForm.js`; the toast
+names each value and the tab to add it on); it then quick-creates the other
+credit and tag values (`gameSourceFields`), `POST /api/game/` then
 `saveCredits` and the cast (`PUT /api/casting/game/<id>`); **games are never enriched on Add** — the toast is a plain "Game
 appended successfully."
 
@@ -1142,7 +1149,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   form layout" under /add); besides the entry's id it passes `excludeGameId`,
   which drops the row being edited from its own Base Game picker. The Modify
   tab has **no IGDB search box** — identification happens once, on Add — and
-  it saves with `PATCH /api/game/{id}`, without enrichment.
+  it saves with `PATCH /api/game/{id}`, without enrichment, under the Add
+  tab's pick-only rule for Developer and Publisher.
 - **H-Comic tab.** `HComicModifyTab.jsx` renders `HComicAddTab`'s exported
   `HComicRegionField`, `HComicLineageFields` and `HComicFormBody`, the game
   pattern. It loads the cast like the other cast-carrying tabs, and saves with

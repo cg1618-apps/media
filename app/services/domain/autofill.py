@@ -22,9 +22,11 @@ from app.models import (
 from app.services.domain.anime_movie import sync_ona_release_date
 from app.services.domain.credits import (
     AmbiguousNameError,
+    credit_existing,
     credit_names,
     fill_mal_credits,
     find_person,
+    match_existing_credits,
     replace_credits,
     replace_tags,
     tag_values,
@@ -1333,15 +1335,38 @@ def autofill_game_from_igdb(game, db: Session, *, cover: bool = True) -> None:
                 setattr(game, column, times[column])
 
         # A game's developer IS its studio; the publisher is the third entity
-        # target, which is why the publisher credit role exists.
+        # target, which is why the publisher credit role exists. Both are
+        # credited only when the company already exists - IGDB never creates
+        # one - and an unmatched or ambiguous name is LOGGED, the way an
+        # unmatched genre is below, so it surfaces as a company to add.
         for role, values in (
             ("studio", g_data.get("developers")),
             ("publisher", g_data.get("publishers")),
         ):
             if owner_type not in CREDIT_ROLES[role].media_types:
                 continue
-            if not credit_names(db, game.system_id, role):
-                replace_credits(db, owner_type, game.system_id, role, values or [])
+            if credit_names(db, game.system_id, role):
+                continue
+            match = match_existing_credits(db, role, values or [])
+            for name in match.unknown:
+                logger.warning(
+                    "IGDB %s '%s' matches no existing %s; skipped for %s %s",
+                    role,
+                    name,
+                    CREDIT_ROLES[role].target,
+                    owner_type,
+                    game.system_id,
+                )
+            for error in match.ambiguous:
+                logger.warning(
+                    "IGDB %s skipped for %s %s: %s",
+                    role,
+                    owner_type,
+                    game.system_id,
+                    error,
+                )
+            if match.found:
+                credit_existing(db, owner_type, game.system_id, role, match)
 
         # IGDB speaks English; the vocabulary is Chinese. An unmatched value is
         # LOGGED, never stored raw and never dropped silently - a new IGDB
@@ -1502,9 +1527,10 @@ def autofill_h_game_from_dlsite(h_game, db: Session) -> None:
     release date, the circle or brand as the studio credit, and the cover.
     DLsite is the h-game fill's first cover source, ahead of Steam and IGDB.
 
-    The studio credit is written exactly as IGDB's is - replace_credits under
-    the entry's own media type, which resolves the name to its company record
-    or creates one - and only when the entry has no studio credit yet.
+    The studio credit is written through replace_credits under the entry's
+    own media type, which resolves the name to its company record or creates
+    one - unlike IGDB's, which credits existing companies only - and only
+    when the entry has no studio credit yet.
     """
     product_id = dlsite_product_id_for(h_game)
     if not product_id:

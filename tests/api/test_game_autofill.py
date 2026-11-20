@@ -128,13 +128,73 @@ def test_an_unmatched_igdb_value_is_skipped_not_stored_raw(
     assert "Roguelite" in caplog.text
 
 
-def test_developer_becomes_a_studio_and_publisher_a_publisher(db_session, patched):
+def _companies(db_session):
+    studio = models.Studio(name_en="FromSoftware")
+    publisher = models.Publisher(name_en="Bandai Namco")
+    db_session.add_all([studio, publisher])
+    db_session.flush()
+    return studio, publisher
+
+
+def test_an_existing_developer_and_publisher_are_credited(db_session, patched):
+    _, publisher = _companies(db_session)
     game = make_game(db_session)
     autofill_game_from_igdb(game, db_session)
     assert credit_names(db_session, game.system_id, "studio") == ["FromSoftware"]
     assert credit_names(db_session, game.system_id, "publisher") == [
         "Bandai Namco"
     ]
+    # Crediting still offers the publisher on game.
+    db_session.refresh(publisher)
+    assert "game" in {s.scope for s in publisher.scopes}
+
+
+def test_igdb_never_creates_a_developer_or_publisher(
+    db_session, patched, monkeypatch, caplog
+):
+    """An unknown name is skipped and logged; the known one beside it is
+    credited, so an empty credit proves the skip and not an empty table."""
+    _companies(db_session)
+    monkeypatch.setattr(
+        autofill_module,
+        "map_igdb_to_game_data",
+        lambda raw: dict(
+            MAPPED,
+            developers=["FromSoftware", "Zvornik Unknown Dev"],
+            publishers=["Zvornik Unknown Pub", "Bandai Namco"],
+        ),
+    )
+    studios = db_session.query(models.Studio).count()
+    publishers = db_session.query(models.Publisher).count()
+
+    game = make_game(db_session)
+    autofill_game_from_igdb(game, db_session)
+
+    assert credit_names(db_session, game.system_id, "studio") == ["FromSoftware"]
+    assert credit_names(db_session, game.system_id, "publisher") == ["Bandai Namco"]
+    assert db_session.query(models.Studio).count() == studios
+    assert db_session.query(models.Publisher).count() == publishers
+    assert "Zvornik Unknown Dev" in caplog.text
+    assert "Zvornik Unknown Pub" in caplog.text
+
+
+def test_an_ambiguous_igdb_developer_is_skipped_not_guessed(
+    db_session, patched, monkeypatch, caplog
+):
+    _companies(db_session)
+    db_session.add_all(
+        [models.Studio(name_en="Zvornik Twin"), models.Studio(name_jp="Zvornik Twin")]
+    )
+    db_session.flush()
+    monkeypatch.setattr(
+        autofill_module,
+        "map_igdb_to_game_data",
+        lambda raw: dict(MAPPED, developers=["Zvornik Twin", "FromSoftware"]),
+    )
+    game = make_game(db_session)
+    autofill_game_from_igdb(game, db_session)
+    assert credit_names(db_session, game.system_id, "studio") == ["FromSoftware"]
+    assert "Zvornik Twin" in caplog.text
 
 
 def test_a_dlc_is_linked_to_a_base_game_already_in_the_database(

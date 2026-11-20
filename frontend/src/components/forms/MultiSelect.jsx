@@ -24,6 +24,12 @@ import {
 //                                oldest, so max=1 behaves as a single select
 //   idleOptions: string[]     — what an empty box offers (default: options);
 //                                typing always searches all of `options`
+//   allowNew: boolean         — whether typed text that is no option can be
+//                                added (default true). False makes the field
+//                                pick-only: no `Add "<text>"` row, Enter adds
+//                                only an option the text equals, and a typed
+//                                text matching nothing says so (`newHint`)
+//   newHint: string           — that note, for a pick-only field
 //
 // Typed text is matched exact, then prefix, then contains (lib/suggest.js's
 // rankByMatch), each tier keeping the order `options` came in - so a list
@@ -36,7 +42,8 @@ import {
 // `Add "<text>"` row, so a value that is not in the vocabulary yet can be
 // added by a tap - on a phone keyboard Enter is not always readable
 // (hooks/useEnterToAdd.js). Leaving the field does not add the text: a stray
-// tap away would otherwise mint a vocabulary value nobody meant.
+// tap away would otherwise mint a vocabulary value nobody meant. A pick-only
+// field (allowNew={false}) offers no add row at all.
 export default function MultiSelect({
   options = [],
   value = "",
@@ -45,6 +52,8 @@ export default function MultiSelect({
   limit = 10,
   max = null,
   idleOptions,
+  allowNew = true,
+  newHint = "No match",
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -91,6 +100,7 @@ export default function MultiSelect({
   const exactOption = available.find((o) => o.toLowerCase() === typedKey);
   // The add row: typed text that is neither an option nor already held.
   const offerAdd =
+    allowNew &&
     typedText !== "" &&
     !exactOption &&
     !selected.some((v) => v.toLowerCase() === typedKey);
@@ -114,6 +124,7 @@ export default function MultiSelect({
   // text as a custom value. False when there is nothing typed to add.
   function addTyped() {
     if (!typedText) return false;
+    if (!exactOption && !allowNew) return true;
     addValue(exactOption || typedText);
     return true;
   }
@@ -202,7 +213,11 @@ export default function MultiSelect({
       {/* Dropdown */}
       {open && (
         <SuggestList anchorRef={boxRef} id={listId}>
-          {rowCount === 0 && <SuggestNote>No more options</SuggestNote>}
+          {rowCount === 0 && (
+            <SuggestNote>
+              {!allowNew && typedText ? newHint : "No more options"}
+            </SuggestNote>
+          )}
           {filtered.map((opt, index) => (
             <SuggestItem
               key={opt}

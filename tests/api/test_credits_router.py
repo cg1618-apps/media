@@ -173,7 +173,10 @@ def test_every_type_with_a_studio_role_carries_linkable_studio_refs(
     """A game's developer links to its studio page the way its 發行商 links
     to the publisher's: studio_refs is offered to every type whose roles
     include studio, not to anime and anime-movie alone. The studio exists
-    and is credited, so an empty list means the refs were never built."""
+    and is credited, so an empty list means the refs were never built. It is
+    made first because a game's developer is picked, never created."""
+    db_session.add(models.Studio(name_en="Zvornik Dev Studio"))
+    db_session.commit()
     body = owner_client.post(f"/api/{route}/", json={name_field: "Zvornik Developer Entry"})
     assert body.status_code in (200, 201), body.text
     entry_id = body.json()["system_id"]
@@ -193,3 +196,125 @@ def test_every_type_with_a_studio_role_carries_linkable_studio_refs(
             "display_name": "Zvornik Dev Studio",
         }
     ]
+
+
+# ---------------------------------------------------------------------------
+# A game's developer and publisher are picked, never created by the credit.
+# Each test seeds an existing studio and publisher beside the unknown name, so
+# a refusal proves the names were checked one by one, not that the table was
+# empty.
+# ---------------------------------------------------------------------------
+
+
+def _game_with_companies(db_session):
+    g = models.Game(game_name_en="Zvornik Pick Game")
+    studio = models.Studio(name_en="Zvornik Known Studio")
+    publisher = models.Publisher(name_en="Zvornik Known Publisher")
+    db_session.add_all([g, studio, publisher])
+    db_session.commit()
+    return g, studio, publisher
+
+
+@pytest.mark.parametrize(
+    "role, model, known",
+    [
+        ("studio", models.Studio, "Zvornik Known Studio"),
+        ("publisher", models.Publisher, "Zvornik Known Publisher"),
+    ],
+)
+def test_a_game_credit_naming_an_unknown_company_is_refused(
+    owner_client, db_session, role, model, known
+):
+    g, _, _ = _game_with_companies(db_session)
+    before = db_session.query(model).count()
+
+    r = owner_client.put(
+        f"/api/credits/game/{g.system_id}",
+        json={"credits": {role: [known, "Zvornik Nobody"]}},
+    )
+
+    assert r.status_code == 422, r.text
+    assert "Zvornik Nobody" in r.json()["detail"]
+    assert known not in r.json()["detail"]
+    db_session.expire_all()
+    assert db_session.query(model).count() == before
+    assert db_session.query(model).filter_by(name_en="Zvornik Nobody").count() == 0
+    # Nothing was written, not even the half that matched.
+    assert owner_client.get(f"/api/credits/game/{g.system_id}").json()["credits"] == {}
+
+
+def test_a_refused_game_credit_writes_no_other_role_or_tag(owner_client, db_session):
+    g, _, _ = _game_with_companies(db_session)
+    r = owner_client.put(
+        f"/api/credits/game/{g.system_id}",
+        json={
+            "credits": {"studio": ["Zvornik Nobody"], "director": ["Zvornik Director"]},
+            "tags": {"label": ["神作"]},
+        },
+    )
+    assert r.status_code == 422, r.text
+    body = owner_client.get(f"/api/credits/game/{g.system_id}").json()
+    assert body == {"credits": {}, "tags": {}}
+    assert db_session.query(models.Person).filter_by(name_en="Zvornik Director").count() == 0
+
+
+def test_a_game_credits_existing_companies_and_offers_the_publisher_on_game(
+    owner_client, db_session
+):
+    """The mirror: existing names are credited, and a publisher scoped only to
+    manga is widened to game - widening creates no company."""
+    g, studio, publisher = _game_with_companies(db_session)
+    db_session.add(models.PublisherScope(publisher_id=publisher.system_id, scope="manga"))
+    db_session.commit()
+    studios_before = db_session.query(models.Studio).count()
+    publishers_before = db_session.query(models.Publisher).count()
+
+    r = owner_client.put(
+        f"/api/credits/game/{g.system_id}",
+        json={
+            "credits": {
+                "studio": ["zvornik known studio"],
+                "publisher": ["Zvornik Known Publisher"],
+            }
+        },
+    )
+
+    assert r.status_code == 200, r.text
+    credits = owner_client.get(f"/api/credits/game/{g.system_id}").json()["credits"]
+    assert credits == {
+        "studio": ["Zvornik Known Studio"],
+        "publisher": ["Zvornik Known Publisher"],
+    }
+    db_session.expire_all()
+    assert db_session.query(models.Studio).count() == studios_before
+    assert db_session.query(models.Publisher).count() == publishers_before
+    scopes = {s.scope for s in db_session.get(models.Publisher, publisher.system_id).scopes}
+    assert scopes == {"manga", "game"}
+
+
+def test_an_ambiguous_game_developer_is_refused(owner_client, db_session):
+    g, _, _ = _game_with_companies(db_session)
+    db_session.add_all(
+        [models.Studio(name_en="Zvornik Twin"), models.Studio(name_jp="Zvornik Twin")]
+    )
+    db_session.commit()
+    r = owner_client.put(
+        f"/api/credits/game/{g.system_id}",
+        json={"credits": {"studio": ["Zvornik Twin"]}},
+    )
+    assert r.status_code == 422, r.text
+    assert "Zvornik Twin" in r.json()["detail"]
+
+
+def test_another_type_still_creates_its_studio(owner_client, db_session):
+    """Pick-only is the game's rule alone: anime's studio stays find-or-create."""
+    a = _anime(db_session)
+    r = owner_client.put(
+        f"/api/credits/anime/{a.system_id}",
+        json={"credits": {"studio": ["Zvornik New Anime Studio"]}},
+    )
+    assert r.status_code == 200, r.text
+    assert (
+        db_session.query(models.Studio).filter_by(name_en="Zvornik New Anime Studio").count()
+        == 1
+    )
