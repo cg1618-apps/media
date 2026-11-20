@@ -106,4 +106,19 @@ describe("OptionsAddTab", () => {
     expect(screen.queryByRole("button", { name: "watch" })).toBeNull();
     expect(screen.queryByRole("button", { name: "origin" })).toBeNull();
   });
+
+  it("offers a scope picker on the Options and Tags sub-tabs", () => {
+    for (const subTab of ["options", "tags"]) {
+      const { unmount } = renderTab(subTab);
+      expect(screen.getByText("Scopes")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "anime" })).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it("shows no scope picker on the Common Options sub-tab, whose categories own their scope", () => {
+    renderTab("common", { optCategory: "Song Type" });
+    expect(screen.queryByText("Scopes")).toBeNull();
+    expect(screen.queryByRole("button", { name: "anime" })).toBeNull();
+  });
 });

@@ -968,14 +968,17 @@ sub-tab, whose categories are one group — renders flat rather than under a
 heading repeating the sub-tab's own name. The Common Options sub-tab's picker
 reads as four groups: **Note Suggestion** (the seven game guide
 categories), **Music** (`Song Type`, `Song Source`), **Needs Work**
-(`Needs Work Note`) and **Studio** (`Country`).
+(`Needs Work Note`) and **Studio & Publisher** (`Country`). The sub-tab's
+form has no **Scopes** picker on Add, and the Modify editor has none for a
+common option: a common option's scope is its category's
+(`COMMON_OPTION_SCOPES`, see [options.md](../options.md)), which the API
+applies on create and leaves untouched on update.
 
 **Studio tab (Entity).** `StudioAddTab.jsx`. Four name fields (English,
 Chinese, Japanese, Alternative) with a "Display name" select naming which one
-to show, plus logo key, countries (`CountryInput`: any number, the
-`Country` common options as one-click toggle chips above a `MultiSelect`
-offering the same values; a country not in the list is kept as typed and
-never added to it), founded/defunct dates
+to show, plus logo key, countries (`CountryInput`: any number, a `MultiSelect`
+suggesting the `Country` common options as it is typed into; a country not
+in the list is kept as typed and never added to it), founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
 and remark, with **My Rating** above it for a list keeper (see "The viewer's
 own rating" above). Submit is blocked client-side until at least one name is filled,
@@ -990,8 +993,10 @@ studio tab and split the same way (`PublisherFields` exported beside the page
 wrapper, so `PublisherModifyTab` renders the identical inputs). Same four name
 fields with the "Display name" select — it is the third consumer of the shared
 `STUDIO_NAME_FIELDS` list in `lib/naming.js`, after studio and person — plus
-logo key, country, founded/defunct `ReleaseDateInput`s, website and
-remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
+logo key, country (one, free text: a `SuggestInput` suggesting the
+`Country` common options the studio Countries field reads, with no chip
+picks; what is typed is stored, and never added to the list),
+founded/defunct `ReleaseDateInput`s, website and remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
 carries no MAL columns, because MAL has no record of a games publisher or a
 Taiwanese distributor. Submit is blocked until at least one name is filled,
 matching `ck_publisher_has_a_name`. Below the name fields sits

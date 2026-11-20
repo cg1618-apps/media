@@ -541,8 +541,9 @@ so the list grows only on the Add page. `COMMON_OPTION_CATEGORIES`
 is that wider set plus `Needs Work Note` and `Country`, and the admin Add / Modify / Delete
 pages edit it under a **Common Options** sub-tab of System Option rather
 than under Options, its picker grouped as Note Suggestion (the field-level
-seven), Music, Needs Work and Studio (navigation only; the rows are ordinary
-`system_option` rows). A category with no value yet still shows in the
+seven), Music, Needs Work and Studio & Publisher (the rows are ordinary
+`system_option` rows, scoped by their category: see
+[../options.md](../options.md#common-option-scopes)). A category with no value yet still shows in the
 picker, because the constant rather than a row is what lists it. See
 [../options.md](../options.md).
 

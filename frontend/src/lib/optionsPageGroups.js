@@ -168,9 +168,10 @@ export const TIER2_GROUPS = [
     title: "Needs Work",
     categories: ["Needs Work Note"],
   },
-  // What a studio's Country field suggests. A group of one, like Needs Work.
+  // What a studio's Countries field and a publisher's Country field
+  // suggest. A group of one, like Needs Work.
   {
-    title: "Studio",
+    title: "Studio & Publisher",
     categories: ["Country"],
   },
 ];

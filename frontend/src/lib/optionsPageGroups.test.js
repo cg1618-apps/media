@@ -271,12 +271,12 @@ describe("groupTier2Categories", () => {
     // Declared with one member, so the single member is the group rather
     // than what the data shrank it to.
     expect(byTitle["Needs Work"]).toEqual(["Needs Work Note"]);
-    expect(byTitle["Studio"]).toEqual(["Country"]);
+    expect(byTitle["Studio & Publisher"]).toEqual(["Country"]);
     expect(sections.map((s) => s.title).slice(-5)).toEqual([
       "Note Suggestion",
       "Music",
       "Needs Work",
-      "Studio",
+      "Studio & Publisher",
       UNGROUPED_TITLE,
     ]);
   });

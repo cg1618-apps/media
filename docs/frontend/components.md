@@ -620,10 +620,8 @@ columns.
   sibling, drawn with the same chip classes: one chip per option, the value a
   plain string, a click picks and a click on the pressed chip clears to `""`;
   a value the options do not hold presses nothing. Used for the 男 / 女 chips
-  beside the Gender select, a character's own Role, and a cast row's role from
-  `lg` up; with `multiple` it is a toggle row over a list instead - the value
-  an array, a click adds the option at the end or takes it out, a held value
-  the options do not offer kept - which the studio Countries field uses),
+  beside the Gender select, a character's own Role, a cast row's role from
+  `lg` up, and the 待補充 note's common notes),
   `GameCopiesEditor`
   (the `game_copy` rows a game's or an h-game's Add/Modify tab sends as `copies`; controlled
   exactly like `BookUnitsEditor` — the parent owns the array, every add /
@@ -768,15 +766,14 @@ columns.
     caller that labels it with its own `<label>`; without one the field is
     named "Needs Work note".
   - `CountryInput` (`components/forms/CountryInput.jsx`; `value`,
-    `onChange`) — a studio's Countries field, the same shape for a list:
-    `QuickPicks multiple` ("Common countries") over the `Country` common
-    option values (`useCommonOptionValues` in
-    `api/mutations/useCommonOptions.js`), each chip toggling its country in
-    or out, above a `MultiSelect` offering the same values. The value is
+    `onChange`) — a studio's Countries field: a `MultiSelect` suggesting
+    the `Country` common option values (`useCommonOptionValues` in
+    `api/mutations/useCommonOptions.js`), with no chip row. The value is
     comma-separated text, like every tags field's form state
     (`lib/countries.js` turns it into the posted list, `null` when empty). A
-    typed country outside the list is kept as typed, and a chip toggle keeps
-    it.
+    typed country outside the list is kept as typed. A publisher's single
+    Country field (`PublisherFields` in `pages/add-tabs/PublisherAddTab.jsx`)
+    is a `SuggestInput` over the same values, storing what is typed.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
 - **`components/resources`** — `ResourceTree` (the `/resources` tree: nested
   collapsible groups, items, and for a manage.catalog holder every add, edit,

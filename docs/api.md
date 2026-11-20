@@ -1582,8 +1582,9 @@ category with no values yet — the state every new tag field starts in.
 pages group under their Tags sub-tab, and `common_option_categories`
 (`COMMON_OPTION_CATEGORIES`) the suggestion-only subset - every category the
 note registry suggests from, `Needs Work Note` and `Country` - grouped under their
-Common Options sub-tab. Both are navigation only — every sub-tab writes the
-same rows. `franchise_type`
+Common Options sub-tab. Both group the same rows; the tag split is
+navigation only, and a common option category also decides its values'
+scope on `POST` and `PUT /api/options` (`COMMON_OPTION_SCOPES`). `franchise_type`
 and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
 `ANIME_AIRING_TYPES` tuples rather than the `FranchiseType` / `AnimeAiringType`
 Python `Enum` classes, because the frontend dropdown has diverged from those
@@ -1647,8 +1648,8 @@ cannot see answers `[]`, and a visible value's `scopes` omit such types. `PUT`
 and `DELETE` on a hidden value answer 404, and `PUT` keeps the scope rows the
 editor cannot see.
 | `GET`    | `/record-counts` | `manage.options` | System Options' Tier 3: `{person_roles: {role: distinct people}, studios: n}`, numbers only. The same tally as `/api/person/role-counts` and the studio list, counted as the viewer may see them (`app/services/domain/credit_counts.py`), behind the page's own key, because the admin reaches `/options` holding neither `view.person` nor `view.studio`. Declared before `/{category}`. |
-| `POST`   | `/`            | `manage.catalog` | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. |
-| `PUT`    | `/{option_id}` | `manage.catalog` | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. 400 on a duplicate `(category, value)`. |
+| `POST`   | `/`            | `manage.catalog` | Add a new option. Body: `SystemOptionCreate` (`{category, value, sort_order, remark, scopes: [...], usages: [...], aliases: [{source, value}, ...]}`). 400 if `(category, value)` already exists. A value in a common option category (`COMMON_OPTION_SCOPES`, [options.md](options.md#common-option-scopes)) takes its category's scope and the body's `scopes` are ignored. |
+| `PUT`    | `/{option_id}` | `manage.catalog` | Update an existing option by UUID `system_id`. Body: `SystemOptionCreate`; replaces the option's scope, usage **and alias** rows wholesale — a body omitting a list deletes it. A value in a common option category keeps the scope rows it has and the body's `scopes` are ignored; one moved into such a category from another takes the category's scope. 400 on a duplicate `(category, value)`. |
 | `DELETE` | `/{option_id}` | `manage.catalog` | Delete an option by UUID. Cascades its `system_option_scope`, `system_option_alias`, `media_tag` and `character_tag` rows. Logs to `deleted_record`.                  |
 
 **Response model:** `SystemOptionResponse` (`{system_id, category, value, sort_order, remark, scopes: [str, ...], usages: [str, ...], aliases: [{source, value}, ...], family}`). `family` is read-only and derived, never stored: on a `Game Platform` console it names the console's family (`Nintendo` on `Switch`), and it is null on a family and on every other category - see [Game Platform: families and consoles](options.md#game-platform-families-and-consoles). A body sending it back is ignored.

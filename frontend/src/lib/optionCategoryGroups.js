@@ -1,9 +1,10 @@
 // How the admin Add / Modify / Delete pages split one flat list of Tier 2
 // categories across their "Options", "Tags" and "Common Options" sub-tabs.
 //
-// The split is navigational only: every sub-tab is the same form over the
-// same system_option rows, and nothing in the data or the API marks a
-// category as a tag or a common option. TAG_CATEGORIES and
+// Every sub-tab is the same form over the same system_option rows. The Tags
+// split is navigational only; a common option category also owns its
+// values' scope (COMMON_OPTION_SCOPES in app/utils/credit_roles.py), which
+// the API applies, so the forms draw no scope picker for one. TAG_CATEGORIES and
 // COMMON_OPTION_CATEGORIES (from GET /api/constants via fieldOptions.js)
 // are the whole rule, so all three pages agree on which side a category
 // falls without any of them listing category names.

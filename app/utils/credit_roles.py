@@ -34,7 +34,7 @@ anime/non_anime split and the director_scope_for() that derived it are gone.
 
 from dataclasses import dataclass
 
-from app.utils.note_sections import NOTE_OPTION_CATEGORIES
+from app.utils.note_sections import NOTE_OPTION_CATEGORIES, NOTE_SECTIONS
 from app.utils.source_fields import PLATFORM_CATEGORY, SERIALIZATION_CATEGORY
 
 
@@ -299,8 +299,8 @@ FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
 # list is stored as typed.
 NEEDS_WORK_NOTE_CATEGORY = "Needs Work Note"
 
-# A studio's countries are free text; this common option category is what its
-# field suggests. A country typed that is not in the list is stored as typed
+# A studio's countries and a publisher's country are free text; this common
+# option category is what both fields suggest. A country typed that is not in the list is stored as typed
 # and never added to it, as with the 待補充 note.
 COUNTRY_CATEGORY = "Country"
 
@@ -344,13 +344,44 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
 # what separates these from a tag category, whose values resolve_option
 # creates on save. Three sources: every category the note registry suggests
 # from (the game guide fields, Song Type, Song Source), the 待補充 note's
-# common values, and a studio's common countries. Navigation only, like
-# TAG_CATEGORIES.
+# common values, and the common countries of a studio and a publisher. The
+# category, not the form, decides a value's scope (COMMON_OPTION_SCOPES
+# below), so unlike TAG_CATEGORIES this is not navigation only.
 COMMON_OPTION_CATEGORIES: tuple[str, ...] = tuple(
     dict.fromkeys(
         list(NOTE_OPTION_CATEGORIES) + [NEEDS_WORK_NOTE_CATEGORY, COUNTRY_CATEGORY]
     )
 )
+
+
+def _note_category_readers(category: str) -> tuple[str, ...]:
+    """The owner types of every note section that suggests from `category`."""
+    return tuple(
+        dict.fromkeys(
+            owner
+            for s in NOTE_SECTIONS
+            if category
+            in (
+                s.kind_category,
+                s.link_text_category,
+                *(f.option_category for f in s.fields),
+            )
+            for owner in s.owners
+        )
+    )
+
+
+# The scope every value of a common option category carries: the media types
+# its field is read on. A note category's readers are the owners of the
+# sections that name it (Song Type and Song Source are anime's, the game guide
+# categories game's and h-game's). The 待補充 note is read on every type and a
+# country belongs to a studio or publisher, not to a media type, so those two
+# are unscoped. The Add and Modify forms show no scope picker for a common
+# option: the options router applies this on create and leaves a value's scope
+# rows alone on update.
+COMMON_OPTION_SCOPES: dict[str, tuple[str, ...]] = {
+    category: _note_category_readers(category) for category in COMMON_OPTION_CATEGORIES
+}
 
 
 # The sheet header each (media_type, role/field key) pair has always been

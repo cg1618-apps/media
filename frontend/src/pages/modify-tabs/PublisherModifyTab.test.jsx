@@ -52,6 +52,9 @@ const PUBLISHERS = [
 ];
 
 function respond(url) {
+  if (url.startsWith("/api/options/Country")) {
+    return [{ value: "Japan" }, { value: "Taiwan" }];
+  }
   if (url.startsWith("/api/publisher/p1")) return PUBLISHERS[0];
   if (url.startsWith("/api/publisher/")) return PUBLISHERS;
   return [];
@@ -241,4 +244,27 @@ it("opens the editor for initialId without a pick", async () => {
   expect(
     screen.queryByPlaceholderText("Search publishers to modify..."),
   ).not.toBeInTheDocument();
+});
+
+// The single Country field suggests the "Country" common options as it is
+// typed into, and saves whatever was typed - a pick or a country the list
+// does not hold. No chip row of quick picks.
+it("suggests the Country common options and saves what is typed", async () => {
+  const user = userEvent.setup();
+  mount({ initialId: "p1" });
+  await waitFor(() =>
+    expect(screen.getByDisplayValue("Bandai Namco")).toBeInTheDocument(),
+  );
+  const country = screen.getByRole("combobox", { name: "Country" });
+  await user.click(country);
+  expect(await screen.findByRole("option", { name: "Japan" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Japan" })).toBeNull();
+  await user.click(screen.getByRole("option", { name: "Taiwan" }));
+  expect(country).toHaveValue("Taiwan");
+
+  await user.clear(country);
+  await user.type(country, "Korea");
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  await waitFor(() => expect(lastPut).not.toBeNull());
+  expect(lastPut.body.country).toBe("Korea");
 });
