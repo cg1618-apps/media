@@ -1366,7 +1366,7 @@ comes back as a 409 rather than a silent over-deletion.
 **Studio tab (Entity).** A picker over `/api/studio/` showing each studio's
 display name, id and credit count, then a warning that says exactly what
 deleting costs: `media_credit.studio_id` is `ON DELETE CASCADE`, so deleting
-destroys this studio's *n* credits on every entry linked to it. The panel
+destroys this studio's *n* credits on every entry linked to it, and its relations to other studios (both sides). The panel
 therefore offers **Merge Into Another Studio** beside Delete — merge
 (`POST /api/studio/{keep}/merge` with the selected studio as `source_id`)
 repoints the credits onto the survivor first, fills the survivor's blank

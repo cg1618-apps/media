@@ -24,6 +24,12 @@ from app.services.domain.checking import has_missing_values_studio
 from app.services.domain.credits import CreditSummary, credit_summaries, find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.domain.merge_fill import finish_merge
+from app.services.domain.studio_relation import (
+    merge_relations,
+    related_counts,
+    related_of,
+    replace_related,
+)
 from app.services.domain.user_rating import ratings_by_owner
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import (
@@ -54,6 +60,7 @@ def _to_response(
     viewer=None,
     summary: Optional[CreditSummary] = None,
     ratings: Optional[dict] = None,
+    relation_counts: Optional[dict] = None,
 ) -> schemas.StudioResponse:
     # Count only credits on entries the viewer may see. A number is a smaller
     # leak than a title, but "worked on 3 things, you can see 2" is still one.
@@ -73,6 +80,10 @@ def _to_response(
             db, "studio", [studio.system_id], viewer_user_id(viewer)
         )
     own = ratings.get(studio.system_id)
+    # Like `summary` and `ratings`: the list route passes the whole page's
+    # counts in; a single-entity route asks for its own.
+    if relation_counts is None:
+        relation_counts = related_counts(db, viewer, [studio.system_id])
     return schemas.StudioResponse(
         system_id=studio.system_id,
         public_id=studio.public_id,
@@ -95,6 +106,7 @@ def _to_response(
         credit_count=summary.count,
         media_types=summary.media_types,
         restricted=summary.restricted,
+        has_relations=relation_counts.get(studio.system_id, 0) > 0,
     )
 
 
@@ -126,8 +138,11 @@ def get_all_studios(
     ratings = ratings_by_owner(
         db, "studio", [studio.system_id for studio in studios], viewer_user_id(viewer)
     )
+    relations = related_counts(db, viewer, [studio.system_id for studio in studios])
     return [
-        _to_response(db, studio, viewer, summaries[studio.system_id], ratings)
+        _to_response(
+            db, studio, viewer, summaries[studio.system_id], ratings, relations
+        )
         for studio in studios
     ]
 
@@ -146,6 +161,67 @@ def get_studio_by_id(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, viewer, models.Studio, studio.system_id, NOT_FOUND)
     return _to_response(db, studio, viewer)
+
+
+# ==========================================
+# RELATED STUDIOS
+# ==========================================
+# A relation is mutual, and each side carries its own remark. Both routes
+# read through the shared-record rule: the studio asked about must be visible
+# (404 otherwise), and the related studios the viewer may not see are simply
+# left out. A relation is not a connection, so it reveals nobody.
+
+
+def _visible_studio_or_404(db: Session, viewer, system_id: str) -> models.Studio:
+    studio = find_entity(db, models.Studio, system_id)
+    if studio is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, viewer, models.Studio, studio.system_id, NOT_FOUND)
+    return studio
+
+
+@router.get(
+    "/{system_id}/related",
+    response_model=List[schemas.StudioRelationRef],
+    summary="Studios Related to This One",
+)
+def get_related_studios(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_view_studio),
+):
+    """The visible related studios, ordered by name, each with the remark
+    this studio's side gives the relation."""
+    studio = _visible_studio_or_404(db, viewer, system_id)
+    return related_of(db, viewer, studio.system_id)
+
+
+@router.put(
+    "/{system_id}/related",
+    response_model=List[schemas.StudioRelationRef],
+    summary="Replace the Studios Related to This One",
+)
+def put_related_studios(
+    system_id: str,
+    payload: schemas.StudioRelationsReplace,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Whole-list replace of this side. Every id must be a visible studio other
+    than this one (422 otherwise). A new relation appears on the other
+    studio's page too, with no remark there; a removed one leaves both pages.
+    Relations to studios the writer cannot see are kept.
+    """
+    studio = _visible_studio_or_404(db, admin, system_id)
+    replace_related(
+        db,
+        admin,
+        studio.system_id,
+        [(item.studio_id, item.remark) for item in payload.relations],
+    )
+    db.commit()
+    return related_of(db, admin, studio.system_id)
 
 
 @router.get("/{system_id}/entries", summary="Entries Credited to This Studio")
@@ -420,5 +496,7 @@ def merge_studio(
         credit.studio_id = system_id
         moved += 1
 
+    # Before finish_merge deletes the source, whose relations would cascade.
+    merge_relations(db, system_id, payload.source_id)
     finish_merge(db, "studio", keep, drop)
     return {"status": "success", "credits_moved": moved}
