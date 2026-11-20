@@ -149,6 +149,7 @@ const CATEGORIES = [
   "Comic Era",
   "Comic Event",
   "Comic Imprint",
+  "Country",
   "Franchise for Filter",
   "Game Genre",
   "Game Mode",
@@ -257,7 +258,7 @@ describe("groupTier2Categories", () => {
     ]);
   });
 
-  it("heads the common options' three groups, Needs Work's one category too", () => {
+  it("heads the common options' four groups, the one-category ones too", () => {
     const sections = groupTier2Categories(CATEGORIES);
     const byTitle = Object.fromEntries(sections.map((s) => [s.title, s.categories]));
     expect(byTitle["Note Suggestion"]).toEqual([
@@ -270,10 +271,12 @@ describe("groupTier2Categories", () => {
     // Declared with one member, so the single member is the group rather
     // than what the data shrank it to.
     expect(byTitle["Needs Work"]).toEqual(["Needs Work Note"]);
-    expect(sections.map((s) => s.title).slice(-4)).toEqual([
+    expect(byTitle["Studio"]).toEqual(["Country"]);
+    expect(sections.map((s) => s.title).slice(-5)).toEqual([
       "Note Suggestion",
       "Music",
       "Needs Work",
+      "Studio",
       UNGROUPED_TITLE,
     ]);
   });

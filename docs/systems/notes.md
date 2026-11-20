@@ -538,10 +538,10 @@ into `OPTION_CATEGORIES`. Every one of them is a **common option**: a value
 typed into a note field is stored as typed and never added to the category,
 so the list grows only on the Add page. `COMMON_OPTION_CATEGORIES`
 (`app/utils/credit_roles.py`, `/api/constants` `common_option_categories`)
-is that wider set plus `Needs Work Note`, and the admin Add / Modify / Delete
+is that wider set plus `Needs Work Note` and `Country`, and the admin Add / Modify / Delete
 pages edit it under a **Common Options** sub-tab of System Option rather
 than under Options, its picker grouped as Note Suggestion (the field-level
-seven), Music and Needs Work (navigation only; the rows are ordinary
+seven), Music, Needs Work and Studio (navigation only; the rows are ordinary
 `system_option` rows). A category with no value yet still shows in the
 picker, because the constant rather than a row is what lists it. See
 [../options.md](../options.md).

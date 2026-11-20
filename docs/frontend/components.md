@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -750,6 +750,12 @@ columns.
     `SuggestInput` offering the same values and nothing else. `id` is for a
     caller that labels it with its own `<label>`; without one the field is
     named "Needs Work note".
+  - `CountryInput` (`components/forms/CountryInput.jsx`; `value`,
+    `onChange`) — a studio's Country field, the same shape: `QuickPicks`
+    ("Common countries") over the `Country` common option values
+    (`useCommonOptionValues` in `api/mutations/useCommonOptions.js`) above a
+    `SuggestInput` offering the same values. A typed country outside the
+    list is kept as typed.
 - **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
 - **`components/resources`** — `ResourceTree` (the `/resources` tree: nested
   collapsible groups, items, and for a manage.catalog holder every add, edit,
