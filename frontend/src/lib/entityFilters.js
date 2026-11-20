@@ -260,12 +260,26 @@ const countryDef = {
   match: (item, active) => active.has(item.country || COUNTRY_NOT_SET),
 };
 
-/** The studio library's defs: entry type, rating, country. */
+export const HAS_RELATIONS = "Has relation";
+export const NO_RELATIONS = "No relation";
+
+// Read off the list's has_relations, which counts only related studios the
+// viewer may see - so a relation to a hidden studio filters as no relation.
+const studioRelationDef = {
+  key: "relation",
+  label: "Relation",
+  type: "set",
+  options: [HAS_RELATIONS, NO_RELATIONS],
+  match: (item, active) => active.has(item.has_relations ? HAS_RELATIONS : NO_RELATIONS),
+};
+
+/** The studio library's defs: entry type, rating, country, relation. */
 export function studioFilterDefs(auth, { ownData = true } = {}) {
   return [
     mediaTypeDef(auth, STUDIO_MEDIA_TYPES, STUDIO_RESTRICTED_TYPES),
     ...(ownData ? [ratingDef] : []),
     countryDef,
+    studioRelationDef,
   ];
 }
 

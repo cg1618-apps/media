@@ -239,6 +239,8 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     # Mints its own uuid; both ends are people, translated to local uuids by
     # the parent translation below before this match runs.
     "Person Membership": ("member_id", "club_id"),  # uq_person_membership
+    # The same shape: both ends are studios, translated first.
+    "Studio Relation": ("studio_id", "related_studio_id"),  # uq_studio_relation
     # No `role` in the key: a publisher holds exactly one.
     "Publisher Scope": ("publisher_id", "scope"),  # uq_publisher_scope
     # These two mint their own uuid but cite entry ids, which the sheet does
@@ -386,6 +388,7 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "System Option Alias": (("option_id", "System Options"),),
     "Person Role": (("person_id", "Person"),),
     "Person Membership": (("member_id", "Person"), ("club_id", "Person")),
+    "Studio Relation": (("studio_id", "Studio"), ("related_studio_id", "Studio")),
     "Character Casting Voice": (("person_id", "Person"),),
     "Publisher Scope": (("publisher_id", "Publisher"),),
     "Media Content Label": (("label_id", "Content Label"),),

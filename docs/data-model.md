@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1223,6 +1223,31 @@ holds the `club` role is checked by the API
 connection in the shared-record sense: it never makes a hidden club or artist
 visible ([authorization.md](authorization.md)). A person merge moves both ends
 onto the survivor.
+
+### `studio_relation`
+
+One side of a relation between two studios. Model: `StudioRelation`
+(`app/models/staff.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `studio_id` | UUID | no | | FK `studio.system_id` ON DELETE CASCADE, indexed - the studio whose page lists the relation |
+| `related_studio_id` | UUID | no | | FK `studio.system_id` ON DELETE CASCADE, indexed - the studio listed there |
+| `remark` | Text | yes | | What `studio_id`'s page says beside `related_studio_id`; null when that side gives none |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `uq_studio_relation` UNIQUE (`studio_id`, `related_studio_id`)
+and `ck_studio_relation_not_self` (`studio_id <> related_studio_id`).
+
+A relation is mutual and is always the **pair** of rows (A, B) and (B, A), so
+each side keeps its own remark. `app/services/domain/studio_relation.py` is the
+only writer and keeps the pair whole: adding a relation from one side creates
+the other side's row with no remark, and removing it from either side removes
+both. A relation is not a connection in the shared-record sense: it never
+makes a hidden studio visible ([authorization.md](authorization.md)). A studio
+merge moves both sides onto the survivor, dropping a row the survivor already
+holds (its own remark wins) or one that would relate it to itself.
 
 ### `studio`
 

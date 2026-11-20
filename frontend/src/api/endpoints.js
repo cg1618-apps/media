@@ -351,6 +351,8 @@ export const endpoints = {
     remove: (id) => `/api/studio/${id}`,
     merge: (id) => `/api/studio/${id}/merge`,
     entries: (id) => `/api/studio/${id}/entries`,
+    // GET / PUT: the related studios, each with this side's remark.
+    related: (id) => `/api/studio/${id}/related`,
   },
 
   // Hand-maintained exchange rates, read by the statistics spend block and

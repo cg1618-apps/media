@@ -785,6 +785,8 @@ toggles a `FilterPanel` over `studioFilterDefs(auth)` from
   { ownData })`).
 - **Country** — the countries the loaded studios carry, sorted, plus Not set
   when one has none.
+- **Relation** — Has relation / No relation, off `has_relations`, which
+  counts only related studios the viewer may see.
 
 Every entity library opens on the same default, `defaultEntityFilters`:
 every plain entry type and No entries on, the restricted types off, every
@@ -1153,7 +1155,8 @@ Layout:
    `InfoCard` (country; `founded – defunct`, or `Since founded` while the
    studio is still working, and no invented span when both are empty;
    website and MAL — `Producer #<mal_id>` — as external links; the remark
-   for a non-admin), (admin) the **Remarks** textarea, then one section per
+   for a non-admin), (admin) the **Remarks** textarea, the **Related
+   studios** slip (`RelatedStudios`), then one section per
    group the entries endpoint returned, each entry linking to
    `{nav_path}/{system_id}`.
 

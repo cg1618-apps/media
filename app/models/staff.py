@@ -397,6 +397,55 @@ class Studio(Base, NameFallbackMixin):
         return self.get_fallback_name(sequence, "EN")
 
 
+class StudioRelation(Base):
+    """
+    One side of a relation between two studios.
+
+    A relation is mutual and is always stored as TWO rows, one per side:
+    (A, B) and (B, A). Each row's `remark` is what `studio_id`'s page says
+    beside `related_studio_id` - "animation subsidiary" on A's page, "parent
+    company" on B's - so each side keeps its own words, and either may be
+    empty. app/services/domain/studio_relation.py writes and removes the two
+    rows together; nothing else writes this table.
+
+    A relation is NOT a connection in the shared-record sense
+    (app/services/rbac/shared_visibility.py): it cannot make a hidden studio
+    visible. A visible studio's related list simply omits the studios the
+    viewer may not see.
+    """
+
+    __tablename__ = "studio_relation"
+    __table_args__ = (
+        UniqueConstraint(
+            "studio_id", "related_studio_id", name="uq_studio_relation"
+        ),
+        CheckConstraint(
+            "studio_id <> related_studio_id", name="ck_studio_relation_not_self"
+        ),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    studio_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("studio.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    related_studio_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("studio.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    remark = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=get_taipei_now)
+    updated_at = Column(
+        DateTime, nullable=True, default=get_taipei_now, onupdate=get_taipei_now
+    )
+
+
 class Publisher(Base, NameFallbackMixin):
     """
     One publisher or distributor: a games publisher, a TW licensor, or a

@@ -58,6 +58,7 @@ from app.models.staff import (
     Publisher,
     PublisherScope,
     Studio,
+    StudioRelation,
 )
 from app.models.system import (
     DataControlLog,
@@ -132,6 +133,7 @@ __all__ = [
     "PersonRole",
     "PersonMembership",
     "Studio",
+    "StudioRelation",
     "Publisher",
     "PublisherScope",
     "MediaCredit",
