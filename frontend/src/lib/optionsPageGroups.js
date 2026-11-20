@@ -137,7 +137,7 @@ export const TIER2_GROUPS = [
     title: "Character",
     categories: ["Character Appearance", "Character Trait"],
   },
-  // The common options (COMMON_OPTION_CATEGORIES) come last, in the three
+  // The common options (COMMON_OPTION_CATEGORIES) come last, in the four
   // groups the Common Options sub-tab's picker reads them in.
   //
   // What the game guide note sections' free-text fields suggest - a
@@ -167,6 +167,11 @@ export const TIER2_GROUPS = [
   {
     title: "Needs Work",
     categories: ["Needs Work Note"],
+  },
+  // What a studio's Country field suggests. A group of one, like Needs Work.
+  {
+    title: "Studio",
+    categories: ["Country"],
   },
 ];
 

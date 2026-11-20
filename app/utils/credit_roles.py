@@ -299,6 +299,11 @@ FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
 # list is stored as typed.
 NEEDS_WORK_NOTE_CATEGORY = "Needs Work Note"
 
+# A studio's country is free text; this common option category is what its
+# field suggests. A country typed that is not in the list is stored as typed
+# and never added to it, as with the 待補充 note.
+COUNTRY_CATEGORY = "Country"
+
 # The categories the admin Add / Modify / Delete pages offer under their
 # "Tags" sub-tab instead of "Options". Both sub-tabs are the same form over
 # the same system_option rows - the split is navigational, nothing in the
@@ -327,7 +332,7 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
         + list(CHARACTER_OPTION_CATEGORIES)
         + list(FILTER_ONLY_CATEGORIES)
         + list(NOTE_OPTION_CATEGORIES)
-        + [NEEDS_WORK_NOTE_CATEGORY]
+        + [NEEDS_WORK_NOTE_CATEGORY, COUNTRY_CATEGORY]
     )
 )
 
@@ -337,11 +342,14 @@ OPTION_CATEGORIES: tuple[str, ...] = tuple(
 # creates one from what was typed into the field it suggests for - a note
 # field stores its text as typed whether or not the list holds it. That is
 # what separates these from a tag category, whose values resolve_option
-# creates on save. Two sources: every category the note registry suggests
-# from (the game guide fields, Song Type, Song Source), and the 待補充 note's
-# common values. Navigation only, like TAG_CATEGORIES.
+# creates on save. Three sources: every category the note registry suggests
+# from (the game guide fields, Song Type, Song Source), the 待補充 note's
+# common values, and a studio's common countries. Navigation only, like
+# TAG_CATEGORIES.
 COMMON_OPTION_CATEGORIES: tuple[str, ...] = tuple(
-    dict.fromkeys(list(NOTE_OPTION_CATEGORIES) + [NEEDS_WORK_NOTE_CATEGORY])
+    dict.fromkeys(
+        list(NOTE_OPTION_CATEGORIES) + [NEEDS_WORK_NOTE_CATEGORY, COUNTRY_CATEGORY]
+    )
 )
 
 

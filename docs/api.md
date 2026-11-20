@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1574,7 +1574,7 @@ category with no values yet — the state every new tag field starts in.
 `tag_categories` is the subset of those categories the Add / Modify / Delete
 pages group under their Tags sub-tab, and `common_option_categories`
 (`COMMON_OPTION_CATEGORIES`) the suggestion-only subset - every category the
-note registry suggests from, and `Needs Work Note` - grouped under their
+note registry suggests from, `Needs Work Note` and `Country` - grouped under their
 Common Options sub-tab. Both are navigation only — every sub-tab writes the
 same rows. `franchise_type`
 and `anime_airing_type` are served from the `FRANCHISE_TYPES` /
