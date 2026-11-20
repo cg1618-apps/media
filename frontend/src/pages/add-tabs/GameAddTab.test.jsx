@@ -5,7 +5,7 @@
 // at the game endpoint. IGDB is the only handle Fill has on a game, so the
 // admin links the right entry here before saving.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import GameAddTab from "./GameAddTab";
@@ -201,5 +201,44 @@ describe("GameAddTab layout", () => {
       "To Replay",
       "Mark for replay",
     ]);
+  });
+});
+
+// The Production section: Developer and Publisher are picked from existing
+// rows. The publisher list is the game-scoped one - a manga publisher sits in
+// the bag beside it, so a suggestion proves the scope and not a flat list.
+describe("GameAddTab developer and publisher", () => {
+  const SOURCES = {
+    options: [],
+    studios: [{ system_id: "s1", display_name: "FromSoftware" }],
+    publishers: {
+      game: [{ system_id: "p1", display_name: "Bandai Namco" }],
+      manga: [{ system_id: "p2", display_name: "Kadokawa" }],
+    },
+    people: {},
+  };
+
+  function box(label) {
+    const el = screen.getAllByText(label).find((e) => e.tagName === "LABEL");
+    return within(el.parentElement).getByRole("combobox");
+  }
+
+  it("suggests the game's publishers, and no other type's", async () => {
+    const user = userEvent.setup();
+    renderTab({ sources: SOURCES });
+    await user.click(box("Publisher"));
+    expect(screen.getByRole("option", { name: "Bandai Namco" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Kadokawa" })).toBeNull();
+  });
+
+  it("offers no way to create a developer or publisher", async () => {
+    const user = userEvent.setup();
+    renderTab({ sources: SOURCES });
+    await user.type(box("Developer"), "Zvornik");
+    expect(screen.queryByRole("option", { name: 'Add "Zvornik"' })).toBeNull();
+    expect(screen.getByText(/add it on the Studio tab first/)).toBeInTheDocument();
+    await user.type(box("Publisher"), "Zvornik");
+    expect(screen.queryByRole("option", { name: 'Add "Zvornik"' })).toBeNull();
+    expect(screen.getByText(/add it on the Publisher tab first/)).toBeInTheDocument();
   });
 });

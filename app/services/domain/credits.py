@@ -323,14 +323,20 @@ def resolve_publisher(
         publisher = models.Publisher(name_en=name.strip())
         db.add(publisher)
         db.flush()
+    _ensure_publisher_scope(db, publisher, scope)
+    return publisher
 
+
+def _ensure_publisher_scope(
+    db: Session, publisher: models.Publisher, scope: Optional[str]
+) -> None:
+    """Additive: offer the publisher on this media type if it is not yet."""
     if scope and scope not in {s.scope for s in publisher.scopes}:
         db.add(
             models.PublisherScope(publisher_id=publisher.system_id, scope=scope)
         )
         db.flush()
         db.refresh(publisher)
-    return publisher
 
 
 def resolve_option(
@@ -435,6 +441,75 @@ def replace_credit_targets(
             )
         )
     db.flush()
+
+
+# ---------------------------------------------------------------------------
+# Pick-only credits: a name must already be a row.
+#
+# A game's developer (studio) and publisher are credited by PICKING an
+# existing company, never created by the credit: the Game form and the IGDB
+# fill write only names that match, and a company is made from its own Add
+# tab. Every other role, and every other writer (Pull, the MAL fills, the
+# backfill), stays find-or-create through replace_credits. See
+# docs/notes/decisions/2026-11-20-game-companies-are-picked-not-created.md.
+# ---------------------------------------------------------------------------
+
+PICK_ONLY_CREDITS = frozenset({("game", "studio"), ("game", "publisher")})
+
+_FINDERS = {"studio": find_studio, "publisher": find_publisher}
+
+
+def is_pick_only(media_type: str, role: str) -> bool:
+    """True when this media type's credit for `role` must name an existing row."""
+    return (media_type, role) in PICK_ONLY_CREDITS
+
+
+@dataclass
+class CreditMatch:
+    """What a list of names matched: the rows found, in order, and the rest."""
+
+    found: list = dataclass_field(default_factory=list)
+    unknown: list[str] = dataclass_field(default_factory=list)
+    ambiguous: list[AmbiguousNameError] = dataclass_field(default_factory=list)
+
+
+def match_existing_credits(db: Session, role: str, names: list[str]) -> CreditMatch:
+    """
+    Split `names` into the studios or publishers they name and the names that
+    name none. Never writes. A name matching several rows lands in
+    `ambiguous` rather than raising, so a caller can report every name at once.
+    """
+    finder = _FINDERS[CREDIT_ROLES[role].target]
+    match = CreditMatch()
+    for name in names:
+        if not (name or "").strip():
+            continue
+        try:
+            row = finder(db, name)
+        except AmbiguousNameError as e:
+            match.ambiguous.append(e)
+            continue
+        if row is None:
+            match.unknown.append(name)
+        else:
+            match.found.append(row)
+    return match
+
+
+def credit_existing(
+    db: Session, media_type: str, media_id: UUID, role: str, match: CreditMatch
+) -> None:
+    """
+    Make the entry's credits for one role exactly the rows `match` found.
+
+    A publisher is still offered on the media type it is credited on - the
+    scope widening resolve_publisher does - because widening creates no
+    company, only says where an existing one is used.
+    """
+    if CREDIT_ROLES[role].target == "publisher":
+        for publisher in match.found:
+            _ensure_publisher_scope(db, publisher, media_type)
+    replace_credit_targets(db, media_id, role, match.found)
 
 
 def _credited_entities(db: Session, media_id: UUID, role: str) -> list:

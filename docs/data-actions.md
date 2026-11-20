@@ -1012,6 +1012,14 @@ itself, and it now paces the whole game pipeline since Steam's window is far
 tighter than IGDB's. See [external-apis.md](external-apis.md#igdb) and
 [external-apis.md](external-apis.md#steam).
 
+**IGDB credits existing companies and creates none.** A game's (and an
+h-game's) developer and publisher from IGDB are credited only when a studio
+or publisher of that name is already on file; one matching no row, or
+several, is logged as a warning and skipped, like an un-aliased genre. That
+holds wherever IGDB runs - Fill, Replace and the write hook a save triggers -
+so saving a linked game never mints a company either. Companies are made from
+the Studio and Publisher tabs ([external-apis.md](external-apis.md#igdb)).
+
 **H-Comic reads Tenrai's manga record.** `PIPELINES["h-comic"]` is manga's
 spec minus AniList and the ratings, which `h_comic` has no column for:
 `fetch_tenrai_manga_novel_data` and `map_tenrai_to_manga_data`, writing

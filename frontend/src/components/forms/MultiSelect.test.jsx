@@ -164,3 +164,21 @@ describe("MultiSelect", () => {
     });
   });
 });
+
+// A pick-only field (a game's developer and publisher) holds existing rows
+// only: typed text matching nothing is never added, and the list says why.
+describe("MultiSelect with allowNew={false}", () => {
+  it("offers no add row and says the typed text matches nothing", async () => {
+    const onChange = renderPicker({ allowNew: false, newHint: "No such studio" });
+    await userEvent.type(screen.getByRole("combobox"), "Zvornik{Enter}");
+    expect(screen.queryByRole("option", { name: 'Add "Zvornik"' })).toBeNull();
+    expect(screen.getByText("No such studio")).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("still adds the option the typed text equals", async () => {
+    const onChange = renderPicker({ allowNew: false });
+    await userEvent.type(screen.getByRole("combobox"), "netflix{Enter}");
+    expect(onChange).toHaveBeenCalledWith("Netflix");
+  });
+});

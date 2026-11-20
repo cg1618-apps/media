@@ -7,6 +7,10 @@ once, not incremental adds. GET returns only the roles/fields that actually
 have rows - a bare entry returns two empty maps. PUT touches only the roles
 and fields named in the payload; a role absent from the body is left alone,
 one present with an empty list is cleared.
+
+A game's developer (studio) and publisher are pick-only: every name must
+already be a row, or the whole PUT is refused with a 422 naming each one.
+Every other credit is find-or-create.
 """
 
 from typing import Dict, List
@@ -21,7 +25,7 @@ from app.services.domain import credits as credits_service
 from app.services.domain.label_tags import LABEL_FIELD, apply_tag_write
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
-from app.utils.credit_roles import credit_roles_for, tag_fields_for
+from app.utils.credit_roles import CREDIT_ROLES, credit_roles_for, tag_fields_for
 from app.utils.media_resolver import MEDIA_TABLES
 
 router = APIRouter(prefix="/api/credits", tags=["Credits"])
@@ -52,6 +56,30 @@ def _resolve_entry(db: Session, media_type: str, entry_id: UUID, viewer):
     if not entry_visible(db, viewer, media_type, entry_id):
         raise HTTPException(status_code=404, detail="Entry not found.")
     return entry
+
+
+def _pick_only_refusal(picked: dict) -> str | None:
+    """
+    The 422 message for pick-only credits naming no row, or several; None
+    when every name matched exactly one. Names every offending value, so one
+    refusal is enough to fix the whole form.
+    """
+    problems = []
+    for role, match in picked.items():
+        target = CREDIT_ROLES[role].target
+        problems += [f'no {target} is named "{name}"' for name in match.unknown]
+        problems += [
+            f'"{e.name}" matches {len(e.matches)} {target} rows'
+            for e in match.ambiguous
+        ]
+    if not problems:
+        return None
+    return (
+        "Not saved: "
+        + "; ".join(problems)
+        + ". A developer or publisher is picked, never created here: add it "
+        "from its own Add tab first (or merge the duplicate), then pick it."
+    )
 
 
 @router.get("/usage", summary="How many entries of each type use each value")
@@ -129,6 +157,18 @@ def replace_credits(
                 detail=f"{field} takes at most one value, got {len(values)}",
             )
 
+    # A pick-only credit (a game's developer and publisher) names companies
+    # that already exist. Every name is checked before anything is written,
+    # so a refusal leaves the entry exactly as it was.
+    picked = {
+        role: credits_service.match_existing_credits(db, role, names)
+        for role, names in payload.credits.items()
+        if credits_service.is_pick_only(media_type, role)
+    }
+    refusal = _pick_only_refusal(picked)
+    if refusal:
+        raise HTTPException(status_code=422, detail=refusal)
+
     # The Label tags carry through to the entry's content labels (and the nsfw
     # rule back), so a tag edit changes who can see it. Resolved before any
     # write: a refused NSFW removal must leave everything as it was.
@@ -139,7 +179,12 @@ def replace_credits(
         )
 
     for role, names in payload.credits.items():
-        credits_service.replace_credits(db, media_type, entry_id, role, names)
+        if role in picked:
+            credits_service.credit_existing(
+                db, media_type, entry_id, role, picked[role]
+            )
+        else:
+            credits_service.replace_credits(db, media_type, entry_id, role, names)
     for field, values in tags.items():
         credits_service.replace_tags(db, entry_id, field, values)
 
