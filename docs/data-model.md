@@ -1352,7 +1352,7 @@ mean something vaguer than it does.
 | `logo_focus` | String | yes | | `logo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
 | `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
-| `country` | String | yes | | |
+| `country` | String | yes | | One free-text country, suggested from the `Country` common options, never added to them |
 | `website_url` | String | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 

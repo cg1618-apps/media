@@ -191,8 +191,8 @@ def _constants() -> dict[str, list[str]]:
         "tag_categories": list(TAG_CATEGORIES),
         # The subset that is suggestion-only - the note sections' field and
         # music suggestions and the 待補充 note's common values - which the
-        # admin pages group under "Common Options". Navigation only, like
-        # tag_categories; none serves a gated type alone.
+        # admin pages group under "Common Options". Each also owns its
+        # values' scope (COMMON_OPTION_SCOPES); none serves a gated type alone.
         "common_option_categories": list(COMMON_OPTION_CATEGORIES),
         # What a request is about, and where it stands. The request forms and
         # the inbox's status filter read these.

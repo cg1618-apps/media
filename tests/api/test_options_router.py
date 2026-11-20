@@ -352,3 +352,86 @@ def test_update_replaces_the_usage_set(owner_client):
     )
     assert r.status_code == 200
     assert r.json()["usages"] == []
+
+
+# ── Common options: the category decides the scope, not the form ──────────
+#
+# A common option category's values are read only where the category's
+# readers are (COMMON_OPTION_SCOPES), and the Add and Modify forms do not
+# show a scope picker for one. So the API applies the category's own scope on
+# create, whatever the payload says, and leaves a value's scope rows alone on
+# update. The payloads below send a scope deliberately: a test that sent none
+# could not tell "applied the category's scope" from "recorded the payload".
+
+
+def test_a_value_added_to_a_scoped_common_category_gets_its_scope(owner_client):
+    r = owner_client.post(
+        "/api/options/",
+        json={"category": "Song Type", "value": "TV size", "scopes": ["movie"]},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["scopes"] == ["anime"]
+
+
+def test_a_scoped_common_category_scopes_a_value_sent_with_no_scope(owner_client):
+    r = owner_client.post(
+        "/api/options/", json={"category": "Song Source", "value": "niconico"}
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["scopes"] == ["anime"]
+
+
+def test_a_game_guide_category_scopes_a_value_to_both_game_types(owner_client):
+    r = owner_client.post(
+        "/api/options/",
+        json={"category": "Character Group", "value": "Boss", "scopes": ["anime"]},
+    )
+    assert r.status_code == 200, r.text
+    assert sorted(r.json()["scopes"]) == ["game", "h-game"]
+
+
+def test_a_value_added_to_an_unscoped_common_category_gets_no_scope(owner_client):
+    for category, value in (("Country", "日本"), ("Needs Work Note", "缺封面")):
+        r = owner_client.post(
+            "/api/options/",
+            json={"category": category, "value": value, "scopes": ["anime"]},
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["scopes"] == [], category
+
+
+def test_updating_a_common_option_leaves_its_scopes_alone(owner_client, db_session):
+    created = owner_client.post(
+        "/api/options/", json={"category": "Song Type", "value": "short"}
+    ).json()
+
+    r = owner_client.put(
+        f"/api/options/{created['system_id']}",
+        json={"category": "Song Type", "value": "short ver.", "scopes": ["movie"]},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["value"] == "short ver."
+    assert r.json()["scopes"] == ["anime"]
+    rows = (
+        db_session.query(models.SystemOptionScope)
+        .filter_by(option_id=created["system_id"])
+        .all()
+    )
+    assert [row.scope for row in rows] == ["anime"]
+
+
+def test_updating_a_common_option_keeps_a_scope_it_was_seeded_with(
+    owner_client, db_session
+):
+    """A seeded value may carry scope rows the category would not give it."""
+    option = models.SystemOption(category="Country", value="台灣")
+    option.scopes = [models.SystemOptionScope(scope="anime")]
+    db_session.add(option)
+    db_session.commit()
+
+    r = owner_client.put(
+        f"/api/options/{option.system_id}",
+        json={"category": "Country", "value": "臺灣", "scopes": []},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["scopes"] == ["anime"]

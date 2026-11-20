@@ -541,3 +541,34 @@ def test_no_media_type_emits_a_sheet_header_twice(media_type):
 
     headers = sheet_link_headers(media_type)
     assert len(headers) == len(set(headers)), headers
+
+
+def test_every_common_option_category_has_a_dedicated_scope():
+    from app.utils.credit_roles import COMMON_OPTION_CATEGORIES, COMMON_OPTION_SCOPES
+
+    assert tuple(COMMON_OPTION_SCOPES) == COMMON_OPTION_CATEGORIES
+
+
+def test_a_note_category_is_scoped_to_the_owners_of_the_sections_naming_it():
+    from app.utils.credit_roles import COMMON_OPTION_SCOPES
+    from app.utils.note_sections import NOTE_SECTIONS
+
+    readers = {
+        owner
+        for s in NOTE_SECTIONS
+        if "Song Type" in (s.kind_category, s.link_text_category)
+        for owner in s.owners
+    }
+    assert set(COMMON_OPTION_SCOPES["Song Type"]) == readers == {"anime"}
+    assert COMMON_OPTION_SCOPES["Character Group"] == ("game", "h-game")
+
+
+def test_the_needs_work_note_and_country_categories_are_unscoped():
+    from app.utils.credit_roles import (
+        COMMON_OPTION_SCOPES,
+        COUNTRY_CATEGORY,
+        NEEDS_WORK_NOTE_CATEGORY,
+    )
+
+    assert COMMON_OPTION_SCOPES[NEEDS_WORK_NOTE_CATEGORY] == ()
+    assert COMMON_OPTION_SCOPES[COUNTRY_CATEGORY] == ()
