@@ -57,7 +57,7 @@ ALLOWED_SCOPES: dict[str, dict[str, frozenset[str]]] = {
         "anime-movie": frozenset({"entry"}),
         "manga": frozenset({"entry"}),
         "book": frozenset({"entry"}),
-        "game": frozenset({"entry", "series", "franchise"}),
+        "game": frozenset({"entry"}),
         "h-comic": frozenset({"entry"}),
         "hentai": frozenset({"entry"}),
         "h-game": frozenset({"entry", "series", "franchise"}),

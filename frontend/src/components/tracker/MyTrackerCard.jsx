@@ -185,6 +185,7 @@ export default function MyTrackerCard({
   statusOptions,
   ratingOptions,
   statusLabel = "Watching status",
+  watchNextLabel = "Watch next",
   rewatchLabel = "To rewatch",
   pausedPlaceholder,
 }) {
@@ -261,7 +262,7 @@ export default function MyTrackerCard({
         )}
         {onWatchNextChange !== undefined && (
           <PlanFlagToggle
-            label="Watch next"
+            label={watchNextLabel}
             checked={watchNext}
             onChange={onWatchNextChange}
           />

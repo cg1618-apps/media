@@ -1,6 +1,6 @@
 # The catalogue and your data
 
-Last verified: 2026-11-19
+Last verified: 2026-11-20
 
 ## What this is for
 
@@ -77,7 +77,7 @@ that type, or a group (collection, franchise, series).
 | 伏筆/前後呼應 Foreshadowing | Anime, Anime Movie, TV Show, Cartoon, Manga, Book; series, franchise | shared |
 | 對稱 Symmetry | Anime, Anime Movie, TV Show, Cartoon, Manga, Book; series, franchise | shared |
 | 猜測 Speculation | Anime, Anime Movie, TV Show, Cartoon, Manga, Book; series, franchise | shared |
-| 彩蛋/致敬 Easter Eggs/References | every type but H-Comic, Hentai, H-Game; series, franchise | shared |
+| 彩蛋/致敬/細節 Easter Eggs/References/Details | every type but H-Comic, Hentai, H-Game; series, franchise | shared |
 | 新手 Beginner | Game | shared |
 | 玩法系統 Gameplay Systems | Game, H-Game | shared |
 | 操作 Controls | Game, H-Game | shared |

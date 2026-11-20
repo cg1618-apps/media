@@ -308,6 +308,7 @@ describe("Game detail page own tracker", () => {
     cover_image_file: null,
     playing_status: "Active Playing",
     my_rating: null,
+    play_next: false,
     to_replay: false,
     completion_level: "Main Story",
     all_endings: "No",
@@ -377,6 +378,16 @@ describe("Game detail page own tracker", () => {
     await waitFor(() => expect(puts("/api/me/plan-flags/")).toHaveLength(1));
     expect(puts("/api/me/plan-flags/")[0][0]).toBe("/api/me/plan-flags/g1");
     expect(JSON.parse(puts("/api/me/plan-flags/")[0][1].body)).toEqual({ to_replay: true });
+    expect(patches()).toHaveLength(0);
+  });
+
+  it("saves Play Next through /api/me/plan-flags", async () => {
+    mockFetch({ permissions: ["self.list"] });
+    mount();
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Play Next" }));
+    await waitFor(() => expect(puts("/api/me/plan-flags/")).toHaveLength(1));
+    expect(puts("/api/me/plan-flags/")[0][0]).toBe("/api/me/plan-flags/g1");
+    expect(JSON.parse(puts("/api/me/plan-flags/")[0][1].body)).toEqual({ play_next: true });
     expect(patches()).toHaveLength(0);
   });
 
