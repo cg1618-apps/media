@@ -232,36 +232,13 @@ class StudioResponse(StudioBase):
     media_types: List[str] = []
     restricted: bool = False
     # Whether this studio relates to at least one studio the viewer may see
-    # (services.domain.studio_relation.related_counts): the studio library's
+    # (services.domain.peer_relation, STUDIO_RELATIONS.related_counts): the studio library's
     # Relation filter reads it, so a relation to a hidden studio is no
     # relation at all here.
     has_relations: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
-
-class StudioRelationRef(BaseModel):
-    """One related studio, as a studio's page lists it, with the remark this
-    studio's side gives the relation (null when it gives none)."""
-
-    system_id: UUID
-    public_id: int
-    display_name: str
-    remark: Optional[str] = None
-
-
-class StudioRelationItem(BaseModel):
-    """One relation as the editor sends it: the other studio, and this side's
-    remark."""
-
-    studio_id: UUID
-    remark: Optional[str] = None
-
-
-class StudioRelationsReplace(BaseModel):
-    """PUT /api/studio/{id}/related: every studio this one relates to."""
-
-    relations: List[StudioRelationItem]
 
 
 class MergeRequest(BaseModel):

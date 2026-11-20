@@ -1,10 +1,10 @@
-// Frontend: tests for the related studios on a studio's page.
+// Frontend: tests for the related records on a studio's or a franchise's page.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import RelatedStudios, { pickerItems } from "./RelatedStudios";
+import RelatedRecords, { pickerItems } from "./RelatedRecords";
 
 vi.mock("../../hooks/useToast", () => ({
   useToast: () => ({ showToast: vi.fn() }),
@@ -35,7 +35,7 @@ beforeEach(() => {
         const body = JSON.parse(init.body);
         putBodies.push({ url: u, body });
         const names = { b: "Studio Bee", c: "Studio Sea", d: "Studio Dee" };
-        const rows = body.relations.map((r) => ref(r.studio_id, names[r.studio_id], r.remark));
+        const rows = body.relations.map((r) => ref(r.id, names[r.id], r.remark));
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(rows) });
       }
       const rows = u.endsWith("/related")
@@ -46,15 +46,15 @@ beforeEach(() => {
   );
 });
 
-function mount(isAdmin = false) {
+function mount(isAdmin = false, type = "studio") {
   return render(
     <MemoryRouter>
-      <RelatedStudios studioId="a" isAdmin={isAdmin} />
+      <RelatedRecords type={type} recordId="a" isAdmin={isAdmin} />
     </MemoryRouter>,
   );
 }
 
-describe("RelatedStudios", () => {
+describe("RelatedRecords on a studio", () => {
   it("lists each related studio as a link with this side's remark", async () => {
     mount();
     const list = await screen.findByRole("list", { name: "Related studios" });
@@ -93,8 +93,8 @@ describe("RelatedStudios", () => {
     expect(putBodies[0].url).toBe("/api/studio/a/related");
     expect(putBodies[0].body).toEqual({
       relations: [
-        { studio_id: "b", remark: null },
-        { studio_id: "c", remark: "sister studio" },
+        { id: "b", remark: null },
+        { id: "c", remark: "sister studio" },
       ],
     });
     expect(await screen.findByText(/sister studio/)).toBeInTheDocument();
@@ -107,13 +107,36 @@ describe("RelatedStudios", () => {
     await user.click(screen.getByRole("button", { name: "Remove Studio Bee" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(putBodies).toHaveLength(1));
-    expect(putBodies[0].body.relations.map((r) => r.studio_id)).toEqual(["c"]);
+    expect(putBodies[0].body.relations.map((r) => r.id)).toEqual(["c"]);
+  });
+});
+
+describe("RelatedRecords on a franchise", () => {
+  it("reads and writes the franchise routes, under its own title", async () => {
+    const user = userEvent.setup();
+    mount(true, "franchise");
+    expect(await screen.findByRole("list", { name: "Related franchises" })).toBeInTheDocument();
+    expect(String(fetch.mock.calls[0][0])).toBe("/api/franchise/a/related");
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    // Every franchise, past the list route's default page of 500.
+    await waitFor(() =>
+      expect(fetch.mock.calls.map(([u]) => String(u))).toContain("/api/franchise/?limit=2000"),
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    expect(putBodies[0].url).toBe("/api/franchise/a/related");
   });
 });
 
 describe("pickerItems", () => {
-  it("offers neither the page's own studio nor one already chosen", () => {
+  it("offers neither the page's own record nor one already chosen", () => {
     const studios = [ref("a", "Ay"), ref("b", "Bee"), ref("d", "Dee")];
     expect(pickerItems(studios, [ref("b", "Bee")], "a").map((i) => i.id)).toEqual(["d"]);
+  });
+
+  it("searches every name field the kind names", () => {
+    const franchise = { ...ref("f", "進撃の巨人"), franchise_name_en: "Attack on Titan" };
+    const [item] = pickerItems([franchise], [], "a", ["franchise_name_en"]);
+    expect(item.searchText).toContain("Attack on Titan");
   });
 });

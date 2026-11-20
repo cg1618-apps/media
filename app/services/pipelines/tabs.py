@@ -292,6 +292,12 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     # Grouping tiers, parent first.
     SheetTab("Collection", models.Collection, f.parse_collection_from_sheet),
     SheetTab("Franchise", models.Franchise, f.parse_franchise_from_sheet),
+    # After Franchise: both ends cite a franchise, whose uuid travels.
+    SheetTab(
+        "Franchise Relation",
+        models.FranchiseRelation,
+        f.parse_franchise_relation_from_sheet,
+    ),
     SheetTab("Series", models.Series, f.parse_series_from_sheet),
     # Per-user, like Watch Order Follow: user_id is dropped for `username`.
     # After the three tiers and the four entities its owner columns name -

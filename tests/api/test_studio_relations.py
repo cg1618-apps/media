@@ -56,7 +56,7 @@ def _put(client, studio, relations):
         f"/api/studio/{studio.system_id}/related",
         json={
             "relations": [
-                {"studio_id": str(other.system_id), "remark": remark}
+                {"id": str(other.system_id), "remark": remark}
                 for other, remark in relations
             ]
         },

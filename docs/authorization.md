@@ -1101,13 +1101,17 @@ either route 404s when the person asked about is hidden. The two replace
 writers keep the rows naming a person the writer cannot see, as the scope
 writers below do.
 
-**A studio relation is not a connection either.** `studio_relation` never makes
-a hidden studio visible. A visible studio's `/related` omits the related
-studios the viewer cannot see, and 404s when the studio asked about is hidden;
-the list's `has_relations` counts only visible related studios, so the studio
-library's Relation filter cannot reveal one; and the editor's candidates are
-the studio list, filtered the same way. The replace writer keeps the rows
-naming a studio the writer cannot see, and refuses one it names (422).
+**A peer relation is not a connection either.** `studio_relation` never makes
+a hidden studio visible, and `franchise_relation` never makes a hidden
+franchise visible; each reads through its own kind's rule (the shared-record
+rule for a studio, the label rule for a franchise). A visible record's
+`/related` omits the related records the viewer cannot see, and 404s when the
+record asked about is hidden; the list's `has_relations` counts only visible
+related records, so a library's Relation filter cannot reveal one; and the
+editor's candidates are the kind's list, filtered the same way. The replace
+writer keeps the rows naming a record the writer cannot see, and refuses one
+it names (422). One class, `PeerRelations` in
+`app/services/domain/peer_relation.py`, holds these rules for both.
 
 So crediting somebody on a visible entry reveals them and removing that credit
 hides them again; nothing is stored. The rule is one SQL condition

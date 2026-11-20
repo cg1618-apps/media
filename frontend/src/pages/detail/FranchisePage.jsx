@@ -62,6 +62,7 @@ import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
+import RelatedRecords from "../../components/info/RelatedRecords";
 
 function GroupRail({ label, count }) {
   return (
@@ -1544,6 +1545,11 @@ export default function FranchisePage() {
           )}
         </div>
       </div>
+
+      {/* Franchises related to this one, each with this side's remark. Whole
+          franchises, not the entry-to-entry relations the Relations tab
+          draws. */}
+      <RelatedRecords type="franchise" recordId={franchise.system_id} isAdmin={isAdmin} />
 
       {/* Series list */}
       {seriesList.length > 0 && (

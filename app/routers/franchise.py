@@ -23,6 +23,7 @@ from app.services.domain.hierarchy import (
     check_franchise_entries_family,
     check_franchise_type_family,
 )
+from app.services.domain.peer_relation import FRANCHISE_RELATIONS
 from app.services.domain.user_rating import attach_ratings
 from app.services.rbac.enforcement import (
     apply_franchise_visibility,
@@ -105,6 +106,7 @@ def get_all_franchises(
     attach_franchise_content_labels(db, rows)
     attach_entry_counts(db, rows, models.Media.franchise_id, viewer)
     attach_ratings(db, "franchise", rows, viewer.user_id)
+    FRANCHISE_RELATIONS.attach_has_relations(db, viewer, rows)
     return rows
 
 
@@ -128,7 +130,68 @@ def get_franchise_by_id(
         raise HTTPException(status_code=404, detail="Franchise not found.")
     attach_ratings(db, "franchise", db_franchise, viewer.user_id)
     attach_franchise_content_labels(db, db_franchise)
+    FRANCHISE_RELATIONS.attach_has_relations(db, viewer, db_franchise)
     return db_franchise
+
+
+# ==========================================
+# RELATED FRANCHISES
+# ==========================================
+# A relation is mutual, and each side carries its own remark. Both routes
+# read through the franchise label rule: the franchise asked about must be
+# visible (404 otherwise), and the related franchises the viewer may not see
+# are simply left out. A relation is not a connection, so it reveals nobody.
+
+
+def _visible_franchise_or_404(db: Session, viewer, system_id: str) -> models.Franchise:
+    franchise = find_entity(db, models.Franchise, system_id)
+    if franchise is None or not franchise_visible(db, viewer, franchise.system_id):
+        raise HTTPException(status_code=404, detail="Franchise not found.")
+    return franchise
+
+
+@router.get(
+    "/{system_id}/related",
+    response_model=List[schemas.PeerRelationRef],
+    summary="Franchises Related to This One",
+)
+def get_related_franchises(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """The visible related franchises, ordered by name, each with the remark
+    this franchise's side gives the relation."""
+    franchise = _visible_franchise_or_404(db, viewer, system_id)
+    return FRANCHISE_RELATIONS.related_of(db, viewer, franchise.system_id)
+
+
+@router.put(
+    "/{system_id}/related",
+    response_model=List[schemas.PeerRelationRef],
+    summary="Replace the Franchises Related to This One",
+)
+def put_related_franchises(
+    system_id: str,
+    payload: schemas.PeerRelationsReplace,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Whole-list replace of this side. Every id must be a visible franchise
+    other than this one (422 otherwise). A new relation appears on the other
+    franchise's page too, with no remark there; a removed one leaves both
+    pages. Relations to franchises the writer cannot see are kept.
+    """
+    franchise = _visible_franchise_or_404(db, admin, system_id)
+    FRANCHISE_RELATIONS.replace_related(
+        db,
+        admin,
+        franchise.system_id,
+        [(item.id, item.remark) for item in payload.relations],
+    )
+    db.commit()
+    return FRANCHISE_RELATIONS.related_of(db, admin, franchise.system_id)
 
 
 # ==========================================
