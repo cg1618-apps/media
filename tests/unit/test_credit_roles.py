@@ -231,15 +231,41 @@ def test_manga_illustrator_uses_the_traditional_form():
 # ---------------------------------------------------------------------------
 
 
-def test_legal_scopes_match_media_types():
+def test_legal_scopes_are_the_credited_types_then_the_extra_ones():
     assert cr.legal_scopes("director") == (
-        "anime", "anime-movie", "movie", "game", "hentai",
+        "anime", "anime-movie", "movie", "game", "hentai", "tv-show", "cartoon",
     )
-    assert cr.legal_scopes("producer") == ("anime",)
-    assert cr.legal_scopes("composer") == ("anime", "game")
+    assert cr.legal_scopes("producer") == (
+        "anime", "anime-movie", "movie", "tv-show", "cartoon",
+    )
+    assert cr.legal_scopes("composer") == (
+        "anime", "game", "anime-movie", "movie", "tv-show", "cartoon",
+    )
     assert cr.legal_scopes("author") == ("manga", "book", "comic", "h-comic", "hentai")
     assert cr.legal_scopes("illustrator") == ("manga", "book", "comic", "h-comic")
     assert cr.legal_scopes("club") == ("h-comic",)
+
+
+@pytest.mark.parametrize("media_type", ["movie", "tv-show", "cartoon"])
+def test_an_extra_scope_gives_the_entry_type_no_credit_field(media_type):
+    """
+    composer's movie scope files a person; it must not give movie entries a
+    composer field, nor their sheet tab a composer column.
+    """
+    keys = {r.key for r in cr.credit_roles_for(media_type)}
+    assert "composer" not in keys
+    assert "producer" not in keys
+    if media_type != "movie":
+        assert "director" not in keys
+
+
+def test_only_club_needs_a_scope():
+    """club's one scope is a gated type; an unscoped club would hide from nobody."""
+    assert [k for k in cr.PERSON_ROLES if cr.CREDIT_ROLES[k].scope_required] == ["club"]
+
+
+def test_manga_shows_author_and_illustrator_as_one_group():
+    assert cr.COMBINED_CREDIT_GROUPS["manga"] == (("author", "illustrator"), "原作&作畫")
 
 
 def test_publisher_is_offered_on_six_media_types():

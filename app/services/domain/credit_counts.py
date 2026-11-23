@@ -9,7 +9,7 @@ hidden is not counted, and a gated type the viewer cannot see is not told to
 exist - so the two can never disagree. Only numbers leave here, never a name.
 """
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app import models
@@ -35,7 +35,12 @@ def person_role_counts(db: Session, viewer) -> dict[str, int]:
     ).join(models.Person, models.PersonRole.person_id == models.Person.system_id)
     query = apply_shared_visibility(query, models.Person, db, viewer)
     if hidden:
-        query = query.filter(models.PersonRole.scope.notin_(hidden))
+        query = query.filter(
+            or_(
+                models.PersonRole.scope.is_(None),
+                models.PersonRole.scope.notin_(hidden),
+            )
+        )
     tallied = dict(query.group_by(models.PersonRole.role).all())
     return {role: tallied.get(role, 0) for role in roles}
 

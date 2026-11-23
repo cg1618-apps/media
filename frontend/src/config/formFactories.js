@@ -669,6 +669,12 @@ export const defaultPerson = () => ({
   pending_image_id: null,
   mal_link: "",
   imdb_link: "",
+  twitter_link: "",
+  ig_link: "",
+  pixiv_link: "",
+  // The studios the person belongs to, as {system_id, display_name} refs;
+  // sent as studio_ids.
+  affiliations: [],
   remark: "",
 });
 

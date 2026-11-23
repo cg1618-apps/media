@@ -200,8 +200,8 @@ Relationships: `series`, `collection`, `animes`. Virtual:
 
 ### `franchise_relation`
 
-One side of a relation between two franchises - the [`studio_relation`](#studio_relation)
-design on franchises. Model: `FranchiseRelation` (`app/models/franchise.py`).
+One side of a relation between two franchises - the [`company_relation`](#company_relation)
+design on franchises, which relate to franchises only. Model: `FranchiseRelation` (`app/models/franchise.py`).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -1183,6 +1183,9 @@ One human credited on a media entry (Tier 3 entity - see
 | `mal_link` | String | yes | | `myanimelist.net/people/<id>/<slug>` |
 | `imdb_id` | String | yes | | IMDb name id, `nm<digits>`. Derived from `imdb_link` by `extract_imdb_id_person` on every write and on the Person (TMDB) Fill. Any person holding one is filled from TMDB's person record (through `/find`), after MAL |
 | `imdb_link` | String | yes | | `imdb.com/name/nm<digits>/` |
+| `twitter_link` | String | yes | | The person's own Twitter (X) page. Stored as typed; no id is derived from it and no Fill reads it |
+| `ig_link` | String | yes | | Their Instagram page, as `twitter_link` |
+| `pixiv_link` | String | yes | | Their pixiv page, as `twitter_link` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,
@@ -1212,19 +1215,27 @@ credits, so a director can be offered before their first credit exists.
 | `id` | Integer | no | autoincrement | PK |
 | `person_id` | UUID | no | | FK `person.system_id` ON DELETE CASCADE, indexed |
 | `role` | String | no | | One of PERSON_ROLES, indexed |
-| `scope` | String | **no** | | A hyphenated media-type key, one of `legal_scopes(role)` |
+| `scope` | String | yes | | A hyphenated media-type key, one of `legal_scopes(role)`; NULL for a role held in no media type |
 
-Constraint: `uq_person_role` UNIQUE (`person_id`, `role`, `scope`) - plain, not
-NULLS NOT DISTINCT: with `scope` NOT NULL there is no nullable column left in
-the key. It *was* needed while scope was NULL for every role but `director`.
+Constraint: `uq_person_role` UNIQUE (`person_id`, `role`, `scope`) **NULLS NOT
+DISTINCT** - `scope` is nullable, and without it two `(person, role, NULL)`
+rows would commit cleanly.
 
 A person's dropdown visibility is the **union** of their rows, and there is
-deliberately no unscoped "offered everywhere" state - unlike
-`system_option_scope`, where zero rows means everywhere. Person credits are
-auto-scoped on write, so under an "everywhere" rule the first scope row would
-silently narrow the person; with no such state to collapse, auto-scoping is
-purely additive. Migration `r0l1c2o3l4p5` rebuilt the table onto the five
-collapsed role keys and made `scope` NOT NULL.
+deliberately no "offered everywhere" state - unlike `system_option_scope`,
+where zero rows means everywhere. Person credits are auto-scoped on write, so
+under an "everywhere" rule the first scope row would silently narrow the
+person; with no such state to collapse, auto-scoping is purely additive.
+
+A NULL scope is the opposite of everywhere: the person **holds the role** -
+listed under it by `GET /api/person/?role=`, counted by `role-counts`, shown on
+its admin sub-tab and in the library - and **no dropdown offers them**, because
+every dropdown asks with a `?scope=`. Per role a person holds either one
+unscoped row or only scoped ones: a role that gains a scope, from the form or
+from a credit, loses its unscoped row (`app/services/domain/person_roles.py`).
+`club` is the one role that cannot be unscoped (`CreditRole.scope_required`):
+its only scope is the gated `h-comic`, and an unscoped row names no type to
+hide behind.
 
 ### `person_membership`
 
@@ -1248,30 +1259,58 @@ connection in the shared-record sense: it never makes a hidden club or artist
 visible ([authorization.md](authorization.md)). A person merge moves both ends
 onto the survivor.
 
-### `studio_relation`
+### `company_relation`
 
-One side of a relation between two studios. Model: `StudioRelation`
-(`app/models/staff.py`).
+One side of a relation between two companies - a studio or a publisher at
+either end, in any mix. Model: `CompanyRelation` (`app/models/staff.py`).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `studio_id` | UUID | no | | FK `studio.system_id` ON DELETE CASCADE, indexed - the studio whose page lists the relation |
-| `related_studio_id` | UUID | no | | FK `studio.system_id` ON DELETE CASCADE, indexed - the studio listed there |
-| `remark` | Text | yes | | What `studio_id`'s page says beside `related_studio_id`; null when that side gives none |
+| `studio_id` | UUID | yes | | FK `studio.system_id` ON DELETE CASCADE, indexed - the owning side when it is a studio |
+| `publisher_id` | UUID | yes | | FK `publisher.system_id` ON DELETE CASCADE, indexed - the owning side when it is a publisher |
+| `related_studio_id` | UUID | yes | | FK `studio.system_id` ON DELETE CASCADE, indexed - the company listed, when a studio |
+| `related_publisher_id` | UUID | yes | | FK `publisher.system_id` ON DELETE CASCADE, indexed - the company listed, when a publisher |
+| `remark` | Text | yes | | What the owning company's page says beside the other; null when that side gives none |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Constraints: `uq_studio_relation` UNIQUE (`studio_id`, `related_studio_id`)
-and `ck_studio_relation_not_self` (`studio_id <> related_studio_id`).
+Constraints: `ck_company_relation_one_owner` and
+`ck_company_relation_one_related` - exactly one column of each end is set;
+`ck_company_relation_studio_not_self` and
+`ck_company_relation_publisher_not_self` - no company relates to itself; and
+`uq_company_relation` UNIQUE over all four id columns **NULLS NOT DISTINCT**,
+since two of the four are NULL on every row.
 
 A relation is mutual and is always the **pair** of rows (A, B) and (B, A), so
-each side keeps its own remark. `STUDIO_RELATIONS` in
-`app/services/domain/peer_relation.py` is the only writer and keeps the pair whole: adding a relation from one side creates
-the other side's row with no remark, and removing it from either side removes
-both. A relation is not a connection in the shared-record sense: it never
-makes a hidden studio visible ([authorization.md](authorization.md)). A studio
-merge moves both sides onto the survivor, dropping a row the survivor already
-holds (its own remark wins) or one that would relate it to itself.
+each side keeps its own remark. `COMPANY_RELATIONS` in
+`app/services/domain/peer_relation.py` is the only writer and keeps the pair
+whole: adding a relation from one side creates the other side's row with no
+remark, and removing it from either side removes both. A relation is not a
+connection in the shared-record sense: it never makes a hidden studio or
+publisher visible ([authorization.md](authorization.md)). A studio or
+publisher merge moves both sides onto the survivor, dropping a row the
+survivor already holds (its own remark wins) or one that would relate it to
+itself.
+
+### `person_affiliation`
+
+One person belonging to one studio - a director on a studio's staff, a
+seiyuu with an agency. Model: `PersonAffiliation` (`app/models/staff.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `person_id` | UUID | no | | FK `person.system_id` ON DELETE CASCADE, indexed |
+| `studio_id` | UUID | no | | FK `studio.system_id` ON DELETE CASCADE, indexed |
+| `created_at` | DateTime | yes | now | |
+
+Constraint: `uq_person_affiliation` UNIQUE (`person_id`, `studio_id`). One
+row per pair: belonging has a direction, so unlike `company_relation` there
+is no second side. The person form writes the whole set with the person
+(`app/services/domain/affiliation.py`), keeping the rows naming a studio the
+writer cannot see; the studio's page reads the same rows the other way. Not a
+connection: it never makes a hidden studio or person visible. A person merge
+or a studio merge moves the loser's rows onto the survivor.
 
 ### `studio`
 
@@ -1402,8 +1441,8 @@ suggested as an anime distributor, and 木棉花 suggested on a game.
 
 Constraint: `uq_publisher_scope` UNIQUE (`publisher_id`, `scope`) - plain, not
 NULLS NOT DISTINCT: `scope` is NOT NULL, so no nullable column is left in the
-key for Postgres to treat as distinct from itself. `uq_person_role` needed the
-opposite treatment only while its own scope column was still nullable.
+key for Postgres to treat as distinct from itself. `uq_person_role` needs the
+opposite treatment, because its scope column is nullable.
 
 **No `role` column**, and that is the one deliberate difference from
 `person_role`. A person holds several roles, so that table keys on
@@ -1412,8 +1451,8 @@ so a column whose value is that constant on every row would encode nothing.
 
 The two rules `person_role` argues for are inherited unchanged:
 
-- **No unscoped "offered everywhere" state.** Zero rows means offered
-  *nowhere*, the opposite of `system_option_scope`.
+- **No "offered everywhere" state.** Zero rows means offered *nowhere*, the
+  opposite of `system_option_scope`.
 - **Auto-scoping on write is additive.** `resolve_publisher(db, name, *,
   scope=)` adds the media type's row if absent and never removes another, so
   crediting a publisher on a manga can only widen where it is offered. Under

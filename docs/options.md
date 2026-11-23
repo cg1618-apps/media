@@ -526,17 +526,22 @@ The reader-facing word is **derived, not stored**:
 manga / book / comic and 作畫 / Illustrator / Artist / 繪師 for `illustrator`
 on manga / book / comic / h-comic. One vocabulary, several words.
 
-**Person scope is not option scope.** Every `person_role` row carries a
-NOT NULL media-type scope and a person is offered in the union of their rows;
-there is no "offered everywhere" state. A `system_option` with **zero**
+**Person scope is not option scope.** A person is offered in the union of
+their `person_role` rows' media-type scopes; there is no "offered everywhere"
+state, and a role held with a NULL scope is offered in no dropdown at all. A `system_option` with **zero**
 `system_option_scope` rows, by contrast, IS offered everywhere. The asymmetry
 is deliberate, not an oversight to tidy up: person credits are auto-scoped on
 write, so an "everywhere" state would let the first credit silently narrow the
 person - exactly the trap Ruling R27 removed from tags, where using an unscoped
 "Disney+" on one TV show hid it from the Cartoon dropdown. Option values are
 not auto-scoped, so their "everywhere" state is safe. `legal_scopes(role)` says
-which media types a role may be scoped to; `GET /api/person/role-scopes` serves
-the map to the admin form.
+which media types a role may be scoped to - the types credited with it, then
+its `extra_scopes`; `GET /api/person/role-scopes` serves the map to the admin
+form. An extra scope files a person under a type whose entries carry no such
+credit field: `director` adds `tv-show` and `cartoon`, and `producer` and
+`composer` add `anime-movie`, `movie`, `tv-show` and `cartoon`. It gives no
+entry form a field and no sheet tab a column; it only decides which dropdowns
+would offer the person once such a field exists.
 
 `TAG_FIELDS` is the vocabulary of `media_tag.field`; each field reads one
 Tier 2 category:

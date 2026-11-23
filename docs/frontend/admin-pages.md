@@ -840,15 +840,26 @@ bar filters a list, and Add has no list; the role × scope matrix inside the
 form already says which types a new person holds. `PersonFields` holds the four name fields with a
 "Display name" select, the **role × scope matrix**, then gender
 (`GenderField` from `components/forms/EntityProfileFields.jsx` with
-`kind="person"`: **男** and **女** as `QuickPicks` chips beside a closed
+`kind="person"`, followed by **Affiliation** - the studios the person
+belongs to, a seiyuu's agency as much as a director's studio, picked by id
+from every studio in `StudioAffiliationField` and sent with the person as
+`studio_ids`: **男** and **女** as `QuickPicks` chips beside a closed
 select of "—", 男 and 女 — `PERSON_GENDERS`, a person's whole vocabulary — one
 click picks, clicking the pressed chip clears, and the select follows either
 way; unset saves as null). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
-its `myanimelist.net/people/<id>` path, so there is no id field), the photo
-and the remark. Ticking a type selects its first legal media type, because a
-scopeless role is a 422; the legal types per role come from
-`GET /api/person/role-scopes`, so the form cannot offer a pair the API
-rejects. Submit is blocked until at least one name is filled, matching
+its `myanimelist.net/people/<id>` path, so there is no id field), the IMDb
+link, then **Twitter Link**, **Instagram Link** and **pixiv Link**
+(`twitter_link`, `ig_link`, `pixiv_link`, `PERSON_SOCIAL_LINKS`; stored as
+typed, a blank one as null), the photo and the remark. Ticking a type holds it
+with **no media type selected** - `{role, scope: null}`, listed under the type
+and offered in no dropdown; ticking a media type replaces that with scoped
+rows, and unticking the last one goes back to it. The legal types per role come
+from `GET /api/person/role-scopes`, so the form cannot offer a pair the API
+rejects, and a type that endpoint leaves out is **not drawn**: `club`, for a
+session that cannot see h-comic, whose checkbox would otherwise have nothing
+to select. The club is also the one exception to ticking unscoped: a type with
+a `gatedType` in `PERSON_SUB_TABS` selects that scope when ticked, and its last
+scope cannot be unticked, because the API refuses an unscoped club. Submit is blocked until at least one name is filled, matching
 `ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
 `PersonFields` is exported so the Modify tab renders the same inputs.
 
@@ -1191,7 +1202,9 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   card, like every list section. Highlights groups show in their stored
   order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
-  (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`).
+  (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`). The
+  Franchise tab ends with the detail page's **Related franchises** box
+  (`RelatedRecords`), which saves through its own button, not with the form.
 - **The viewer's own rating.** The Collection, Franchise and Series tabs draw
   **My Rating** and **Expectation** under Other Information for a viewer who
   keeps a list, as on `/add`; the Person, Character, Studio and Publisher
@@ -1225,7 +1238,9 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   stored record as it is: a studio with no `countries` opens empty and saves
   `null`, so removing every country is how they are unset. No value is
   seeded on load, because a seed cannot be told apart from a stored value
-  and would be written back on the next save of any field.
+  and would be written back on the next save of any field. Under the form
+  sits the detail page's **Related companies** box (`RelatedRecords
+  type="studio"`): outside the `<form>`, saved through its own button.
 - **Publisher tab (Entity).** `PublisherModifyTab.jsx`, self-contained the
   same way over `/api/publisher/` (query key `["publishers-admin"]`): its own
   picker listing every publisher up front, the same all-four-names filter,
@@ -1237,7 +1252,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   every other writer (the create POST, and crediting a publisher on an entry)
   is additive. Two `activeTab !== "publisher"` guards on the page suppress the generic
   entry search bar and save footer, as the studio and person tabs do. Like
-  the studio tab it seeds no default country.
+  the studio tab it seeds no default country, and it carries the same
+  **Related companies** box under the form.
 - **Person tab (Entity).** `PersonModifyTab.jsx`, self-contained the same way
   over `/api/person/`. A `PersonSubTabBar` picks the role — the analogue of
   the option tab's category. It opens on **All**, first in the bar, which

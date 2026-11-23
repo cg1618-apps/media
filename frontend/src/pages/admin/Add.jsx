@@ -1119,8 +1119,12 @@ export default function Add() {
         photo_focus: personForm.photo_focus || null,
         mal_link: personForm.mal_link?.trim() || null,
         imdb_link: personForm.imdb_link?.trim() || null,
+        twitter_link: personForm.twitter_link?.trim() || null,
+        ig_link: personForm.ig_link?.trim() || null,
+        pixiv_link: personForm.pixiv_link?.trim() || null,
         remark: personForm.remark || null,
         roles: personRoles,
+        studio_ids: (personForm.affiliations || []).map((s) => s.system_id),
       }),
       credentials: "include",
     });

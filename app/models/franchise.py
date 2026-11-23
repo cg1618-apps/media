@@ -123,7 +123,7 @@ class Franchise(Base, NameFallbackMixin):
 class FranchiseRelation(Base):
     """
     One side of a relation between two franchises - the same design as
-    StudioRelation (app/models/staff.py): a relation is mutual and always the
+    CompanyRelation (app/models/staff.py): a relation is mutual and always the
     two rows (A, B) and (B, A), each holding the remark its `franchise_id`'s
     page shows beside the other franchise. FRANCHISE_RELATIONS in
     app/services/domain/peer_relation.py is the only writer and keeps the pair

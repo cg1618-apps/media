@@ -17,6 +17,7 @@ import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import ImagePicker from "../../components/forms/ImagePicker";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import WorkImagesEditor from "../../components/forms/WorkImagesEditor";
+import StudioAffiliationField from "../../components/forms/StudioAffiliationField";
 import {
   GenderField,
   PhotoFallbackField,
@@ -27,6 +28,13 @@ import { PERSON_NAME_FIELDS, isSeiyuu } from "../../lib/naming";
 import { holdsGalleryRole } from "../../lib/workImages";
 
 export { defaultPerson } from "../../config/formFactories";
+
+// The person's own pages: stored as typed, with no id read from them.
+export const PERSON_SOCIAL_LINKS = [
+  { field: "twitter_link", label: "Twitter Link", placeholder: "https://x.com/..." },
+  { field: "ig_link", label: "Instagram Link", placeholder: "https://www.instagram.com/..." },
+  { field: "pixiv_link", label: "pixiv Link", placeholder: "https://www.pixiv.net/users/..." },
+];
 
 /**
  * Which media types each person role may be scoped to, from
@@ -50,34 +58,52 @@ export function useRoleScopes() {
 /**
  * The role × scope matrix.
  *
- * Every person_role row carries a media-type scope and there is no "offered
- * everywhere" state, so a type with no scope ticked is a type the person does
- * not hold - see the design spec's Decision B. Ticking the type itself selects
- * its first legal scope, because a scopeless role is a 422 from the API.
+ * Ticking a type holds the role with no media type ticked: a {role, scope:
+ * null} row, which lists the person under the type and offers them in no
+ * dropdown. Ticking a media type turns that row into scoped ones, and
+ * unticking the last one turns it back. There is still no "offered
+ * everywhere" state - see the design spec's Decision B.
+ *
+ * Two exceptions. A type the server does not offer (absent from
+ * `legalScopes`) is not drawn: that is `club` for a session that cannot see
+ * h-comic, and a row whose checkbox could never tick would only say the type
+ * exists. And a type that exists only for a gated type (`gatedType`, the
+ * club) must keep that scope, since an unscoped club would hide from nobody,
+ * so ticking it selects its scope and the scope cannot be unticked.
  */
 export function PersonRoleMatrix({ roles, setRoles, legalScopes }) {
   const held = new Set((roles || []).map((r) => r.role));
 
   function scopesFor(role) {
-    return (roles || []).filter((r) => r.role === role).map((r) => r.scope);
+    return (roles || [])
+      .filter((r) => r.role === role && r.scope)
+      .map((r) => r.scope);
   }
 
   function setRoleScopes(role, scopes) {
     setRoles([
       ...(roles || []).filter((r) => r.role !== role),
-      ...scopes.map((scope) => ({ role, scope })),
+      ...(scopes.length
+        ? scopes.map((scope) => ({ role, scope }))
+        : [{ role, scope: null }]),
     ]);
+  }
+
+  function dropRole(role) {
+    setRoles((roles || []).filter((r) => r.role !== role));
   }
 
   function toggleScope(role, scope) {
     const current = scopesFor(role);
     const next = current.includes(scope)
       ? current.filter((s) => s !== scope)
-      : [...(legalScopes[role] || []).filter(
+      : (legalScopes[role] || []).filter(
           (s) => current.includes(s) || s === scope,
-        )];
+        );
     setRoleScopes(role, next);
   }
+
+  const types = PERSON_SUB_TABS.filter((t) => legalScopes[t.key]);
 
   return (
     <div className="space-y-2">
@@ -85,41 +111,50 @@ export function PersonRoleMatrix({ roles, setRoles, legalScopes }) {
         Types and Scopes
       </label>
       <p className="text-[11px] text-text-faint">
-        Which dropdowns this person is offered in. Every type needs at least one
-        media type — there is no "offered everywhere".
+        Which types this person is, and which dropdowns offer them. A type with
+        no media type ticked is listed under the type and offered in no
+        dropdown.
       </p>
-      {PERSON_SUB_TABS.map((t) => {
-        const legal = legalScopes[t.key] || [];
+      {types.map((t) => {
+        const legal = legalScopes[t.key];
         const selected = scopesFor(t.key);
+        const required = Boolean(t.gatedType);
         return (
           <div key={t.key} className="rounded-xl border border-border p-3">
             <label className="flex items-center gap-2 text-sm font-bold text-text">
               <input
                 type="checkbox"
                 checked={held.has(t.key)}
-                onChange={(e) =>
-                  setRoleScopes(t.key, e.target.checked ? legal.slice(0, 1) : [])
-                }
+                onChange={(e) => {
+                  if (!e.target.checked) dropRole(t.key);
+                  else setRoleScopes(t.key, required ? legal.slice(0, 1) : []);
+                }}
               />
               <i className={`fas ${t.icon} text-text-faint`}></i>
               {t.label}
             </label>
             {held.has(t.key) && (
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {legal.map((scope) => (
-                  <button
-                    key={scope}
-                    type="button"
-                    onClick={() => toggleScope(t.key, scope)}
-                    className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${
-                      selected.includes(scope)
-                        ? "bg-brand text-on-brand border-brand"
-                        : "bg-surface text-text-faint border-border hover:border-border-strong"
-                    }`}
-                  >
-                    {scope}
-                  </button>
-                ))}
+                {legal.map((scope) => {
+                  const on = selected.includes(scope);
+                  const locked = required && on && selected.length === 1;
+                  return (
+                    <button
+                      key={scope}
+                      type="button"
+                      aria-pressed={on}
+                      disabled={locked}
+                      onClick={() => toggleScope(t.key, scope)}
+                      className={`px-2.5 py-1 rounded-full border text-xs font-bold transition-colors ${
+                        on
+                          ? "bg-brand text-on-brand border-brand"
+                          : "bg-surface text-text-faint border-border hover:border-border-strong"
+                      }`}
+                    >
+                      {scope}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -189,6 +224,15 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
       <SectionHeader icon="fa-id-card" title="Profile" />
       <GenderField kind="person" form={personForm} update={upf} />
       <Field
+        label="Affiliation"
+        hint="The studios this person belongs to - a seiyuu's agency, a director's studio. Saved with the person."
+      >
+        <StudioAffiliationField
+          value={personForm.affiliations}
+          onChange={(next) => upf("affiliations", next)}
+        />
+      </Field>
+      <Field
         label="MAL Link"
         hint="The person's myanimelist.net/people/<id> page; the MAL id is read from it."
       >
@@ -210,6 +254,16 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
           placeholder="https://www.imdb.com/name/..."
         />
       </Field>
+      {PERSON_SOCIAL_LINKS.map(({ field, label, placeholder }) => (
+        <Field key={field} label={label}>
+          <input
+            className={inputCls}
+            value={personForm[field] ?? ""}
+            onChange={(e) => upf(field, e.target.value)}
+            placeholder={placeholder}
+          />
+        </Field>
+      ))}
       <Field label="Photo">
         <ImagePicker
           ownerType="staff"

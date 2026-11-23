@@ -793,7 +793,8 @@ toggles a `FilterPanel` over `studioFilterDefs(auth)` from
   studio needs it. A studio matches every chip one of its countries falls
   under, so one from Japan and Poland is found under Japan and under Others.
 - **Relation** — Has relation / No relation, off `has_relations`, which
-  counts only related studios the viewer may see.
+  counts only related companies the viewer may see. The publisher library has
+  the same filter.
 
 Every entity library opens with nothing ticked. An empty Entry type group is
 not "no filter": its `idle` rule keeps every row except one whose entries are
@@ -967,12 +968,16 @@ else `FALLBACK_SVG`) and rating stamp, (holder of `self.list`) a **My rating** s
 display name, credited-entry count and, for a person with a `mal_link`, a
 **MyAnimeList** button beside it (`MalButton`, as on the character page; none
 without one), then for a person with an `imdb_link` an **IMDb** button after
-it, drawn the same way (`ImdbButton`, from the same file; none without one), a
-"Profile" `InfoCard` (gender; the types they are offered under, by their
-`PERSON_SUB_TABS` labels — Director, Music / Composer; MAL as an external link
-reading `Person #<mal_id>`; IMDb the same way, reading the `nm…` id; and for a
-non-admin the remark), (admin) a **Remarks** textarea, then one section per
-group. Both external links are shown to every viewer of the page.
+it, drawn the same way (`ImdbButton`, from the same file; none without one),
+then **Twitter**, **Instagram** and **pixiv** buttons for the links the person
+has (`SiteButton`, the same control; a site with no bundled icon shows its name
+alone), a "Profile" `InfoCard` (gender; the types they are offered under, by
+their `PERSON_SUB_TABS` labels — Director, Music / Composer; **Affiliation**, the
+studios they belong to as links; MAL as an external
+link reading `Person #<mal_id>`; IMDb the same way, reading the `nm…` id;
+Twitter, Instagram and pixiv as links reading the URL; and for a non-admin the
+remark), (admin) a **Remarks** textarea, then one section per group. Every
+external link is shown to every viewer of the page.
 
 The admin controls are `components/info/EntityProfileControls.jsx`, shared
 with the character, studio and publisher pages. The rating select is the
@@ -986,7 +991,8 @@ emptied one as null and an untouched one not at all, to
 The one difference from the studio page: a person may hold several roles, so
 `/entries` groups by **(media type, role)** and each heading is the group's
 `label` — 原作 on a manga, Writer on a comic — which comes from the endpoint,
-not from the page. A group the viewer may see no entries of still renders, with
+not from the page. A manga the person both wrote and drew is listed once, under
+a **原作&作畫** group the endpoint builds, not under 原作 and again under 作畫. A group the viewer may see no entries of still renders, with
 "Nothing you can see here" inside it. Entry cards are the same local
 `CreditCard`, not `MediaCard`, for the reason spelled out below.
 
@@ -1127,7 +1133,8 @@ strip with Quick edit to `/modify?id=<system_id>&type=publisher`, the
 logo-plus-rating left column with the viewer's own My rating select
 (`self.list`, `PUT /api/me/ratings/publisher/{system_id}`) and the Naming
 card, the Remarks textarea for an admin (the remark row for anyone else),
-PATCHing `/api/publisher/{system_id}`, and one section per group the entries
+PATCHing `/api/publisher/{system_id}`, the **Related companies** slip
+(`RelatedRecords type="publisher"`), and one section per group the entries
 endpoint returned rendered as the same local `CreditCard`.
 
 Two differences from the studio page, both in the "Profile" `InfoCard`: a
@@ -1171,7 +1178,10 @@ Layout:
    studio is still working, and no invented span when both are empty;
    website and MAL — `Producer #<mal_id>` — as external links; the remark
    for a non-admin), (admin) the **Remarks** textarea, the **Related
-   studios** slip (`RelatedRecords type="studio"`), then one section per
+   companies** slip (`RelatedRecords type="studio"`: studios and publishers,
+   each marked with its kind), the **People** slip (`AffiliatedPeople`, the
+   people affiliated with the studio; none drawn when there are none), then
+   one section per
    group the entries endpoint returned, each entry linking to
    `{nav_path}/{system_id}`.
 

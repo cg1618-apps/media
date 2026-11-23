@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.schemas.image_focus import ImageFocus
 from app.utils.countries import clean_countries
-from app.utils.credit_roles import PERSON_ROLES, legal_scopes
+from app.utils.credit_roles import CREDIT_ROLES, PERSON_ROLES, legal_scopes
 from app.utils.entity_vocab import check_person_gender
 
 
@@ -21,13 +21,15 @@ class PersonRoleIn(BaseModel):
     queries, invisible until someone wonders why a name they just typed is
     never suggested.
 
-    scope is REQUIRED. Every person_role row carries one, because there is no
-    "offered everywhere" state to fall back on - see the design spec's
-    Decision B for why removing it is what makes auto-scoping on write safe.
+    scope is a media type, or None for a role held in no media type yet -
+    the person is listed under the role and offered in no dropdown. None
+    never means "offered everywhere": there is no such state, see the design
+    spec's Decision B for why removing it is what makes auto-scoping on write
+    safe.
     """
 
     role: str
-    scope: str
+    scope: Optional[str] = None
 
     # from_attributes so a PersonRole ORM row validates straight into this.
     # PersonResponse's own from_attributes does NOT reach a nested model in
@@ -53,6 +55,13 @@ class PersonRoleIn(BaseModel):
         role, so it could never reject (composer, manga) - a scope that is a
         real media type but names a credit that does not exist.
         """
+        if self.scope is None:
+            if CREDIT_ROLES[self.role].scope_required:
+                raise ValueError(
+                    f"The {self.role} role needs a scope. Expected one of: "
+                    + ", ".join(legal_scopes(self.role))
+                )
+            return self
         allowed = legal_scopes(self.role)
         if self.scope not in allowed:
             raise ValueError(
@@ -83,6 +92,10 @@ class PersonBase(BaseModel):
     # write.
     imdb_id: Optional[str] = None
     imdb_link: Optional[str] = None
+    # The person's own pages, stored as given.
+    twitter_link: Optional[str] = None
+    ig_link: Optional[str] = None
+    pixiv_link: Optional[str] = None
 
     @model_validator(mode="after")
     def _display_field_is_known(self):
@@ -112,6 +125,15 @@ def _has_a_name(payload: PersonBase) -> bool:
     )
 
 
+class AffiliationRef(BaseModel):
+    """One end of a person affiliation, as a page links to it: the studio on
+    a person's page, the person on a studio's."""
+
+    system_id: UUID
+    public_id: int
+    display_name: str
+
+
 class PersonCreate(PersonWrite):
     """
     A person to create, either fully slotted or as one unslotted `name`.
@@ -126,6 +148,10 @@ class PersonCreate(PersonWrite):
 
     name: Optional[str] = None
     roles: List[PersonRoleIn] = []
+    # The studios this person belongs to (person_affiliation). Omitted, none
+    # are given; on an existing person found by name, these are added to
+    # the ones they already have.
+    studio_ids: List[UUID] = []
 
     @model_validator(mode="after")
     def _named_somehow(self):
@@ -140,6 +166,9 @@ class PersonCreate(PersonWrite):
 
 class PersonUpdate(PersonWrite):
     roles: List[PersonRoleIn] = []
+    # Every studio this person belongs to: replaces the set, keeping the ones
+    # the writer cannot see. Omitted (null), the set is left as it is.
+    studio_ids: Optional[List[UUID]] = None
 
     @model_validator(mode="after")
     def _at_least_one_name(self):
@@ -164,6 +193,8 @@ class PersonResponse(PersonBase):
     # form that reconstructed it by asking each role list who is in it would
     # issue a query per legal pair and still guess.
     roles: List[PersonRoleIn] = []
+    # The studios this person belongs to that the viewer may see, by name.
+    affiliations: List[AffiliationRef] = []
     credit_count: int = 0
     # Resolved per viewer by app/services/domain/entity_photos.py: the storage
     # key to show (photo_file, else a visible entry's cover), or None.
@@ -250,10 +281,10 @@ class StudioResponse(StudioBase):
     # credit_count (credits.credit_summaries).
     media_types: List[str] = []
     restricted: bool = False
-    # Whether this studio relates to at least one studio the viewer may see
-    # (services.domain.peer_relation, STUDIO_RELATIONS.related_counts): the studio library's
-    # Relation filter reads it, so a relation to a hidden studio is no
-    # relation at all here.
+    # Whether this studio relates to at least one company - studio or
+    # publisher - the viewer may see (services.domain.peer_relation,
+    # COMPANY_RELATIONS.related_counts): the library's Relation filter reads
+    # it, so a relation to a hidden company is no relation at all here.
     has_relations: bool = False
 
     model_config = ConfigDict(from_attributes=True)

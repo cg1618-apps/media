@@ -231,6 +231,7 @@ from app.schemas.resource import (
     ResourceReorder,
 )
 from app.schemas.staff import (
+    AffiliationRef,
     ClubsReplace,
     MembershipRef,
     MembersReplace,
@@ -545,6 +546,7 @@ __all__ = [
     "ResourceReorder",
     "NoteSectionOut",
     "PersonRoleIn",
+    "AffiliationRef",
     "MembershipRef",
     "ClubsReplace",
     "MembersReplace",

@@ -24,12 +24,13 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
+import { useEntityHref } from "../../lib/entityPath";
 import ClubMembership from "../../components/info/ClubMembership";
 import VoicedPartCard from "../../components/info/VoicedPartCard";
 import WorkGallery from "../../components/info/WorkGallery";
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import InfoCard from "../../components/info/InfoCard";
-import MalButton, { ImdbButton } from "../../components/info/MalButton";
+import MalButton, { ImdbButton, SiteButton } from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
 import {
   AdminToolbar,
@@ -51,6 +52,39 @@ import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 const PERSON_TYPE_LABELS = Object.fromEntries(
   PERSON_SUB_TABS.map((t) => [t.key, t.label]),
 );
+
+// The person's own pages, as the header buttons and the Profile rows name
+// them. "Twitter" is also the key lib/sourceIcons.js files its icon under.
+const SOCIAL_SITES = [
+  { field: "twitter_link", site: "Twitter" },
+  { field: "ig_link", site: "Instagram" },
+  { field: "pixiv_link", site: "pixiv" },
+];
+
+// The studios a person belongs to, each a link to its page when the viewer
+// may open studio pages (useEntityHref), plain text otherwise.
+function AffiliationLinks({ studios }) {
+  const entityHref = useEntityHref();
+  return (
+    <span className="flex flex-wrap gap-x-2 gap-y-1">
+      {studios.map((s, i) => {
+        const path = entityHref("studio", s);
+        return (
+          <span key={s.system_id}>
+            {path ? (
+              <Link to={path} className="text-brand hover:underline">
+                {s.display_name}
+              </Link>
+            ) : (
+              s.display_name
+            )}
+            {i < studios.length - 1 && <span aria-hidden="true">,</span>}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 export default function Person() {
   const { publicId } = useParams();
@@ -221,9 +255,12 @@ export default function Person() {
                 {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
               </p>
               {/* The ways out to MAL and IMDb, by the name as on the
-                  character page. */}
+                  character page, then the person's own pages. */}
               <MalButton href={person.mal_link} />
               <ImdbButton href={person.imdb_link} />
+              {SOCIAL_SITES.map(({ field, site }) => (
+                <SiteButton key={field} href={person[field]} site={site} />
+              ))}
             </div>
           </div>
 
@@ -234,6 +271,12 @@ export default function Person() {
                 { label: "Gender", value: person.gender },
                 { label: "Types", value: types.join(", ") || null },
               ],
+              {
+                label: "Affiliation",
+                value: person.affiliations?.length ? (
+                  <AffiliationLinks studios={person.affiliations} />
+                ) : null,
+              },
               {
                 label: "MAL",
                 value: person.mal_link ? (
@@ -260,6 +303,19 @@ export default function Person() {
                   </a>
                 ) : null,
               },
+              ...SOCIAL_SITES.map(({ field, site }) => ({
+                label: site,
+                value: person[field] ? (
+                  <a
+                    href={person[field]}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand hover:underline break-all"
+                  >
+                    {person[field]}
+                  </a>
+                ) : null,
+              })),
               ...(isAdmin ? [] : [{ label: "Remark", value: person.remark }]),
             ]}
           />
