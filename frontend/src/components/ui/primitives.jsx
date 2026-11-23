@@ -120,10 +120,22 @@ const BUTTON_KINDS = {
   danger: "border border-danger text-danger hover:bg-danger hover:text-white",
   ghost: "text-text-muted hover:text-text hover:bg-surface-2",
 };
-export function Button({ kind = "outline", size = "md", className = "", children, ...rest }) {
+// `type` defaults to "button", not the browser's "submit": Enter in a form's
+// field clicks the form's first submit button, so an untyped action Button
+// above the form's own Save (the person form's gallery Upload) would run on
+// every Enter. A Button that submits says type="submit".
+export function Button({
+  kind = "outline",
+  size = "md",
+  type = "button",
+  className = "",
+  children,
+  ...rest
+}) {
   const pad = size === "sm" ? "px-2.5 py-1 text-xs" : "px-3 py-1.5 text-sm";
   return (
     <button
+      type={type}
       className={`inline-flex items-center justify-center gap-2 font-medium transition disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${pad} ${BUTTON_KINDS[kind] || BUTTON_KINDS.outline} ${className}`}
       {...rest}
     >

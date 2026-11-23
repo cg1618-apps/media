@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -219,7 +219,10 @@ counts). `h1` is display by default.
   slip's identity thumbnails, the library's identity cards.
 - `ProgressRule` — 4 px brand rule, `value` 0–1.
 - `Button` — `kind` `primary` / `outline` / `danger` / `ghost`, `size`
-  `md`/`sm`.
+  `md`/`sm`, and `type`, which defaults to `button` rather than the
+  browser's `submit`: Enter in a form's field clicks the form's first submit
+  button, so an untyped action Button above a form's Save would run on every
+  Enter. A Button that submits its form says `type="submit"`.
 
 Shared detail-page pieces built on these: `InfoCard` (a slip of
 label/value fields), `ScoreBlock` (display figures on hairlines),
