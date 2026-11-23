@@ -298,3 +298,81 @@ def test_delete_without_the_count_is_rejected(owner_client, person_with_credits)
     """
     r = owner_client.delete(f"/api/person/{person_with_credits.system_id}")
     assert r.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# 原作&作畫: one group for a manga the person both wrote and drew
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def mangaka(db_session, sample_franchise):
+    """
+    Writes and draws `Both`, only writes `Story`, only draws `Art`. The two
+    single-role entries are load-bearing: without them a combined group
+    could not be told apart from author and illustrator simply vanishing.
+    """
+    entries = {}
+    for name in ("Both", "Story", "Art"):
+        entry = models.Manga(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            manga_name_en=name,
+        )
+        db_session.add(entry)
+        entries[name] = entry
+    db_session.flush()
+    for name, roles in (
+        ("Both", ("author", "illustrator")),
+        ("Story", ("author",)),
+        ("Art", ("illustrator",)),
+    ):
+        for role in roles:
+            credits_service.replace_credits(
+                db_session, "manga", entries[name].system_id, role, ["尾田栄一郎"]
+            )
+    db_session.flush()
+    return credits_service.find_person(db_session, "尾田栄一郎")
+
+
+def _groups(client, person):
+    groups = client.get(f"/api/person/{person.system_id}/entries").json()["groups"]
+    return {
+        g["label"]: (g["role"], g["roles"], sorted(e["display_name"] for e in g["entries"]))
+        for g in groups
+    }
+
+
+def test_a_manga_both_written_and_drawn_is_one_group(guest_reader, mangaka):
+    assert _groups(guest_reader, mangaka) == {
+        "原作&作畫": ("author+illustrator", ["author", "illustrator"], ["Both"]),
+        "原作": ("author", ["author"], ["Story"]),
+        "作畫": ("illustrator", ["illustrator"], ["Art"]),
+    }
+
+
+def test_separate_people_keep_separate_groups(guest_reader, person_with_credits):
+    """The mirror: an author who drew nothing has no combined group."""
+    labels = {g["label"] for g in guest_reader.get(
+        f"/api/person/{person_with_credits.system_id}/entries"
+    ).json()["groups"]}
+    assert labels == {"原作"}
+
+
+def test_a_book_author_who_illustrates_keeps_two_groups(
+    guest_reader, db_session, sample_franchise
+):
+    """Only manga combines."""
+    book = models.Book(
+        system_id=uuid.uuid4(), franchise_id=sample_franchise.system_id,
+        book_name_en="Book",
+    )
+    db_session.add(book)
+    db_session.flush()
+    for role in ("author", "illustrator"):
+        credits_service.replace_credits(
+            db_session, "book", book.system_id, role, ["Book Person"]
+        )
+    db_session.flush()
+    person = credits_service.find_person(db_session, "Book Person")
+    assert set(_groups(guest_reader, person)) == {"Author", "Illustrator"}

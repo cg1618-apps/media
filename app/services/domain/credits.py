@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app import models
 from app.schemas.link_fields import PersonRef, PublisherRef, StudioRef
+from app.services.domain.person_roles import grant_role
 from app.utils.credit_roles import (
     CREDIT_ROLES,
     TAG_FIELDS,
@@ -142,13 +143,7 @@ def _ensure_person_role(
     db: Session, person: models.Person, role: str, scope: Optional[str]
 ) -> None:
     """Additive: give the person the role on this scope if they lack it."""
-    held = {(r.role, r.scope) for r in person.roles}
-    if (role, scope) not in held:
-        db.add(
-            models.PersonRole(person_id=person.system_id, role=role, scope=scope)
-        )
-        db.flush()
-        db.refresh(person)
+    grant_role(db, person, role, scope)
 
 
 def resolve_person(

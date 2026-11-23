@@ -844,11 +844,19 @@ form already says which types a new person holds. `PersonFields` holds the four 
 select of "—", 男 and 女 — `PERSON_GENDERS`, a person's whole vocabulary — one
 click picks, clicking the pressed chip clears, and the select follows either
 way; unset saves as null). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
-its `myanimelist.net/people/<id>` path, so there is no id field), the photo
-and the remark. Ticking a type selects its first legal media type, because a
-scopeless role is a 422; the legal types per role come from
-`GET /api/person/role-scopes`, so the form cannot offer a pair the API
-rejects. Submit is blocked until at least one name is filled, matching
+its `myanimelist.net/people/<id>` path, so there is no id field), the IMDb
+link, then **Twitter Link**, **Instagram Link** and **pixiv Link**
+(`twitter_link`, `ig_link`, `pixiv_link`, `PERSON_SOCIAL_LINKS`; stored as
+typed, a blank one as null), the photo and the remark. Ticking a type holds it
+with **no media type selected** - `{role, scope: null}`, listed under the type
+and offered in no dropdown; ticking a media type replaces that with scoped
+rows, and unticking the last one goes back to it. The legal types per role come
+from `GET /api/person/role-scopes`, so the form cannot offer a pair the API
+rejects, and a type that endpoint leaves out is **not drawn**: `club`, for a
+session that cannot see h-comic, whose checkbox would otherwise have nothing
+to select. The club is also the one exception to ticking unscoped: a type with
+a `gatedType` in `PERSON_SUB_TABS` selects that scope when ticked, and its last
+scope cannot be unticked, because the API refuses an unscoped club. Submit is blocked until at least one name is filled, matching
 `ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
 `PersonFields` is exported so the Modify tab renders the same inputs.
 

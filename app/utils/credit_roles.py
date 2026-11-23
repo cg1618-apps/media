@@ -27,9 +27,12 @@ One of the six, `seiyuu`, is a person role whose credits are NOT stored in
 What varies by media type is the LABEL, not the key: `author` reads 原作 on a
 manga, Author on a book and Writer on a comic. credit_label() owns that.
 
-Scope is the media type. `person_role.scope` holds a hyphenated media-type key
-and is NOT NULL, so a role's `media_types` doubles as its legal scopes. The old
-anime/non_anime split and the director_scope_for() that derived it are gone.
+Scope is the media type. `person_role.scope` holds a hyphenated media-type key,
+or NULL for a person who holds the role in no media type yet. A role's legal
+scopes are its `media_types` plus its `extra_scopes`: the types it is credited
+on, and the types a person may be filed under before any entry of that type
+carries the credit. The old anime/non_anime split and the director_scope_for()
+that derived it are gone.
 """
 
 from dataclasses import dataclass
@@ -49,15 +52,26 @@ class CreditRole:
     # Which entity table the credit points at: "person", "studio" or
     # "publisher".
     target: str
-    # Media type keys (hyphenated, from MEDIA_TABLES) that may use this role.
-    # For a person role this doubles as the set of legal person_role.scope
-    # values, because the scope IS the media type.
+    # Media type keys (hyphenated, from MEDIA_TABLES) whose entries carry this
+    # credit: the entry forms, /api/credits and the sheet link columns all
+    # walk it (credit_roles_for). For a person role these are legal
+    # person_role.scope values too, because the scope IS the media type.
     media_types: tuple[str, ...]
     # Where this role's credits are STORED. "media_credit" for the six roles
     # whose rows live there; "character_casting" for seiyuu, whose casting is
     # a character-first fact - who voiced WHOM - and so cannot be a flat
     # person->entry link. See the design spec's Decision A and B.
     credited_via: str = "media_credit"
+    # Further legal person_role.scope values that are NOT credit fields: a
+    # person may be filed as a movie's composer before any movie carries a
+    # composer credit. Kept apart from media_types so that adding one gives
+    # no entry form a new field and no sheet tab a new column.
+    extra_scopes: tuple[str, ...] = ()
+    # Whether a person must hold this role in some media type. Set on a role
+    # whose only scopes are gated types: an unscoped row names no type, so
+    # it would hide from nobody, and a session that cannot see the type would
+    # be shown that the role exists.
+    scope_required: bool = False
 
 
 CREDIT_ROLES: dict[str, CreditRole] = {
@@ -76,13 +90,20 @@ CREDIT_ROLES: dict[str, CreditRole] = {
         "publisher", "Publisher", "publisher",
         ("anime", "anime-movie", "manga", "book", "comic", "game"),
     ),
+    # The extra_scopes on director, producer and composer file a person under
+    # a type whose entries carry no such credit field yet.
     "director": CreditRole(
         "director", "Director", "person",
         ("anime", "anime-movie", "movie", "game", "hentai"),
+        extra_scopes=("tv-show", "cartoon"),
     ),
-    "producer": CreditRole("producer", "Producer", "person", ("anime",)),
+    "producer": CreditRole(
+        "producer", "Producer", "person", ("anime",),
+        extra_scopes=("anime-movie", "movie", "tv-show", "cartoon"),
+    ),
     "composer": CreditRole(
-        "composer", "Music / Composer", "person", ("anime", "game")
+        "composer", "Music / Composer", "person", ("anime", "game"),
+        extra_scopes=("anime-movie", "movie", "tv-show", "cartoon"),
     ),
     # hentai beside h-comic: a hentai and the h-comic it adapts name the same
     # writer, so that person's page lists both. Reads Author on both - no
@@ -98,7 +119,9 @@ CREDIT_ROLES: dict[str, CreditRole] = {
     # a schema: a `person` row, so a club and its artists live in one table
     # and person_membership can link them. Its only scope is the gated type,
     # which is what hides a club created before its first credit.
-    "club": CreditRole("club", "Club", "person", ("h-comic",)),
+    "club": CreditRole(
+        "club", "Club", "person", ("h-comic",), scope_required=True
+    ),
     # Stored in character_casting, NOT media_credit: a seiyuu reaches an anime
     # through the character they voice. credit_roles_for() filters this out for
     # exactly that reason.
@@ -139,14 +162,28 @@ _LABEL_OVERRIDES: dict[tuple[str, str], str] = {
 }
 
 
+# Credits that a person's page shows as ONE group when the person holds both
+# on the same entry: a manga drawn by its own writer is listed once, under
+# 原作&作畫, rather than once under 原作 and again under 作畫. Keyed by media
+# type; the value is the roles, in label order, and the group's label.
+COMBINED_CREDIT_GROUPS: dict[str, tuple[tuple[str, ...], str]] = {
+    "manga": (("author", "illustrator"), "原作&作畫"),
+}
+
+
 def credit_label(role: str, media_type: str) -> str:
     """What this credit is called on this media type."""
     return _LABEL_OVERRIDES.get((role, media_type)) or CREDIT_ROLES[role].label
 
 
 def legal_scopes(role: str) -> tuple[str, ...]:
-    """The media types a person may hold this role in."""
-    return CREDIT_ROLES[role].media_types
+    """
+    The media types a person may hold this role in: the types credited with
+    it, then its extra scopes. A person may also hold a role in no scope at
+    all (person_role.scope NULL), which no scope list names.
+    """
+    credit_role = CREDIT_ROLES[role]
+    return credit_role.media_types + credit_role.extra_scopes
 
 
 @dataclass(frozen=True)

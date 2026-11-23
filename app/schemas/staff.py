@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.schemas.image_focus import ImageFocus
 from app.utils.countries import clean_countries
-from app.utils.credit_roles import PERSON_ROLES, legal_scopes
+from app.utils.credit_roles import CREDIT_ROLES, PERSON_ROLES, legal_scopes
 from app.utils.entity_vocab import check_person_gender
 
 
@@ -21,13 +21,15 @@ class PersonRoleIn(BaseModel):
     queries, invisible until someone wonders why a name they just typed is
     never suggested.
 
-    scope is REQUIRED. Every person_role row carries one, because there is no
-    "offered everywhere" state to fall back on - see the design spec's
-    Decision B for why removing it is what makes auto-scoping on write safe.
+    scope is a media type, or None for a role held in no media type yet -
+    the person is listed under the role and offered in no dropdown. None
+    never means "offered everywhere": there is no such state, see the design
+    spec's Decision B for why removing it is what makes auto-scoping on write
+    safe.
     """
 
     role: str
-    scope: str
+    scope: Optional[str] = None
 
     # from_attributes so a PersonRole ORM row validates straight into this.
     # PersonResponse's own from_attributes does NOT reach a nested model in
@@ -53,6 +55,13 @@ class PersonRoleIn(BaseModel):
         role, so it could never reject (composer, manga) - a scope that is a
         real media type but names a credit that does not exist.
         """
+        if self.scope is None:
+            if CREDIT_ROLES[self.role].scope_required:
+                raise ValueError(
+                    f"The {self.role} role needs a scope. Expected one of: "
+                    + ", ".join(legal_scopes(self.role))
+                )
+            return self
         allowed = legal_scopes(self.role)
         if self.scope not in allowed:
             raise ValueError(
@@ -83,6 +92,10 @@ class PersonBase(BaseModel):
     # write.
     imdb_id: Optional[str] = None
     imdb_link: Optional[str] = None
+    # The person's own pages, stored as given.
+    twitter_link: Optional[str] = None
+    ig_link: Optional[str] = None
+    pixiv_link: Optional[str] = None
 
     @model_validator(mode="after")
     def _display_field_is_known(self):

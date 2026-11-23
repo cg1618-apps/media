@@ -213,20 +213,126 @@ def test_a_media_type_scope_is_accepted_for_a_role_that_uses_it(owner_client):
     assert r.status_code == 200
 
 
-def test_a_scopeless_role_is_rejected(owner_client):
+def test_an_empty_scope_is_rejected(owner_client):
+    """An empty string is not "no scope"; only null is."""
+    r = owner_client.post(
+        "/api/person/",
+        json={"name": "澤野弘之", "roles": [{"role": "composer", "scope": ""}]},
+    )
+    assert r.status_code == 422
+
+
+def test_a_role_can_be_held_with_no_scope(owner_client, guest_reader):
+    created = _create(owner_client, "Unscoped Artist", [{"role": "illustrator"}])
+    assert created["roles"] == [{"role": "illustrator", "scope": None}]
+
+
+def test_an_unscoped_person_is_listed_under_the_role_but_in_no_dropdown(
+    owner_client, guest_reader
+):
     """
-    Every person_role row carries a scope - there is no "offered everywhere"
-    state. An empty scope used to be stored as NULL and meant exactly that.
+    Both halves, with a scoped neighbour so the scope filter has someone to
+    match: a green here proves the filter left the unscoped person out.
     """
-    for bad in ("", None):
-        r = owner_client.post(
-            "/api/person/",
-            json={
-                "name": "澤野弘之",
-                "roles": [{"role": "composer", "scope": bad}],
-            },
-        )
-        assert r.status_code == 422, bad
+    _create(owner_client, "Unscoped Artist", [{"role": "illustrator"}])
+    _create(owner_client, "Manga Artist", [{"role": "illustrator", "scope": "manga"}])
+    by_role = {
+        p["display_name"]
+        for p in guest_reader.get("/api/person/?role=illustrator").json()
+    }
+    assert by_role == {"Unscoped Artist", "Manga Artist"}
+    for_manga = {
+        p["display_name"]
+        for p in guest_reader.get("/api/person/?role=illustrator&scope=manga").json()
+    }
+    assert for_manga == {"Manga Artist"}
+
+
+def test_an_unscoped_role_is_counted(owner_client, guest_reader):
+    _create(owner_client, "Unscoped Artist", [{"role": "illustrator"}])
+    assert guest_reader.get("/api/person/role-counts").json()["illustrator"] == 1
+
+
+def test_a_club_needs_a_scope(owner_client):
+    r = owner_client.post(
+        "/api/person/", json={"name": "Circle", "roles": [{"role": "club"}]}
+    )
+    assert r.status_code == 422
+
+
+def test_a_scope_drops_the_roles_unscoped_row(owner_client):
+    """Sent together, the scoped pair wins: a role is unscoped or scoped, never both."""
+    created = _create(
+        owner_client,
+        "Both Ways",
+        [{"role": "illustrator"}, {"role": "illustrator", "scope": "book"}],
+    )
+    assert created["roles"] == [{"role": "illustrator", "scope": "book"}]
+
+
+def test_update_can_take_a_role_back_to_no_scope(owner_client, db_session):
+    created = _create(owner_client, "Rescoped", [{"role": "illustrator", "scope": "manga"}])
+    r = owner_client.put(
+        f"/api/person/{created['system_id']}",
+        json={"name_en": "Rescoped", "roles": [{"role": "illustrator", "scope": None}]},
+    )
+    assert r.status_code == 200
+    assert r.json()["roles"] == [{"role": "illustrator", "scope": None}]
+
+
+def test_a_credit_scopes_an_unscoped_person(owner_client, db_session):
+    """Auto-scoping on write replaces the unscoped row rather than sitting beside it."""
+    from app.services.domain import credits as credits_service
+
+    _create(owner_client, "Later Credited", [{"role": "illustrator"}])
+    manga = models.Manga(manga_name_cn="作品")
+    db_session.add(manga)
+    db_session.flush()
+    credits_service.replace_credits(
+        db_session, "manga", manga.system_id, "illustrator", ["Later Credited"]
+    )
+    db_session.flush()
+    person = db_session.query(models.Person).filter_by(name_en="Later Credited").one()
+    assert [(r.role, r.scope) for r in person.roles] == [("illustrator", "manga")]
+
+
+def test_merge_keeps_one_row_when_one_side_is_unscoped(owner_client, db_session):
+    keep = _create(owner_client, "Keep", [{"role": "illustrator", "scope": "manga"}])
+    drop = _create(owner_client, "Drop", [{"role": "illustrator"}])
+    r = owner_client.post(
+        f"/api/person/{keep['system_id']}/merge",
+        json={"source_id": drop["system_id"]},
+    )
+    assert r.status_code == 200, r.text
+    db_session.expire_all()
+    person = db_session.get(models.Person, uuid.UUID(keep["system_id"]))
+    assert [(x.role, x.scope) for x in person.roles] == [("illustrator", "manga")]
+
+
+def test_an_extra_scope_is_accepted(owner_client):
+    for role, scope in (
+        ("composer", "movie"),
+        ("composer", "cartoon"),
+        ("director", "tv-show"),
+        ("producer", "anime-movie"),
+    ):
+        created = _create(owner_client, f"{role} {scope}", [{"role": role, "scope": scope}])
+        assert created["roles"] == [{"role": role, "scope": scope}], (role, scope)
+
+
+def test_the_social_links_round_trip(owner_client):
+    created = owner_client.post(
+        "/api/person/",
+        json={
+            "name": "Linked Artist",
+            "twitter_link": "https://x.com/artist",
+            "ig_link": "https://www.instagram.com/artist",
+            "pixiv_link": "https://www.pixiv.net/users/1",
+        },
+    ).json()
+    assert created["twitter_link"] == "https://x.com/artist"
+    assert created["ig_link"] == "https://www.instagram.com/artist"
+    assert created["pixiv_link"] == "https://www.pixiv.net/users/1"
 
 
 # ---------------------------------------------------------------------------

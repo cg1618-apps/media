@@ -148,12 +148,12 @@ def gated_tag_categories() -> dict[str, frozenset[str]]:
 
 def hidden_person_roles(hidden: frozenset[str]) -> frozenset[str]:
     """Person roles every legal scope of which is a hidden gated type."""
-    from app.utils.credit_roles import CREDIT_ROLES
+    from app.utils.credit_roles import CREDIT_ROLES, legal_scopes
 
     return frozenset(
         key
         for key, role in CREDIT_ROLES.items()
-        if role.target == "person" and only_for(role.media_types, hidden)
+        if role.target == "person" and only_for(legal_scopes(key), hidden)
     )
 
 

@@ -38,6 +38,7 @@ from app.services.domain.credits import (
     find_person,
     resolve_person,
 )
+from app.services.domain.person_roles import grant_role
 from app.services.integrations.image_manager import cover_key, download_cover_image
 from app.services.integrations.tenrai import fetch_tenrai_cast
 from app.services.rbac.shared_visibility import apply_shared_visibility
@@ -218,14 +219,8 @@ def _seiyuu_for(
                 person.mal_id = mal_id
                 person.mal_link = person.mal_link or voice["mal_link"]
             found[mal_id] = person
-        elif not any(
-            r.role == "seiyuu" and r.scope == media_type for r in person.roles
-        ):
-            db.add(
-                models.PersonRole(
-                    person_id=person.system_id, role="seiyuu", scope=media_type
-                )
-            )
+        else:
+            grant_role(db, person, "seiyuu", media_type)
     db.flush()
     return found, created
 

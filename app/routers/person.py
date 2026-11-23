@@ -17,6 +17,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, selectinload
 
 from app import models, schemas
@@ -47,6 +48,7 @@ from app.services.domain.membership import (
     replace_members,
 )
 from app.services.domain.merge_fill import finish_merge
+from app.services.domain.person_roles import grant_role, normalized_pairs
 from app.services.domain.user_rating import ratings_by_owner
 from app.services.integrations import image_library
 from app.services.integrations.tenrai import search_mal_people
@@ -67,7 +69,12 @@ from app.services.rbac.shared_visibility import (
     require_visible_shared,
     without_hidden_scopes,
 )
-from app.utils.credit_roles import PERSON_ROLES, credit_label, legal_scopes
+from app.utils.credit_roles import (
+    COMBINED_CREDIT_GROUPS,
+    PERSON_ROLES,
+    credit_label,
+    legal_scopes,
+)
 from app.utils.entity_ref import find_entity
 from app.utils.entity_vocab import check_person_gender
 from app.utils.media_resolver import MEDIA_TABLES
@@ -132,6 +139,9 @@ def _to_response(
         mal_link=person.mal_link,
         imdb_id=person.imdb_id,
         imdb_link=person.imdb_link,
+        twitter_link=person.twitter_link,
+        ig_link=person.ig_link,
+        pixiv_link=person.pixiv_link,
         roles=[
             schemas.PersonRoleIn(role=r.role, scope=r.scope)
             for r in without_hidden_scopes(person.roles, hidden, "scope")
@@ -191,9 +201,10 @@ def get_all_people(
     Retrieves people, optionally filtered to those who hold a given role, and
     to one media-type scope of it.
 
-    Both filters are exact. Every person_role row carries a scope, so a query
-    WITHOUT `scope` means "holds this role in any media type" - the admin list
-    wants that, and no dropdown asks for it.
+    Both filters are exact. A query WITHOUT `scope` means "holds this role",
+    in any media type or in none - the admin list wants that, and no dropdown
+    asks for it. A query WITH one never matches an unscoped role, which is
+    what keeps an unscoped person out of every dropdown.
 
     A person hidden from this viewer (shared_visibility.py) is absent, and a
     `scope` naming a gated type the viewer cannot see matches nobody, so the
@@ -213,7 +224,12 @@ def get_all_people(
         if scope:
             query = query.filter(models.PersonRole.scope == scope)
         elif hidden:
-            query = query.filter(models.PersonRole.scope.notin_(hidden))
+            query = query.filter(
+                or_(
+                    models.PersonRole.scope.is_(None),
+                    models.PersonRole.scope.notin_(hidden),
+                )
+            )
     people = query.distinct().all()
     # Sorted in Python, not SQL: display_name is a property over four columns
     # with a per-row choice, so no single ORDER BY column can express it.
@@ -488,20 +504,64 @@ def get_person_entries(
         )
 
     out = []
-    for (media_type, role), entries in groups.items():
+    for (media_type, role), entries in _combine_groups(groups).items():
         # Newest first; an undated entry sorts last, as UNDATED does elsewhere.
         entries.sort(key=lambda e: e["release_date"] or "", reverse=True)
         ref = MEDIA_TABLES[media_type]
+        combined = COMBINED_CREDIT_GROUPS.get(media_type)
+        is_combined = combined is not None and role == _combined_key(combined[0])
         out.append(
             {
                 "media_type": media_type,
                 "role": role,
-                "label": credit_label(role, media_type),
+                "roles": list(combined[0]) if is_combined else [role],
+                "label": combined[1] if is_combined else credit_label(role, media_type),
                 "nav_path": ref.nav_path,
                 "entries": entries,
             }
         )
     return {"groups": out}
+
+
+def _combined_key(roles: tuple[str, ...]) -> str:
+    """A combined group's `role`: its roles joined, e.g. "author+illustrator"."""
+    return "+".join(roles)
+
+
+def _combine_groups(groups: dict[tuple[str, str], list]) -> dict[tuple[str, str], list]:
+    """
+    `groups` with the entries a person holds every role of a
+    COMBINED_CREDIT_GROUPS pair on moved into one group of their own, placed
+    where the first of those roles' groups was.
+
+    A group the move empties is dropped - its entries are all in the combined
+    group. A group that was already empty (withheld by a media-type gap) is
+    kept as it was.
+    """
+    out: dict[tuple[str, str], list] = {}
+    for (media_type, role), entries in groups.items():
+        combined = COMBINED_CREDIT_GROUPS.get(media_type)
+        if combined is None or role not in combined[0]:
+            out[(media_type, role)] = entries
+            continue
+        roles = combined[0]
+        key = (media_type, _combined_key(roles))
+        if key in out or not all((media_type, r) in groups for r in roles):
+            if key not in out:
+                out[(media_type, role)] = entries
+            continue
+        shared = set.intersection(
+            *({e["system_id"] for e in groups[(media_type, r)]} for r in roles)
+        )
+        if not shared:
+            out[(media_type, role)] = entries
+            continue
+        out[key] = [e for e in groups[(media_type, roles[0])] if e["system_id"] in shared]
+        for r in roles:
+            rest = [e for e in groups[(media_type, r)] if e["system_id"] not in shared]
+            if rest:
+                out[(media_type, r)] = rest
+    return out
 
 
 # ==========================================
@@ -668,23 +728,15 @@ def create_person(
             slot = name_slot_for(
                 payload.name.strip(),
                 role=first.role if first else "",
-                scope=first.scope if first else "",
+                scope=(first.scope or "") if first else "",
             )
             data[f"name_{slot}"] = payload.name.strip()
         person = models.Person(**data)
         db.add(person)
         db.flush()
 
-    held = {(r.role, r.scope) for r in person.roles}
-    for role_in in payload.roles:
-        if (role_in.role, role_in.scope) in held:
-            continue
-        db.add(
-            models.PersonRole(
-                person_id=person.system_id, role=role_in.role, scope=role_in.scope
-            )
-        )
-        held.add((role_in.role, role_in.scope))
+    for role, scope in normalized_pairs((r.role, r.scope) for r in payload.roles):
+        grant_role(db, person, role, scope)
 
     if created:
         _derive_and_fill(db, person)
@@ -732,18 +784,21 @@ def update_person(
     hidden = hidden_scopes(db, admin)
     replaced = db.query(models.PersonRole).filter_by(person_id=system_id)
     if hidden:
-        replaced = replaced.filter(models.PersonRole.scope.notin_(hidden))
-    replaced.delete(synchronize_session=False)
-    seen = {(r.role, r.scope) for r in person.roles if r.scope in hidden}
-    for role_in in payload.roles:
-        if (role_in.role, role_in.scope) in seen:
-            continue
-        seen.add((role_in.role, role_in.scope))
-        db.add(
-            models.PersonRole(
-                person_id=system_id, role=role_in.role, scope=role_in.scope
+        replaced = replaced.filter(
+            or_(
+                models.PersonRole.scope.is_(None),
+                models.PersonRole.scope.notin_(hidden),
             )
         )
+    replaced.delete(synchronize_session=False)
+    kept = [(r.role, r.scope) for r in person.roles if r.scope in hidden]
+    # The kept hidden rows go first so normalized_pairs sees that their role
+    # is scoped: an unscoped row for it would otherwise be written beside them.
+    wanted = normalized_pairs(kept + [(r.role, r.scope) for r in payload.roles])
+    for role, scope in wanted:
+        if (role, scope) in kept:
+            continue
+        db.add(models.PersonRole(person_id=system_id, role=role, scope=scope))
 
     _derive_and_fill(db, person, only_if_missing=True)
 
@@ -943,14 +998,8 @@ def merge_person(
         voice.person_id = system_id
         moved += 1
 
-    keep_roles = {(r.role, r.scope) for r in keep.roles}
     for role_row in list(drop.roles):
-        if (role_row.role, role_row.scope) not in keep_roles:
-            db.add(
-                models.PersonRole(
-                    person_id=system_id, role=role_row.role, scope=role_row.scope
-                )
-            )
+        grant_role(db, keep, role_row.role, role_row.scope)
 
     # Club memberships follow the survivor too, in both directions.
     merge_memberships(db, system_id, payload.source_id)
