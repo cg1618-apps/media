@@ -17,6 +17,7 @@ import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import ImagePicker from "../../components/forms/ImagePicker";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import WorkImagesEditor from "../../components/forms/WorkImagesEditor";
+import StudioAffiliationField from "../../components/forms/StudioAffiliationField";
 import {
   GenderField,
   PhotoFallbackField,
@@ -222,6 +223,15 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
 
       <SectionHeader icon="fa-id-card" title="Profile" />
       <GenderField kind="person" form={personForm} update={upf} />
+      <Field
+        label="Affiliation"
+        hint="The studios this person belongs to - a seiyuu's agency, a director's studio. Saved with the person."
+      >
+        <StudioAffiliationField
+          value={personForm.affiliations}
+          onChange={(next) => upf("affiliations", next)}
+        />
+      </Field>
       <Field
         label="MAL Link"
         hint="The person's myanimelist.net/people/<id> page; the MAL id is read from it."

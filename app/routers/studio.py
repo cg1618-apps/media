@@ -19,12 +19,13 @@ from app import models, schemas
 from app.dependencies import get_db
 from app.routers._entity_patch import prepare_patch
 from app.routers._patching import apply_column_patch
+from app.services.domain.affiliation import merge_affiliations, people_of
 from app.services.domain.autofill import autofill_studio_from_mal
 from app.services.domain.checking import has_missing_values_studio
 from app.services.domain.credits import CreditSummary, credit_summaries, find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.domain.merge_fill import finish_merge
-from app.services.domain.peer_relation import STUDIO_RELATIONS
+from app.services.domain.peer_relation import COMPANY_RELATIONS
 from app.services.domain.user_rating import ratings_by_owner
 from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import (
@@ -81,7 +82,9 @@ def _to_response(
     # Like `summary` and `ratings`: the list route passes the whole page's
     # counts in; a single-entity route asks for its own.
     if relation_counts is None:
-        relation_counts = STUDIO_RELATIONS.related_counts(db, viewer, [studio.system_id])
+        relation_counts = COMPANY_RELATIONS.related_counts(
+            db, viewer, "studio", [studio.system_id]
+        )
     return schemas.StudioResponse(
         system_id=studio.system_id,
         public_id=studio.public_id,
@@ -138,8 +141,8 @@ def get_all_studios(
     ratings = ratings_by_owner(
         db, "studio", [studio.system_id for studio in studios], viewer_user_id(viewer)
     )
-    relations = STUDIO_RELATIONS.related_counts(
-        db, viewer, [studio.system_id for studio in studios]
+    relations = COMPANY_RELATIONS.related_counts(
+        db, viewer, "studio", [studio.system_id for studio in studios]
     )
     return [
         _to_response(
@@ -166,12 +169,13 @@ def get_studio_by_id(
 
 
 # ==========================================
-# RELATED STUDIOS
+# RELATED COMPANIES
 # ==========================================
-# A relation is mutual, and each side carries its own remark. Both routes
-# read through the shared-record rule: the studio asked about must be visible
-# (404 otherwise), and the related studios the viewer may not see are simply
-# left out. A relation is not a connection, so it reveals nobody.
+# A relation is mutual, and each side carries its own remark. The other end
+# is a studio or a publisher (company_relation). Both routes read through the
+# shared-record rule: the studio asked about must be visible (404 otherwise),
+# and the related companies the viewer may not see are simply left out. A
+# relation is not a connection, so it reveals nobody.
 
 
 def _visible_studio_or_404(db: Session, viewer, system_id: str) -> models.Studio:
@@ -185,23 +189,23 @@ def _visible_studio_or_404(db: Session, viewer, system_id: str) -> models.Studio
 @router.get(
     "/{system_id}/related",
     response_model=List[schemas.PeerRelationRef],
-    summary="Studios Related to This One",
+    summary="Companies Related to This Studio",
 )
 def get_related_studios(
     system_id: str,
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(require_view_studio),
 ):
-    """The visible related studios, ordered by name, each with the remark
-    this studio's side gives the relation."""
+    """The visible related studios and publishers, ordered by name, each
+    with its kind and the remark this studio's side gives the relation."""
     studio = _visible_studio_or_404(db, viewer, system_id)
-    return STUDIO_RELATIONS.related_of(db, viewer, studio.system_id)
+    return COMPANY_RELATIONS.related_of(db, viewer, ("studio", studio.system_id))
 
 
 @router.put(
     "/{system_id}/related",
     response_model=List[schemas.PeerRelationRef],
-    summary="Replace the Studios Related to This One",
+    summary="Replace the Companies Related to This Studio",
 )
 def put_related_studios(
     system_id: str,
@@ -210,20 +214,37 @@ def put_related_studios(
     admin: Viewer = Depends(require_manage_catalog),
 ):
     """
-    Whole-list replace of this side. Every id must be a visible studio other
-    than this one (422 otherwise). A new relation appears on the other
-    studio's page too, with no remark there; a removed one leaves both pages.
-    Relations to studios the writer cannot see are kept.
+    Whole-list replace of this side. Each item names a visible studio or
+    publisher - `kind`, default studio - other than this studio (422
+    otherwise). A new relation appears on the other company's page too, with
+    no remark there; a removed one leaves both pages. Relations to companies
+    the writer cannot see are kept.
     """
     studio = _visible_studio_or_404(db, admin, system_id)
-    STUDIO_RELATIONS.replace_related(
+    COMPANY_RELATIONS.replace_related(
         db,
         admin,
-        studio.system_id,
-        [(item.id, item.remark) for item in payload.relations],
+        ("studio", studio.system_id),
+        [((item.kind or "studio", item.id), item.remark) for item in payload.relations],
     )
     db.commit()
-    return STUDIO_RELATIONS.related_of(db, admin, studio.system_id)
+    return COMPANY_RELATIONS.related_of(db, admin, ("studio", studio.system_id))
+
+
+@router.get(
+    "/{system_id}/people",
+    response_model=List[schemas.AffiliationRef],
+    summary="People Who Belong to This Studio",
+)
+def get_studio_people(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_view_studio),
+):
+    """The visible people affiliated with this studio (person_affiliation),
+    by name. Written from the person's side, through the person form."""
+    studio = _visible_studio_or_404(db, viewer, system_id)
+    return people_of(db, viewer, studio.system_id)
 
 
 @router.get("/{system_id}/entries", summary="Entries Credited to This Studio")
@@ -499,6 +520,7 @@ def merge_studio(
         moved += 1
 
     # Before finish_merge deletes the source, whose relations would cascade.
-    STUDIO_RELATIONS.merge_relations(db, system_id, payload.source_id)
+    COMPANY_RELATIONS.merge_relations(db, "studio", system_id, payload.source_id)
+    merge_affiliations(db, "studio_id", system_id, payload.source_id)
     finish_merge(db, "studio", keep, drop)
     return {"status": "success", "credits_moved": moved}

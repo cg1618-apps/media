@@ -7,10 +7,12 @@ the new ones before anything parses a row: a tab under its old title, a header
 under its old name (pull.RENAMED_COLUMNS) and a cell value in its old spelling
 (legacy_cell_values below).
 
-The one rename here is Novel becoming Book: the tabs `Novel`, `Novel Unit`
+The main rename here is Novel becoming Book: the tabs `Novel`, `Novel Unit`
 and `User Novel Unit Rating`, the media-type key `novel`, the franchise type
 `Novel`, the cover folder `novel/`, the two per-type system_configs keys and
-the fields inside them, and the old `type` vocabulary.
+the fields inside them, and the old `type` vocabulary. The other is the tab
+`Studio Relation` becoming `Company Relation` once a publisher could be
+either end; its columns kept their names, so only the title maps.
 """
 
 import json
@@ -22,6 +24,7 @@ LEGACY_TAB_NAMES: dict[str, tuple[str, ...]] = {
     "Book": ("Novel",),
     "Book Unit": ("Novel Unit",),
     "User Book Unit Rating": ("User Novel Unit Rating",),
+    "Company Relation": ("Studio Relation",),
 }
 
 OLD_MEDIA_TYPE = "novel"

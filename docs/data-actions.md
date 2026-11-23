@@ -162,59 +162,60 @@ reader's half without an owner and says so the same way
 | 8 | `Person Role` | `PersonRole` |  |
 | 9 | `Person Membership` | `PersonMembership` |  |
 | 10 | `Studio` | `Studio` |  |
-| 11 | `Studio Relation` | `StudioRelation` |  |
-| 12 | `Publisher` | `Publisher` |  |
-| 13 | `Publisher Scope` | `PublisherScope` |  |
-| 14 | `Character` | `Character` |  |
-| 15 | `Character Identity` | `CharacterIdentity` |  |
-| 16 | `System Configs` | `SystemConfigs` |  |
-| 17 | `Collection` | `Collection` |  |
-| 18 | `Franchise` | `Franchise` |  |
-| 19 | `Franchise Relation` | `FranchiseRelation` |  |
-| 20 | `Series` | `Series` |  |
-| 21 | `User Rating` | `UserRating` |  |
-| 22 | `Media` | `Media` |  |
-| 23 | `Anime` | `Anime` | `anime` |
-| 24 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 25 | `Movies` | `Movies` | `movie` |
-| 26 | `TV Shows` | `TVShows` | `tv-show` |
-| 27 | `Cartoons` | `Cartoon` | `cartoon` |
-| 28 | `Manga` | `Manga` | `manga` |
-| 29 | `Book` | `Book` | `book` |
-| 30 | `Book Unit` | `BookUnit` |  |
-| 31 | `User Book Unit Rating` | `UserBookUnitRating` |  |
-| 32 | `Comic` | `Comic` | `comic` |
-| 33 | `Game` | `Game` | `game` |
-| 34 | `Game Copy` | `GameCopy` |  |
-| 35 | `Game Choice Node` | `GameChoiceNode` |  |
-| 36 | `Game Choice Edge` | `GameChoiceEdge` |  |
-| 37 | `Game Choice Mark` | `GameChoiceMark` |  |
-| 38 | `H-Comic` | `HComic` | `h-comic` |
-| 39 | `Hentai` | `Hentai` | `hentai` |
-| 40 | `H-Game` | `HGame` | `h-game` |
-| 41 | `User Media List` | `UserMediaList` |  |
-| 42 | `User Highlight Group Order` | `UserHighlightGroupOrder` |  |
-| 43 | `Watch Order List` | `WatchOrderList` |  |
-| 44 | `Watch Order Section` | `WatchOrderSection` |  |
-| 45 | `Watch Order Item` | `WatchOrderItem` |  |
-| 46 | `Watch Order Follow` | `WatchOrderFollow` |  |
-| 47 | `Media Relation` | `MediaRelation` |  |
-| 48 | `Plan Next` | `PlanNext` |  |
-| 49 | `Quote` | `Quote` |  |
-| 50 | `Character Casting` | `CharacterCasting` |  |
-| 51 | `Character Casting Voice` | `CharacterCastingVoice` |  |
-| 52 | `Meme` | `Meme` |  |
-| 53 | `User Favorite` | `UserFavorite` |  |
-| 54 | `Note` | `Note` |  |
-| 55 | `Note Mark` | `NoteMark` |  |
-| 56 | `Needs Work` | `NeedsWork` |  |
-| 57 | `Resources` | `ResourceNode` |  |
-| 58 | `Media Source` | `MediaSource` |  |
-| 59 | `Media Content Label` | `MediaContentLabel` |  |
-| 60 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 61 | `Collection Content Label` | `CollectionContentLabel` |  |
-| 62 | `Series Content Label` | `SeriesContentLabel` |  |
-| 63 | `Seasonal` | `Seasonal` |  |
+| 11 | `Publisher` | `Publisher` |  |
+| 12 | `Company Relation` | `CompanyRelation` | Read from `Studio Relation` on a sheet backed up before publishers could relate (`LEGACY_TAB_NAMES`) |
+| 13 | `Person Affiliation` | `PersonAffiliation` |  |
+| 14 | `Publisher Scope` | `PublisherScope` |  |
+| 15 | `Character` | `Character` |  |
+| 16 | `Character Identity` | `CharacterIdentity` |  |
+| 17 | `System Configs` | `SystemConfigs` |  |
+| 18 | `Collection` | `Collection` |  |
+| 19 | `Franchise` | `Franchise` |  |
+| 20 | `Franchise Relation` | `FranchiseRelation` |  |
+| 21 | `Series` | `Series` |  |
+| 22 | `User Rating` | `UserRating` |  |
+| 23 | `Media` | `Media` |  |
+| 24 | `Anime` | `Anime` | `anime` |
+| 25 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 26 | `Movies` | `Movies` | `movie` |
+| 27 | `TV Shows` | `TVShows` | `tv-show` |
+| 28 | `Cartoons` | `Cartoon` | `cartoon` |
+| 29 | `Manga` | `Manga` | `manga` |
+| 30 | `Book` | `Book` | `book` |
+| 31 | `Book Unit` | `BookUnit` |  |
+| 32 | `User Book Unit Rating` | `UserBookUnitRating` |  |
+| 33 | `Comic` | `Comic` | `comic` |
+| 34 | `Game` | `Game` | `game` |
+| 35 | `Game Copy` | `GameCopy` |  |
+| 36 | `Game Choice Node` | `GameChoiceNode` |  |
+| 37 | `Game Choice Edge` | `GameChoiceEdge` |  |
+| 38 | `Game Choice Mark` | `GameChoiceMark` |  |
+| 39 | `H-Comic` | `HComic` | `h-comic` |
+| 40 | `Hentai` | `Hentai` | `hentai` |
+| 41 | `H-Game` | `HGame` | `h-game` |
+| 42 | `User Media List` | `UserMediaList` |  |
+| 43 | `User Highlight Group Order` | `UserHighlightGroupOrder` |  |
+| 44 | `Watch Order List` | `WatchOrderList` |  |
+| 45 | `Watch Order Section` | `WatchOrderSection` |  |
+| 46 | `Watch Order Item` | `WatchOrderItem` |  |
+| 47 | `Watch Order Follow` | `WatchOrderFollow` |  |
+| 48 | `Media Relation` | `MediaRelation` |  |
+| 49 | `Plan Next` | `PlanNext` |  |
+| 50 | `Quote` | `Quote` |  |
+| 51 | `Character Casting` | `CharacterCasting` |  |
+| 52 | `Character Casting Voice` | `CharacterCastingVoice` |  |
+| 53 | `Meme` | `Meme` |  |
+| 54 | `User Favorite` | `UserFavorite` |  |
+| 55 | `Note` | `Note` |  |
+| 56 | `Note Mark` | `NoteMark` |  |
+| 57 | `Needs Work` | `NeedsWork` |  |
+| 58 | `Resources` | `ResourceNode` |  |
+| 59 | `Media Source` | `MediaSource` |  |
+| 60 | `Media Content Label` | `MediaContentLabel` |  |
+| 61 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 62 | `Collection Content Label` | `CollectionContentLabel` |  |
+| 63 | `Series Content Label` | `SeriesContentLabel` |  |
+| 64 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -561,9 +562,13 @@ vocabulary restores as blank. `Person Membership` follows `Person Role`: both of
 ends cite a person by uuid, and since a person's uuid is minted per database,
 each end is translated through the Person tab by natural key before the row is
 stored (`DERIVED_IDENTITY_PARENTS` maps one tab to several `(column, parent
-tab)` pairs); its own natural key is `(member_id, club_id)`. `Studio Relation` follows `Studio` the same way: both ends cite a
-studio, each translated through the Studio tab, and its natural key is
-`(studio_id, related_studio_id)`. Each row is one side of a relation with that
+tab)` pairs); its own natural key is `(member_id, club_id)`. `Company Relation` follows `Studio` and `Publisher` the same way: each end
+is a studio or a publisher, translated through its own tab, and its natural
+key is all four id columns. A sheet backed up before publishers could relate
+carries the tab as `Studio Relation`, with no publisher columns; Pull reads it
+under that title. `Person Affiliation` cites a person and a studio, each
+translated through its own tab, with the natural key `(person_id,
+studio_id)`. Each row is one side of a relation with that
 side's `remark`, so a relation restores as the two rows it was backed up as. `Franchise Relation`
 follows `Franchise` with the same shape, but a franchise's uuid travels with
 its tab, so both ends are stored as written; its natural key is

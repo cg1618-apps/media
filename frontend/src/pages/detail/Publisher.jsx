@@ -22,6 +22,7 @@ import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
 import InfoCard from "../../components/info/InfoCard";
+import RelatedRecords from "../../components/info/RelatedRecords";
 import NamingCard from "../../components/info/NamingCard";
 import {
   AdminToolbar,
@@ -236,6 +237,12 @@ export default function Publisher() {
               onSave={(v) => patch({ remark: v }, "Remark saved")}
             />
           )}
+
+          <RelatedRecords
+            type="publisher"
+            recordId={publisher.system_id}
+            isAdmin={isAdmin}
+          />
 
           {groups.length === 0 ? (
             <section className="border border-dashed border-border-strong px-4 py-10 text-center">

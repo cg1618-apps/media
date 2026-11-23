@@ -257,14 +257,20 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_person_membership_from_sheet,
     ),
     SheetTab("Studio", models.Studio, f.parse_studio_from_sheet),
-    # After Studio: both ends are studios, cited by uuid and translated through
-    # the Studio tab (DERIVED_IDENTITY_PARENTS in pull.py).
-    SheetTab(
-        "Studio Relation",
-        models.StudioRelation,
-        f.parse_studio_relation_from_sheet,
-    ),
     SheetTab("Publisher", models.Publisher, f.parse_publisher_from_sheet),
+    # After Studio and Publisher: each end is one of the two, cited by uuid
+    # and translated through its own tab (DERIVED_IDENTITY_PARENTS in pull.py).
+    SheetTab(
+        "Company Relation",
+        models.CompanyRelation,
+        f.parse_company_relation_from_sheet,
+    ),
+    # After Person and Studio, for the same reason.
+    SheetTab(
+        "Person Affiliation",
+        models.PersonAffiliation,
+        f.parse_person_affiliation_from_sheet,
+    ),
     # After Publisher (real FK) and before every media tab: zero scope rows
     # means a publisher is offered NOWHERE, so a scope that fails to restore
     # hides the publisher from every picker. Credits re-add a scope additively

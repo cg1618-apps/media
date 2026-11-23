@@ -106,7 +106,7 @@ def get_all_franchises(
     attach_franchise_content_labels(db, rows)
     attach_entry_counts(db, rows, models.Media.franchise_id, viewer)
     attach_ratings(db, "franchise", rows, viewer.user_id)
-    FRANCHISE_RELATIONS.attach_has_relations(db, viewer, rows)
+    FRANCHISE_RELATIONS.attach_has_relations(db, viewer, "franchise", rows)
     return rows
 
 
@@ -130,7 +130,7 @@ def get_franchise_by_id(
         raise HTTPException(status_code=404, detail="Franchise not found.")
     attach_ratings(db, "franchise", db_franchise, viewer.user_id)
     attach_franchise_content_labels(db, db_franchise)
-    FRANCHISE_RELATIONS.attach_has_relations(db, viewer, db_franchise)
+    FRANCHISE_RELATIONS.attach_has_relations(db, viewer, "franchise", db_franchise)
     return db_franchise
 
 
@@ -163,7 +163,7 @@ def get_related_franchises(
     """The visible related franchises, ordered by name, each with the remark
     this franchise's side gives the relation."""
     franchise = _visible_franchise_or_404(db, viewer, system_id)
-    return FRANCHISE_RELATIONS.related_of(db, viewer, franchise.system_id)
+    return FRANCHISE_RELATIONS.related_of(db, viewer, ("franchise", franchise.system_id))
 
 
 @router.put(
@@ -187,11 +187,11 @@ def put_related_franchises(
     FRANCHISE_RELATIONS.replace_related(
         db,
         admin,
-        franchise.system_id,
-        [(item.id, item.remark) for item in payload.relations],
+        ("franchise", franchise.system_id),
+        [((item.kind or "franchise", item.id), item.remark) for item in payload.relations],
     )
     db.commit()
-    return FRANCHISE_RELATIONS.related_of(db, admin, franchise.system_id)
+    return FRANCHISE_RELATIONS.related_of(db, admin, ("franchise", franchise.system_id))
 
 
 # ==========================================

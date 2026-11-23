@@ -104,9 +104,9 @@ def test_removing_a_relation_from_one_side_removes_it_from_both(
     assert _related(owner_client, a) == [(c.display_name, "y")]
     pair = [a.system_id, b.system_id]
     assert (
-        db_session.query(models.StudioRelation)
-        .filter(models.StudioRelation.studio_id.in_(pair))
-        .filter(models.StudioRelation.related_studio_id.in_(pair))
+        db_session.query(models.CompanyRelation)
+        .filter(models.CompanyRelation.studio_id.in_(pair))
+        .filter(models.CompanyRelation.related_studio_id.in_(pair))
         .count()
         == 0
     )
@@ -132,10 +132,10 @@ def test_deleting_a_studio_takes_both_sides_with_it(owner_client, db_session, tr
     db_session.expire_all()
     assert _related(owner_client, a) == []
     assert (
-        db_session.query(models.StudioRelation)
+        db_session.query(models.CompanyRelation)
         .filter(
-            (models.StudioRelation.studio_id == b.system_id)
-            | (models.StudioRelation.related_studio_id == b.system_id)
+            (models.CompanyRelation.studio_id == b.system_id)
+            | (models.CompanyRelation.related_studio_id == b.system_id)
         )
         .count()
         == 0
@@ -225,11 +225,12 @@ def test_a_merge_moves_both_sides_and_drops_the_duplicate(owner_client, db_sessi
     assert _related(owner_client, shared) == [(keep.display_name, None)]
 
 
-def test_the_tab_restores_after_studio():
-    assert TAB_NAMES.index("Studio") < TAB_NAMES.index("Studio Relation")
+def test_the_tab_restores_after_studio_and_publisher():
+    assert TAB_NAMES.index("Studio") < TAB_NAMES.index("Company Relation")
+    assert TAB_NAMES.index("Publisher") < TAB_NAMES.index("Company Relation")
 
 
-def test_a_relation_round_trips_through_its_tab(monkeypatch, db_session):
+def test_a_relation_round_trips_through_its_tab_in_the_pre_publisher_shape(monkeypatch, db_session):
     a = _studio(db_session, "Zvornik Sheet A")
     b = _studio(db_session, "Zvornik Sheet B")
     monkeypatch.setattr(
@@ -241,12 +242,12 @@ def test_a_relation_round_trips_through_its_tab(monkeypatch, db_session):
             [str(uuid.uuid4()), str(b.system_id), str(a.system_id), ""],
         ],
     )
-    result = pull.execute_pull_specific(db_session, "Studio Relation", log_action=False)
+    result = pull.execute_pull_specific(db_session, "Company Relation", log_action=False)
     assert result["status"] == "success", result
     rows = {
         (r.studio_id, r.related_studio_id): r.remark
-        for r in db_session.query(models.StudioRelation)
-        .filter(models.StudioRelation.studio_id.in_([a.system_id, b.system_id]))
+        for r in db_session.query(models.CompanyRelation)
+        .filter(models.CompanyRelation.studio_id.in_([a.system_id, b.system_id]))
         .all()
     }
     assert rows == {

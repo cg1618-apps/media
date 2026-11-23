@@ -21,6 +21,7 @@ import PlanKindToggles, {
   applicableTypes,
 } from "../../components/plan/PlanKindToggles";
 import { scopesFor } from "../../config/planNextGroups";
+import RelatedRecords from "../../components/info/RelatedRecords";
 
 const TYPE_TO_ENTRY_TYPES = {
   Anime: ["anime", "anime_movie"],
@@ -434,6 +435,11 @@ export default function FranchiseModifyTab({
             onToggle={handleRewatchToggle}
           />
         </Field>
+      )}
+      {/* The detail page's box, here too. It saves through its own button,
+          not with this form - like the Plan Next toggles above. */}
+      {franchiseId && (
+        <RelatedRecords type="franchise" recordId={franchiseId} isAdmin />
       )}
     </>
   );

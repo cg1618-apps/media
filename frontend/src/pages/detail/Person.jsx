@@ -24,6 +24,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
+import { useEntityHref } from "../../lib/entityPath";
 import ClubMembership from "../../components/info/ClubMembership";
 import VoicedPartCard from "../../components/info/VoicedPartCard";
 import WorkGallery from "../../components/info/WorkGallery";
@@ -59,6 +60,31 @@ const SOCIAL_SITES = [
   { field: "ig_link", site: "Instagram" },
   { field: "pixiv_link", site: "pixiv" },
 ];
+
+// The studios a person belongs to, each a link to its page when the viewer
+// may open studio pages (useEntityHref), plain text otherwise.
+function AffiliationLinks({ studios }) {
+  const entityHref = useEntityHref();
+  return (
+    <span className="flex flex-wrap gap-x-2 gap-y-1">
+      {studios.map((s, i) => {
+        const path = entityHref("studio", s);
+        return (
+          <span key={s.system_id}>
+            {path ? (
+              <Link to={path} className="text-brand hover:underline">
+                {s.display_name}
+              </Link>
+            ) : (
+              s.display_name
+            )}
+            {i < studios.length - 1 && <span aria-hidden="true">,</span>}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
 
 export default function Person() {
   const { publicId } = useParams();
@@ -245,6 +271,12 @@ export default function Person() {
                 { label: "Gender", value: person.gender },
                 { label: "Types", value: types.join(", ") || null },
               ],
+              {
+                label: "Affiliation",
+                value: person.affiliations?.length ? (
+                  <AffiliationLinks studios={person.affiliations} />
+                ) : null,
+              },
               {
                 label: "MAL",
                 value: person.mal_link ? (

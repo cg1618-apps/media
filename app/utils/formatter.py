@@ -1565,22 +1565,41 @@ def parse_person_membership_from_sheet(raw: dict) -> dict:
     }
 
 
-def parse_studio_relation_from_sheet(raw: dict) -> dict:
+def parse_company_relation_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Studio Relation sheet: one side of a
-    relation, with that side's remark.
+    Parses a raw dictionary from the Company Relation sheet: one side of a
+    relation, with that side's remark. Each end is a studio or a publisher,
+    so of each pair of id columns one is set and the other blank. A sheet
+    from before publishers could relate carries the tab as Studio Relation,
+    with no publisher columns at all (LEGACY_TAB_NAMES).
 
-    Both ends cite a studio by uuid, and a studio's uuid is minted per
-    database - Pull translates each through the Studio tab by natural key
-    before the row is stored (DERIVED_IDENTITY_PARENTS in pull.py).
+    Every end cites its company by uuid, and a company's uuid is minted per
+    database - Pull translates each through the Studio or Publisher tab by
+    natural key before the row is stored (DERIVED_IDENTITY_PARENTS in pull.py).
     """
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "studio_id": _uuid_or_none(raw.get("studio_id")),
+        "publisher_id": _uuid_or_none(raw.get("publisher_id")),
         "related_studio_id": _uuid_or_none(raw.get("related_studio_id")),
+        "related_publisher_id": _uuid_or_none(raw.get("related_publisher_id")),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_person_affiliation_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Person Affiliation sheet: one person
+    belonging to one studio. Both ends are translated through their own tab,
+    as Company Relation's are.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "person_id": _uuid_or_none(raw.get("person_id")),
+        "studio_id": _uuid_or_none(raw.get("studio_id")),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
     }
 
 

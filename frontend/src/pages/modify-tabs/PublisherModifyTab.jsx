@@ -11,6 +11,7 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=publisher, the
 // detail page's Quick edit): that publisher's editor opens on mount.
+import RelatedRecords from "../../components/info/RelatedRecords";
 import {
   applyMyRating,
   useFormRatingSaver,
@@ -261,6 +262,12 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
             </button>
           </div>
         </form>
+      )}
+
+      {/* The detail page's Related box. Outside the form: it saves through
+          its own button, never with Save Changes. */}
+      {selectedId && publisherForm && (
+        <RelatedRecords type="publisher" recordId={selectedId} isAdmin />
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 ## What this is for
 
@@ -1101,10 +1101,13 @@ either route 404s when the person asked about is hidden. The two replace
 writers keep the rows naming a person the writer cannot see, as the scope
 writers below do.
 
-**A peer relation is not a connection either.** `studio_relation` never makes
-a hidden studio visible, and `franchise_relation` never makes a hidden
-franchise visible; each reads through its own kind's rule (the shared-record
-rule for a studio, the label rule for a franchise). A visible record's
+**A peer relation is not a connection either.** `company_relation` never
+makes a hidden studio or publisher visible, and `franchise_relation` never
+makes a hidden franchise visible; each end reads through its own kind's rule
+(the shared-record rule for a studio or a publisher, the label rule for a
+franchise). Nor is a person's affiliation (`person_affiliation`): each page
+omits the studios or people its viewer may not see, and the person writer
+keeps the rows naming a studio it cannot see. A visible record's
 `/related` omits the related records the viewer cannot see, and 404s when the
 record asked about is hidden; the list's `has_relations` counts only visible
 related records, so a library's Relation filter cannot reveal one; and the

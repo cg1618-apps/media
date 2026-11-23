@@ -94,5 +94,9 @@ class PublisherResponse(PublisherBase):
     # gated type. Same semantics as StudioResponse's.
     media_types: List[str] = []
     restricted: bool = False
+    # Whether this publisher relates to at least one company the viewer may
+    # see (COMPANY_RELATIONS.related_counts). Same semantics as
+    # StudioResponse's.
+    has_relations: bool = False
 
     model_config = ConfigDict(from_attributes=True)

@@ -1124,6 +1124,7 @@ export default function Add() {
         pixiv_link: personForm.pixiv_link?.trim() || null,
         remark: personForm.remark || null,
         roles: personRoles,
+        studio_ids: (personForm.affiliations || []).map((s) => s.system_id),
       }),
       credentials: "include",
     });

@@ -46,6 +46,7 @@ function personToForm(p) {
     twitter_link: p.twitter_link || "",
     ig_link: p.ig_link || "",
     pixiv_link: p.pixiv_link || "",
+    affiliations: p.affiliations || [],
     remark: p.remark || "",
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: p.my_rating || "",
@@ -185,6 +186,8 @@ export default function PersonModifyTab({ initialId = null } = {}) {
           // PUT replaces the whole role set, so this must be every type the
           // person holds, not just the sub-tab's one.
           roles,
+          // Replaced whole too; the studios this editor cannot see are kept.
+          studio_ids: (personForm.affiliations || []).map((s) => s.system_id),
         }),
       });
       await queryClient.invalidateQueries({ queryKey: ["people-admin"] });
