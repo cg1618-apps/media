@@ -448,6 +448,14 @@ DERIVED_IDENTITY_MINTED_PK: frozenset[str] = frozenset(
 
 
 
+def _primary_key_column(model) -> str:
+    """The name of a sheet tab's model's single primary-key column."""
+    columns = list(model.__table__.primary_key.columns)
+    if len(columns) != 1:
+        raise ValueError(f"{model.__tablename__} has no single-column primary key")
+    return columns[0].key
+
+
 def resync_id_sequence(db: Session, model) -> None:
     """
     Move the sequence behind a table's integer primary key past the restored ids.
@@ -1973,26 +1981,16 @@ def execute_pull_specific(
                 ).update({"is_installation_owner": False}, synchronize_session=False)
                 db.flush()
 
-        # System Configs, Person Role, Publisher Scope, System Option Scope
-        # and System Option Usage are autoincrement integer PKs and use 'id',
-        # Seasonal uses 'seasonal', others use 'system_id'. System Options used
-        # to have an 'id' PK too, but Task 4 reshaped it onto 'system_id' and
-        # Task 10 dropped the 'id' column outright - it belongs with the
-        # 'system_id' tabs now.
-        if tab_name in (
-            "System Configs",
-            "Person Role",
-            "Publisher Scope",
-            "System Option Scope",
-            "System Option Usage",
-            # users.id is a UUID, but it is spelled `id`, not `system_id`.
-            "Users",
-        ):
-            pk_field = "id"
-        elif tab_name == "Seasonal":
-            pk_field = "seasonal"
-        else:
-            pk_field = "system_id"
+        # The tab's primary-key column, read off its model rather than listed:
+        # `id` on the autoincrement integer tables and on users, `seasonal`
+        # on Seasonal, `system_id` everywhere else. A list here once left out
+        # System Option Alias, so its sheet `id` was never treated as the key,
+        # survived DERIVED_IDENTITY_MINTED_PK's pop and was written onto
+        # whichever local row the natural key matched - colliding with the
+        # local row that already held that id.
+        # Seasonal's key is (user_id, seasonal); its sheet rows are matched
+        # on `seasonal` and the user is resolved separately.
+        pk_field = "seasonal" if tab_name == "Seasonal" else _primary_key_column(Model)
         pk_value = clean_header_dict.get(pk_field)
 
         # Smart Primary Key Logic (Upsert vs Insert)

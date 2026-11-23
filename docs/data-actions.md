@@ -802,7 +802,7 @@ Returns a status dict; the route streams it as the last event, `"status": "error
 
      The three lookups above go through `find_by_names` (`hierarchy.py`), as the resolvers do: exact and case-insensitive, with an `*_alt` column matching on any one of its comma-separated fragments - never on its whole value.
 
-   - **Primary key field**: `id` for `System Configs`, `Person Role`, `Publisher Scope`, `System Option Scope`, `System Option Usage` and `Users` (`users.id` is a uuid, but it is spelled `id`); `seasonal` for `Seasonal`; `system_id` for everything else.
+   - **Primary key field**: the tab's model's own primary-key column (`_primary_key_column`) - `id` for the autoincrement integer tabs (`System Configs`, `Person Role`, `Publisher Scope`, `System Option Scope`, `System Option Usage`, `System Option Alias`) and for `Users` (`users.id` is a uuid, but it is spelled `id`), `system_id` for everything else - except `Seasonal`, whose key is `(user_id, seasonal)` and whose rows are matched on `seasonal`. On a tab whose integer id is minted per database (`DERIVED_IDENTITY_MINTED_PK`) the sheet's id is dropped and the row is matched by natural key, so a match keeps its local id and a new row takes the next one from the sequence.
    - **Id-less matching**: when the PK cell is blank the row is matched to an existing local row by a natural key so a re-import updates instead of duplicating:
 
      | Tab | Matched on |
