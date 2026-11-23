@@ -94,7 +94,7 @@ describe("PublisherLibrary", () => {
     );
   });
 
-  it("opens with the filter panel shown, every type and No entries on, and no Restricted chip", async () => {
+  it("opens with the filter panel shown, no entry type ticked, and no Restricted chip", async () => {
     renderPage();
     await screen.findByText("木棉花");
     expect(screen.getByRole("button", { name: /^Filters/ })).toHaveAttribute(
@@ -102,7 +102,7 @@ describe("PublisherLibrary", () => {
       "true",
     );
     for (const name of ["Anime", "Anime Movie", "Manga", "Book", "Comic", "Game", "No entries"]) {
-      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
     }
     expect(screen.queryByRole("button", { name: "Restricted" })).not.toBeInTheDocument();
     // An uncredited publisher is listed by default.
@@ -113,7 +113,6 @@ describe("PublisherLibrary", () => {
     const user = userEvent.setup();
     renderPage();
     await screen.findByText("木棉花");
-    await user.click(screen.getByRole("button", { name: "Clear all" }));
     await user.click(screen.getByRole("button", { name: "Manga" }));
     // Muse is credited on anime only, but offered on manga.
     expect(screen.getAllByRole("link").map((a) => a.textContent)).toEqual([

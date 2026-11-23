@@ -76,17 +76,16 @@ describe("StudioLibrary", () => {
     );
   });
 
-  it("opens with the filter panel shown and the plain types and No entries on", async () => {
+  it("opens with the filter panel shown and no entry type ticked", async () => {
     renderPage();
     await screen.findByText("KyoAni");
     expect(screen.getByRole("button", { name: /^Filters/ })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
-    for (const name of ["Anime", "Anime Movie", "Game", "No entries"]) {
-      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "true");
-    }
-    for (const name of ["Restricted", "Hentai", "H-Game"]) {
+    for (const name of [
+      "Anime", "Anime Movie", "Game", "No entries", "Restricted", "Hentai", "H-Game",
+    ]) {
       expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
     }
   });
@@ -99,9 +98,11 @@ describe("StudioLibrary", () => {
     expect(screen.getByText("Fresh Studio")).toBeInTheDocument();
     expect(screen.getAllByRole("link")).toHaveLength(4);
 
+    // Restricted alone narrows to the studios credited on a restricted type.
     await user.click(screen.getByRole("button", { name: "Restricted" }));
-    expect(screen.getByText("Pink Pineapple")).toBeInTheDocument();
-    expect(screen.getAllByRole("link")).toHaveLength(5);
+    expect(screen.getAllByRole("link").map((a) => a.textContent)).toEqual([
+      expect.stringContaining("Pink Pineapple"),
+    ]);
   });
 
   it("gives a country held by more than five studios its own chip, most-held first", async () => {

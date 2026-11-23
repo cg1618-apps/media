@@ -16,7 +16,6 @@ import {
   TAGS_NOT_SET,
   UNRATED,
   characterFilterDefs,
-  defaultEntityFilters,
   personFilterDefs,
   publisherFilterDefs,
   studioChipCountries,
@@ -75,8 +74,10 @@ describe("characterFilterDefs", () => {
 
   it("matches an unset rating as Unrated and an unset gender as Not set", () => {
     const defs = characterFilterDefs(SEES_ALL);
-    expect(filtered(defs, ROWS, { myRating: [UNRATED] })).toEqual(["b"]);
-    expect(filtered(defs, ROWS, { gender: [GENDER_NOT_SET] })).toEqual(["b"]);
+    // b is cast on hentai only, so it is in play once hentai is ticked.
+    const hentai = { mediaType: ["anime", "manga", "hentai", NO_ENTRIES] };
+    expect(filtered(defs, ROWS, { ...hentai, myRating: [UNRATED] })).toEqual(["b"]);
+    expect(filtered(defs, ROWS, { ...hentai, gender: [GENDER_NOT_SET] })).toEqual(["b"]);
     expect(filtered(defs, ROWS, { gender: ["男"] })).toEqual(["c"]);
   });
 
@@ -213,7 +214,7 @@ describe("the No entries chip", () => {
   });
 });
 
-describe("defaultEntityFilters", () => {
+describe("the entry-type group with nothing ticked", () => {
   const ROWS = [
     { id: "plain", media_types: ["anime"] },
     { id: "mixed", media_types: ["anime", "hentai"] },
@@ -221,32 +222,30 @@ describe("defaultEntityFilters", () => {
     { id: "new", media_types: [] },
   ];
 
-  it("selects every non-restricted type and No entries, and nothing else", () => {
-    const defs = personFilterDefs(SEES_ALL);
-    const filters = defaultEntityFilters(defs);
-    expect([...filters.mediaType]).toEqual([
-      "anime", "anime-movie", "movie", "tv-show", "cartoon",
-      "manga", "book", "comic", "game", NO_ENTRIES,
-    ]);
-    expect(filters.role.size).toBe(0);
-    expect(filters.myRating.size).toBe(0);
-    expect(filters.gender.size).toBe(0);
-  });
-
-  // The Restricted children exist here (SEES_ALL), so the default has
+  // The Restricted children exist here (SEES_ALL), so the empty group has
   // something to leave out: a session that sees no gated type would pass
   // this vacuously.
   it("hides a restricted-only row and keeps a mixed or entry-less one", () => {
     const defs = characterFilterDefs(SEES_ALL);
     expect(def(defs, "mediaType").parent.children).toContain("hentai");
-    const filters = defaultEntityFilters(defs);
+    const filters = initialFilters(defs);
+    expect(filters.mediaType.size).toBe(0);
     expect(applyFilterDefs(ROWS, defs, filters).map((r) => r.id)).toEqual([
       "plain", "mixed", "new",
     ]);
     filters.mediaType.add("hentai");
     expect(applyFilterDefs(ROWS, defs, filters).map((r) => r.id)).toEqual([
-      "plain", "mixed", "gated", "new",
+      "mixed", "gated",
     ]);
+  });
+
+  it("shows what every plain type and No entries ticked shows", () => {
+    const defs = personFilterDefs(SEES_ALL);
+    const all = initialFilters(defs);
+    all.mediaType = new Set(def(defs, "mediaType").options);
+    expect(applyFilterDefs(ROWS, defs, initialFilters(defs))).toEqual(
+      applyFilterDefs(ROWS, defs, all),
+    );
   });
 });
 
