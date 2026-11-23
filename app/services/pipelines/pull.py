@@ -240,7 +240,13 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     # the parent translation below before this match runs.
     "Person Membership": ("member_id", "club_id"),  # uq_person_membership
     # The same shape: both ends are studios, translated first.
-    "Studio Relation": ("studio_id", "related_studio_id"),  # uq_studio_relation
+    "Company Relation": (
+        "studio_id",
+        "publisher_id",
+        "related_studio_id",
+        "related_publisher_id",
+    ),  # uq_company_relation
+    "Person Affiliation": ("person_id", "studio_id"),  # uq_person_affiliation
     # Mints its own uuid, but both ends cite a franchise, whose uuid is the
     # same in every database, so only the row's own identity is reconciled.
     "Franchise Relation": (
@@ -394,7 +400,13 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "System Option Alias": (("option_id", "System Options"),),
     "Person Role": (("person_id", "Person"),),
     "Person Membership": (("member_id", "Person"), ("club_id", "Person")),
-    "Studio Relation": (("studio_id", "Studio"), ("related_studio_id", "Studio")),
+    "Company Relation": (
+        ("studio_id", "Studio"),
+        ("publisher_id", "Publisher"),
+        ("related_studio_id", "Studio"),
+        ("related_publisher_id", "Publisher"),
+    ),
+    "Person Affiliation": (("person_id", "Person"), ("studio_id", "Studio")),
     "Character Casting Voice": (("person_id", "Person"),),
     "Publisher Scope": (("publisher_id", "Publisher"),),
     "Media Content Label": (("label_id", "Content Label"),),

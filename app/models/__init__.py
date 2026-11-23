@@ -52,13 +52,14 @@ from app.models.plan_next import PlanNext
 from app.models.quote import Quote
 from app.models.resource import ResourceNode
 from app.models.staff import (
+    CompanyRelation,
     Person,
+    PersonAffiliation,
     PersonMembership,
     PersonRole,
     Publisher,
     PublisherScope,
     Studio,
-    StudioRelation,
 )
 from app.models.system import (
     DataControlLog,
@@ -134,7 +135,8 @@ __all__ = [
     "PersonRole",
     "PersonMembership",
     "Studio",
-    "StudioRelation",
+    "CompanyRelation",
+    "PersonAffiliation",
     "Publisher",
     "PublisherScope",
     "MediaCredit",

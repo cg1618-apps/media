@@ -336,6 +336,9 @@ export const endpoints = {
     remove: (id) => `/api/publisher/${id}`,
     merge: (id) => `/api/publisher/${id}/merge`,
     entries: (id) => `/api/publisher/${id}/entries`,
+    // GET / PUT: the related companies - studios and publishers - each with
+    // this side's remark and its kind.
+    related: (id) => `/api/publisher/${id}/related`,
   },
 
   studio: {
@@ -352,8 +355,11 @@ export const endpoints = {
     remove: (id) => `/api/studio/${id}`,
     merge: (id) => `/api/studio/${id}/merge`,
     entries: (id) => `/api/studio/${id}/entries`,
-    // GET / PUT: the related studios, each with this side's remark.
+    // GET / PUT: the related companies - studios and publishers - each with
+    // this side's remark and its kind.
     related: (id) => `/api/studio/${id}/related`,
+    // GET: the people affiliated with this studio (written from the person).
+    people: (id) => `/api/studio/${id}/people`,
   },
 
   // A franchise's CRUD is resource("franchise"); these are the routes it has

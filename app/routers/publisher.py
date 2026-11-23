@@ -28,6 +28,7 @@ from app.services.domain.credits import (
     find_publisher,
 )
 from app.services.domain.merge_fill import finish_merge
+from app.services.domain.peer_relation import COMPANY_RELATIONS
 from app.services.domain.user_rating import ratings_by_owner
 from app.services.integrations.image_manager import delete_cover_image
 from app.services.rbac.enforcement import filter_visible_pairs
@@ -62,6 +63,7 @@ def _to_response(
     summary: Optional[CreditSummary] = None,
     hidden: Optional[frozenset[str]] = None,
     ratings: Optional[dict] = None,
+    relation_counts: Optional[dict] = None,
 ) -> schemas.PublisherResponse:
     # Count only credits on entries the viewer may see. A number is a smaller
     # leak than a title, but "published 3 things, you can see 2" is still one.
@@ -85,6 +87,11 @@ def _to_response(
             db, "publisher", [publisher.system_id], viewer_user_id(viewer)
         )
     own = ratings.get(publisher.system_id)
+    # Passed in by the list route for the whole page, counted here otherwise.
+    if relation_counts is None:
+        relation_counts = COMPANY_RELATIONS.related_counts(
+            db, viewer, "publisher", [publisher.system_id]
+        )
     display_logo_file, display_logo_focus = summary.display_logo(
         publisher.logo_file, publisher.logo_focus
     )
@@ -113,6 +120,7 @@ def _to_response(
         credit_count=summary.count,
         media_types=summary.media_types,
         restricted=summary.restricted,
+        has_relations=relation_counts.get(publisher.system_id, 0) > 0,
     )
 
 
@@ -168,9 +176,18 @@ def get_all_publishers(
         [publisher.system_id for publisher in publishers],
         viewer_user_id(viewer),
     )
+    relations = COMPANY_RELATIONS.related_counts(
+        db, viewer, "publisher", [publisher.system_id for publisher in publishers]
+    )
     return [
         _to_response(
-            db, publisher, viewer, summaries[publisher.system_id], hidden, ratings
+            db,
+            publisher,
+            viewer,
+            summaries[publisher.system_id],
+            hidden,
+            ratings,
+            relations,
         )
         for publisher in publishers
     ]
@@ -194,6 +211,66 @@ def get_publisher_by_id(
         db, viewer, models.Publisher, publisher.system_id, NOT_FOUND
     )
     return _to_response(db, publisher, viewer)
+
+
+# ==========================================
+# RELATED COMPANIES
+# ==========================================
+# The same relation a studio has (company_relation), read and written from
+# this end: the other end is a studio or a publisher, each side keeps its own
+# remark, and the companies the viewer may not see are left out.
+
+
+def _visible_publisher_or_404(db: Session, viewer, system_id: str) -> models.Publisher:
+    publisher = find_entity(db, models.Publisher, system_id)
+    if publisher is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    require_visible_shared(db, viewer, models.Publisher, publisher.system_id, NOT_FOUND)
+    return publisher
+
+
+@router.get(
+    "/{system_id}/related",
+    response_model=List[schemas.PeerRelationRef],
+    summary="Companies Related to This Publisher",
+)
+def get_related_companies(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_view_publisher),
+):
+    """The visible related studios and publishers, ordered by name, each
+    with its kind and the remark this publisher's side gives the relation."""
+    publisher = _visible_publisher_or_404(db, viewer, system_id)
+    return COMPANY_RELATIONS.related_of(db, viewer, ("publisher", publisher.system_id))
+
+
+@router.put(
+    "/{system_id}/related",
+    response_model=List[schemas.PeerRelationRef],
+    summary="Replace the Companies Related to This Publisher",
+)
+def put_related_companies(
+    system_id: str,
+    payload: schemas.PeerRelationsReplace,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Whole-list replace of this side, as for a studio. Each item names a
+    visible studio or publisher - `kind`, default publisher - other than this
+    publisher (422 otherwise). Relations to companies the writer cannot see
+    are kept.
+    """
+    publisher = _visible_publisher_or_404(db, admin, system_id)
+    COMPANY_RELATIONS.replace_related(
+        db,
+        admin,
+        ("publisher", publisher.system_id),
+        [((item.kind or "publisher", item.id), item.remark) for item in payload.relations],
+    )
+    db.commit()
+    return COMPANY_RELATIONS.related_of(db, admin, ("publisher", publisher.system_id))
 
 
 @router.get("/{system_id}/entries", summary="Entries Credited to This Publisher")
@@ -469,5 +546,7 @@ def merge_publisher(
                 )
             )
 
+    # Before finish_merge deletes the source, whose relations would cascade.
+    COMPANY_RELATIONS.merge_relations(db, "publisher", system_id, payload.source_id)
     finish_merge(db, "publisher", keep, drop)
     return {"status": "success", "credits_moved": moved}

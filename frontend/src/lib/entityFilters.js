@@ -260,9 +260,10 @@ const countryDef = {
 export const HAS_RELATIONS = "Has relation";
 export const NO_RELATIONS = "No relation";
 
-// Read off the list's has_relations, which counts only related studios the
-// viewer may see - so a relation to a hidden studio filters as no relation.
-const studioRelationDef = {
+// Read off the list's has_relations, which counts only related companies -
+// studios and publishers - the viewer may see, so a relation to a hidden one
+// filters as no relation. Shared by the studio and publisher libraries.
+const companyRelationDef = {
   key: "relation",
   label: "Relation",
   type: "set",
@@ -330,7 +331,7 @@ export function studioFilterDefs(auth, { ownData = true, studios = [] } = {}) {
     mediaTypeDef(auth, STUDIO_MEDIA_TYPES, STUDIO_RESTRICTED_TYPES),
     ...(ownData ? [ratingDef] : []),
     studioCountryDef(studios),
-    studioRelationDef,
+    companyRelationDef,
   ];
 }
 
@@ -373,5 +374,6 @@ export function publisherFilterDefs(auth, { ownData = true } = {}) {
     mediaTypeDef(auth, PUBLISHER_MEDIA_TYPES, [], publisherTypes),
     ...(ownData ? [ratingDef] : []),
     countryDef,
+    companyRelationDef,
   ];
 }

@@ -55,6 +55,8 @@ function respond(url) {
   if (url === "/api/person/p1") return PERSON;
   if (url === "/api/studio/s1") return STUDIO;
   if (url.startsWith("/api/person/role-scopes")) return {};
+  // The Modify editor's Related box: nothing related.
+  if (url.endsWith("/related")) return [];
   if (url.startsWith("/api/studio/")) return [STUDIO];
   return [];
 }

@@ -125,6 +125,15 @@ def _has_a_name(payload: PersonBase) -> bool:
     )
 
 
+class AffiliationRef(BaseModel):
+    """One end of a person affiliation, as a page links to it: the studio on
+    a person's page, the person on a studio's."""
+
+    system_id: UUID
+    public_id: int
+    display_name: str
+
+
 class PersonCreate(PersonWrite):
     """
     A person to create, either fully slotted or as one unslotted `name`.
@@ -139,6 +148,10 @@ class PersonCreate(PersonWrite):
 
     name: Optional[str] = None
     roles: List[PersonRoleIn] = []
+    # The studios this person belongs to (person_affiliation). Omitted, none
+    # are given; on an existing person found by name, these are added to
+    # the ones they already have.
+    studio_ids: List[UUID] = []
 
     @model_validator(mode="after")
     def _named_somehow(self):
@@ -153,6 +166,9 @@ class PersonCreate(PersonWrite):
 
 class PersonUpdate(PersonWrite):
     roles: List[PersonRoleIn] = []
+    # Every studio this person belongs to: replaces the set, keeping the ones
+    # the writer cannot see. Omitted (null), the set is left as it is.
+    studio_ids: Optional[List[UUID]] = None
 
     @model_validator(mode="after")
     def _at_least_one_name(self):
@@ -177,6 +193,8 @@ class PersonResponse(PersonBase):
     # form that reconstructed it by asking each role list who is in it would
     # issue a query per legal pair and still guess.
     roles: List[PersonRoleIn] = []
+    # The studios this person belongs to that the viewer may see, by name.
+    affiliations: List[AffiliationRef] = []
     credit_count: int = 0
     # Resolved per viewer by app/services/domain/entity_photos.py: the storage
     # key to show (photo_file, else a visible entry's cover), or None.
@@ -263,10 +281,10 @@ class StudioResponse(StudioBase):
     # credit_count (credits.credit_summaries).
     media_types: List[str] = []
     restricted: bool = False
-    # Whether this studio relates to at least one studio the viewer may see
-    # (services.domain.peer_relation, STUDIO_RELATIONS.related_counts): the studio library's
-    # Relation filter reads it, so a relation to a hidden studio is no
-    # relation at all here.
+    # Whether this studio relates to at least one company - studio or
+    # publisher - the viewer may see (services.domain.peer_relation,
+    # COMPANY_RELATIONS.related_counts): the library's Relation filter reads
+    # it, so a relation to a hidden company is no relation at all here.
     has_relations: bool = False
 
     model_config = ConfigDict(from_attributes=True)

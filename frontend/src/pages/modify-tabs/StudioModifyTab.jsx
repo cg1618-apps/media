@@ -9,6 +9,7 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=studio, the
 // detail page's Quick edit): that studio's editor opens on mount.
+import RelatedRecords from "../../components/info/RelatedRecords";
 import {
   applyMyRating,
   useFormRatingSaver,
@@ -262,6 +263,12 @@ export default function StudioModifyTab({ initialId = null } = {}) {
             </button>
           </div>
         </form>
+      )}
+
+      {/* The detail page's Related box. Outside the form: it saves through
+          its own button, never with Save Changes. */}
+      {selectedId && studioForm && (
+        <RelatedRecords type="studio" recordId={selectedId} isAdmin />
       )}
     </div>
   );

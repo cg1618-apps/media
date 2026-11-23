@@ -290,6 +290,44 @@ class PersonMembership(Base):
     created_at = Column(DateTime, nullable=True, default=get_taipei_now)
 
 
+class PersonAffiliation(Base):
+    """
+    One person belonging to one studio - a director on a studio's staff, a
+    seiyuu with an agency. A person may belong to several.
+
+    One row per pair, unlike CompanyRelation: belonging has a direction, so
+    there is no other side to keep a remark for. The person form writes the
+    whole set (app/services/domain/affiliation.py); the studio's page lists
+    its people from the same rows.
+
+    NOT a connection in the shared-record sense: it never makes a hidden
+    studio or person visible. Each page simply omits the ends its viewer may
+    not see.
+    """
+
+    __tablename__ = "person_affiliation"
+    __table_args__ = (
+        UniqueConstraint("person_id", "studio_id", name="uq_person_affiliation"),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    person_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("person.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    studio_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("studio.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_at = Column(DateTime, nullable=True, default=get_taipei_now)
+
+
 class Studio(Base, NameFallbackMixin):
     """
     One anime production studio.
@@ -424,30 +462,60 @@ class Studio(Base, NameFallbackMixin):
         return self.get_fallback_name(sequence, "EN")
 
 
-class StudioRelation(Base):
+class CompanyRelation(Base):
     """
-    One side of a relation between two studios.
+    One side of a relation between two companies - a studio or a publisher at
+    either end, in any mix.
 
     A relation is mutual and is always stored as TWO rows, one per side:
-    (A, B) and (B, A). Each row's `remark` is what `studio_id`'s page says
-    beside `related_studio_id` - "animation subsidiary" on A's page, "parent
+    (A, B) and (B, A). Each row's `remark` is what the owning company's page
+    says beside the other - "animation subsidiary" on A's page, "parent
     company" on B's - so each side keeps its own words, and either may be
-    empty. STUDIO_RELATIONS in app/services/domain/peer_relation.py writes and removes the two
-    rows together; nothing else writes this table.
+    empty. COMPANY_RELATIONS in app/services/domain/peer_relation.py writes
+    and removes the two rows together; nothing else writes this table.
+
+    Each end is two nullable FK columns of which exactly one is set, rather
+    than a kind column beside one untyped id: a real FK per kind keeps ON
+    DELETE CASCADE, and lets a Pull translate each id through its own tab
+    (DERIVED_IDENTITY_PARENTS in pull.py). The owning side is studio_id or
+    publisher_id; the related side is related_studio_id or
+    related_publisher_id.
 
     A relation is NOT a connection in the shared-record sense
-    (app/services/rbac/shared_visibility.py): it cannot make a hidden studio
-    visible. A visible studio's related list simply omits the studios the
+    (app/services/rbac/shared_visibility.py): it cannot make a hidden company
+    visible. A visible company's related list simply omits the companies the
     viewer may not see.
     """
 
-    __tablename__ = "studio_relation"
+    __tablename__ = "company_relation"
     __table_args__ = (
+        # NULLS NOT DISTINCT: two of the four are NULL on every row, and
+        # without it the constraint would be inert.
         UniqueConstraint(
-            "studio_id", "related_studio_id", name="uq_studio_relation"
+            "studio_id",
+            "publisher_id",
+            "related_studio_id",
+            "related_publisher_id",
+            name="uq_company_relation",
+            postgresql_nulls_not_distinct=True,
         ),
         CheckConstraint(
-            "studio_id <> related_studio_id", name="ck_studio_relation_not_self"
+            "num_nonnulls(studio_id, publisher_id) = 1",
+            name="ck_company_relation_one_owner",
+        ),
+        CheckConstraint(
+            "num_nonnulls(related_studio_id, related_publisher_id) = 1",
+            name="ck_company_relation_one_related",
+        ),
+        CheckConstraint(
+            "studio_id IS DISTINCT FROM related_studio_id"
+            " OR studio_id IS NULL",
+            name="ck_company_relation_studio_not_self",
+        ),
+        CheckConstraint(
+            "publisher_id IS DISTINCT FROM related_publisher_id"
+            " OR publisher_id IS NULL",
+            name="ck_company_relation_publisher_not_self",
         ),
     )
 
@@ -457,13 +525,25 @@ class StudioRelation(Base):
     studio_id = Column(
         UUID(as_uuid=True),
         ForeignKey("studio.system_id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
+        index=True,
+    )
+    publisher_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("publisher.system_id", ondelete="CASCADE"),
+        nullable=True,
         index=True,
     )
     related_studio_id = Column(
         UUID(as_uuid=True),
         ForeignKey("studio.system_id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
+        index=True,
+    )
+    related_publisher_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("publisher.system_id", ondelete="CASCADE"),
+        nullable=True,
         index=True,
     )
     remark = Column(Text, nullable=True)

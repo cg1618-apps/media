@@ -27,6 +27,11 @@ from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain import person_work_images
+from app.services.domain.affiliation import (
+    affiliations_by_person,
+    merge_affiliations,
+    replace_affiliations,
+)
 from app.services.domain.autofill import (
     autofill_person_from_mal,
     autofill_person_from_tmdb,
@@ -95,6 +100,7 @@ def _to_response(
     media: Optional[EntityMedia] = None,
     hidden: Optional[frozenset[str]] = None,
     ratings: Optional[dict] = None,
+    affiliations: Optional[dict] = None,
 ) -> schemas.PersonResponse:
     # Count credits on entries the viewer may see, from BOTH stores: a seiyuu
     # has no media_credit rows at all (see credit_roles.CreditRole.credited_via)
@@ -120,6 +126,9 @@ def _to_response(
             db, "person", [person.system_id], viewer_user_id(viewer)
         )
     own = ratings.get(person.system_id)
+    # Passed in by the list route for the whole page, read here otherwise.
+    if affiliations is None:
+        affiliations = affiliations_by_person(db, viewer, [person.system_id])
     return schemas.PersonResponse(
         system_id=person.system_id,
         public_id=person.public_id,
@@ -146,6 +155,7 @@ def _to_response(
             schemas.PersonRoleIn(role=r.role, scope=r.scope)
             for r in without_hidden_scopes(person.roles, hidden, "scope")
         ],
+        affiliations=affiliations.get(person.system_id, []),
         credit_count=media.count,
         display_photo_file=media.display_photo_file,
         display_photo_focus=media.display_photo_focus,
@@ -238,8 +248,13 @@ def get_all_people(
     ratings = ratings_by_owner(
         db, "person", [person.system_id for person in people], viewer_user_id(viewer)
     )
+    affiliations = affiliations_by_person(
+        db, viewer, [person.system_id for person in people]
+    )
     return [
-        _to_response(db, person, viewer, media[person.system_id], hidden, ratings)
+        _to_response(
+            db, person, viewer, media[person.system_id], hidden, ratings, affiliations
+        )
         for person in people
     ]
 
@@ -714,7 +729,7 @@ def create_person(
             status_code=422,
             detail="photo_fallback_entry_id must name an entry this person is linked to.",
         )
-    data = payload.model_dump(exclude={"roles", "name"})
+    data = payload.model_dump(exclude={"roles", "name", "studio_ids"})
     # name_alt is a comma-separated list, so its first name is looked up,
     # never the whole value.
     lookup = payload.name or next(
@@ -737,6 +752,14 @@ def create_person(
 
     for role, scope in normalized_pairs((r.role, r.scope) for r in payload.roles):
         grant_role(db, person, role, scope)
+
+    if payload.studio_ids:
+        # Additive on a person found by name, as the roles are.
+        held = [] if created else [
+            a["system_id"]
+            for a in affiliations_by_person(db, admin, [person.system_id])[person.system_id]
+        ]
+        replace_affiliations(db, admin, person.system_id, held + payload.studio_ids)
 
     if created:
         _derive_and_fill(db, person)
@@ -774,7 +797,7 @@ def update_person(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Person, system_id, NOT_FOUND)
 
-    data = payload.model_dump(exclude={"roles"})
+    data = payload.model_dump(exclude={"roles", "studio_ids"})
     data["photo_fallback_entry_id"] = resolve_fallback(
         db, admin, models.Person, person, data["photo_fallback_entry_id"], "person"
     )
@@ -799,6 +822,9 @@ def update_person(
         if (role, scope) in kept:
             continue
         db.add(models.PersonRole(person_id=system_id, role=role, scope=scope))
+
+    if payload.studio_ids is not None:
+        replace_affiliations(db, admin, system_id, payload.studio_ids)
 
     _derive_and_fill(db, person, only_if_missing=True)
 
@@ -1003,6 +1029,8 @@ def merge_person(
 
     # Club memberships follow the survivor too, in both directions.
     merge_memberships(db, system_id, payload.source_id)
+    # And the studios they belong to.
+    merge_affiliations(db, "person_id", system_id, payload.source_id)
 
     # And the gallery of works, after the survivor's own pictures.
     person_work_images.merge(db, system_id, payload.source_id)
