@@ -304,13 +304,14 @@ function isCatchAllMovieFranchise(franchiseId, allFranchises) {
 }
 
 // The types whose save runs the single-entry Replace pipeline afterwards:
-// four through lib/enrich.js, movie and tv-show through the server's PUT
-// write hook. Their editor offers "Save" (the edit alone) beside "Save &
+// four through lib/enrich.js, movie, tv-show and game through the server's
+// PUT write hook (game's is its save-time Replace: IGDB, then Steam). Their editor offers "Save" (the edit alone) beside "Save &
 // Replace", the form's submit button - so Enter in a field still replaces.
 const REPLACE_ON_SAVE = [
   "anime",
   "anime-movie",
   "cartoon",
+  "game",
   "manga",
   "movie",
   "tv-show",
@@ -1345,7 +1346,7 @@ export default function Modify() {
       else if (editingType === "manga") await saveManga({ replace });
       else if (editingType === "book") await saveBook();
       else if (editingType === "comic") await saveComic();
-      else if (editingType === "game") await saveGame();
+      else if (editingType === "game") await saveGame({ replace });
       else if (editingType === "h-comic") await saveHComic();
       else if (editingType === "h-game") await saveHGame();
       else if (editingType === "hentai") await saveHentai();
@@ -2024,7 +2025,7 @@ export default function Modify() {
     showToast("success", "Update successful.");
   }
 
-  async function saveGame() {
+  async function saveGame({ replace }) {
     // The developer and publisher are picked, never created here: refuse
     // before anything is saved, so nothing - not even a new franchise -
     // is left behind (lib/gameForm.js).
@@ -2059,8 +2060,10 @@ export default function Modify() {
       series_id: seriesId || null,
       playing_status: cgmf.playing_status || md("game").playing_status,
     };
-    const res = await fetch(`/api/game/${editingItem.system_id}`, {
-      method: "PATCH",
+    // PUT runs the server's Replace after the update; "Save" opts out, and
+    // then nothing external - no Replace, no Fill - touches the edit.
+    const res = await fetch(`/api/game/${editingItem.system_id}${replace ? "" : "?replace=false"}`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       credentials: "include",
