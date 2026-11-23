@@ -37,8 +37,8 @@ it("marks a personal section's title with the P badge", () => {
 });
 
 it("leaves a catalogue section's title unmarked (the mirror)", () => {
-  renderLinks({ ...base, key: "trivia", label: "小知識 Trivia", scope: "catalog" });
-  const title = screen.getByRole("heading", { name: /小知識 Trivia/ });
+  renderLinks({ ...base, key: "trivia", label: "小知識&技巧 Trivia & Tips", scope: "catalog" });
+  const title = screen.getByRole("heading", { name: /小知識&技巧 Trivia & Tips/ });
   expect(within(title).queryByRole("img", { name: "Personal" })).toBeNull();
 });
 

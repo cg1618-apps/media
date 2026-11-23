@@ -1,6 +1,6 @@
 # Plan Next
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 ## What this is for
 
@@ -22,6 +22,7 @@ Owner: `app/models/plan_next.py`. The revisions that built it are in [notes/migr
 | `franchise_id` | UUID, nullable, FK `franchise.system_id` `ON DELETE CASCADE` (`fk_plan_next_franchise`) | Franchise-scope owner. |
 | `series_id` | UUID, nullable, FK `series.system_id` `ON DELETE CASCADE` (`fk_plan_next_series`) | Series-scope owner. |
 | `remark` | Text, nullable | Free text such as "after the movie". |
+| `platform_group` | String, nullable | A queued game's group on the Do next tab: one of `PLATFORM_GROUPS` (`PC`, `Console`, `Handheld Console`, `Switch`), or NULL for ungrouped. Only a game's `next` row may hold one - what a game is played on decides when it can be picked up, which is not true of a replay mark or of another type. |
 | `created_at` / `updated_at` | DateTime | Taipei-time defaults from `app/database.py`. |
 
 Constraints: `ck_plan_next_one_owner`, a `CHECK (num_nonnulls(media_id, franchise_id, series_id) = 1)` so exactly one owner is set; `uq_plan_next_target`, now `UNIQUE NULLS NOT DISTINCT (user_id, kind, media_type, media_id, franchise_id, series_id)` (a franchise can be both queued and marked for rewatch, so `kind` is part of the key, and `NULLS NOT DISTINCT` is needed because two owner columns are NULL on every row); and index `ix_plan_next_user_kind_type` on `(user_id, kind, media_type)`, which is exactly how the Plan page reads one tab of one section for one user.
@@ -139,9 +140,10 @@ Router: `app/routers/plan_next.py`, prefix `/api/plan-next`, registered in `app/
 
 | Method | Path | Auth | Input | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
-| GET | `/api/plan-next/kinds` | account | none | `{scopes, kinds, allowed_scopes: {kind: {media_type: [scopes]}}, size_groups: {media_type: [{key, label}]}}` | none |
+| GET | `/api/plan-next/kinds` | account | none | `{scopes, kinds, allowed_scopes: {kind: {media_type: [scopes]}}, size_groups: {media_type: [{key, label}]}, platform_groups: {media_type: [groups]}}` | none |
 | GET | `/api/plan-next/` | account | query `media_type?`, `scope?`, `kind?` (all optional filters) | `PlanNextRead[]`, the caller's own | `400` unknown scope |
-| POST | `/api/plan-next/` | admin | body `PlanNextCreate`: `media_type`, `scope`, `target_id`, `remark?`, `kind` (defaults to `"next"`) | `201` + `PlanNextRead` | `422` unknown kind; `400` unknown scope or scope not allowed for that type/kind; `404` target does not exist; `409` already planned |
+| POST | `/api/plan-next/` | admin | body `PlanNextCreate`: `media_type`, `scope`, `target_id`, `remark?`, `kind` (defaults to `"next"`), `platform_group?` | `201` + `PlanNextRead` | `422` unknown kind, or a `platform_group` outside `PLATFORM_GROUPS` or on anything but a game's `next` row; `400` unknown scope or scope not allowed for that type/kind; `404` target does not exist; `409` already planned |
+| PATCH | `/api/plan-next/{system_id}` | account | body `PlanNextUpdate`: `platform_group` (`null` is ungrouped) | `PlanNextRead` | `422` as on create; `404` "Plan not found." for another user's row or a hidden target |
 | DELETE | `/api/plan-next/target` | admin | **query params only**: `scope`, `media_type`, `target_id` (required), `kind` (default `next`) | `{"status": "success"}` | `404` "Not planned." |
 | DELETE | `/api/plan-next/{system_id}` | admin | path id | `{"status": "success"}` | `404` "Plan not found." |
 
@@ -178,7 +180,7 @@ Within a tab, rows are grouped by bucket (`groupByBucket` in `frontend/src/utils
 
 There is no runtime guard; `GET /api/plan-next/kinds` is unused by the frontend so the page renders without a vocabulary round-trip. `frontend/src/utils/planNext.test.js` has a table-driven test that guards the two copies. When either side changes, update both and re-run the tests.
 
-The frontend also carries two groupings the backend does not: manga tabs group by the entry's `serialization_status` (完結 / 連載中 / 腰斬 / 停更, empties under "其他") and book tabs by the entry's `type` (網路小說 / 輕小說 / 小說 / 短篇集 / 指南/設定集 / 其他, empties under 其他). These are categorical self-groupings, never derived by Calculate, and live only in `planNextGroups.js` (`SELF_GROUP_COLUMN` in `usePlanData.js` picks the column). Anime-movie has an empty vocabulary and renders one ungrouped list.
+The frontend also carries two groupings the backend does not: manga tabs group by the entry's `serialization_status` (完結 / 連載中 / 腰斬 / 停更, empties under "其他") and book tabs by the entry's `type` (網路小說 / 輕小說 / 小說 / 短篇集 / 指南/設定集 / 其他, empties under 其他). These are categorical self-groupings, never derived by Calculate, and live only in `planNextGroups.js` (`SELF_GROUP_COLUMN` in `usePlanData.js` picks the column). Anime-movie has an empty vocabulary and renders one ungrouped list. The game tab groups by the plan row's own `platform_group` (`PLATFORM_GROUPS` in `planNextGroups.js`, mirroring `plan_next_kinds.py`; empties under "Ungrouped"), the one bucket the caller chooses: each game card in Do next carries a picker below it, outside the card's link, which PATCHes the row through `usePlanPlatformGroup` and refetches `["plan-next"]`.
 
 ### PlanKindToggles
 
@@ -190,8 +192,8 @@ The "Plan Next" tab is registered in `SHEET_TABS` in `app/services/pipelines/tab
 
 | Direction | Mechanism | File |
 | --- | --- | --- |
-| Backup | Header row is `PlanNext.__table__.columns`, so `kind` is written as a column alongside `media_type`, `scope`, `target_id`, `remark`, timestamps. | `app/services/pipelines/backup.py`, `app/utils/formatter.py` (`format_for_sheet`) |
-| Pull | `parse_plan_next_from_sheet` preserves `media_type` and `scope` as written (no coercion, so a newer vocabulary survives an older app), turns an unparseable `target_id` into `None` (row shows as missing rather than failing the Pull), and sets `kind` to `parse_from_sheet(...) or "next"`. Pull then keeps only keys the sheet header carried, which is why the model's `server_default` is needed for pre-`kind` backups. | `app/utils/formatter.py`, `app/services/pipelines/pull.py` |
+| Backup | Header row is `PlanNext.__table__.columns`, so `kind` and `platform_group` are written as columns alongside `media_type`, `scope`, `target_id`, `remark`, timestamps. | `app/services/pipelines/backup.py`, `app/utils/formatter.py` (`format_for_sheet`) |
+| Pull | `parse_plan_next_from_sheet` preserves `media_type` and `scope` as written (no coercion, so a newer vocabulary survives an older app), turns an unparseable `target_id` into `None` (row shows as missing rather than failing the Pull), sets `kind` to `parse_from_sheet(...) or "next"`, and reads `platform_group` as written (a blank cell, or a backup older than the column, is ungrouped). Pull then keeps only keys the sheet header carried, which is why the model's `server_default` is needed for pre-`kind` backups. | `app/utils/formatter.py`, `app/services/pipelines/pull.py` |
 | Stale boolean columns | Old backups of entry, franchise and series tabs still carry `watch_next`, `read_next`, `to_rewatch`, `to_reread`, `watch_next_group` headers. The parsers no longer emit those keys, so the header-intersection step in `pull.py` silently drops them; the flags are not restored from those columns. | `app/services/pipelines/pull.py` |
 | Size groups | Franchise and Series parsers read `size_group_derived` and `size_group_manual` through `_safe_json`. | `app/utils/formatter.py` |
 

@@ -186,6 +186,7 @@ from app.schemas.peer_relation import (
 from app.schemas.plan_next import (
     PlanNextCreate,
     PlanNextRead,
+    PlanNextUpdate,
 )
 from app.schemas.publisher import (
     PublisherBase,

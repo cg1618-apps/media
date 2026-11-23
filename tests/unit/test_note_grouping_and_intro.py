@@ -6,7 +6,7 @@ may be READ one group per value. It is a read-view choice the reader toggles, no
 registry imposes, so it is declared apart from `group_by` (which always
 groups, and orders its groups by a column on the owner).
 
-介紹 Introduction: the first subsection of 評論 Reviews and Comments, shaped
+介紹 Introduction: the first subsection of 評論&細節 Reviews & Details, shaped
 like 解析 Analysis.
 """
 

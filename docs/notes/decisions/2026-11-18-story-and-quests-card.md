@@ -1,4 +1,4 @@
-# 劇情&任務 Story & Quests is one structured card
+# 劇情列表&任務 Story & Quests is one structured card
 
 - **The story is kept as structure, not prose.** The prose 劇情 sections covered
   what the 劇情列表 strands hold as a structure, and the owner chose the

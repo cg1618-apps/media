@@ -24,3 +24,19 @@ export function timeToBeatFields(entry) {
     value: hours(entry?.[column]),
   })).filter(({ value }) => value != null);
 }
+
+/**
+ * The time-to-beat a game's playtime is measured against, as a number, or
+ * null when there is none: Main + Extra, the length of a playthrough that
+ * does more than the story. An entry recorded with only the Main figure
+ * falls back to it rather than losing its progress altogether.
+ */
+export function progressEstimate(entry) {
+  for (const column of ["hltb_main_extra", "hltb_main"]) {
+    const value = entry?.[column];
+    if (value == null || value === "") continue;
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}

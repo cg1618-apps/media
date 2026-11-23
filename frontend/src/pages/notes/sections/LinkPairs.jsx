@@ -26,7 +26,7 @@ export function LinkPairsEditor({ pairs, onChange, textOptions }) {
               value={pair.text}
               onChange={(v) => setPair(i, { text: v })}
               options={textOptions}
-              placeholder="Title (optional)"
+              placeholder="Link Title (optional)"
               aria-label="Link text"
               className={inputCls}
             />
@@ -34,7 +34,7 @@ export function LinkPairsEditor({ pairs, onChange, textOptions }) {
             <input
               value={pair.text}
               onChange={(e) => setPair(i, { text: e.target.value })}
-              placeholder="Title (optional)"
+              placeholder="Link Title (optional)"
               aria-label="Link text"
               className={inputCls}
             />

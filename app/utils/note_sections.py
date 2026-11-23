@@ -127,7 +127,7 @@ _SERIES_AND_UP = ("series", "franchise")
 
 # The gated types. Their notes are pared down rather than inherited whole: an
 # h-comic or a hentai keeps a 評論 card of public and personal reviews and
-# nothing of 解析, Questions and 名言/梗, and an h-game keeps only the parts of
+# nothing of 解析, Questions and 名言&梗, and an h-game keeps only the parts of
 # game's notes that describe how it plays.
 H_OWNERS: tuple[str, ...] = ("h-comic", "hentai", "h-game")
 # The two of them that keep nothing of 評論 but those two lists.
@@ -294,7 +294,7 @@ class NoteGroup:
 # are kept adjacent in NOTE_SECTIONS below - the page no longer needs them to
 # be, but the order is what a reader uses to see a group whole.
 NOTE_GROUPS: tuple[NoteGroup, ...] = (
-    NoteGroup(key="reviews", label="評論 Reviews and Comments", icon="fa-comments"),
+    NoteGroup(key="reviews", label="評論&細節 Reviews & Details", icon="fa-comments"),
     # The key is not `analysis` because a section already owns that key. The two
     # namespaces are separate dicts, but a reader scanning for "analysis" should
     # not have to work out which one a bare key means.
@@ -318,16 +318,16 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # The key stays `compendium` though the card now holds glossaries too: keys
     # are what code and tests name, and the label is the only part a reader
     # sees.
-    NoteGroup(key="compendium", label="圖鑑與名詞 Compendium & Terms", icon="fa-dragon"),
+    NoteGroup(key="compendium", label="圖鑑&名詞 Compendium & Terms", icon="fa-dragon"),
     # The story as a STRUCTURE - a numbered, nestable list of the things it
     # is made of, so "chapter 3, scene 2" is two rows and a parent link rather
     # than a sentence - and the quests told alongside it, then how it ends.
     # The key stays `story_list` though the card now holds quests and endings
     # too: keys are what code and tests name, and the label is the only part
     # a reader sees - the reason `compendium` below keeps its key.
-    NoteGroup(key="story_list", label="劇情&任務 Story & Quests", icon="fa-list-ol"),
+    NoteGroup(key="story_list", label="劇情列表&任務 Story & Quests", icon="fa-list-ol"),
     # The world the story happens IN: what the plot stands on rather than
-    # what it does. After 劇情&任務, which is read first.
+    # what it does. After 劇情列表&任務, which is read first.
     NoteGroup(key="worldbuilding", label="世界觀 Worldbuilding", icon="fa-earth-asia"),
     # What happens when the game is started over: how a new cycle runs, what
     # it keeps, what it takes away, and what to finish before starting one.
@@ -341,7 +341,7 @@ NOTE_GROUPS: tuple[NoteGroup, ...] = (
     # Renders near the end, beside the site-wide Resources card rather than
     # with the 攻略 run, because what it holds is not part of the guide.
     NoteGroup(key="tools", label="資源&工具 Resources & Tools", icon="fa-screwdriver-wrench"),
-    NoteGroup(key="quotes_memes", label="名言/梗 Quotes and Memes", icon="fa-quote-right"),
+    NoteGroup(key="quotes_memes", label="名言&梗 Quotes and Memes", icon="fa-quote-right"),
 )
 
 _GROUPS_BY_KEY = {g.key: g for g in NOTE_GROUPS}
@@ -462,9 +462,10 @@ class NoteSection:
     # exclusive with `kinds`; checked at import.
     kind_category: str | None = None
     # `kind` is a free-text group name the read view draws one heading per -
-    # Resources' optional Group. Nothing suggests it but the owner's own rows,
-    # and a group alone does not make a row worth storing. Mutually exclusive
-    # with `kinds` and `kind_category`; checked at import.
+    # Resources' and 彩蛋's optional Group. The owner's own rows suggest it,
+    # and so does `kind_category` when the section names one (彩蛋 does,
+    # Resources does not). A group alone does not make a row worth storing.
+    # Mutually exclusive with `kinds`; checked at import.
     kind_is_group: bool = False
     # The system_option category suggesting a link pair's `text`. Only
     # meaningful where the section's links are pairs.
@@ -516,6 +517,10 @@ OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
 #   Song Source - the label of a song link (YouTube, Spotify, ...).
 SONG_TYPE_CATEGORY = "Song Type"
 SONG_SOURCE_CATEGORY = "Song Source"
+# The common names an easter egg's optional Group is suggested from -
+# "Cameos", "Callbacks", "Hidden details". Suggests only: the group is stored
+# as typed, so a group the list does not hold is still a group.
+EASTER_EGG_GROUP_CATEGORY = "Easter Egg Group"
 
 # The four song lists, in display order. Each is a music_track section, and
 # each has one `music_status` row per anime, keyed by this key.
@@ -859,7 +864,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         # What the work IS, before anything is said about it: the first
-        # subsection of 評論 Reviews and Comments, declared first so it reads
+        # subsection of 評論&細節 Reviews & Details, declared first so it reads
         # first. Shaped and scoped like 解析 Analysis - a body with its
         # sources, shared rather than personal - and held by the same owners.
         # An h-comic or a hentai keeps only the two reviews of 評論, so it has
@@ -1216,6 +1221,11 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         },
         group="analysis_group",
         groups_by_owner={"game": "reviews"},
+        # An optional Group per row, drawn as one heading per group the way
+        # Resources draws its own, with the names suggested from a common
+        # option category rather than only from the owner's own rows.
+        kind_is_group=True,
+        kind_category=EASTER_EGG_GROUP_CATEGORY,
     ),
     # --- 攻略 Guides ------------------------------------------------------
     # Fifteen sections rather than one section with a kind, because each is a
@@ -1315,7 +1325,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         # says, and where it came from. Any one of the three is a row.
         key="trivia",
         shape=SHAPE_STRUCTURED,
-        label="小知識 Trivia",
+        label="小知識&技巧 Trivia & Tips",
         owners=("game",),
         scope=SCOPE_CATALOG,
         group="guides",
@@ -1553,10 +1563,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         ),
         groupable_by="type",
     ),
-    # --- 圖鑑與名詞 Compendium & Terms ------------------------------------
+    # --- 圖鑑&名詞 Compendium & Terms ------------------------------------
     # Who you meet, and the words you meet: the game's own and the players'.
     # 結局 Endings is a story OUTCOME rather than a guide topic, so it sits in
-    # 劇情&任務 Story & Quests - which leaves this card cleanly about the cast,
+    # 劇情列表&任務 Story & Quests - which leaves this card cleanly about the cast,
     # the bestiary and the two glossaries.
     NoteSection(
         # NOT `characters`: a `character` table and a /character/:id page
@@ -1669,7 +1679,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         group="compendium",
         fields=_term_fields(),
     ),
-    # --- 劇情&任務 Story & Quests -----------------------------------------
+    # --- 劇情列表&任務 Story & Quests -----------------------------------------
     # Four sections rather than one with a kind, for the reason the 待辦
     # buckets below are four: `sort_index` orders rows within one
     # (owner, section) pair, so a kind-tagged single section could not order
@@ -1825,10 +1835,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         # Where things are: a region holding areas holding rooms, each a row
-        # of its own - the `hierarchical` shape the 劇情&任務 lists use. For a
+        # of its own - the `hierarchical` shape the 劇情列表&任務 lists use. For a
         # game it is part of the world the story happens in, so it sits in
         # 世界觀 above 時間線 Timeline: where, then when. An h-game has no
-        # 世界觀, so for it the section is the last of 圖鑑與名詞 Compendium.
+        # 世界觀, so for it the section is the last of 圖鑑&名詞 Compendium.
         #
         # No links: a place is described rather than sourced, and a map worth
         # keeping belongs in 攻略資源 Guide Resources.
@@ -1887,7 +1897,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     ),
     NoteSection(
         # The overflow that keeps a stray story observation out of Analysis.
-        # Here rather than in 劇情&任務, whose sections are all lists of
+        # Here rather than in 劇情列表&任務, whose sections are all lists of
         # named entries.
         key="story_other",
         shape=SHAPE_TEXT_LINKS,
@@ -2365,9 +2375,9 @@ def _check_kind_category(section: NoteSection) -> None:
         raise ValueError(
             f"Section '{section.key}' declares both a kind_category and kinds."
         )
-    if section.kind_is_group and (
-        section.kinds or section.kinds_by_owner or section.kind_category
-    ):
+    # A kind_category beside a group is the group's suggestions, not a
+    # second meaning of kind, so the two combine.
+    if section.kind_is_group and (section.kinds or section.kinds_by_owner):
         raise ValueError(
             f"Section '{section.key}' makes kind a group and also declares kinds."
         )

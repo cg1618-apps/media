@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 ## What this is for
 
@@ -262,19 +262,19 @@ can only hold URLs and `text_links` has no title, so neither could say
 
 | Key | Label |
 |---|---|
-| `reviews` | 評論 Reviews and Comments (for an h-comic or a hentai, only 大眾評價 and 我的評價) |
+| `reviews` | 評論&細節 Reviews & Details (for an h-comic or a hentai, only 大眾評價 and 我的評價) |
 | `analysis_group` | 解析/解惑/討論 Analysis/Discussion (a game and an h-game read `analysis` in `reviews` instead) |
 | `guides` | 攻略 Guides |
 | `builds` | 養成&流派 Builds & Growth |
 | `gear` | 物品 Items & Gear |
-| `compendium` | 圖鑑與名詞 Compendium & Terms (characters, enemies, terms; for an h-game also geography) |
-| `story_list` | 劇情&任務 Story & Quests (the four story strands, 支線任務 Side Quests, 結局 Endings; game and h-game alike) |
+| `compendium` | 圖鑑&名詞 Compendium & Terms (characters, enemies, terms; for an h-game also geography) |
+| `story_list` | 劇情列表&任務 Story & Quests (the four story strands, 支線任務 Side Quests, 結局 Endings; game and h-game alike) |
 | `worldbuilding` | 世界觀 Worldbuilding (game only; holds 地理 Geography above 時間線) |
 | `ng_plus` | NG 多周目 |
 | `todo` | 待辦 Todo (rendered inside the game page's Progress slip) |
 | `music` | 音樂 Music |
 | `tools` | 資源&工具 Resources & Tools (mods and tools, guide resources, then the site-wide Resources) |
-| `quotes_memes` | 名言/梗 Quotes and Memes |
+| `quotes_memes` | 名言&梗 Quotes and Memes |
 
 **Sections** (`NOTE_SECTIONS`, in display order). "All" means every media
 type plus `series`, `franchise`, `collection`; "Entries" means the twelve
@@ -307,12 +307,12 @@ out. What the three gated types keep is in
 | `foreshadowing` | text_links | 伏筆/前後呼應 Foreshadowing | anime, anime-movie, tv-show, cartoon, manga, book, series, franchise | analysis_group | |
 | `symmetry` | text_links | 對稱 Symmetry | same as foreshadowing | analysis_group | |
 | `speculation` | text_links | 猜測 Speculation | same as foreshadowing | analysis_group | |
-| `easter_eggs` | text_links | 彩蛋/致敬/細節 Easter Eggs/References/Details | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論 card for a game |
+| `easter_eggs` | text_links | 彩蛋/致敬/細節 Easter Eggs/References/Details | every entry type but h-comic, hentai, h-game; series, franchise | analysis_group; **reviews** for game | Right after 解析 in the 評論&細節 card for a game; optional free-text Group in `kind` (`kind_is_group`), suggested from `Easter Egg Group` |
 | `beginner` | text_links | 新手 Beginner | game | guides | |
 | `gameplay_systems` | structured | 玩法系統 Gameplay Systems | game, h-game | guides | type (free text), name (CN), alt name, description; groupable by type |
 | `controls` | structured | 操作 Controls | game, h-game | guides | Fields: type (`kind`, free text), control (`title`), description (`content`); no links; groupable by type |
 | `guide_notes` | text | 攻略筆記 Guide Notes | game, h-game | guides | no links |
-| `trivia` | structured | 小知識 Trivia | game | guides | title (`title`), description (`content`), titled links; any one makes a row |
+| `trivia` | structured | 小知識&技巧 Trivia & Tips | game | guides | title (`title`), description (`content`), titled links; any one makes a row |
 | `stats_and_points` | structured | 屬性&配點 Stats & Points | game, h-game | builds | name, min/rec/soft-cap, my value (quick-edit; personal), description |
 | `classes` | structured | 職業 Classes | game, h-game | builds | type, name, 定位 role, 解鎖條件 unlock, 核心屬性 key stats, description; no links; groupable by type |
 | `skills` | structured | 技能 Skills | game, h-game | builds | type, name, description, links; groupable by type |
@@ -640,7 +640,7 @@ below) plus `Needs Work Note` and `Country`, and the sub-tab's picker groups the
 
 | Group | Categories |
 |---|---|
-| Note Suggestion | `Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Side Quest Type`, `Geography Group` - what a game guide note field's `option_category` names (`NOTE_SUGGESTION_CATEGORIES` in `app/utils/note_sections.py`) |
+| Note Suggestion | `Easter Egg Group` - what 彩蛋 Easter Eggs' Group suggests (its `kind_category`); `Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`, `Enemy Tier`, `Side Quest Type`, `Geography Group` - what a game guide note field's `option_category` names (`NOTE_SUGGESTION_CATEGORIES` in `app/utils/note_sections.py`) |
 | Music | `Song Type`, `Song Source` - named by a music section's `kind_category` and `link_text_category` |
 | Needs Work | `Needs Work Note` - the 待補充 note's common values |
 | Studio & Publisher | `Country` - the common countries of a studio and of a publisher |
@@ -665,6 +665,7 @@ a media type's), none:
 | Category | Scope a new value is given |
 |---|---|
 | `Song Type`, `Song Source` | `anime` |
+| `Easter Egg Group` | the types that keep 彩蛋: every entry type but h-comic, hentai and h-game, plus `series` and `franchise` |
 | the seven game guide categories | `game`, `h-game` |
 | `Needs Work Note`, `Country` | none (offered everywhere) |
 
@@ -680,12 +681,12 @@ the owner types its sections apply to, so the two read the same).
 backs `media_source` `kind='reference'` rows directly, resolved by
 `option_id` the same way `main`-bucket access rows are, never through
 `media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`):
-`Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`,
+`Easter Egg Group`, `Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`,
 `Enemy Tier`, `Side Quest Type`, `Geography Group`, `Song Type` and `Song Source`, derived from the note sections that name them (a field's
 `option_category`, a section's `kind_category` and `link_text_category`)
 rather than listed, so a section that names a new category offers it with no
 second edit. `OPTION_CATEGORIES` = the tag-field categories, the two character
-tag categories (`CHARACTER_OPTION_CATEGORIES`), these eleven, and
+tag categories (`CHARACTER_OPTION_CATEGORIES`), these twelve, and
 `Needs Work Note` (`NEEDS_WORK_NOTE_CATEGORY`) and `Country` (`COUNTRY_CATEGORY`), served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
@@ -790,6 +791,7 @@ ones in `OPTION_CATEGORIES`:
 | `Character Trait` | unscoped (every character) | character tag field `trait`; admin-managed, ships empty, and a value typed into the character form creates itself |
 | `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 | `Song Type` | anime (`COMMON_OPTION_SCOPES`) | suggestions for the Song Type (`note.kind`) of an `op` or `ed` row; `normal`, `different version`, `all inclusive version` seeded by `m1s2ongstat3`. Suggestions only - a value not in the list is stored as typed |
+| `Easter Egg Group` | the 彩蛋 owners (`COMMON_OPTION_SCOPES`) | suggestions for a 彩蛋 Easter Eggs row's Group (`easter_eggs`, `note.kind`); ships empty. Suggestions only - a group not in the list is stored as typed |
 | `Song Source` | anime (`COMMON_OPTION_SCOPES`) | suggestions for a song link's title (`text` of a titled link on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |
 | `Character Group` | seeded values unscoped, a value added since `game`, `h-game` (`COMMON_OPTION_SCOPES`; read by game and h-game notes) | suggestions for a 角色 Characters row's group (`characters_guide`, `note.kind`); `商人`, `重要NPC`, `主角`, `同伴`, `可攻略`, `反派` seeded by `n1o2tesrwk3`. Suggestions only |
 | `Collectible Type` | seeded values unscoped, a value added since `game`, `h-game` (`COMMON_OPTION_SCOPES`; read by game and h-game notes) | suggestions for a 收集物 Collectibles row's type (`collectibles`, `note.kind`); `重要物品` seeded by `n1o2tesrwk3`. Suggestions only |

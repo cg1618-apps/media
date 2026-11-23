@@ -5,7 +5,8 @@
 // Calculate) and size_group_manual (written by the admin). Manual wins per key.
 //
 // Comic, manga and book are different: they group by a column on the entry
-// itself and never inherit. Those three vocabularies are frontend-only - the
+// itself and never inherit. Game is different again: it groups by the plan
+// row's own platform_group, which the caller picks. Those three vocabularies are frontend-only - the
 // Python side covers derived size buckets, which these are not.
 
 import { SIZE_GROUPS } from "../config/planNextGroups";
@@ -61,6 +62,7 @@ export function entryBucket(mediaType, selfValue, series, franchise) {
   if (mediaType === "comic") return comicBucket(selfValue);
   if (mediaType === "manga") return selfBucket("manga", selfValue);
   if (mediaType === "book") return selfBucket("book", selfValue, "其他");
+  if (mediaType === "game") return selfBucket("game", selfValue);
   return groupBucket(series, mediaType) ?? groupBucket(franchise, mediaType);
 }
 

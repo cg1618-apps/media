@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 ## What this is for
 
@@ -19,7 +19,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
 | `parent_id` | UUID, indexed | FK `note.system_id` ON DELETE CASCADE. The row this one nests under, for a section whose registry entry sets `hierarchical`. Unbounded depth. CASCADE rather than SET NULL: promoting every child to a root on a delete reads as a flat pile rather than as a loss, which is harder to notice. In a [mixed section](#mixed-sections) the delete route re-homes members' rows before the CASCADE runs, so it takes only catalogue rows. Nothing at the database level keeps a child in its parent's section — a CHECK cannot read another row — so `_validate_parent` in `app/routers/note.py` owns that, along with refusing a cycle at any depth. |
 | `locator` | String | "Where in the work": episode, chapter, scene, timestamp, or source. One free-text column; the section supplies the label and whether it is required. Renamed from `episode` by migration `alembic/versions/l1o2c3a4t5o6_note_episode_to_locator.py`. |
-| `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type) or a `kind_category` (the free-text Song Type of an OP or ED). On `resources` it is the row's optional free-text Group (`kind_is_group`). On `music_status` it names the song list the row is about. |
+| `kind` | String | First dropdown, only where the section declares `kinds` (highlight type, OP/ED change type) or a `kind_category` (the free-text Song Type of an OP or ED). On `resources` and `easter_eggs` it is the row's optional free-text Group (`kind_is_group`), which on `easter_eggs` is also suggested from "Easter Egg Group". On `music_status` it names the song list the row is about. |
 | `status` | String | The column a status-shaped value is read into. On the sections whose status is **personal** — the song lists, `music_status`, and the structured `collected`, `beaten`, `completion` and mods `status` fields — it is never stored: it stays null on the row, and every read fills it with the viewer's own value from `note_mark` (see [Personal values on catalogue rows](#personal-values-on-catalogue-rows-note-marks)). Kept separate from `kind` because one row needs both (which cut it is vs. how far my tracking has got). |
 | `title` | String | The name half of a `name_links` row, or the song name on a `music_track` row. |
 | `content` | Text | The body. |
@@ -102,19 +102,19 @@ Display-only. A grouped section is still an ordinary registry entry; `group` onl
 
 | Key | Label | Icon |
 | --- | --- | --- |
-| `reviews` | 評論 Reviews and Comments | `fa-comments` — for an h-comic or a hentai, only 大眾評價 and 我的評價 |
+| `reviews` | 評論&細節 Reviews & Details | `fa-comments` — for an h-comic or a hentai, only 大眾評價 and 我的評價 |
 | `analysis_group` | 解析/解惑/討論 Analysis/Discussion | `fa-clapperboard` (keyed `analysis_group` because a section already owns `analysis`) |
 | `guides` | 攻略 Guides | `fa-map` — game and h-game only: gameplay systems, controls, guide notes, and for game also beginner and trivia. The way in, not the content |
 | `builds` | 養成&流派 Builds & Growth | `fa-chart-simple` — game and h-game only: stats, classes, skills, builds, team composition |
 | `gear` | 物品 Items & Gear | `fa-sack-xmark` — game and h-game only: weapons, items, collectibles. **Not** keyed `items`: a section owns that key |
-| `compendium` | 圖鑑與名詞 Compendium & Terms | `fa-dragon` — game and h-game only: characters, enemies, game terms, and for game also player terms; for h-game also geography, last |
+| `compendium` | 圖鑑&名詞 Compendium & Terms | `fa-dragon` — game and h-game only: characters, enemies, game terms, and for game also player terms; for h-game also geography, last |
 | `tools` | 資源&工具 Resources & Tools | `fa-screwdriver-wrench` — game and h-game only: mods and tools, guide resources, then the site-wide Resources section, which is its own card for every other owner. Renders near the end, not with the 攻略 run |
-| `story_list` | 劇情&任務 Story & Quests | `fa-list-ol` — game and h-game alike: the four **hierarchical** story strands, then 支線任務 Side Quests (hierarchical too), then 結局 Endings. Keyed `story_list` though it holds quests and endings too: keys are what code and tests name, the label is what a reader sees |
+| `story_list` | 劇情列表&任務 Story & Quests | `fa-list-ol` — game and h-game alike: the four **hierarchical** story strands, then 支線任務 Side Quests (hierarchical too), then 結局 Endings. Keyed `story_list` though it holds quests and endings too: keys are what code and tests name, the label is what a reader sees |
 | `worldbuilding` | 世界觀 Worldbuilding | `fa-earth-asia` — game only: lore, story terms, geography, timeline, mysteries, other. The world it happens in |
 | `ng_plus` | NG 多周目 | `fa-rotate` — game and h-game only: flow, carried over, before starting, and 下周目目標 NG+ Goals. What starting over keeps, what to finish before it, and what I mean to do next time |
 | `todo` | 待辦 Todo | `fa-list-check` — game and h-game only, 4 personal-scope buckets (a row moves between them in one step, `quick_move`) and then 存檔 Saves, all personal |
 | `music` | 音樂 Music | `fa-music` |
-| `quotes_memes` | 名言/梗 Quotes and Memes | `fa-quote-right` — every owner but h-comic, hentai and h-game |
+| `quotes_memes` | 名言&梗 Quotes and Memes | `fa-quote-right` — every owner but h-comic, hentai and h-game |
 
 **`guides` names a group and no section**, so unlike `analysis_group` it needs no suffix. **`todo` is not called `progress`**: the game detail page already renders a `<Slip title="Progress">` (playtime and achievements) beside the notes, and two cards with one name is unreadable.
 
@@ -128,23 +128,23 @@ a registry edit: no migration, no data change, no frontend change, and each
 card collapses on its own when empty. A test keeps every card at two sections or more; a card of one
 is a section wearing a second header.
 
-**結局 Endings is in 劇情&任務, not 攻略.** An ending is what the story
+**結局 Endings is in 劇情列表&任務, not 攻略.** An ending is what the story
 *does* rather than a guide topic, so it closes the story card, after the
-strands and the side quests, and 圖鑑與名詞 is cleanly about the cast, the
+strands and the side quests, and 圖鑑&名詞 is cleanly about the cast, the
 bestiary, the map and the glossaries.
 
-**劇情&任務 is what happens; 世界觀 is the world it happens in.** The story
+**劇情列表&任務 is what happens; 世界觀 is the world it happens in.** The story
 card holds the story as a numbered, nestable structure, the quests told
 alongside it and how it ends — the same card, in the same order, for a game
 and an h-game. 世界觀 Worldbuilding (game only) holds what the plot stands on:
 設定 Lore, 劇情名詞 Story Terms, 地理 Geography, 時間線 Timeline, 未解之謎
 Mysteries, and 其他 Other, the overflow for a stray story observation. It
-renders straight after 劇情&任務.
+renders straight after 劇情列表&任務.
 
 **The game's vocabulary is split by where it is looked up.** 遊戲名詞 Game
 Terms (mechanics, currencies, jargon) and 玩家術語 Player Terms (the
 community's slang and abbreviations, which no menu in the game uses; game
-only) are in 圖鑑與名詞, read while playing; 劇情名詞
+only) are in 圖鑑&名詞, read while playing; 劇情名詞
 Story Terms (places, factions, invented words the plot introduces) is in
 世界觀, beside the Lore it names, read while following the story. 玩法系統 Gameplay
 Systems — modes, enhancement and upgrade systems, the pull system, stages,
@@ -163,7 +163,7 @@ an override exists. **Four sections use it**, and a test pins the list: an
 override puts the same rows in a different card, so a reader of
 `NOTE_SECTIONS` who sees `group=` and misses the override would be wrong about
 where a section lands. `analysis` and `easter_eggs` are below; `geography`
-renders in 圖鑑與名詞 for an h-game, which has no 世界觀, and `resources` joins
+renders in 圖鑑&名詞 for an h-game, which has no 世界觀, and `resources` joins
 資源&工具 on both game owners.
 
 For a film or a series, 解析/解惑/討論 Analysis/Discussion sits beside 分鏡/演出, 伏筆, 對稱 and 猜測 in
@@ -175,9 +175,9 @@ rendered for either. 彩蛋/致敬/細節 Easter Eggs/References/Details follows
 the last subsection of a game's 評論 and 解析 the one before it. H-comic and
 hentai have no 解析 at all, and no gated type has 彩蛋.
 
-**Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情&任務 → 世界觀 → 待辦 → 音樂 → 名言/梗 → Resources → Questions.
+**Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情列表&任務 → 世界觀 → 待辦 → 音樂 → 名言&梗 → Resources → Questions.
 
-### 劇情&任務 Story & Quests, and nesting
+### 劇情列表&任務 Story & Quests, and nesting
 
 The story is kept as a **structure** — a numbered, nestable list of the
 things it is made of, so "chapter 3, scene 2" is two rows and a parent link
@@ -225,7 +225,7 @@ Where things are in a game: a region holding areas holding rooms, each a row
 of its own. Key `geography`, `structured`, catalogue scope, owners
 `GAME_OWNERS`. For a game it is in 世界觀 Worldbuilding, above 時間線
 Timeline - where, then when; an h-game has no 世界觀, so for it the section is
-the last of 圖鑑與名詞 Compendium & Terms (`groups_by_owner`). Fields: group →
+the last of 圖鑑&名詞 Compendium & Terms (`groups_by_owner`). Fields: group →
 `kind` (free-text select, suggested from `Geography Group`), name → `title`,
 description → `content`; no links - a map worth keeping belongs in 攻略資源
 Guide Resources. `require_any = (("name",),)`.
@@ -280,12 +280,12 @@ is all the author's.
 | `foreshadowing` | 伏筆/前後呼應 Foreshadowing | text_links | analysis_group | anime, anime-movie, tv-show, cartoon, manga, book, series, franchise | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `symmetry` | 對稱 Symmetry | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
 | `speculation` | 猜測 Speculation | text_links | analysis_group | same as foreshadowing | — | — | "Episode(s), e.g. ep 3" | no | no | no |
-| `easter_eggs` | 彩蛋/致敬/細節 Easter Eggs/References/Details | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game, series, franchise | — | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, book: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
+| `easter_eggs` | 彩蛋/致敬/細節 Easter Eggs/References/Details | text_links | analysis_group (**reviews** for game) | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game, series, franchise | free-text Group (`kind_is_group`), suggested from "Easter Egg Group" | — | "Episode(s), e.g. ep 3" (anime-movie, movie: "Scene, e.g. 1:02:30"; manga, book: "Chapter(s), e.g. ch 6"; comic: "Issue(s), e.g. #3"; game: "Chapter / Part, e.g. Ch 3") | no | no | no |
 | `beginner` | 新手 Beginner | text_links | guides | game | — | — | — | no | no | no |
 | `gameplay_systems` | 玩法系統 Gameplay Systems | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `controls` | 操作 Controls | **structured** | guides | game, h-game | — | — | — | no | no | no |
 | `guide_notes` | 攻略筆記 Guide Notes | text | guides | game, h-game | — | — | — | no | no | no |
-| `trivia` | 小知識 Trivia | **structured** | guides | game | — | — | — | no | no | no |
+| `trivia` | 小知識&技巧 Trivia & Tips | **structured** | guides | game | — | — | — | no | no | no |
 | `stats_and_points` | 屬性&配點 Stats & Points | **structured** | builds | game, h-game | — | — | — | no | no | no |
 | `classes` | 職業 Classes | **structured** | builds | game, h-game | — | — | — | no | no | no |
 | `skills` | 技能 Skills | **structured** | builds | game, h-game | — | — | — | no | no | no |
@@ -344,14 +344,14 @@ than everything their owner group would give them.
 - **H-comic and hentai** keep 備註, 個人筆記, Resources and - h-comic, KR only -
   亮點 Highlights. Of 評論 they keep only 大眾評價 Public Reviews and 我的評價
   Personal Reviews, which make up their whole 評論 card; they have no 介紹, 優點,
-  缺點, 優缺點, 解析, Questions or 名言/梗.
+  缺點, 優缺點, 解析, Questions or 名言&梗.
 - **H-game** keeps game's notes less what does not describe how it plays:
   - 評論: everything but 各章評論 and 彩蛋 - 介紹, 優點, 缺點, 優缺點, 大眾評價,
     我的評價 and 解析.
   - Highlights: only `h_game_highlights`, not game's 神場景.
-  - 攻略: no 新手 or 小知識. 圖鑑與名詞: no 玩家術語.
-  - 劇情&任務: the whole card, as a game has it.
-  - No 世界觀 and no 名言/梗.
+  - 攻略: no 新手 or 小知識. 圖鑑&名詞: no 玩家術語.
+  - 劇情列表&任務: the whole card, as a game has it.
+  - No 世界觀 and no 名言&梗.
 
 A row already stored in a section its owner no longer has stays in the table
 and still travels to the sheet, but no card renders it and the API refuses a
@@ -510,7 +510,8 @@ Registry helpers (`app/utils/note_sections.py`): `section_by_key`, `sections_for
 
 A free-text value can be offered suggestions from a `system_option` category
 without being closed to them. A section names one for its `kind`
-(`kind_category`, the OP and ED Song Type) or for its link text
+(`kind_category`, the OP and ED Song Type, and the Group of 彩蛋 Easter Eggs
+— "Easter Egg Group", no seeded values) or for its link text
 (`link_text_category`, Song Source); a structured field names one for itself
 (`NoteField.option_category`). Seven fields do:
 
@@ -533,7 +534,8 @@ per page with the section-level ones; any value typed is stored as typed.
 `NOTE_SUGGESTION_CATEGORIES` collects the field-level categories from the
 registry, so the set is exactly what the registry names — a new one is a
 registry edit. `NOTE_OPTION_CATEGORIES` is the wider set — the field-level
-categories and the section-level ones (`Song Type`, `Song Source`) — unioned
+categories and the section-level ones (`Easter Egg Group`, `Song Type`,
+`Song Source`) — unioned
 into `OPTION_CATEGORIES`. Every one of them is a **common option**: a value
 typed into a note field is stored as typed and never added to the category,
 so the list grows only on the Add page. `COMMON_OPTION_CATEGORIES`
@@ -706,7 +708,7 @@ Design rules baked into the registry:
 | **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages` vs `highlight_moments`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
 | **A game's guide vocabulary is the 攻略 group, not one section.** Twenty sections across five cards (for a game) rather than one with a `kind`, because each is a list kept separately: which build to run is not the same question as where the collectibles are. `guide_resources` holds pointers to somebody else's walkthrough; the site-wide `resources` section (name_links, all owners, standalone) is a separate section games also inherit, and a second card labelled "Resources" would be unreadable — hence distinct keys *and* distinct labels. | The 攻略 run in `NOTE_SECTIONS` and its banner comment. |
 | **The 待辦 buckets are four sections, not one section with a `kind`.** `sort_index` orders rows within one `(owner, section)` pair and `/api/notes/reorder` renumbers the whole section, so a kind-tagged single section could not order items *within* a bucket. Moving an item between buckets is a PATCH of `section`, which appends it to the end of the bucket it lands in. The four are `quick_move`: `/api/notes/sections` serves each one's `move_targets` (the owner's other `quick_move` sections in the same card, in registry order), and every row carries a "Move to…" list of them beside Edit and Delete, so moving one is a single step rather than an edit. | The 待辦 run in `NOTE_SECTIONS` and its banner comment; `NoteSection.quick_move`, `NoteSectionOut.move_targets`. |
-| **劇情&任務 records what happens; 解析 records what it means.** The two are separate cards, and `story_other` exists so a stray story observation lands there rather than drifting into Analysis. | `NOTE_GROUPS`. |
+| **劇情列表&任務 records what happens; 解析 records what it means.** The two are separate cards, and `story_other` exists so a stray story observation lands there rather than drifting into Analysis. | `NOTE_GROUPS`. |
 | **`episode_comments` was widened, not duplicated.** A manga is cut into chapters and a game into chapters or parts rather than episodes, but a comment on one segment of the work is the same section, so each gets a `labels` override (manga 各話評論 Chapter Comments, game 各章評論 Part Reviews) and a `locator_placeholders` override rather than a section of its own. An h-game does not take it: it is not reviewed part by part. | `NOTE_SECTIONS["episode_comments"]`. |
 | **Music sections stay separate** (`op`, `ed`, `insert_songs`, `ost`, `op_ed_changes`) rather than one section with a dropdown, so "which OPs do I still need?" stays a section, not a filter. Each song list's own status hangs on a `music_status` row keyed by the list's section key, not a fifth list. | Comment above `music_status` in the registry. |
 | `group` and `standalone` are mutually exclusive; a test forbids setting both. | `NoteSection` docstring. |
@@ -724,7 +726,7 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 | 3 | Section's shape is a stored shape (not `external`) | Section '…' has its own table and is not stored as a note. |
 | 4 | Owner type is in the section's `owners` | Section '…' does not apply to owner type '…'. |
 | 5 | `links` only on a section that `takes_links`, each a titled link with a non-blank `url`. A bare URL string is read as a link with no title before this runs (`NoteBase`), and a link with any key but `text` and `url` is refused by the request schema itself (`LinkPair`, `extra="forbid"`) | Section '…' takes no links. / Section '…' links link N needs a URL. |
-| 5a | If `kind` given and the section declares neither a `kind_category` nor `kind_is_group`: section has kinds for this owner, and the value is one of them. A `kind_category` makes `kind` free text — the category only suggests; `kind_is_group` makes it a free-text group name (Resources) | Section '…' takes no kind for owner type '…'. / '…' is not a valid kind for section '…'. |
+| 5a | If `kind` given and the section declares neither a `kind_category` nor `kind_is_group`: section has kinds for this owner, and the value is one of them. A `kind_category` makes `kind` free text — the category only suggests; `kind_is_group` makes it a free-text group name (Resources, 彩蛋), which a `kind_category` beside it only suggests | Section '…' takes no kind for owner type '…'. / '…' is not a valid kind for section '…'. |
 | 6 | If `status` given: section has statuses, and the value is one of them | Section '…' takes no status. / '…' is not a valid status for section '…'. |
 | 7 | `desc_required` for this owner ⇒ stripped `content` non-empty | Section '…' requires content. |
 | 8 | `locator_required` ⇒ stripped `locator` non-empty | Section '…' requires a locator. |
@@ -858,7 +860,7 @@ every link was titled (see the Sheets table below). A section that takes no
 links refuses one (422).
 
 A row of 優點, 缺點, 優缺點, 大眾評價 or 解析 - text_links sections - is a
-description, titled links, or both; at least one. A row of 小知識 Trivia is
+description, titled links, or both; at least one. A row of 小知識&技巧 Trivia & Tips is
 any of a title, a description and titled links. 主線劇情, 支線劇情 and 角色劇情
 carry no description: a plot row is its chapter and its links, an arc row
 one or more titled links, the titles saying what each is. 各集評論 is an
@@ -943,9 +945,9 @@ TanStack Query - it has never used a query hook - so the group rows do too.
 | Component | Shape | Fields it shows |
 | --- | --- | --- |
 | `TextSection.jsx` | text | content |
-| `TextLinksSection.jsx` | text_links | locator (only if the section has a `locator_placeholder`), content, links; enforces `desc_required` / `locator_required` client-side. On a section serving `move_targets` (the 待辦 buckets), each row also carries a native "Move to…" `<select>` beside Edit and Delete, shown to whoever may edit the row; picking a target calls `onUpdate(id, {section})`. |
+| `TextLinksSection.jsx` | text_links | locator (only if the section has a `locator_placeholder`), content, links; enforces `desc_required` / `locator_required` client-side. On a section serving `move_targets` (the 待辦 buckets), each row also carries a native "Move to…" `<select>` beside Edit and Delete, shown to whoever may edit the row; picking a target calls `onUpdate(id, {section})`. On a `kind_is_group` section (彩蛋) the form opens with an optional Group whose `datalist` offers the owner's own groups and the section's `kind_category` values, and the card draws one heading per group exactly as `NameLinksSection` does — both read `kindGroups.jsx`. |
 | `EpisodeTextSection.jsx` | episode_text | locator, kind dropdown when `kinds` non-empty, content, and links when the section `takes_links` — the same `LinkPairsEditor` and `LinkPairPills` as `TextLinksSection`, sent as titled links with URL-less ones dropped; a section without the flag sends no `links` key |
-| `NameLinksSection.jsx` | name_links | title, links, and on a `kind_is_group` section an optional Group (a `datalist` over the groups this owner's rows already use). Once any row has a group the card draws one heading per group, in the order each first appears among the rows, and the ungrouped rows last under "Other"; rows are folded and reordered in that drawn order, so dragging a row above another group's first row moves its group up. With no row grouped the list is plain. |
+| `NameLinksSection.jsx` | name_links | on a `kind_is_group` section an optional Group first (a `datalist` over the groups this owner's rows already use, through `kindGroups.jsx`), then the title - placeheld "Description (optional)" - and links. Once any row has a group the card draws one heading per group, in the order each first appears among the rows, and the ungrouped rows last under "Other"; rows are folded and reordered in that drawn order, so dragging a row above another group's first row moves its group up. With no row grouped the list is plain. |
 | `NameEntriesSection.jsx` | name_entries | title, kind dropdown when `kinds` non-empty, and the ordered `entries` array (each item a line of text or a labelled link, dragged into order in the form by its grip). No section uses it. The shape, the column, the component and the Sheets parsing all stay — rows written in it are still in the database and still have to Pull. |
 | `StructuredSection.jsx` | structured | whatever `section.fields` declares — it is the only component here that does not know its own fields. Also owns drag-to-reorder (a grip per row from `components/ui/Sortable.jsx`; each drop is one `PATCH /api/notes/reorder`, applied on screen at once by `NotesContext`, with that section's grips disabled until the save settles), the inline `quick_edit` input, and, for a `hierarchical` section, the tree: an Add button per row that opens a draft carrying that row's id as `parent_id`, children indented behind a rule, and a move — among a row's own siblings, never to another parent — that flattens the whole tree depth-first. A free-text `select` naming an `option_category` renders as a `SuggestInput` over that category's values (`optionValues`, handed in by `NotesContext`) and stays free text; a `text` field naming `suggest_from` does the same over the names of the owner's rows in that section (`sectionTitles`). A `names` field renders as `NamesInput.jsx` in the form and as tags in the row, suggesting `sectionTitles` for its `suggest_from` where it names one and the cast otherwise. A `choice_node` field renders as `ChoiceNodeSelect` in the form (the owner game's blocks, grouped Start / Part / Ending, plus "Unknown block" for a link the list does not hold) and as a tag reading "At node: {title}" in the row (`ChoiceNodeName`), both from `components/game-choices/ChoiceNodeField.jsx`; the owner's id reaches them through a context the component sets from its `ownerId` prop, rather than through every form and row. A section with `group_by` (and not hierarchical) reads as groups instead of one list (`GroupedRows`, rules in `groupedRows.js`): each group header carries a grip (drag, or ArrowUp / ArrowDown on it), and the rows are not movable there; a **Group by** toggle in the card header switches to the flat list, where they are. A section with `groupable_by` gets a toggle in its card header that switches between that grouped view (one group per `select` value) and the flat list; there both the groups and the rows within a group carry grips — a row moves only within its own group — and every move sends the section's whole row order, grouped. A section both `hierarchical` and `groupable_by` (地理 Geography) groups its top-level rows instead, each drawn with its subtree (`groupRoots`), and its form leaves the group field out for a child draft or a child being edited. **The entry cap** counts top-level rows only - a shown row shows every child - and keeps a row on screen while it or anything under it is being edited or having a child drafted; a row's grip moves it by its place among all its siblings, folded or not, so the last row shown can still be moved down past the fold, and a move that carries a row past the cap unfolds the section so the row does not vanish. A grouped section is capped twice: **per group**, each group with its own toggle, and **by group** - the first three groups show (the nameless one counting last) and the rest fold behind "Show all groups (N)" / "Show fewer groups", the same three as the row cap. A group holding the row being edited or added under stays on screen, and a group's grip moves it by its place among all the groups, folded or not, so the last group shown can be moved down past the fold, which unfolds them. A section of three groups or fewer has no group toggle. Every grouped view folds this way - `group_by`, `groupable_by` and a grouped tree. |
 | `NamesInput.jsx` | — | the `names` input: chosen names as removable tags, a combobox suggesting its `suggestions` (the cast, `nameSuggestions`, or a `suggest_from` section's names) filtered by what is typed, any other text accepted - on Enter (read through `hooks/useEnterToAdd.js`), a comma, blur, or the `Add "<name>"` row while the text is not a suggestion |

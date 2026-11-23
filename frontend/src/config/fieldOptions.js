@@ -448,6 +448,8 @@ export const OPTION_CATEGORIES = [
   "Character Trait",
   "Franchise for Filter",
   // From here on, the common options (COMMON_OPTION_CATEGORIES below).
+  // What 彩蛋 Easter Eggs' optional Group suggests.
+  "Easter Egg Group",
   // The music note sections' suggestions.
   "Song Type",
   "Song Source",
@@ -472,12 +474,13 @@ export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label"];
 
 // The subset of OPTION_CATEGORIES the admin pages group under their "Common
 // Options" sub-tab (COMMON_OPTION_CATEGORIES in app/utils/credit_roles.py):
-// the suggestion-only vocabularies - the note sections' field suggestions,
-// the music sections' Song Type and Song Source, the 待補充 note's common
+// the suggestion-only vocabularies - 彩蛋's group names, the note sections'
+// field suggestions, the music sections' Song Type and Song Source, the 待補充 note's common
 // values, and the common countries of a studio and a publisher. A value in one is added on Add and edited on Modify, and is never
 // created from what was typed into the field it suggests for. Navigation
 // only, like TAG_CATEGORIES; the order is the server's.
 export const COMMON_OPTION_CATEGORIES = [
+  "Easter Egg Group",
   "Weapon & Gear Type",
   "Item Type",
   "Collectible Type",

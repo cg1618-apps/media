@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -283,8 +283,9 @@ columns.
   `variant="future"`; its status button - drawn for a holder of `self.list`
   (`useViewScope().ownData`), movies included, and absent without a list,
   chip and all - comes from `getCardStatusConfig(type, status)`, which dispatches on the watch / read / **play** axis, and its
-  progress line for a game is `hours_played` against `hltb_main`, rendered
-  only when at least one of the two exists; for an h-comic it is
+  progress line for a game is `hours_played` against `progressEstimate`
+  (`lib/gameHours.js`: `hltb_main_extra`, or `hltb_main` when only that is
+  recorded), rendered only when at least one of the two exists; for an h-comic it is
   `progressFor(entry)` - pages on JP, chapters on KR, nothing without a
   region; for an h-game, which records no playtime, it is achievements
   earned against the total, drawn only when there is a total, and its meta
@@ -436,8 +437,8 @@ columns.
   it: their fields save with the form.
   `GameDashboardCard` is a fourth dashboard card rather than a third arm
   inside `DashboardCard`: that file's `isReading` ternaries serve the
-  watch/read pair, and a game's bar is read-only playtime against `hltb_main`
-  (achievements when the game reports a total and no estimate exists), so
+  watch/read pair, and a game's bar is read-only playtime against
+  `progressEstimate` - Main + Extra, falling back to Main (achievements when the game reports a total and no estimate exists), so
   there is no progress callback to thread through.
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `GenresCard`, `TimeToBeatCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`,
@@ -496,6 +497,11 @@ columns.
   value gets an icon by saving its favicon there and adding its name to the
   map. The icon is what names the site, so no source link carries a `Tag`
   box beside it — the `Tag` chips are only the tag-field row above.
+  Those chips wear the same icons: each tag field arrives as one string of
+  values joined by ", ", so the card splits it back into one `Tag` per value
+  (duplicates across the three fields drawn once), and a value the map knows
+  — every `Platform` value in use but `Cinema` and `Other` — leads with its
+  site's 12 px icon.
 - **`components/forms`** — `FormField` (`Field`, the input classes, and
   `SectionHeader`, which carries its title as `data-form-section` so a test
   can read a form's section order), `ComboBox` (`onSelect(id, label)`;
@@ -1019,7 +1025,7 @@ columns.
   whole tree depth-first (the reorder
   endpoint takes ids naming exactly the section, so a sibling-only payload is
   refused). It serves every `structured` section - thirty-two of them, most
-  of the game guide cards, the 劇情&任務 sections, 存檔 Saves and both 亮點
+  of the game guide cards, the 劇情列表&任務 sections, 存檔 Saves and both 亮點
   Highlights; `docs/systems/notes.md` lists each one's spec. A free-text
   `select` naming an `option_category` renders as a `SuggestInput` over that
   category's values (the provider's `optionValues`) and stays free text. Two registry

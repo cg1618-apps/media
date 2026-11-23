@@ -123,6 +123,27 @@ SIZE_GROUPS: dict[str, tuple[SizeGroup, ...]] = {
 }
 
 
+# The groups a queued game may be filed under on the Plan page's Do next tab,
+# in display order. A row with none is shown ungrouped, after these. Only a
+# game's "next" row takes one: what a game is played on decides when it can be
+# picked up, which is not true of a rewatch mark or of any other type.
+# Keep in sync with PLATFORM_GROUPS in frontend/src/config/planNextGroups.js.
+PLATFORM_GROUPS: tuple[str, ...] = ("PC", "Console", "Handheld Console", "Switch")
+PLATFORM_GROUP_MEDIA_TYPES: frozenset[str] = frozenset({"game"})
+
+
+def platform_group_error(media_type: str, kind: str, group) -> Optional[str]:
+    """Why `group` cannot be this row's platform group, or None when it can.
+    None (ungrouped) is always allowed."""
+    if group is None:
+        return None
+    if media_type not in PLATFORM_GROUP_MEDIA_TYPES or kind != "next":
+        return "Only a game queued to play next takes a platform group."
+    if group not in PLATFORM_GROUPS:
+        return f"Unknown platform group: {group}"
+    return None
+
+
 def kind_valid(kind: str) -> bool:
     """True when this is a kind the Plan page knows about."""
     return kind in KINDS
