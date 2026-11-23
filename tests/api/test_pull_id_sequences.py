@@ -207,8 +207,40 @@ def test_system_option_alias_sequence_is_resynced_after_a_restore(db_session, sh
     db_session.flush()
 
     ids = {r.id for r in db_session.query(models.SystemOptionAlias).all()}
-    assert {1, 86} <= ids
     assert len(ids) == 3, "the sequence handed out an id that already existed"
+
+
+def test_an_alias_matched_by_natural_key_keeps_its_local_id(db_session, sheet):
+    """
+    An alias's integer id is minted per database, so the sheet's is no
+    identity. A fresh database holds the aliases a migration seeded, under
+    its own ids; the sheet names the same alias under the id another local
+    alias holds. Pull must match by natural key and leave both ids alone -
+    writing the sheet's id onto the match collided on system_option_alias_pkey.
+    """
+    option = models.SystemOption(category="Game Platform", value="Switch")
+    db_session.add(option)
+    db_session.flush()
+    seeded = models.SystemOptionAlias(option_id=option.system_id, source="igdb", value="Nintendo Switch")
+    other = models.SystemOptionAlias(option_id=option.system_id, source="igdb", value="NS")
+    db_session.add_all([seeded, other])
+    db_session.flush()
+    seeded_id, other_id = seeded.id, other.id
+
+    sheet(
+        ["id", "option_id", "source", "value"],
+        [[str(other_id), str(option.system_id), "igdb", "Nintendo Switch"]],
+    )
+    result = pull.execute_pull_specific(
+        db_session, "System Option Alias", log_action=False
+    )
+    assert result["status"] == "success", result
+    db_session.expire_all()
+    by_value = {
+        r.value: r.id
+        for r in db_session.query(models.SystemOptionAlias).filter_by(option_id=option.system_id)
+    }
+    assert by_value == {"Nintendo Switch": seeded_id, "NS": other_id}
 
 
 def _sequence_backed_integer_keys(db_session):
@@ -267,3 +299,21 @@ def test_every_sequence_backed_integer_key_is_resynced(db_session):
         nxt = db_session.execute(text(f"SELECT nextval('{sequence}')")).scalar_one()
         assert nxt == 1, f"{tab_name}: {sequence} was not resynced ({nxt})"
         _rewind(db_session, sequence)
+
+
+def test_every_tab_resolves_one_primary_key_column():
+    """
+    Pull reads each tab's key column off its model. A tab added later with a
+    composite key would otherwise fail only when somebody pulls it; Seasonal,
+    the one composite key, is matched on `seasonal` by name.
+    """
+    from app.services.pipelines.tabs import SHEET_TABS
+
+    keys = {
+        tab.name: pull._primary_key_column(tab.model)
+        for tab in SHEET_TABS
+        if tab.name != "Seasonal"
+    }
+    assert keys["System Option Alias"] == "id"
+    assert keys["Users"] == "id"
+    assert keys["Person"] == "system_id"

@@ -10,8 +10,8 @@ import { Chip, RatingStamp } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
 // An identity card is drawn as one: a dashed border and divider (the dashed
-// line that means "identity" across the app), an outlined spine instead of
-// the solid ink one, and a footer naming its character beside the
+// line that means "identity" across the app), and a footer naming its
+// character beside the
 // character's face, then the dashed Identity tag. The cover stays the
 // identity's own photo, with nothing laid over it.
 export default function CharacterCard({ character }) {
@@ -43,21 +43,6 @@ export default function CharacterCard({ character }) {
       data-identity-card={isIdentity || undefined}
     >
       <div className="flex">
-        <div
-          className={`w-5 shrink-0 flex flex-col items-center py-1.5 overflow-hidden ${
-            isIdentity
-              ? "bg-surface text-text-muted border-r border-dashed border-border-strong"
-              : "bg-ink text-ink-text"
-          }`}
-          data-card-spine
-        >
-          <span
-            className="font-mono text-[8px] uppercase tracking-[0.2em] whitespace-nowrap"
-            style={{ writingMode: "vertical-rl" }}
-          >
-            {isIdentity ? "Identity" : "Character"}
-          </span>
-        </div>
         <div
           className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
           style={{ aspectRatio: "2/3" }}

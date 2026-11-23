@@ -47,6 +47,14 @@ describe("useCanonicalPath", () => {
     expect(seen).toBe("/anime/47");
   });
 
+  it("leaves a link to another record alone while the old one is still loaded", () => {
+    // Following a related link reuses the page: the URL names the new record
+    // while the entity is still the old one. Rewriting the address to the old
+    // record's path would undo the click.
+    const seen = renderAt("/anime/48/brotherhood", ANIME);
+    expect(seen).toBe("/anime/48/brotherhood");
+  });
+
   it("does nothing for an entity with no Latin name", () => {
     const seen = renderAt("/anime/93", {
       public_id: 93,

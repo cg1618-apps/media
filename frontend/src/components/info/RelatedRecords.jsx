@@ -15,6 +15,13 @@
 // gets no frame at all. The editor's candidates are the kinds' lists, which
 // are filtered the same way, so a hidden record is never offered either.
 //
+// A record added while editing offers a tick for each record above it on the
+// list, all ticked: "also relate the new one to these". Saving sends the ticked
+// ones as the item's `also_related_to`, and the server writes each as an
+// ordinary pair. Unticking one is how a pair is left unrelated - nothing about
+// it is stored. Only the records above are offered, so two records added in one
+// edit share one tick, on the later.
+//
 // The same component is the detail page's box and the Modify form's: it saves
 // through its own button either way, never with the form.
 import { useCallback, useEffect, useState } from "react";
@@ -127,6 +134,12 @@ export function pickerItems(candidates, chosen, self) {
   );
 }
 
+// The records the draft row at `index` may also be related to: the rows above
+// it, when it was added in this edit; none for a row that was already related.
+export function alsoRelatedTargets(draft, index) {
+  return draft[index]?.isNew ? draft.slice(0, index) : [];
+}
+
 export default function RelatedRecords({ type, recordId, isAdmin }) {
   const kind = KINDS[type];
   const { showToast } = useToast();
@@ -161,8 +174,20 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
   };
 
   const setRemark = (key, remark) =>
+    setDraft(draft.map((r) => (keyOf(r.kind, r.system_id) === key ? { ...r, remark } : r)));
+
+  const toggleAlso = (key, otherKey) =>
     setDraft(
-      draft.map((r) => (keyOf(r.kind, r.system_id) === key ? { ...r, remark } : r)),
+      draft.map((r) =>
+        keyOf(r.kind, r.system_id) !== key
+          ? r
+          : {
+              ...r,
+              unticked: r.unticked.includes(otherKey)
+                ? r.unticked.filter((k) => k !== otherKey)
+                : [...r.unticked, otherKey],
+            },
+      ),
     );
 
   const save = useCallback(async () => {
@@ -171,11 +196,17 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
       const rows = await fetchJson(kind.related(recordId), {
         method: "PUT",
         ...jsonBody({
-          relations: draft.map((r) => ({
-            kind: r.kind,
-            id: r.system_id,
-            remark: r.remark.trim() || null,
-          })),
+          relations: draft.map((r, index) => {
+            const item = { kind: r.kind, id: r.system_id, remark: r.remark.trim() || null };
+            if (!r.isNew) return item;
+            const also = alsoRelatedTargets(draft, index).filter(
+              (o) => !r.unticked.includes(keyOf(o.kind, o.system_id)),
+            );
+            return {
+              ...item,
+              also_related_to: also.map((o) => ({ kind: o.kind, id: o.system_id })),
+            };
+          }),
         }),
       });
       setRelated(rows || []);
@@ -221,34 +252,58 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
       ) : (
         <div className="space-y-2">
           <ul className="space-y-2" aria-label={`${kind.title} being edited`}>
-            {draft.map((r) => {
+            {draft.map((r, index) => {
               const key = keyOf(r.kind, r.system_id);
               const name = recordName(r, r.kind);
+              const targets = alsoRelatedTargets(draft, index);
               return (
-                <li key={key} className="flex items-center gap-2 text-sm">
-                  <span className="w-40 shrink-0 truncate text-text">
-                    {name}
-                    {kind.relatesTo.length > 1 && (
-                      <span className="text-text-faint"> · {CANDIDATES[r.kind]?.label}</span>
-                    )}
-                  </span>
-                  <input
-                    className={`${inputCls} flex-1 min-w-0`}
-                    value={r.remark}
-                    onChange={(e) => setRemark(key, e.target.value)}
-                    placeholder="Remark (optional)"
-                    aria-label={`Remark for ${name}`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDraft(draft.filter((x) => keyOf(x.kind, x.system_id) !== key))
-                    }
-                    aria-label={`Remove ${name}`}
-                    className="text-text-faint hover:text-danger px-1"
-                  >
-                    <i className="fas fa-times text-xs"></i>
-                  </button>
+                <li key={key} className="text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="w-40 shrink-0 truncate text-text">
+                      {name}
+                      {kind.relatesTo.length > 1 && (
+                        <span className="text-text-faint"> · {CANDIDATES[r.kind]?.label}</span>
+                      )}
+                    </span>
+                    <input
+                      className={`${inputCls} flex-1 min-w-0`}
+                      value={r.remark}
+                      onChange={(e) => setRemark(key, e.target.value)}
+                      placeholder="Remark (optional)"
+                      aria-label={`Remark for ${name}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDraft(draft.filter((x) => keyOf(x.kind, x.system_id) !== key))
+                      }
+                      aria-label={`Remove ${name}`}
+                      className="text-text-faint hover:text-danger px-1"
+                    >
+                      <i className="fas fa-times text-xs"></i>
+                    </button>
+                  </div>
+                  {targets.length > 0 && (
+                    <fieldset
+                      aria-label={`Also relate ${name} to`}
+                      className="mt-1 ml-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted"
+                    >
+                      <span className="text-text-faint">Also related to:</span>
+                      {targets.map((o) => {
+                        const otherKey = keyOf(o.kind, o.system_id);
+                        return (
+                          <label key={otherKey} className="inline-flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={!r.unticked.includes(otherKey)}
+                              onChange={() => toggleAlso(key, otherKey)}
+                            />
+                            {recordName(o, o.kind)}
+                          </label>
+                        );
+                      })}
+                    </fieldset>
+                  )}
                 </li>
               );
             })}
@@ -259,9 +314,7 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
             inputText=""
             onSelect={(key) => {
               const [pickedKind, id] = key.split(":");
-              const record = (candidates[pickedKind] || []).find(
-                (c) => String(c.system_id) === id,
-              );
+              const record = (candidates[pickedKind] || []).find((c) => String(c.system_id) === id);
               if (record) {
                 setDraft([
                   ...draft,
@@ -271,6 +324,8 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
                     public_id: record.public_id,
                     display_name: recordName(record, pickedKind),
                     remark: "",
+                    isNew: true,
+                    unticked: [],
                   },
                 ]);
               }

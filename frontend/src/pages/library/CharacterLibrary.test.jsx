@@ -331,14 +331,15 @@ describe("CharacterLibrary", () => {
     });
 
     // Option A: an identity card is drawn dashed - the line that means
-    // "identity" across the app - with an outlined spine, its character's
+    // "identity" across the app - with its character's
     // face and name in the footer, and the dashed Identity tag. The cover
     // stays the identity's own photo, with nothing over it.
     it("draws an identity card dashed, with its character's face and name and an Identity tag", async () => {
       renderLibrary();
       const conan = (await screen.findByText("Edogawa Conan")).closest("a");
       expect(conan).toHaveAttribute("data-identity-card");
-      expect(within(conan).getByText("Identity", { selector: "[data-card-spine] *" })).toBeInTheDocument();
+      // No type spine on any grid card: the dashed border and the tag say it.
+      expect(conan.querySelector('[style*="vertical-rl"]')).toBeNull();
       expect(within(conan).getByText("Identity", { selector: "[data-identity-tag]" })).toBeInTheDocument();
       const face = conan.querySelector("[data-character-face]");
       expect(face).toHaveAttribute("src", "/api/covers/character/c5.jpg?size=thumb");
@@ -355,7 +356,7 @@ describe("CharacterLibrary", () => {
       await screen.findByText("Edogawa Conan");
       const shinichi = screen.getByRole("heading", { name: "Kudo Shinichi" }).closest("a");
       expect(shinichi).not.toHaveAttribute("data-identity-card");
-      expect(within(shinichi).getByText("Character", { selector: "[data-card-spine] *" })).toBeInTheDocument();
+      expect(shinichi.querySelector('[style*="vertical-rl"]')).toBeNull();
       expect(shinichi.querySelector("[data-identity-tag]")).toBeNull();
       expect(shinichi.querySelector("[data-character-face]")).toBeNull();
     });

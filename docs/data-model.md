@@ -1285,8 +1285,12 @@ A relation is mutual and is always the **pair** of rows (A, B) and (B, A), so
 each side keeps its own remark. `COMPANY_RELATIONS` in
 `app/services/domain/peer_relation.py` is the only writer and keeps the pair
 whole: adding a relation from one side creates the other side's row with no
-remark, and removing it from either side removes both. A relation is not a
-connection in the shared-record sense: it never makes a hidden studio or
+remark, and removing it from either side removes both. Related records are
+pairs, never groups: A related to B and to C says nothing about B and C. The
+editor can relate a newly added record to the others on the list in the same
+save, but each of those is written as its own pair
+([decision](notes/decisions/2026-11-23-related-records-stay-pairs.md)). A
+relation is not a connection in the shared-record sense: it never makes a hidden studio or
 publisher visible ([authorization.md](authorization.md)). A studio or
 publisher merge moves both sides onto the survivor, dropping a row the
 survivor already holds (its own remark wins) or one that would relate it to
