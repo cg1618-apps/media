@@ -11,16 +11,16 @@
 // a row with none. A gated type the session may not see is left out
 // (canSeeGatedType), and the parent with it once none is left.
 //
-// Every entity library opens on defaultEntityFilters(defs): every
-// non-restricted type and No entries on, the restricted types off. So an
-// entity only ever credited on a gated type is hidden until Restricted is
-// ticked, while one nobody has credited yet (a new seiyuu) is still listed.
+// Every entity library opens with no entry type ticked, which reads as every
+// non-restricted type and No entries: the group's `idle` rule keeps every row
+// but one whose entries are all of restricted types. So an entity only ever
+// credited on a gated type is hidden until Restricted (or one of its types)
+// is ticked, while one nobody has credited yet (a new seiyuu) is still listed.
 import { CHARACTER_ROLES, GENDERS, MY_RATINGS, PERSON_GENDERS } from "../config/fieldOptions";
 import { mediaTypeLabel } from "../config/mediaRegistry";
 import { PERSON_SUB_TABS } from "../components/forms/PersonSubTabBar";
 import { PUBLISHER_SCOPES } from "../components/forms/PublisherScopePills";
 import { canSeeGatedType, visibleByType } from "./gatedTypes";
-import { initialFilters } from "./libraryFilters";
 import {
   CARD_KIND_CHARACTER,
   CARD_KIND_IDENTITY,
@@ -110,21 +110,13 @@ function mediaTypeDef(auth, types, restricted, typesOf = (item) => item.media_ty
     match: (item, active) =>
       typesOf(item).some((t) => active.has(t)) ||
       ((item.media_types || []).length === 0 && active.has(NO_ENTRIES)),
+    // Nothing ticked is the same as every plain option ticked: a row with no
+    // entries, or with any type that is not restricted.
+    idle: (item) => {
+      const own = typesOf(item);
+      return own.length === 0 || own.some((t) => !restricted.includes(t));
+    },
   };
-}
-
-/**
- * The state every entity library opens on: the entry-type group holds its
- * plain options - every non-restricted type and No entries - and nothing
- * else is on. The Restricted parent's children are not options, so they
- * start off. Handed to useFilterState as its `initial`, which is also what
- * resetFilters returns to.
- */
-export function defaultEntityFilters(defs) {
-  const filters = initialFilters(defs);
-  const mediaType = defs.find((fd) => fd.key === MEDIA_TYPE_KEY);
-  if (mediaType) filters[mediaType.key] = new Set(mediaType.options);
-  return filters;
 }
 
 // The viewer's own rating (self.list). Every *FilterDefs takes `{ ownData }`

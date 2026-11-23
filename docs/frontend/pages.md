@@ -795,13 +795,13 @@ toggles a `FilterPanel` over `studioFilterDefs(auth)` from
 - **Relation** — Has relation / No relation, off `has_relations`, which
   counts only related studios the viewer may see.
 
-Every entity library opens on the same default, `defaultEntityFilters`:
-every plain entry type and No entries on, the restricted types off, every
-other group empty. So a studio credited only on a gated type is hidden until
+Every entity library opens with nothing ticked. An empty Entry type group is
+not "no filter": its `idle` rule keeps every row except one whose entries are
+all of restricted types, so it reads exactly as every plain entry type and No
+entries ticked would. A studio credited only on a gated type is hidden until
 Restricted (or one of its children) is ticked, while a studio nobody has
-credited yet is still listed. **Clear all** empties every group — everything
-the viewer may see, restricted rows included — and **Reset**, drawn once the
-state is off the default, puts the default back. The empty state's **show
+credited yet is still listed. **Clear all** and **Reset** (drawn once the
+state is off the default) both return to that empty state. The empty state's **show
 everything** link clears the search and every filter.
 
 Each `StudioCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
@@ -864,8 +864,8 @@ library.
 
 The **Filters** button opens a `FilterPanel` over `personFilterDefs(auth)`
 from `lib/entityFilters.js`, open when the page loads and on the studio
-library's default (every plain entry type and No entries on, the restricted
-types off), with the same **Clear all** and **Reset**; OR within a group,
+library's default (no entry type ticked, which leaves out only the people
+credited on restricted types alone), with the same **Clear all** and **Reset**; OR within a group,
 AND across groups:
 
 - **Type** — the `PERSON_SUB_TABS` roles, matched against `roles`; the Club

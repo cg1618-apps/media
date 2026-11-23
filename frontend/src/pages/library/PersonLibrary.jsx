@@ -9,8 +9,8 @@
 // ordinary FilterDefs (lib/entityFilters.js) drawn by the FilterPanel the
 // media libraries use - the person type (the admin sub-tabs' vocabulary,
 // matched against the `roles` each person carries), entry type, rating and
-// gender. The panel opens on defaultEntityFilters: every non-restricted
-// entry type and No entries on, the restricted ones off.
+// gender. The panel opens with nothing ticked, which shows every person but
+// one credited only on restricted types (the entry-type group's `idle`).
 import { useState, useEffect, useMemo } from "react";
 
 import { PersonCard } from "../../components/cards/StaffCard";
