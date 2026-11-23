@@ -181,14 +181,13 @@ def put_related_franchises(
     Whole-list replace of this side. Every id must be a visible franchise
     other than this one (422 otherwise). A new relation appears on the other
     franchise's page too, with no remark there; a removed one leaves both
-    pages. Relations to franchises the writer cannot see are kept.
+    pages. An item's `also_related_to` relates it to other franchises on the
+    list as well, both ways, with no remark. Relations to franchises the
+    writer cannot see are kept.
     """
     franchise = _visible_franchise_or_404(db, admin, system_id)
-    FRANCHISE_RELATIONS.replace_related(
-        db,
-        admin,
-        ("franchise", franchise.system_id),
-        [((item.kind or "franchise", item.id), item.remark) for item in payload.relations],
+    FRANCHISE_RELATIONS.replace_from_payload(
+        db, admin, ("franchise", franchise.system_id), payload.relations
     )
     db.commit()
     return FRANCHISE_RELATIONS.related_of(db, admin, ("franchise", franchise.system_id))

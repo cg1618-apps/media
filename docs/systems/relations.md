@@ -1,6 +1,11 @@
 # Media Relations
 
-Last verified: 2026-11-17
+Last verified: 2026-11-23
+
+"Relation" in this repository means what this page describes. The untyped
+two-way links between companies and between franchises are a different system,
+called **related records** (`app/services/domain/peer_relation.py`,
+`docs/data-model.md` `company_relation` / `franchise_relation`).
 
 ## What this is for
 

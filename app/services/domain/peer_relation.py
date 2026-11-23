@@ -186,12 +186,30 @@ class PeerRelations:
             self._naming(related, "owner"), self._naming(owner, "related")
         )
 
+    def replace_from_payload(self, db: Session, viewer, owner: Ref, items) -> None:
+        """`replace_related` from the editor's items (PeerRelationItem): a
+        ref without a kind is of the owner's kind. Does not commit."""
+
+        def ref(item) -> Ref:
+            return (item.kind or owner[0], item.id)
+
+        self.replace_related(
+            db,
+            viewer,
+            owner,
+            [(ref(item), item.remark) for item in items],
+            also_related=[
+                (ref(item), ref(other)) for item in items for other in item.also_related_to
+            ],
+        )
+
     def replace_related(
         self,
         db: Session,
         viewer,
         owner: Ref,
         relations: list[tuple[Ref, Optional[str]]],
+        also_related: Iterable[tuple[Ref, Ref]] = (),
     ) -> None:
         """
         Make `relations` - (related ref, this side's remark) pairs - the
@@ -202,6 +220,13 @@ class PeerRelations:
         other side's row, with no remark; a removed one takes the other
         side's row with it. Relations to records the writer cannot see are
         kept.
+
+        `also_related` pairs two records of `relations` to relate to each
+        other as well - both sides, no remark, a pair already related left as
+        it is. This is how the editor relates a newly added record to the
+        others on the list: it is still one pair at a time, so an unticked
+        pair simply has no rows. A pair naming a record not in `relations`,
+        or one record twice, is refused.
         """
         wanted: dict[Ref, Optional[str]] = {}
         for ref, remark in relations:
@@ -211,6 +236,17 @@ class PeerRelations:
             raise HTTPException(
                 status_code=422, detail=f"A {owner[0]} cannot be related to itself."
             )
+        also_related = list(also_related)
+        for one, other in also_related:
+            if one == other:
+                raise HTTPException(
+                    status_code=422, detail=f"A {one[0]} cannot be related to itself."
+                )
+            if one not in wanted or other not in wanted:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Also-related {self.noun}s must both be on this list.",
+                )
         visible_wanted = self._visible_records(db, viewer, wanted)
         missing = [f"{key} {record_id}" for key, record_id in wanted
                    if (key, record_id) not in visible_wanted]
@@ -248,6 +284,22 @@ class PeerRelations:
                     )
                 )
         db.flush()
+
+        for one, other in also_related:
+            self._ensure_side(db, one, other)
+            self._ensure_side(db, other, one)
+        db.flush()
+
+    def _ensure_side(self, db: Session, owner: Ref, related: Ref) -> None:
+        """Give `owner` a row naming `related`, unless it has one."""
+        exists = (
+            db.query(self.model)
+            .filter(self._naming(owner, "owner"), self._naming(related, "related"))
+            .first()
+        )
+        if exists is None:
+            db.add(self.model(**self._columns(owner, "owner"), **self._columns(related, "related")))
+            db.flush()
 
     def merge_relations(self, db: Session, kind_key: str, keep_id: UUID, drop_id: UUID) -> None:
         """

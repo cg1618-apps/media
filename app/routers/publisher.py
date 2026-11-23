@@ -259,15 +259,13 @@ def put_related_companies(
     """
     Whole-list replace of this side, as for a studio. Each item names a
     visible studio or publisher - `kind`, default publisher - other than this
-    publisher (422 otherwise). Relations to companies the writer cannot see
-    are kept.
+    publisher (422 otherwise). An item's `also_related_to` relates it to
+    other companies on the list as well. Relations to companies the writer
+    cannot see are kept.
     """
     publisher = _visible_publisher_or_404(db, admin, system_id)
-    COMPANY_RELATIONS.replace_related(
-        db,
-        admin,
-        ("publisher", publisher.system_id),
-        [((item.kind or "publisher", item.id), item.remark) for item in payload.relations],
+    COMPANY_RELATIONS.replace_from_payload(
+        db, admin, ("publisher", publisher.system_id), payload.relations
     )
     db.commit()
     return COMPANY_RELATIONS.related_of(db, admin, ("publisher", publisher.system_id))

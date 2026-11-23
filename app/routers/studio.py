@@ -217,15 +217,14 @@ def put_related_studios(
     Whole-list replace of this side. Each item names a visible studio or
     publisher - `kind`, default studio - other than this studio (422
     otherwise). A new relation appears on the other company's page too, with
-    no remark there; a removed one leaves both pages. Relations to companies
-    the writer cannot see are kept.
+    no remark there; a removed one leaves both pages. An item's
+    `also_related_to` relates it to other companies on the list as well, both
+    ways, with no remark. Relations to companies the writer cannot see are
+    kept.
     """
     studio = _visible_studio_or_404(db, admin, system_id)
-    COMPANY_RELATIONS.replace_related(
-        db,
-        admin,
-        ("studio", studio.system_id),
-        [((item.kind or "studio", item.id), item.remark) for item in payload.relations],
+    COMPANY_RELATIONS.replace_from_payload(
+        db, admin, ("studio", studio.system_id), payload.relations
     )
     db.commit()
     return COMPANY_RELATIONS.related_of(db, admin, ("studio", studio.system_id))

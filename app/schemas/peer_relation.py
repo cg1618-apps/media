@@ -22,15 +22,27 @@ class PeerRelationRef(BaseModel):
     remark: Optional[str] = None
 
 
+class PeerRelationTarget(BaseModel):
+    """Another record on the same list, named the way an item names one."""
+
+    # Omitted, the kind of the record whose list this is.
+    kind: Optional[str] = None
+    id: UUID
+
+
 class PeerRelationItem(BaseModel):
-    """One relation as the editor sends it: the other record, and this side's
-    remark."""
+    """One relation as the editor sends it: the other record, this side's
+    remark, and the other records on this list it should be related to as
+    well."""
 
     # "studio" or "publisher" on a company's list; omitted, the kind of the
     # record whose list this is.
     kind: Optional[str] = None
     id: UUID
     remark: Optional[str] = None
+    # Records elsewhere on this same list to relate this one to as well, both
+    # ways, with no remark. A pair already related is left as it is.
+    also_related_to: List[PeerRelationTarget] = []
 
 
 class PeerRelationsReplace(BaseModel):
