@@ -2,7 +2,8 @@
 // pipeline, "Save & Replace" - and Enter in a field, which submits the form -
 // saves then runs Replace, while "Save" saves the edit alone. Anime, anime
 // movie, cartoon and manga run it from the browser (POST data-control/replace);
-// movie and tv-show through their PUT, which "Save" sends as ?replace=false.
+// movie, tv-show and game through their PUT, which "Save" sends as
+// ?replace=false.
 // A type whose save never runs Replace keeps one "Save Changes" button.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -129,6 +130,7 @@ describe("Modify save, with and without Replace", () => {
   it.each([
     ["movie", "/api/movies", { movie_name_en: "M" }],
     ["tv-show", "/api/tv-shows", { tv_name_en: "T" }],
+    ["game", "/api/game", { game_name_en: "G" }],
   ])("%s: Save & Replace PUTs plainly, Save PUTs with ?replace=false", async (type, listPath, names) => {
     const { saves } = open(type, listPath, { system_id: `${type}-1`, ...names });
     const user = userEvent.setup();

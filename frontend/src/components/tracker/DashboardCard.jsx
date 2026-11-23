@@ -1,11 +1,11 @@
 // Frontend: tracker component file for DashboardCard.
+//
+// One watched or read entry on the dashboard. An episode or chapter type gets
+// a progress stepper; a film (Anime Movie, Movie) has no counter, so its card
+// says where playback was paused and how long the film runs instead.
 import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
-import {
-  getCoverUrl,
-  FALLBACK_SVG,
-  getDisplayName,
-} from "../../utils/media";
+import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { EntryRow } from "./DashboardTable";
 import { entityPath } from "../../lib/entityPath";
@@ -36,6 +36,9 @@ export default function DashboardCard({
   const isCartoon = anime._ui_type === "Cartoon";
   const isManga = anime._ui_type === "Manga";
   const isBook = anime._ui_type === "Book";
+  const isAnimeMovie = anime._ui_type === "Anime Movie";
+  const isMovie = anime._ui_type === "Movie";
+  const isFilm = isAnimeMovie || isMovie;
   const isReading = isManga || isBook;
 
   const titleType = isBook
@@ -46,7 +49,11 @@ export default function DashboardCard({
         ? "cartoon"
         : isTV
           ? "tv-show"
-          : "anime";
+          : isAnimeMovie
+            ? "anime-movie"
+            : isMovie
+              ? "movie"
+              : "anime";
   const title = getDisplayName(anime, titleType) || "Unknown Title";
   const subTitle = franchise
     ? getDisplayName(franchise, "franchise") || "Independent"
@@ -103,8 +110,26 @@ export default function DashboardCard({
     </span>
   ) : null;
 
+  // A film's progress is a playback position, not a count.
+  const pausedAt = anime.time_fin || null;
+  const runtime = anime.length_min ? `${anime.length_min} min` : null;
+
   // List view reuses every derivation above and none of the card's layout.
   // The stepper does not come with it - see the note in DashboardTable.
+  if (view === "list" && isFilm) {
+    return (
+      <EntryRow
+        path={navigatePath}
+        title={title}
+        subTitle={subTitle}
+        type={spineLabel}
+        status={statusText}
+        rating={anime.my_rating}
+        progress={pausedAt ? `at ${pausedAt}` : runtime || ""}
+        percent={null}
+      />
+    );
+  }
   if (view === "list") {
     return (
       <EntryRow
@@ -163,7 +188,10 @@ export default function DashboardCard({
               // covers the card, so a middle click or ctrl-click anywhere on
               // the card opens the entry, while the tracker controls below
               // stay outside the anchor and above the overlay.
-              <Link to={navigatePath} className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand">
+              <Link
+                to={navigatePath}
+                className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
                 {title}
               </Link>
             ) : (
@@ -175,7 +203,7 @@ export default function DashboardCard({
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
             <Chip tone="ink">{statusText}</Chip>
-            {!isTV && !isCartoon && !isReading && (
+            {!isTV && !isCartoon && !isReading && !isFilm && (
               <Chip tone="ink">{anime.airing_type || "TV"}</Chip>
             )}
             <PlatformIcons sources={anime.sources} />
@@ -183,61 +211,85 @@ export default function DashboardCard({
         </div>
       </div>
 
-      <div className="relative z-10 p-3 border-t border-border mt-auto">
-        <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
-          <span>Progress</span>
-          <span className="text-text">
-            {localTotal !== "?" ? `${progressPercent}%` : ""}
-          </span>
+      {isFilm ? (
+        <div className="relative z-10 p-3 border-t border-border mt-auto space-y-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+          <div className="flex justify-between items-baseline">
+            <span>Paused at</span>
+            <span
+              data-testid="film-paused-at"
+              className="text-[13px] normal-case tracking-normal text-text"
+            >
+              {pausedAt || "—"}
+            </span>
+          </div>
+          {runtime && (
+            <div className="flex justify-between items-baseline">
+              <span>Runtime</span>
+              <span className="text-[13px] normal-case tracking-normal text-text">
+                {runtime}
+              </span>
+            </div>
+          )}
         </div>
-        <ProgressRule value={progressValue} className="mb-3" />
+      ) : (
+        <div className="relative z-10 p-3 border-t border-border mt-auto">
+          <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+            <span>Progress</span>
+            <span className="text-text">
+              {localTotal !== "?" ? `${progressPercent}%` : ""}
+            </span>
+          </div>
+          <ProgressRule value={progressValue} className="mb-3" />
 
-        {canTrack ? (
-          <div className="flex items-center justify-between gap-2 relative z-20">
-            <Button
-              kind="outline"
-              size="sm"
-              onClick={() => handleEpChange(stepDown(localFin))}
-              aria-label="One back"
-            >
-              <i className="fas fa-minus text-[10px]"></i>
-            </Button>
-            <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
-              <ProgressInput
-                decimal
-                className={STEPPER_INPUT}
-                value={localFin}
-                onCommit={handleEpChange}
-                aria-label="Progress"
-              />
-              <span className="text-text-faint mx-1 text-xs">/</span>
-              <span className="text-text-faint w-10 text-center">
-                {formatProgress(localTotal)}
-              </span>
-              {unitSuffix}
+          {canTrack ? (
+            <div className="flex items-center justify-between gap-2 relative z-20">
+              <Button
+                kind="outline"
+                size="sm"
+                onClick={() => handleEpChange(stepDown(localFin))}
+                aria-label="One back"
+              >
+                <i className="fas fa-minus text-[10px]"></i>
+              </Button>
+              <div className="font-mono text-[13px] flex items-baseline justify-center select-none flex-1 whitespace-nowrap">
+                <ProgressInput
+                  decimal
+                  className={STEPPER_INPUT}
+                  value={localFin}
+                  onCommit={handleEpChange}
+                  aria-label="Progress"
+                />
+                <span className="text-text-faint mx-1 text-xs">/</span>
+                <span className="text-text-faint w-10 text-center">
+                  {formatProgress(localTotal)}
+                </span>
+                {unitSuffix}
+              </div>
+              <Button
+                kind="outline"
+                size="sm"
+                onClick={() => handleEpChange(stepUp(localFin, localTotal))}
+                aria-label="One forward"
+              >
+                <i className="fas fa-plus text-[10px]"></i>
+              </Button>
             </div>
-            <Button
-              kind="outline"
-              size="sm"
-              onClick={() => handleEpChange(stepUp(localFin, localTotal))}
-              aria-label="One forward"
-            >
-              <i className="fas fa-plus text-[10px]"></i>
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center border border-border h-[36px]">
-            <div className="font-mono text-[13px] flex items-baseline justify-center select-none w-full px-1">
-              <span className="text-text w-14 text-center">{formatProgress(localFin)}</span>
-              <span className="text-text-faint mx-0.5 text-xs">/</span>
-              <span className="text-text-faint w-14 text-center">
-                {formatProgress(localTotal)}
-              </span>
-              {unitSuffix}
+          ) : (
+            <div className="flex items-center justify-center border border-border h-[36px]">
+              <div className="font-mono text-[13px] flex items-baseline justify-center select-none w-full px-1">
+                <span className="text-text w-14 text-center">
+                  {formatProgress(localFin)}
+                </span>
+                <span className="text-text-faint mx-0.5 text-xs">/</span>
+                <span className="text-text-faint w-14 text-center">
+                  {formatProgress(localTotal)}
+                </span>
+                {unitSuffix}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

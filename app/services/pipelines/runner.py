@@ -59,7 +59,7 @@ class PipelineSpec:
     budget: Optional[Callable[[], bool]] = None         # False -> stop, report the rest
     in_fill_all: bool = True
     # True for a type Fill is the whole story for - no Replace routes at
-    # all, bulk or single. Studio, Seiyuu and Character: a MAL producer,
+    # all, bulk or single. Studio, both Persons and Character: a producer,
     # people or character record carries no score or rank that drifts, so a
     # re-fetch would only rewrite what Fill already wrote.
     fill_only: bool = False

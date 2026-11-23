@@ -596,7 +596,7 @@ def map_tenrai_credits(media_type: str, raw_data: Dict[str, Any]) -> Dict[str, l
 
 def map_tenrai_to_person_data(raw_data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Transforms a raw Tenrai people payload into the flat dict the seiyuu
+    Transforms a raw Tenrai people payload into the flat dict the person
     autofill writes from.
 
     Deliberately dropped: `birthday`, `website_url` and `about` - the person

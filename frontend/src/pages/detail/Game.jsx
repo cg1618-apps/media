@@ -18,7 +18,7 @@ import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
 import TimeToBeatCard from "../../components/info/TimeToBeatCard";
-import { hours } from "../../lib/gameHours";
+import { hours, progressEstimate } from "../../lib/gameHours";
 import { creditLabel, creditValue } from "../../components/info/PersonLinks";
 import { publisherLabel, publisherValue, studioValue } from "../../components/info/StudioLinks";
 import NamingCard from "../../components/info/NamingCard";
@@ -80,8 +80,8 @@ export function yesNo(value) {
 }
 
 /**
- * Playtime against the main-story estimate, and achievements when the game
- * reports a total.
+ * Playtime against the Main + Extra estimate (progressEstimate), and
+ * achievements when the game reports a total.
  *
  * Renders nothing at all when neither figure exists: a game with no recorded
  * playtime would otherwise show "0 h / ? h", which reads as "played none of
@@ -91,7 +91,7 @@ export function yesNo(value) {
  */
 export function GameProgress({ game }) {
   const played = hours(game.hours_played);
-  const estimate = hours(game.hltb_main);
+  const estimate = hours(progressEstimate(game));
   const total = game.achievements_total;
   const earned = game.achievements_earned ?? 0;
   const hasAchievements = total != null && total !== "" && Number(total) > 0;
@@ -306,10 +306,11 @@ export default function Game() {
   const year = releaseYear(game.release_date);
 
   // The cover rule shows playtime, per the design: how far in you are is the
-  // one number worth reading off the poster.
+  // one number worth reading off the poster, against Main + Extra.
+  const estimate = progressEstimate(game);
   const coverProgress =
-    game.hours_played != null && game.hltb_main
-      ? Math.min(1, Number(game.hours_played) / Number(game.hltb_main))
+    game.hours_played != null && estimate
+      ? Math.min(1, Number(game.hours_played) / estimate)
       : 0;
 
   const eyebrow = ["Game", game.game_type, game.release_status, game.completion_level, year]
@@ -443,7 +444,7 @@ export default function Game() {
                   <span>Played</span>
                   <span className="text-text">
                     {game.hours_played != null ? `${game.hours_played} h` : "—"}
-                    {game.hltb_main ? ` / ~${game.hltb_main} h` : ""}
+                    {estimate ? ` / ~${estimate} h` : ""}
                   </span>
                 </div>
               </div>

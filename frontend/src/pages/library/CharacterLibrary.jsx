@@ -8,7 +8,7 @@
 //
 // Search, filters and sort all run client-side over the one list response.
 // The filters are ordinary FilterDefs (lib/entityFilters.js) drawn by the
-// FilterPanel the media libraries use, opening on defaultEntityFilters.
+// FilterPanel the media libraries use, opening with nothing ticked.
 import { useState, useEffect, useMemo } from "react";
 
 import { cleanString, getRatingWeight } from "../../utils/media";

@@ -38,6 +38,20 @@ def test_plan_next_row_parses():
     assert parsed["remark"] == "after the movie"
 
 
+def test_a_game_plan_keeps_its_platform_group():
+    parsed = parse_plan_next_from_sheet(
+        {"media_type": "game", "scope": "entry", "target_id": str(uuid.uuid4()),
+         "platform_group": "Handheld Console"}
+    )
+    assert parsed["platform_group"] == "Handheld Console"
+    # A blank cell is ungrouped.
+    blank = parse_plan_next_from_sheet(
+        {"media_type": "game", "scope": "entry", "target_id": str(uuid.uuid4()),
+         "platform_group": ""}
+    )
+    assert blank["platform_group"] is None
+
+
 def test_an_unparseable_target_becomes_none_rather_than_failing():
     parsed = parse_plan_next_from_sheet(
         {"system_id": str(uuid.uuid4()), "media_type": "anime", "scope": "entry",

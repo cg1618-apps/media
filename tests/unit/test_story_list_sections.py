@@ -1,5 +1,5 @@
 """
-The 劇情&任務 Story & Quests group: the four story strands, 支線任務 Side
+The 劇情列表&任務 Story & Quests group: the four story strands, 支線任務 Side
 Quests and 結局 Endings.
 
 The strands are hierarchical sections, so what is pinned here is as much
@@ -31,7 +31,7 @@ def _payload(section: str, **kwargs) -> NoteCreate:
 
 
 def test_the_group_is_story_and_quests_and_story_is_gone():
-    assert ns.group_by_key("story_list").label == "劇情&任務 Story & Quests"
+    assert ns.group_by_key("story_list").label == "劇情列表&任務 Story & Quests"
     assert ns.group_by_key("story") is None
     keys = [g.key for g in ns.NOTE_GROUPS]
     assert keys.index("worldbuilding") == keys.index("story_list") + 1

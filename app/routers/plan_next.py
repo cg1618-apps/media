@@ -33,11 +33,14 @@ from app.utils.media_resolver import OWNER_TABLES
 from app.utils.plan_next_kinds import (
     KINDS,
     OWNER_COLUMN,
+    PLATFORM_GROUP_MEDIA_TYPES,
+    PLATFORM_GROUPS,
     SCOPES,
     SIZE_GROUPS,
     allowed_scopes_for,
     kind_valid,
     owner_kwargs,
+    platform_group_error,
 )
 
 logger = logging.getLogger(__name__)
@@ -120,6 +123,10 @@ def list_kinds(_user_id: UUID = Depends(get_current_user_id)):
             media_type: [{"key": g.key, "label": g.label} for g in groups]
             for media_type, groups in SIZE_GROUPS.items()
         },
+        "platform_groups": {
+            media_type: list(PLATFORM_GROUPS)
+            for media_type in sorted(PLATFORM_GROUP_MEDIA_TYPES)
+        },
     }
 
 
@@ -175,6 +182,11 @@ def create_plan_next(
         raise HTTPException(status_code=422, detail=f"Unknown kind: {payload.kind}")
     if payload.scope not in SCOPES:
         raise HTTPException(status_code=400, detail=f"Unknown scope: {payload.scope}")
+    group_error = platform_group_error(
+        payload.media_type, payload.kind, payload.platform_group
+    )
+    if group_error:
+        raise HTTPException(status_code=422, detail=group_error)
 
     # Object-level check: a target that exists but is hidden from this viewer
     # (a content label they lack) must read back the same as a missing one -
@@ -207,9 +219,42 @@ def create_plan_next(
         kind=payload.kind,
         media_type=payload.media_type,
         remark=payload.remark,
+        platform_group=payload.platform_group,
         **owner_kwargs(payload.scope, payload.target_id),
     )
     db.add(row)
+    db.commit()
+    db.refresh(row)
+    return _resolve(db, row, _expectations(db, [row], user_id))
+
+
+@router.patch("/{system_id}", response_model=schemas.PlanNextRead)
+def update_plan_next(
+    system_id: UUID,
+    payload: schemas.PlanNextUpdate,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+    user_id: UUID = Depends(get_current_user_id),
+):
+    """File one of the caller's own plans under a platform group, or back
+    under none. 404 for another user's row and for one whose target is hidden
+    from the caller, as delete answers."""
+    row = (
+        db.query(models.PlanNext)
+        .filter(
+            models.PlanNext.system_id == system_id,
+            models.PlanNext.user_id == user_id,
+        )
+        .first()
+    )
+    if not row or not target_visible(
+        db, viewer, row.scope, row.media_type, row.target_id
+    ):
+        raise HTTPException(status_code=404, detail="Plan not found.")
+    group_error = platform_group_error(row.media_type, row.kind, payload.platform_group)
+    if group_error:
+        raise HTTPException(status_code=422, detail=group_error)
+    row.platform_group = payload.platform_group
     db.commit()
     db.refresh(row)
     return _resolve(db, row, _expectations(db, [row], user_id))

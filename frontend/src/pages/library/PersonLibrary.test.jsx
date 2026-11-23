@@ -160,8 +160,7 @@ describe("PersonLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
     );
-    // From an empty state: H-Game alone, not added to the default's types.
-    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    // From the empty default: H-Game alone.
     await user.click(screen.getByRole("button", { name: "H-Game" }));
     const cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toEqual([expect.stringContaining("渡部高志")]);
@@ -215,7 +214,7 @@ describe("PersonLibrary", () => {
     expect(url).toBe("/api/person/");
   });
 
-  it("opens with the panel shown, every plain type and No entries on, the restricted ones off", async () => {
+  it("opens with the panel shown and no entry type ticked", async () => {
     renderLibrary();
     await waitFor(() =>
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
@@ -224,10 +223,9 @@ describe("PersonLibrary", () => {
       "aria-expanded",
       "true",
     );
-    for (const name of ["Anime", "Movie", "Game", "No entries"]) {
-      expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "true");
-    }
-    for (const name of ["Restricted", "H-Comic", "Hentai", "H-Game"]) {
+    for (const name of [
+      "Anime", "Movie", "Game", "No entries", "Restricted", "H-Comic", "Hentai", "H-Game",
+    ]) {
       expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
     }
     // Nothing to reset to yet.
@@ -248,31 +246,38 @@ describe("PersonLibrary", () => {
     // So is one with no entries at all.
     expect(screen.getByText("Pen Name")).toBeInTheDocument();
 
+    // Restricted alone narrows to the people credited on a restricted type.
     await user.click(screen.getByRole("button", { name: "Restricted" }));
     expect(screen.getByText("Circle Artist")).toBeInTheDocument();
-    expect(screen.getAllByRole("link")).toHaveLength(5);
+    expect(screen.getAllByRole("link")).toHaveLength(2);
   });
 
-  it("Reset returns to the default; Clear all empties every group", async () => {
+  // Nothing ticked reads as every plain type and No entries ticked - the
+  // two show the same four people.
+  it("shows with nothing ticked exactly what every plain type ticked shows", async () => {
     const user = userEvent.setup();
     renderLibrary();
     await waitFor(() =>
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
     );
-    await user.click(screen.getByRole("button", { name: "Clear all" }));
-    // Nothing on: everyone, the restricted-only person included.
-    expect(screen.getAllByRole("link")).toHaveLength(5);
+    const names = () => screen.getAllByRole("link").map((a) => a.textContent);
+    const none = names();
+    expect(none).toHaveLength(4);
+    for (const name of [
+      "Anime", "Anime Movie", "Movie", "TV Show", "Cartoon", "Manga", "Book",
+      "Comic", "Game", "No entries",
+    ]) {
+      await user.click(screen.getByRole("button", { name }));
+    }
+    expect(names()).toEqual(none);
+
+    // Reset (and Clear all) return to nothing ticked.
+    await user.click(screen.getByRole("button", { name: "Reset" }));
     expect(screen.getByRole("button", { name: "Anime" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
-
-    await user.click(screen.getByRole("button", { name: "Reset" }));
-    expect(screen.getAllByRole("link")).toHaveLength(4);
-    expect(screen.getByRole("button", { name: "Anime" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    expect(names()).toEqual(none);
     expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
   });
 

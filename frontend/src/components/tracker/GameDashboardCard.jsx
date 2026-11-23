@@ -11,6 +11,7 @@ import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import LazyImage from "../ui/LazyImage";
 import { focusStyle, thumbUrl } from "../../lib/covers";
+import { progressEstimate } from "../../lib/gameHours";
 
 const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
 
@@ -24,8 +25,8 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
   const imageUrl = getCoverUrl(game.cover_image_file);
 
   const played = game.hours_played != null ? Number(game.hours_played) : null;
-  const estimate = game.hltb_main != null ? Number(game.hltb_main) : null;
-  const hasEstimate = estimate != null && estimate > 0;
+  const estimate = progressEstimate(game);
+  const hasEstimate = estimate != null;
   const progressPercent =
     hasEstimate && played != null
       ? Math.min(100, Math.round((played / estimate) * 100))

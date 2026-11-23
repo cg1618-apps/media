@@ -74,11 +74,14 @@ function renderLibrary() {
   );
 }
 
-// The library opens on the default (restricted types off). A test about
-// search, sort or one group starts from nothing on instead, so every row is
-// in play.
-async function clearAll(user) {
-  await user.click(screen.getByRole("button", { name: "Clear all" }));
+// The library opens with nothing ticked, which leaves the restricted-only
+// row (渡部高志) out. A test about search, sort or one group ticks every
+// entry type - Restricted included - so every row is in play.
+async function showEverything(user) {
+  const group = screen.getByText("Entry type").parentElement;
+  for (const chip of within(group).getAllByRole("button")) {
+    if (chip.getAttribute("aria-pressed") !== "true") await user.click(chip);
+  }
 }
 
 beforeEach(() => {
@@ -108,7 +111,7 @@ describe("CharacterLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
     );
-    await clearAll(user);
+    await showEverything(user);
 
     const yuki = screen.getByText("Yuki Nagato").closest("a");
     expect(within(yuki).getByLabelText("Rating A")).toBeInTheDocument();
@@ -123,7 +126,7 @@ describe("CharacterLibrary", () => {
       expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
     );
 
-    await clearAll(user);
+    await showEverything(user);
     const box = screen.getByRole("searchbox");
     for (const [term, kept] of [
       ["Yuki", "Yuki Nagato"],
@@ -144,7 +147,7 @@ describe("CharacterLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
     );
-    await clearAll(user);
+    await showEverything(user);
 
     // The card must read casting_count (8), never a blank/zero credit_count.
     const card = screen.getByText("渡部高志").closest("a");
@@ -161,7 +164,7 @@ describe("CharacterLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
     );
-    await clearAll(user);
+    await showEverything(user);
     await user.selectOptions(screen.getByLabelText(/sort/i), "my_rating");
     const cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards[0]).toContain("諫山創");
@@ -183,8 +186,6 @@ describe("CharacterLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
     );
-    await clearAll(user);
-
     await user.click(screen.getByRole("button", { name: "Manga" }));
     await user.click(screen.getByRole("button", { name: "Book" }));
     let cards = screen.getAllByRole("link").map((a) => a.textContent);
@@ -202,7 +203,6 @@ describe("CharacterLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
     );
-    await clearAll(user);
     // Characters are never cast on an h-game, so it is not offered.
     expect(screen.queryByRole("button", { name: "H-Game" })).not.toBeInTheDocument();
 
@@ -214,8 +214,10 @@ describe("CharacterLibrary", () => {
       "true",
     );
 
+    // Back to nothing ticked: every row but the restricted-only one.
     await user.click(screen.getByRole("button", { name: "Clear all" }));
-    expect(screen.getAllByRole("link")).toHaveLength(4);
+    expect(screen.getAllByRole("link")).toHaveLength(3);
+    expect(screen.queryByText("渡部高志")).not.toBeInTheDocument();
   });
 
   it("filters by gender, with Not set for an unset gender", async () => {
@@ -236,7 +238,7 @@ describe("CharacterLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Yuki Nagato")).toBeInTheDocument(),
     );
-    await clearAll(user);
+    await showEverything(user);
     const roleGroup = screen.getByText("Role").parentElement;
     await user.click(within(roleGroup).getByRole("button", { name: "Core" }));
     let cards = screen.getAllByRole("link").map((a) => a.textContent);
@@ -258,22 +260,28 @@ describe("CharacterLibrary", () => {
     // Cast on h-comic AND manga: still listed.
     expect(screen.getByText("諫山創")).toBeInTheDocument();
 
+    // Restricted alone narrows to the rows cast on a restricted type.
     await user.click(screen.getByRole("button", { name: "Restricted" }));
     expect(screen.getByText("渡部高志")).toBeInTheDocument();
-    expect(screen.getAllByRole("link")).toHaveLength(4);
+    expect(screen.getAllByRole("link")).toHaveLength(2);
   });
 
-  it("lists a character cast nowhere yet by default, under No entries", async () => {
+  it("opens with no entry type ticked, and lists a character cast nowhere yet", async () => {
     const user = userEvent.setup();
     renderLibrary();
     await waitFor(() =>
       expect(screen.getByText("Nickname Only")).toBeInTheDocument(),
     );
-    expect(screen.getByRole("button", { name: "No entries" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    const group = screen.getByText("Entry type").parentElement;
+    for (const chip of within(group).getAllByRole("button")) {
+      expect(chip).toHaveAttribute("aria-pressed", "false");
+    }
+    // Ticking No entries narrows to it.
     await user.click(screen.getByRole("button", { name: "No entries" }));
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    // Ticking a type alone leaves it out.
+    await user.click(screen.getByRole("button", { name: "No entries" }));
+    await user.click(screen.getByRole("button", { name: "Anime" }));
     expect(screen.queryByText("Nickname Only")).not.toBeInTheDocument();
   });
   describe("identities", () => {

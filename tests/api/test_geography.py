@@ -142,7 +142,7 @@ def test_the_section_is_served_to_game(client):
 
 
 def test_h_game_is_served_the_section_in_compendium(owner_client):
-    # An h-game has no 世界觀, so it keeps the section in 圖鑑與名詞.
+    # An h-game has no 世界觀, so it keeps the section in 圖鑑&名詞.
     sections = owner_client.get(
         "/api/notes/sections", params={"owner_type": "h-game"}
     ).json()

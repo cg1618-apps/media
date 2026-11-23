@@ -261,6 +261,98 @@ def fetch_tmdb_data(imdb_id: str) -> Optional[Dict[str, Any]]:
     return data
 
 
+def _find_tmdb_person_id(imdb_nm_id: str, api_key: str) -> Optional[int]:
+    """
+    Resolves an IMDb name id ('nm…') to a TMDB person id through the same
+    Find endpoint a title uses, reading its person_results instead.
+    Returns None when TMDB holds no person for it.
+    """
+    tmdb_rate_limiter.wait_if_needed()
+    url = f"{TMDB_BASE_URL}/find/{imdb_nm_id}"
+    params = {"external_source": "imdb_id", "api_key": api_key}
+
+    response = requests.get(url, params=params, timeout=15)
+
+    if response.status_code == 429:
+        logger.warning("TMDB Rate Limit (429) on Find for %s.", imdb_nm_id)
+        raise RateLimitExceeded("429 Too Many Requests")
+
+    if response.status_code == 404:
+        logger.warning("TMDB Find: No results for IMDb ID %s.", imdb_nm_id)
+        return None
+
+    if response.status_code >= 500:
+        logger.warning("TMDB server error (%s) on Find for %s.", response.status_code, imdb_nm_id)
+        return None
+
+    response.raise_for_status()
+
+    person_results = response.json().get("person_results", [])
+    if person_results:
+        return person_results[0]["id"]
+
+    logger.warning("TMDB Find: No person result for IMDb ID %s.", imdb_nm_id)
+    return None
+
+
+def _fetch_person_details(tmdb_id: int, api_key: str) -> Optional[Dict[str, Any]]:
+    """Fetches one TMDB person record: name, gender, profile_path and the rest."""
+    tmdb_rate_limiter.wait_if_needed()
+    url = f"{TMDB_BASE_URL}/person/{tmdb_id}"
+    params = {"api_key": api_key}
+
+    response = requests.get(url, params=params, timeout=15)
+
+    if response.status_code == 429:
+        logger.warning("TMDB Rate Limit (429) on person details for TMDB ID %s.", tmdb_id)
+        raise RateLimitExceeded("429 Too Many Requests")
+
+    if response.status_code == 404:
+        logger.warning("TMDB: Person %s not found.", tmdb_id)
+        return None
+
+    if response.status_code >= 500:
+        logger.warning(
+            "TMDB server error (%s) on person details for %s.",
+            response.status_code,
+            tmdb_id,
+        )
+        return None
+
+    response.raise_for_status()
+    return response.json()
+
+
+@retry(
+    stop=stop_after_attempt(5),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=(
+        retry_if_exception_type(requests.exceptions.RequestException)
+        | retry_if_exception_type(RateLimitExceeded)
+    ),
+    reraise=False,
+)
+def fetch_tmdb_person_data(imdb_nm_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetches a person's TMDB record by IMDb name id (e.g. 'nm2017929').
+    Makes two API calls, as fetch_tmdb_data does for a title: Find (IMDb id
+    → TMDB person id), then the person's details. Returns the raw TMDB dict,
+    or None.
+    """
+    if not imdb_nm_id:
+        return None
+
+    api_key = _get_api_key()
+    if not api_key:
+        return None
+
+    tmdb_person_id = _find_tmdb_person_id(imdb_nm_id, api_key)
+    if tmdb_person_id is None:
+        return None
+
+    return _fetch_person_details(tmdb_person_id, api_key)
+
+
 # ==========================================
 # Add-tab picker search
 # ==========================================

@@ -79,6 +79,10 @@ class PersonBase(BaseModel):
     # MAL's people record; mal_id is derived from mal_link on every write.
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
+    # IMDb's name page; imdb_id (nm...) is derived from imdb_link on every
+    # write.
+    imdb_id: Optional[str] = None
+    imdb_link: Optional[str] = None
 
     @model_validator(mode="after")
     def _display_field_is_known(self):

@@ -42,7 +42,7 @@ GUIDE_CARDS = {
 }
 
 # Every section this file covers, whichever card it ended up in. 地理
-# Geography is in 世界觀 for a game and in 圖鑑與名詞 for an h-game.
+# Geography is in 世界觀 for a game and in 圖鑑&名詞 for an h-game.
 GUIDES_ORDER = [key for keys in GUIDE_CARDS.values() for key in keys] + ["geography"]
 
 
@@ -127,7 +127,7 @@ def test_no_guide_card_is_left_holding_one_section():
 
 
 def test_endings_is_no_longer_a_guide_section():
-    # It is a story OUTCOME, so it is in 劇情&任務 Story & Quests - see
+    # It is a story OUTCOME, so it is in 劇情列表&任務 Story & Quests - see
     # test_story_list_sections.py, which owns its spec.
     assert ns.section_by_key("endings").group == "story_list"
 
@@ -287,7 +287,7 @@ def test_player_terms_is_a_game_only_catalogue_section_after_game_terms():
 
 def test_the_compendium_card_is_named_for_its_terms_too():
     group = next(g for g in ns.NOTE_GROUPS if g.key == "compendium")
-    assert group.label == "圖鑑與名詞 Compendium & Terms"
+    assert group.label == "圖鑑&名詞 Compendium & Terms"
 
 
 def test_story_terms_is_a_game_only_catalogue_section_in_the_worldbuilding_card():

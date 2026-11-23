@@ -20,12 +20,44 @@ const ROW_CLS =
 const LINK_CLS = `${ROW_CLS} text-text hover:text-brand hover:bg-brand-soft transition`;
 const PLAIN_CLS = `${ROW_CLS} text-text-muted`;
 
-function Tag({ children }) {
+// One original / exclusive source or serialization platform. Its value comes
+// from a vocabulary (Platform, Serialization Platform), so it wears its
+// site's icon the way a main access row does; a value with none (Cinema,
+// Other) is the bare label.
+function Tag({ name }) {
+  const icon = sourceIconUrl(name);
   return (
-    <span className="font-mono text-[9px] uppercase tracking-[0.12em] border border-border-strong text-text-muted px-1 py-0.5 leading-none shrink-0">
-      {children}
+    <span
+      data-testid="source-tag"
+      className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.12em] border border-border-strong text-text-muted px-1 py-0.5 leading-none shrink-0"
+    >
+      {icon && (
+        <LazyImage
+          src={icon}
+          alt=""
+          aria-hidden="true"
+          data-testid="source-tag-icon"
+          className="w-3 h-3 shrink-0 rounded-sm bg-white object-contain"
+        />
+      )}
+      {name}
     </span>
   );
+}
+
+// A tag field arrives as one string, its values joined by ", "
+// (app/services/domain/credits.py), so each value is split back out to be
+// drawn - and given an icon - on its own.
+function tagValues(...fields) {
+  return [
+    ...new Set(
+      fields
+        .filter(Boolean)
+        .flatMap((field) => field.split(","))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 // A fixed 16px slot, empty when the source has no icon. The white tile keeps
@@ -176,9 +208,7 @@ export default function SourcesCard({
   const accessRows = sources.filter((row) => row.kind === "access");
   const referenceRows = sources.filter((row) => row.kind === "reference");
 
-  const tags = [originalSource, exclusiveSource, serializationPlatform].filter(
-    Boolean,
-  );
+  const tags = tagValues(originalSource, exclusiveSource, serializationPlatform);
 
   // The storefront links are column-backed rather than source rows: Steam on
   // games and h-games, and an h-game's two DLsite pages.
@@ -212,7 +242,7 @@ export default function SourcesCard({
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-border">
           {tags.map((tag) => (
-            <Tag key={tag}>{tag}</Tag>
+            <Tag key={tag} name={tag} />
           ))}
         </div>
       )}

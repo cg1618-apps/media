@@ -112,10 +112,15 @@ class Person(Base, NameFallbackMixin):
     photo_fallback_entry_id = Column(UUID(as_uuid=True), nullable=True)
     remark = Column(Text, nullable=True)
     # MAL's people record, as Studio carries its producer record: mal_id is
-    # derived from a pasted mal_link (/people/<id>/<slug>), and the Seiyuu
-    # Fill reads it (app/services/domain/autofill.py).
+    # derived from a pasted mal_link (/people/<id>/<slug>), and the Person
+    # (MAL) Fill reads it (app/services/domain/autofill.py).
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
+    # IMDb's name page, as a movie carries its title page: imdb_id is the nm
+    # id derived from a pasted imdb_link (/name/nm<digits>/), and the Person
+    # (TMDB) Fill resolves it through TMDB's /find.
+    imdb_id = Column(String, nullable=True)
+    imdb_link = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 

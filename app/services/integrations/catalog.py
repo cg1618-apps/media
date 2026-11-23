@@ -16,8 +16,8 @@ behind that, and they are the reason the catalog exists:
     guards on top of being overwrite fields: steam_progress_sync=False skips
     both outright, and a zero or unknown value never overwrites a real one -
     see autofill_game_from_steam.
-  * Per MEDIA TYPE - which pipelines exist at all. Comic, Studio, Seiyuu and
-    Character have no bulk Replace; Comic is out of Fill All to protect its hourly quota. Game's
+  * Per MEDIA TYPE - which pipelines exist at all. Comic, Studio, both Person
+    pipelines and Character have no bulk Replace; Comic is out of Fill All to protect its hourly quota. Game's
     Replace runs both its sources, IGDB fill-only - nothing in an IGDB record
     drifts, but it can supply the appid Steam keys off.
 
@@ -1313,18 +1313,19 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
         ),
     ),
     Coverage(
-        key="seiyuu",
+        key="person-mal",
         keyed_by="mal_id",
         combination="single",
         requests_per_entry="1",
         note=(
-            "Runs over people holding the seiyuu role only - a director or author "
-            "with a MAL link is never filled. MAL's people URL is "
-            "/people/<id>/<slug>, which needs its own id pattern. Strictly "
-            "fill-only, with no Replace. The names are written together or not at "
-            "all: if the filled names would equal another person's, they are "
-            "skipped and the photo and link still land. It also runs inside the "
-            "person write request for a seiyuu, so every failure is logged and "
+            "Runs over every person with a MAL id, whatever role they hold - MAL "
+            "serves seiyuu, directors and authors from one people endpoint. "
+            "MAL's people URL is /people/<id>/<slug>, which needs its own id "
+            "pattern. Strictly fill-only, with no Replace, and it runs before "
+            "Person (TMDB), so MAL's values win. The names are written together "
+            "or not at all: if the filled names would equal another person's, "
+            "they are skipped and the photo and link still land. It also runs "
+            "inside the person write request, so every failure is logged and "
             "swallowed."
         ),
         sources=(
@@ -1360,6 +1361,48 @@ EXTERNAL_APIS: tuple[Coverage, ...] = (
                         "image",
                         "if-empty",
                         "not MAL's question-mark placeholder",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    Coverage(
+        key="person-tmdb",
+        keyed_by="imdb_id",
+        combination="single",
+        requests_per_entry="2",
+        note=(
+            "A person's IMDb name page is /name/nm<digits>/; TMDB's Find resolves "
+            "the nm id to a TMDB person, whose record is the second request. "
+            "Runs after Person (MAL) and fills only what it left blank. Strictly "
+            "fill-only, with no Replace. The English name obeys the same "
+            "together-or-not-at-all collision check as MAL's names. It also runs "
+            "inside the person write request, so every failure is logged and "
+            "swallowed."
+        ),
+        sources=(
+            SourceBlock(
+                source="tmdb",
+                writes=(
+                    Write(
+                        "name_en",
+                        "column",
+                        "conditional",
+                        "TMDB's name; skipped when the names would collide",
+                    ),
+                    Write(
+                        "gender",
+                        "column",
+                        "conditional",
+                        "only male (2) as 男 and female (1) as 女; unknown (0) and "
+                        "non-binary (3) leave it empty",
+                    ),
+                    Write("photo_file", "image", "if-empty", "the profile_path image"),
+                    Write(
+                        "biography",
+                        "none",
+                        "never",
+                        "the person table has no column for it",
                     ),
                 ),
             ),

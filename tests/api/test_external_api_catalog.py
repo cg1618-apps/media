@@ -308,6 +308,14 @@ def test_unrestricted_is_told_about_hentai_and_its_tenrai_writes(owner_client):
     }
 
 
-def test_seiyuu_is_fill_only_everywhere():
-    seiyuu = next(c for c in EXTERNAL_APIS if c.key == "seiyuu")
-    assert all(w.rule != "overwrite" for _b, w in _writes(seiyuu))
+@pytest.mark.parametrize("key", ["person-mal", "person-tmdb"])
+def test_the_person_pipelines_are_fill_only_everywhere(key):
+    person = next(c for c in EXTERNAL_APIS if c.key == key)
+    assert all(w.rule != "overwrite" for _b, w in _writes(person))
+
+
+def test_person_tmdb_reads_tmdb_by_the_imdb_id():
+    person = next(c for c in EXTERNAL_APIS if c.key == "person-tmdb")
+    assert person.keyed_by == "imdb_id"
+    assert [b.source for b in person.sources] == ["tmdb"]
+    assert {w.field for _b, w in _writes(person)} >= {"name_en", "photo_file", "gender"}

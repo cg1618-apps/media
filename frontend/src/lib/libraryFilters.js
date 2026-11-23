@@ -48,13 +48,19 @@ export function deriveDynamicOptions(filterDefs, data) {
 
 /**
  * `items` narrowed by every active def. Defs AND together; inside one set
- * filter the chosen values OR, which is each def's own `match`.
+ * filter the chosen values OR, which is each def's own `match`. A def with
+ * nothing chosen narrows nothing - unless it declares `idle(item)`, the rows
+ * it keeps while nothing is chosen (an entity library's entry type, which
+ * keeps the restricted-only rows out until Restricted is ticked).
  */
 export function applyFilterDefs(items, filterDefs, filters, franchiseDict, seriesDict) {
   let result = items;
   for (const fd of filterDefs) {
     const activeValue = filters[fd.key];
-    if (!isFilterActive(activeValue)) continue;
+    if (!isFilterActive(activeValue)) {
+      if (fd.idle) result = result.filter((item) => fd.idle(item));
+      continue;
+    }
     result = result.filter((item) => fd.match(item, activeValue, franchiseDict, seriesDict));
   }
   return result;

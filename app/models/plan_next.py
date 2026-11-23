@@ -131,6 +131,11 @@ class PlanNext(Base):
 
     # Free text scoping the plan, e.g. "after the movie".
     remark = Column(Text, nullable=True)
+    # Which platform group a queued game is filed under on the Plan page -
+    # one of PLATFORM_GROUPS in app/utils/plan_next_kinds.py, or NULL for
+    # ungrouped. Only a game's "next" row may carry one (the router refuses
+    # it elsewhere). Not a DB enum, for the reason media_type is not one.
+    platform_group = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

@@ -8,6 +8,13 @@
 // in three separate files (FranchisePage, FranchiseModifyTab,
 // PlanWatchNext), which is how they drifted out of docs/options.md entirely.
 
+// The groups a queued game is filed under on the Do next tab, in display
+// order (PLATFORM_GROUPS in app/utils/plan_next_kinds.py). Unlike every other
+// bucket here, a game's group is the caller's own choice, stored on the plan
+// row itself (plan_next.platform_group) and set from the card; a row with
+// none is drawn under "Ungrouped".
+export const PLATFORM_GROUPS = ["PC", "Console", "Handheld Console", "Switch"];
+
 export const SIZE_GROUPS = {
   anime: [
     { key: "12ep", label: "12 EP" },
@@ -35,9 +42,11 @@ export const SIZE_GROUPS = {
     { key: "11_plus", label: "11+ Issues" },
   ],
   "anime-movie": [],
-  // Game, h-comic, h-game and hentai are absent on purpose, exactly as
-  // anime-movie is empty: there is no size axis any of them groups by, so
-  // each Plan tab renders one ungrouped list.
+  // A game groups by where it will be played - PLATFORM_GROUPS above.
+  game: PLATFORM_GROUPS.map((key) => ({ key, label: key })),
+  // H-comic, h-game and hentai are absent on purpose, exactly as anime-movie
+  // is empty: there is no axis any of them groups by, so each Plan tab
+  // renders one ungrouped list.
   // Manga and book do NOT have a size bucket. They group by a column on the
   // entry itself - the way the pre-plan_next Plan page did - so these two
   // vocabularies exist only here, never in app/utils/plan_next_kinds.py, which

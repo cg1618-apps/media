@@ -18,10 +18,19 @@ class PlanNextBase(BaseModel):
     # Defaults to "next" so every caller written before rewatch existed keeps
     # working without passing the field.
     kind: str = "next"
+    # One of PLATFORM_GROUPS, on a game's "next" row only; null is ungrouped.
+    platform_group: Optional[str] = None
 
 
 class PlanNextCreate(PlanNextBase):
     pass
+
+
+class PlanNextUpdate(BaseModel):
+    """What a planned row may change after it is made: its platform group.
+    Null moves it back to ungrouped."""
+
+    platform_group: Optional[str] = None
 
 
 class PlanNextRead(PlanNextBase):

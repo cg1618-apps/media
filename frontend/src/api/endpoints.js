@@ -151,6 +151,7 @@ export const endpoints = {
   images: {
     list: (params = "") => `/api/images${params ? `?${params}` : ""}`,
     upload: () => "/api/images",
+    fromEntry: () => "/api/images/from-entry",
     attach: (imageId) => `/api/images/${imageId}/attach`,
     detach: (imageId, attachmentId) =>
       `/api/images/${imageId}/attach/${attachmentId}`,
@@ -366,6 +367,10 @@ export const endpoints = {
   // written from the admin page. Not under `system`: those routes all sit
   // behind manage.pipelines, and the read has to be open to any member who
   // can open /statistics.
+  planNext: {
+    // One of the caller's own plan rows: a PATCH of `{platform_group}`.
+    row: (systemId) => `/api/plan-next/${systemId}`,
+  },
   fxRates: {
     get: () => "/api/fx-rates",
     update: () => "/api/fx-rates",

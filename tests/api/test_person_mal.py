@@ -1,6 +1,6 @@
 """
-A person's MAL link, and the Seiyuu Fill that enriches a voice actor from
-MAL's people record through Tenrai.
+A person's MAL link, and the Person (MAL) Fill that enriches any person -
+seiyuu, director or author alike - from MAL's people record through Tenrai.
 
 Tenrai and the photo download are patched at the autofill module's own names,
 so these exercise the real router -> autofill and pipeline -> autofill wiring
@@ -170,7 +170,9 @@ def test_saving_a_seiyuu_with_a_mal_id_fills_it(owner_client, tenrai_calls):
     assert body["name_en"] == "Kana Hanazawa"
 
 
-def test_saving_a_non_seiyuu_with_a_mal_id_fetches_nothing(owner_client, tenrai_calls):
+def test_saving_a_non_seiyuu_with_a_mal_id_fills_it_too(owner_client, tenrai_calls):
+    """MAL serves directors and authors from the same people endpoint, so the
+    role no longer decides who is filled."""
     body = owner_client.post(
         "/api/person/",
         json={
@@ -180,8 +182,16 @@ def test_saving_a_non_seiyuu_with_a_mal_id_fetches_nothing(owner_client, tenrai_
         },
     ).json()
     assert body["mal_id"] == 185
-    assert tenrai_calls == []
-    assert body["name_jp"] is None
+    assert tenrai_calls == [185]
+    assert body["name_jp"] == "花澤香菜"
+
+
+def test_saving_a_person_with_no_role_and_a_mal_id_fills_it(owner_client, tenrai_calls):
+    body = owner_client.post(
+        "/api/person/", json={"name_en": "Kana Hanazawa", "mal_link": KANA_LINK}
+    ).json()
+    assert tenrai_calls == [185]
+    assert body["name_jp"] == "花澤香菜"
 
 
 def test_put_fills_a_seiyuu_when_the_link_is_added(owner_client, tenrai_calls):
@@ -301,36 +311,28 @@ def _routes():
 
 def test_the_fill_route_exists_and_replace_does_not():
     r = _routes()
-    assert ("POST", "/api/data-control/fill/seiyuu") in r
-    assert ("POST", "/api/data-control/replace/seiyuu") not in r
+    assert ("POST", "/api/data-control/fill/person-mal") in r
+    assert ("POST", "/api/data-control/replace/person-mal") not in r
 
 
-def test_seiyuu_joins_fill_all_but_not_replace_all():
-    assert PIPELINES["seiyuu"] in FILL_ALL
-    assert PIPELINES["seiyuu"] not in REPLACE_ALL
+def test_person_mal_joins_fill_all_but_not_replace_all():
+    assert PIPELINES["person-mal"] in FILL_ALL
+    assert PIPELINES["person-mal"] not in REPLACE_ALL
 
 
 def test_a_seiyuu_with_a_mal_id_and_gaps_is_eligible(db_session):
     person = _seiyuu(db_session, name_en="Kana", mal_id=185)
-    assert PIPELINES["seiyuu"].fill_eligible(db_session, person) is True
+    assert PIPELINES["person-mal"].fill_eligible(db_session, person) is True
 
 
-def test_a_non_seiyuu_is_refused_even_with_a_mal_id_and_gaps(db_session):
-    """
-    Everything but the role is what the seiyuu above has - a mal_id and empty
-    fillable columns - so only the role can be what refuses. The mirror
-    assertion proves has_missing_values_person says yes for this very row.
-    """
-    from app.services.domain.checking import has_missing_values_person
-
+def test_a_non_seiyuu_with_a_mal_id_and_gaps_is_eligible(db_session):
     director = _director(db_session, name_en="Director", mal_id=185)
-    assert has_missing_values_person(director) is True
-    assert PIPELINES["seiyuu"].fill_eligible(db_session, director) is False
+    assert PIPELINES["person-mal"].fill_eligible(db_session, director) is True
 
 
 def test_a_seiyuu_without_a_mal_id_is_refused(db_session):
     person = _seiyuu(db_session, name_en="Kana")
-    assert PIPELINES["seiyuu"].fill_eligible(db_session, person) is False
+    assert PIPELINES["person-mal"].fill_eligible(db_session, person) is False
 
 
 def test_a_seiyuu_missing_only_the_alt_name_is_not_eligible(db_session):
@@ -347,7 +349,7 @@ def test_a_seiyuu_missing_only_the_alt_name_is_not_eligible(db_session):
         mal_id=185,
     )
     assert has_missing_values_person(person) is False
-    assert PIPELINES["seiyuu"].fill_eligible(db_session, person) is False
+    assert PIPELINES["person-mal"].fill_eligible(db_session, person) is False
 
 
 def test_a_filled_seiyuu_is_no_longer_eligible(db_session):
@@ -360,16 +362,18 @@ def test_a_filled_seiyuu_is_no_longer_eligible(db_session):
         mal_link=KANA_LINK,
         mal_id=185,
     )
-    assert PIPELINES["seiyuu"].fill_eligible(db_session, person) is False
+    assert PIPELINES["person-mal"].fill_eligible(db_session, person) is False
 
 
-def test_the_pipeline_fills_seiyuu_only(owner_client, db_session, tenrai_calls):
+def test_the_pipeline_fills_every_person_with_a_mal_link(
+    owner_client, db_session, tenrai_calls
+):
     seiyuu = _seiyuu(db_session, name_en="Kana Hanazawa", mal_link=KANA_LINK)
     director = _director(db_session, name_en="Director", mal_link=KANA_LINK)
     db_session.commit()
     seiyuu_id, director_id = seiyuu.system_id, director.system_id
 
-    response = owner_client.post("/api/data-control/fill/seiyuu")
+    response = owner_client.post("/api/data-control/fill/person-mal")
     assert response.status_code == 200
     assert "success" in response.text
 
@@ -377,9 +381,11 @@ def test_the_pipeline_fills_seiyuu_only(owner_client, db_session, tenrai_calls):
     filled = db_session.get(models.Person, seiyuu_id)
     assert filled.mal_id == 185
     assert filled.name_jp == "花澤香菜"
-    untouched = db_session.get(models.Person, director_id)
-    assert untouched.name_jp is None
-    assert tenrai_calls == [185]
+    # A director with a MAL link is filled the same way.
+    director_row = db_session.get(models.Person, director_id)
+    assert director_row.mal_id == 185
+    assert director_row.name_jp == "花澤香菜"
+    assert tenrai_calls == [185, 185]
 
 
 # ---------------------------------------------------------------------------
@@ -397,7 +403,7 @@ COMPLETE_SEIYUU = {
 
 
 def test_put_does_not_fetch_a_seiyuu_with_nothing_to_fill(owner_client, tenrai_calls):
-    """has_missing_values_person, the Seiyuu Fill's own check: every fillable
+    """has_missing_values_person, the Person (MAL) Fill's own check: every fillable
     column is set, so MAL has nothing to add and is not asked."""
     created = owner_client.post(
         "/api/person/", json={"name_en": "Kana Hanazawa", "roles": COMPLETE_SEIYUU["roles"]}

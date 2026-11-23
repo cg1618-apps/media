@@ -1118,6 +1118,7 @@ export default function Add() {
         photo_file: personForm.photo_file || null,
         photo_focus: personForm.photo_focus || null,
         mal_link: personForm.mal_link?.trim() || null,
+        imdb_link: personForm.imdb_link?.trim() || null,
         remark: personForm.remark || null,
         roles: personRoles,
       }),

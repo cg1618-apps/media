@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -58,12 +58,15 @@ label reference and the RBAC pages — never the catalogue editors.
   **Hentai** buttons (`/fill/hentai`, `/replace/hentai`) are gated the same
   way too; both fetch Tenrai's airing status, release date and cover over the
   hentai table, then AniDB's for whatever MAL left blank, and both are fill-only - Replace completes what is blank and
-  overwrites nothing. The Fill box ends on the three entity buttons, which have
+  overwrites nothing. The Fill box ends on the four entity buttons, which have
   no Replace twin: **Studio** (`/fill/studio`, a studio's logo and founding
-  facts from MAL's producer record) **Seiyuu** (`/fill/seiyuu`, the people
-  holding the seiyuu role, from MAL's people record) and **Character**
-  (`/fill/character`, characters with a MAL link, from MAL's character
-  record). Fill All runs all three.
+  facts from MAL's producer record), **Person (MAL)** (`/fill/person-mal`,
+  every person with a MAL link, whatever their role, from MAL's people
+  record), **Person (TMDB)** (`/fill/person-tmdb`, every person with an IMDb
+  link, from TMDB's person record, filling only what MAL left blank) and
+  **Character** (`/fill/character`, characters with a MAL link, from MAL's
+  character record). Fill All runs all four, Person (MAL) before Person
+  (TMDB).
 - **Sync actions.** **Pull All**, Pull `<tab>` and **Push All Data**
   (Backup) run `runPull` / `runBackup` from `api/sheets.js`, which read the
   endpoint's event stream: the busy button counts tabs (`12/60`), and the
@@ -562,8 +565,11 @@ what their create-time MAL autofill writes; MAL's `title` for them is
 family-name-first ("Hanazawa, Kana"), not the western-order `name_en` that
 autofill derives, so it is not written. Person and character forms carry
 only `mal_link`; the server derives `mal_id` from it on save and fills names
-and photo from MAL then, for a person only when it holds the seiyuu role,
-which the person box's hint says.
+and photo from MAL then, whatever role a person holds. The person form also
+carries an **IMDb Link** field under **MAL Link** (`imdb_link`, placeholder
+`https://www.imdb.com/name/...`, no picker): the server derives `imdb_id`
+from it and, after MAL, fills what is still blank — the English name, the
+photo, and the gender when TMDB says male or female — from TMDB.
 
 **A MAL pick on anime, anime movie, manga and book prefills the form.**
 `makeMalPick` writes the id, link and romaji name at once, as above, then
@@ -1104,13 +1110,14 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   chip badge per type, from the open form, so re-picking the franchise
   updates the ribbon at once. A movie in a catch-all franchise
   (`isCatchAllMovieFranchise`) gets none: its "siblings" are unrelated films.
-- **Save.** `PATCH` the entry (`PUT` for movie and TV show) → `saveCredits`
+- **Save.** `PATCH` the entry (`PUT` for movie, TV show and game) → `saveCredits`
   → cast, for the types that have one → for **anime, anime movie, cartoon
   and manga**, enrichment via `lib/enrich.js`, after which the page shows the
   *enriched* row (not the pre-enrichment one) and warns if enrichment failed
-  → **content labels, last**. Movie and TV show are enriched by their `PUT`
-  itself, on the server. Other types save without enrichment.
-- **Save, or Save & Replace.** Those six types (`REPLACE_ON_SAVE`) show two
+  → **content labels, last**. Movie, TV show and game are enriched by their
+  `PUT` itself, on the server - for game its save-time Replace, IGDB then
+  Steam. Other types save without enrichment.
+- **Save, or Save & Replace.** Those seven types (`REPLACE_ON_SAVE`) show two
   buttons. **Save & Replace** is the form's submit button, so it is also what
   Enter in a field does: the save above, Replace included. **Save** runs the
   same save without Replace - no `lib/enrich.js` call, and the `PUT` sent as

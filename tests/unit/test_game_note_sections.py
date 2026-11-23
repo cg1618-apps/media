@@ -1,8 +1,8 @@
 """
-The game 劇情&任務, 世界觀 and 待辦 sections, and the name_entries shape.
+The game 劇情列表&任務, 世界觀 and 待辦 sections, and the name_entries shape.
 
 The 攻略 Guides group's order, field specs, owners and scope live in
-test_guide_sections_structured.py, and the 劇情&任務 card's own sections in
+test_guide_sections_structured.py, and the 劇情列表&任務 card's own sections in
 test_story_list_sections.py. What stays here is the cards around them.
 """
 
@@ -24,7 +24,7 @@ STORY_KEYS = [
     "endings",
 ]
 
-# The world the plot happens in, a card of its own after 劇情&任務.
+# The world the plot happens in, a card of its own after 劇情列表&任務.
 STORY_SETTING_KEYS = [
     "lore",
     # A glossary of the story's own vocabulary, beside the lore it names.
@@ -54,7 +54,7 @@ def test_the_groups_exist_in_order():
         "builds",
         "gear",
         "compendium",
-        # 劇情&任務: the story as a structure, the quests, the endings.
+        # 劇情列表&任務: the story as a structure, the quests, the endings.
         "story_list",
         # The world the story happens in.
         "worldbuilding",
@@ -74,7 +74,7 @@ def test_the_story_card_holds_the_strands_the_quests_and_the_endings_in_order():
 
 def test_the_worldbuilding_group_holds_six_sections_in_order():
     # 地理 Geography is the sixth, above 時間線 Timeline - and, unlike the
-    # five, an h-game's too, which keeps it in 圖鑑與名詞 Compendium.
+    # five, an h-game's too, which keeps it in 圖鑑&名詞 Compendium.
     keys = [s.key for s in ns.NOTE_SECTIONS if s.group == "worldbuilding"]
     expected = list(STORY_SETTING_KEYS)
     expected.insert(expected.index("timeline"), "geography")

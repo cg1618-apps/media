@@ -235,6 +235,7 @@ def test_serves_the_common_option_categories(client):
             "Geography Group",
             "Song Type",
             "Song Source",
+            "Easter Egg Group",
             "Needs Work Note",
             "Country",
         ]

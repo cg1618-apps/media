@@ -782,10 +782,69 @@ def test_kind_still_refused_on_a_section_without_the_group_flag():
         )
 
 
-def test_only_resources_carry_the_group_flag():
+def test_only_easter_eggs_and_resources_carry_the_group_flag():
     from app.utils.note_sections import NOTE_SECTIONS
 
-    assert [s.key for s in NOTE_SECTIONS if s.kind_is_group] == ["resources"]
+    assert sorted(s.key for s in NOTE_SECTIONS if s.kind_is_group) == [
+        "easter_eggs",
+        "resources",
+    ]
+
+
+# --- Easter egg groups -----------------------------------------------------
+
+
+def test_easter_eggs_group_is_suggested_from_a_common_option():
+    from app.utils.credit_roles import COMMON_OPTION_CATEGORIES, COMMON_OPTION_SCOPES
+
+    section = section_by_key("easter_eggs")
+    assert section.kind_is_group is True
+    assert section.kind_category == "Easter Egg Group"
+    out = section_out(section, "anime")
+    assert out.kind_is_group is True and out.kind_category == "Easter Egg Group"
+    assert "Easter Egg Group" in COMMON_OPTION_CATEGORIES
+    # Scoped to the types that keep easter eggs, so no gated type sees it.
+    assert set(COMMON_OPTION_SCOPES["Easter Egg Group"]) == set(section.owners)
+    assert "hentai" not in COMMON_OPTION_SCOPES["Easter Egg Group"]
+
+
+def test_easter_eggs_accept_a_group_and_go_without_one():
+    for owner_type in ("anime", "movie", "game", "series"):
+        validate_note_payload(
+            _payload(
+                owner_type=owner_type,
+                section="easter_eggs",
+                content="The poster in the background is the director's last film.",
+                kind="Cameos",
+            )
+        )
+        validate_note_payload(
+            _payload(owner_type=owner_type, section="easter_eggs", content="x")
+        )
+
+
+def test_a_group_alone_is_still_an_empty_easter_egg():
+    with pytest.raises(ValueError, match="empty"):
+        validate_note_payload(
+            _payload(section="easter_eggs", content=None, links=None, kind="Cameos")
+        )
+
+
+def test_a_group_with_closed_kinds_is_still_refused_at_import():
+    # kind_category combines with a group (the group's suggestions); a closed
+    # `kinds` list would be a second meaning of kind, so it still does not.
+    from dataclasses import replace
+
+    from app.utils.note_sections import _check_kind_category
+
+    section = section_by_key("easter_eggs")
+    _check_kind_category(section)
+    with pytest.raises(ValueError, match="kinds"):
+        _check_kind_category(replace(section, kinds=("a", "b")))
+    with pytest.raises(ValueError, match="makes kind a group"):
+        _check_kind_category(
+            replace(section, kind_category=None, kinds=("a", "b"))
+        )
 
 
 # --- the notes rework: suggestions, quick move, reviews, geography ----------

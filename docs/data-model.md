@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1174,13 +1174,15 @@ One human credited on a media entry (Tier 3 entity - see
 | `name_jp` | String | yes | | |
 | `name_alt` | String | yes | | The slot for names that are none of the other three: a comma-separated list, each fragment a name of its own when a name is matched. Never chosen automatically. |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
-| `gender` | String | yes | | PERSON_GENDERS (`男` / `女`), or NULL for not set — narrower than a character's GENDERS. On the base table, not a seiyuu extension: a fact about the person, not the role. |
-| `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for a seiyuu with a `mal_id` — see [external-apis.md](external-apis.md#mapping-for-person-seiyuu--map_tenrai_to_person_data) |
+| `gender` | String | yes | | PERSON_GENDERS (`男` / `女`), or NULL for not set — narrower than a character's GENDERS. On the base table, not a seiyuu extension: a fact about the person, not the role. Filled from TMDB only when TMDB says male or female — see [external-apis.md](external-apis.md#mapping-for-person-tmdb--map_tmdb_to_person_data) |
+| `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for any person with a `mal_id`, then from TMDB's profile photo for one with an `imdb_id` while it is still empty — see [external-apis.md](external-apis.md#mapping-for-person-mal--map_tenrai_to_person_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `remark` | Text | yes | | A real column here (not a note row) |
-| `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Seiyuu Fill, or typed directly. Held by any person; only a person holding the `seiyuu` role is ever filled from it |
+| `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Person (MAL) Fill, or typed directly. Any person holding one is filled from MAL, whatever their role |
 | `mal_link` | String | yes | | `myanimelist.net/people/<id>/<slug>` |
+| `imdb_id` | String | yes | | IMDb name id, `nm<digits>`. Derived from `imdb_link` by `extract_imdb_id_person` on every write and on the Person (TMDB) Fill. Any person holding one is filled from TMDB's person record (through `/find`), after MAL |
+| `imdb_link` | String | yes | | `imdb.com/name/nm<digits>/` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,
@@ -2185,6 +2187,7 @@ Model: `PlanNext` (`app/models/plan_next.py`).
 | `franchise_id` | UUID | yes | | Franchise-scope owner. FK `fk_plan_next_franchise` `ON DELETE CASCADE` |
 | `series_id` | UUID | yes | | Series-scope owner. FK `fk_plan_next_series` `ON DELETE CASCADE` |
 | `remark` | Text | yes | | e.g. "after the movie" |
+| `platform_group` | String | yes | | The group a queued game is filed under on the Plan page's Do next tab: one of `PLATFORM_GROUPS` (`PC`, `Console`, `Handheld Console`, `Switch`) in `app/utils/plan_next_kinds.py`, or NULL for ungrouped. Only a game's `kind = next` row may hold one; the router refuses it (422) anywhere else. Validated in the API layer, not a DB enum. Travels in the Plan Next sheet tab; a sheet backed up before the column existed restores every row ungrouped |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Exactly one owner column is set: `ck_plan_next_one_owner` is
