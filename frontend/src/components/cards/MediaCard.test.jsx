@@ -554,3 +554,12 @@ describe("MediaCard - the library footer's status button", () => {
     expect(button.parentElement).toHaveClass("ml-auto");
   });
 });
+
+// No grid card names its type in a vertical spine down the cover's left edge.
+describe("MediaCard spine", () => {
+  it("draws no type spine", () => {
+    mockAuthFetch();
+    const { container } = mount({ system_id: "s", public_id: 5, anime_name_en: "Spineless" }, "anime");
+    expect(container.querySelector('[style*="vertical-rl"]')).toBeNull();
+  });
+});

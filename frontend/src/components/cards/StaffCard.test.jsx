@@ -66,3 +66,15 @@ describe("StaffCard company logo", () => {
     expect(img.style.objectPosition).toBe("10% 20%");
   });
 });
+
+// No grid card names its type in a vertical spine down the cover's left edge.
+describe("StaffCard spine", () => {
+  it.each([
+    ["person", (e) => <PersonCard person={e} />],
+    ["studio", (e) => <StudioCard studio={e} />],
+    ["publisher", (e) => <PublisherCard publisher={e} />],
+  ])("draws no type spine on a %s card", (_, card) => {
+    const { container } = mount(card({ public_id: "x3", display_name: "Spineless" }));
+    expect(container.querySelector('[style*="vertical-rl"]')).toBeNull();
+  });
+});

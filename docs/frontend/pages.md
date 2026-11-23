@@ -913,8 +913,8 @@ into one card per character and one per identity in the response's nested
 `identities`, each identity emitted right after its character (the library's
 sort then decides the order shown); the count line counts cards. An identity card
 is drawn as one: a **dashed** border and a dashed divider between cover and
-footer, and an outlined spine reading **Identity** where a character's is a
-solid ink spine reading **Character**. Its cover is the identity's own
+footer, where a character's card is solid. Neither card has a type spine.
+Its cover is the identity's own
 `display_photo_file`, with nothing laid over it (no rating stamp); its footer
 is the identity's display name, then its character's face (an 18px circle,
 `character_photo_file` / `character_photo_focus`) beside the character's name,

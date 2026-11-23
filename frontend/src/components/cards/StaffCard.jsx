@@ -2,8 +2,7 @@
 //
 // Lifted out of PersonLibrary/StudioLibrary when /search grew person and
 // studio sections: three pages drawing the same card by hand is three places
-// for it to drift. The two types differ only in their spine label, their
-// image column, and the word in the alt text — everything else, including the
+// for it to drift. The types differ only in their image column, and the word in the alt text — everything else, including the
 // credit count under the name, is the same card.
 import { Link } from "react-router-dom";
 
@@ -39,14 +38,6 @@ function StaffCard({
       }`}
     >
       <div className="flex">
-        <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
-          <span
-            className="font-mono text-[8px] uppercase tracking-[0.2em] whitespace-nowrap"
-            style={{ writingMode: "vertical-rl" }}
-          >
-            {label}
-          </span>
-        </div>
         <div
           className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
           style={{ aspectRatio: "2/3" }}

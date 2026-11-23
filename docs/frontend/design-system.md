@@ -301,8 +301,9 @@ filter chips, `brand` on the current one, scrolling sideways inside itself;
 pinned under the nav on a detail page, unpinned on the dashboard, whose own
 sticky headers already hold that strip.
 
-Cards (`components/cards/*.jsx`): cover with a thin ink spine on the left
-carrying the media type; the rating stamp top-right; title in display
+Cards (`components/cards/*.jsx`): the cover across the card's full width,
+with no spine - a grid card does not name its type, which the page or tab
+it sits on already says; the rating stamp top-right; title in display
 face below; one mono line for date or year and count; no hover zoom, the
 border darkens on hover.
 

@@ -11,11 +11,11 @@ import { EXPECTATION_FIELD } from "../../api/mutations/useMyRatingMutations";
 import { Chip, RatingStamp } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
-const SPINE = { collection: "Collection", franchise: "Franchise", series: "Series" };
+const KIND_LABEL = { collection: "Collection", franchise: "Franchise", series: "Series" };
 
 // `cover` is the resolved { url, focus } from lib/covers.js.
 export default function GroupCard({ kind, row, cover, badge = null, children = null }) {
-  const name = getDisplayName(row, kind) || `Unknown ${SPINE[kind]}`;
+  const name = getDisplayName(row, kind) || `Unknown ${KIND_LABEL[kind]}`;
   // The rating and expectation are the viewer's own: drawn only for a viewer
   // holding self.list (anyone else has none, and the server answers null).
   const { ownData: showPersonal } = useViewScope();
@@ -35,14 +35,6 @@ export default function GroupCard({ kind, row, cover, badge = null, children = n
       }`}
     >
       <div className="flex">
-        <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
-          <span
-            className="font-mono text-[8px] uppercase tracking-[0.2em] whitespace-nowrap"
-            style={{ writingMode: "vertical-rl" }}
-          >
-            {SPINE[kind]}
-          </span>
-        </div>
         <div
           className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
           style={{ aspectRatio: "2/3" }}
