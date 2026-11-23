@@ -1,8 +1,8 @@
 // Frontend: card component file for MediaCard.
 //
-// An archive card: the cover carries a thin ink spine on the left with the
-// media type, the rating stamp top-right, then the title in the display face
-// and one mono line of metadata. Flat, no hover zoom - the border darkens.
+// An archive card: the cover across the full width with the rating stamp
+// top-right, then the title in the display face and one mono line of
+// metadata. No grid card names its type in a spine; the page it sits on does. Flat, no hover zoom - the border darkens.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -33,21 +33,6 @@ import PlatformIcons from "./PlatformIcons";
 import LazyImage from "../ui/LazyImage";
 import { formatProgress, parseProgressTotal } from "../../lib/progressStep";
 import { progressEstimate } from "../../lib/gameHours";
-
-const SPINE_LABEL = {
-  anime: "Anime",
-  "anime-movie": "Anime movie",
-  movie: "Movie",
-  "tv-show": "TV show",
-  cartoon: "Cartoon",
-  manga: "Manga",
-  book: "Book",
-  comic: "Comic",
-  game: "Game",
-  "h-comic": "H-Comic",
-  "h-game": "H-Game",
-  hentai: "Hentai",
-};
 
 // The statuses the future variant's select offers, per status axis. A game
 // is on the play axis, so it must not be offered the watch vocabulary, and a
@@ -728,14 +713,6 @@ export default function MediaCard({
       }`}
     >
       <div className="flex">
-        <div className="w-5 shrink-0 bg-ink text-ink-text flex flex-col items-center py-1.5 overflow-hidden">
-          <span
-            className="font-mono text-[8px] uppercase tracking-[0.2em] whitespace-nowrap"
-            style={{ writingMode: "vertical-rl" }}
-          >
-            {SPINE_LABEL[type] || type}
-          </span>
-        </div>
         <div className="flex-1 min-w-0 aspect-[3/4] bg-surface-2 relative overflow-hidden">
           <PosterBadges
             type={type}
