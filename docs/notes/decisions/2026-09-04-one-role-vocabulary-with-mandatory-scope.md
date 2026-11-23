@@ -7,15 +7,16 @@
 - **Rejected: a separate vocabulary for `media_credit.role`** mapped onto
   `(person_role, scope)` in code. The two-vocabulary split would survive in the
   stored data and every reader would need the map.
-- **Every `person_role` row carries a scope, and `scope` is NOT NULL.** There
-  is deliberately no unscoped "offered everywhere" state — the opposite of
+- **No `person_role` row means "offered everywhere".** There is deliberately
+  no such state — the opposite of
   `system_option_scope`, and the difference is the point. Under "zero scopes
   means everywhere", the *first* scope row flips a value's meaning from every
   media type to one, which is why tags may not be auto-scoped. Person credits
   *are* auto-scoped, so removing the "everywhere" state makes auto-scoping
   purely additive and that trap structurally impossible. The cost is two
   similarly named `scope` columns meaning different things, commented on
-  `PersonRole`.
+  `PersonRole`. A NULL scope does exist, and means the opposite - offered
+  nowhere; see `2026-11-23-a-person-role-may-be-held-with-no-scope.md`.
 - **A credit write sets both role and scope.** Crediting 原作 on a manga gives
   the person `(author, manga)`, so a director arriving through Fill or Pull
   appears in the picker without anyone visiting a form.

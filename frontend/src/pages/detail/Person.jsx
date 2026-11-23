@@ -29,7 +29,7 @@ import VoicedPartCard from "../../components/info/VoicedPartCard";
 import WorkGallery from "../../components/info/WorkGallery";
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
 import InfoCard from "../../components/info/InfoCard";
-import MalButton, { ImdbButton } from "../../components/info/MalButton";
+import MalButton, { ImdbButton, SiteButton } from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
 import {
   AdminToolbar,
@@ -51,6 +51,14 @@ import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 const PERSON_TYPE_LABELS = Object.fromEntries(
   PERSON_SUB_TABS.map((t) => [t.key, t.label]),
 );
+
+// The person's own pages, as the header buttons and the Profile rows name
+// them. "Twitter" is also the key lib/sourceIcons.js files its icon under.
+const SOCIAL_SITES = [
+  { field: "twitter_link", site: "Twitter" },
+  { field: "ig_link", site: "Instagram" },
+  { field: "pixiv_link", site: "pixiv" },
+];
 
 export default function Person() {
   const { publicId } = useParams();
@@ -221,9 +229,12 @@ export default function Person() {
                 {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
               </p>
               {/* The ways out to MAL and IMDb, by the name as on the
-                  character page. */}
+                  character page, then the person's own pages. */}
               <MalButton href={person.mal_link} />
               <ImdbButton href={person.imdb_link} />
+              {SOCIAL_SITES.map(({ field, site }) => (
+                <SiteButton key={field} href={person[field]} site={site} />
+              ))}
             </div>
           </div>
 
@@ -260,6 +271,19 @@ export default function Person() {
                   </a>
                 ) : null,
               },
+              ...SOCIAL_SITES.map(({ field, site }) => ({
+                label: site,
+                value: person[field] ? (
+                  <a
+                    href={person[field]}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-brand hover:underline break-all"
+                  >
+                    {person[field]}
+                  </a>
+                ) : null,
+              })),
               ...(isAdmin ? [] : [{ label: "Remark", value: person.remark }]),
             ]}
           />

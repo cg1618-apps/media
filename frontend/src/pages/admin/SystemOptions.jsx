@@ -53,19 +53,19 @@ const TIER3_ROWS = [
     oldCategories: ["Director"],
     home: "person",
     roleKey: "director",
-    detail: "scoped by media type on person_role: anime, anime-movie, movie",
+    detail: "scoped by media type on person_role",
   },
   {
     oldCategories: ["Producer"],
     home: "person",
     roleKey: "producer",
-    detail: "scoped anime on person_role",
+    detail: "scoped by media type on person_role",
   },
   {
     oldCategories: ["Music / Composer"],
     home: "person",
     roleKey: "composer",
-    detail: "scoped anime on person_role",
+    detail: "scoped by media type on person_role",
   },
   {
     oldCategories: ["Manga Author", "Novel Author", "Comic Writer"],

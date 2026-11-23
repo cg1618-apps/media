@@ -43,6 +43,9 @@ function personToForm(p) {
     photo_focus: p.photo_focus || null,
     mal_link: p.mal_link || "",
     imdb_link: p.imdb_link || "",
+    twitter_link: p.twitter_link || "",
+    ig_link: p.ig_link || "",
+    pixiv_link: p.pixiv_link || "",
     remark: p.remark || "",
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: p.my_rating || "",
@@ -174,6 +177,9 @@ export default function PersonModifyTab({ initialId = null } = {}) {
           photo_focus: personForm.photo_focus || null,
           mal_link: personForm.mal_link?.trim() || null,
           imdb_link: personForm.imdb_link?.trim() || null,
+          twitter_link: personForm.twitter_link?.trim() || null,
+          ig_link: personForm.ig_link?.trim() || null,
+          pixiv_link: personForm.pixiv_link?.trim() || null,
           remark: personForm.remark || null,
           photo_fallback_entry_id: personForm.photo_fallback_entry_id || null,
           // PUT replaces the whole role set, so this must be every type the

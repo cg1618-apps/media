@@ -1770,6 +1770,9 @@ def parse_person_from_sheet(raw: dict) -> dict:
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
+        "twitter_link": parse_from_sheet(raw.get("twitter_link"), str),
+        "ig_link": parse_from_sheet(raw.get("ig_link"), str),
+        "pixiv_link": parse_from_sheet(raw.get("pixiv_link"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

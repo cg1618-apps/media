@@ -197,6 +197,48 @@ describe("Person detail page", () => {
     expect(screen.queryByRole("link", { name: /^nm/ })).toBeNull();
   });
 
+  it("links the person's own pages beside the name and on the Profile card", async () => {
+    const links = {
+      twitter_link: "https://x.com/artist",
+      ig_link: "https://www.instagram.com/artist",
+      pixiv_link: "https://www.pixiv.net/users/1",
+    };
+    mockFetch({ ...PERSON, ...links });
+    renderPage();
+    for (const [site, href] of [
+      ["Twitter", links.twitter_link],
+      ["Instagram", links.ig_link],
+      ["pixiv", links.pixiv_link],
+    ]) {
+      const button = await screen.findByRole("link", { name: `Open on ${site}` });
+      expect(button).toHaveAttribute("href", href);
+      expect(screen.getByRole("link", { name: href })).toHaveAttribute("href", href);
+    }
+  });
+
+  it("draws no social button for a person without those links", async () => {
+    renderPage();
+    await screen.findByRole("heading", { name: "Hayao Miyazaki" });
+    for (const site of ["Twitter", "Instagram", "pixiv"]) {
+      expect(screen.queryByRole("link", { name: `Open on ${site}` })).toBeNull();
+    }
+  });
+
+  it("titles a combined manga group by the label the server sends", async () => {
+    mockFetch(PERSON, [
+      {
+        media_type: "manga",
+        role: "author+illustrator",
+        roles: ["author", "illustrator"],
+        label: "原作&作畫",
+        nav_path: "/manga",
+        entries: [{ system_id: "m1", display_name: "One Piece", release_date: null }],
+      },
+    ]);
+    renderPage();
+    expect(await screen.findByText("原作&作畫")).toBeInTheDocument();
+  });
+
   it("names the person's types by their labels, not their keys", async () => {
     mockFetch({
       ...PERSON,

@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 ## What this is for
 
@@ -580,8 +580,8 @@ since a person's vocabulary is `男` / `女`
 vocabularies applied to the stored rows), so a backup from before then cannot
 bring the free text back. Both tabs carry `photo_fallback_entry_id`, a plain
 entry uuid like `cover_entry_id`; a cell that is not a uuid restores as blank.
-`Person` carries its four link columns too — `mal_id`, `mal_link`, `imdb_id`
-and `imdb_link` — restored as they are, and the Person parser names every
+`Person` carries its link columns too — `mal_id`, `mal_link`, `imdb_id`,
+`imdb_link`, `twitter_link`, `ig_link` and `pixiv_link` — restored as they are, and the Person parser names every
 column the tab writes (`tests/api/test_person_tmdb.py` walks the model to
 prove it), so none is dropped on a Pull.
 `Franchise` and `Series` carry `alone_reviewed_media_id` the same way (the

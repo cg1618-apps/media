@@ -224,9 +224,9 @@ export const COMMON_FIELD_META = {
   // with a profile, a genre is a vocabulary value.
   //
   // A person source always carries BOTH role and scope, and the scope is a
-  // hyphenated media-type key. person_role rows are all scoped now, so a
-  // roleless or scopeless query would match nobody — there is no "offered
-  // everywhere" state left for it to fall back on.
+  // hyphenated media-type key. A scopeless query would match only the
+  // people who hold the role in NO media type — there is no "offered
+  // everywhere" state for it to fall back on.
   studio: {
     label: "Studio",
     control: "tags",

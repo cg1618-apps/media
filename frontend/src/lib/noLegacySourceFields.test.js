@@ -31,8 +31,12 @@ const DEAD = [
   "source_baha",
   "anilist_link",
   "official_link",
-  "twitter_link",
 ];
+// "twitter_link" is deliberately NOT in this list any more. It is a LIVE
+// person column (the person's own Twitter page, beside ig_link and
+// pixiv_link), so the token now appears legitimately in the person form and
+// page. The retired ENTRY column stays guarded where it lived, on the media
+// models: tests/unit/test_source_columns_are_gone.py.
 
 const ROOTS = ["src"];
 

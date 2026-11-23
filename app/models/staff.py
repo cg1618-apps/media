@@ -121,6 +121,11 @@ class Person(Base, NameFallbackMixin):
     # (TMDB) Fill resolves it through TMDB's /find.
     imdb_id = Column(String, nullable=True)
     imdb_link = Column(String, nullable=True)
+    # The person's own pages. Plain links: no id is derived from them and no
+    # Fill reads them.
+    twitter_link = Column(String, nullable=True)
+    ig_link = Column(String, nullable=True)
+    pixiv_link = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
@@ -192,24 +197,35 @@ class PersonRole(Base):
 
     Explicit rather than derived from credits: a director added today must be
     offered in the anime director dropdown before their first credit exists.
-    Every row carries a media-type scope, and a person's visibility is the
-    union of their rows. There is deliberately no unscoped "offered
-    everywhere" state - unlike system_option_scope, where zero rows means
-    everywhere. Person credits ARE auto-scoped on write, and under an
+    A row's scope is the media type whose dropdowns offer the person, and a
+    person's visibility is the union of their rows. There is deliberately no
+    "offered everywhere" state - unlike system_option_scope, where zero rows
+    means everywhere. Person credits ARE auto-scoped on write, and under an
     "everywhere" rule the first scope row would silently narrow the person,
     which is exactly the trap Ruling R27 removed from tags. With no
     "everywhere" state to collapse, auto-scoping is purely additive and the
     trap cannot occur. See the design spec's Decision B.
+
+    A NULL scope is the opposite of everywhere: the person holds the role -
+    they are listed under it in the library and the admin sub-tab - but no
+    dropdown offers them. It is the row a role ticked with no media type
+    writes, and it is dropped once the same role gains a scope
+    (app/services/domain/person_roles.py), so a role holds either one NULL
+    row or only scoped rows.
     """
 
     __tablename__ = "person_role"
     __table_args__ = (
-        # No NULLS NOT DISTINCT here, unlike uq_person_name and
-        # uq_media_credit_row: scope is NOT NULL, so there is no nullable
-        # column left in the key for Postgres to treat as distinct from
-        # itself. It WAS needed when scope was NULL for every role but
-        # director.
-        UniqueConstraint("person_id", "role", "scope", name="uq_person_role"),
+        # NULLS NOT DISTINCT: scope is NULL on an unscoped role, and without
+        # it two (person, role, NULL) rows would commit cleanly - the same
+        # lesson as uq_person_name.
+        UniqueConstraint(
+            "person_id",
+            "role",
+            "scope",
+            name="uq_person_role",
+            postgresql_nulls_not_distinct=True,
+        ),
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -221,8 +237,9 @@ class PersonRole(Base):
     )
     # One of credit_roles.PERSON_ROLES.
     role = Column(String, nullable=False, index=True)
-    # A hyphenated media-type key, and one of legal_scopes(role).
-    scope = Column(String, nullable=False)
+    # A hyphenated media-type key, and one of legal_scopes(role); NULL when
+    # the person holds the role in no media type.
+    scope = Column(String, nullable=True)
 
     person = relationship("Person", back_populates="roles")
 
