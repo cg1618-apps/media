@@ -188,3 +188,24 @@ def test_a_relation_round_trips_through_its_tab(monkeypatch, db_session, pair):
         (a.system_id, b.system_id): "sequel series",
         (b.system_id, a.system_id): None,
     }
+
+
+def test_an_added_franchise_also_relates_to_the_others_it_names(owner_client, db_session, pair):
+    """The "also related to" ticks reach franchises, the kind omitted as
+    everywhere else on this list."""
+    a, b = pair
+    c = _franchise(db_session, "Zvornik Franchise C")
+    _put(owner_client, a, [(b, None)])
+    r = owner_client.put(
+        f"/api/franchise/{a.system_id}/related",
+        json={
+            "relations": [
+                {"id": str(b.system_id)},
+                {"id": str(c.system_id), "also_related_to": [{"id": str(b.system_id)}]},
+            ]
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert [name for name, _ in _related(owner_client, c)] == sorted(
+        [a.display_name, b.display_name], key=str.casefold
+    )

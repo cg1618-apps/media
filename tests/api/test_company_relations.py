@@ -136,6 +136,104 @@ def test_merging_publishers_moves_their_relations(owner_client, db_session, stud
     ]
 
 
+def _put_with_also(client, kind, record, relations):
+    """`relations` is (kind, record, also-related-to [(kind, record)])."""
+    return client.put(
+        f"/api/{kind}/{record.system_id}/related",
+        json={
+            "relations": [
+                {
+                    "kind": other_kind,
+                    "id": str(other.system_id),
+                    "also_related_to": [
+                        {"kind": k, "id": str(r.system_id)} for k, r in also
+                    ],
+                }
+                for other_kind, other, also in relations
+            ]
+        },
+    )
+
+
+def test_an_added_record_also_relates_to_the_others_it_names(
+    owner_client, db_session, studio, publisher
+):
+    """Adding the publisher to the studio's list, ticked against a record
+    already there, relates those two as well - both ways, no remark."""
+    sister = _studio(db_session, "Zvornik Company Sister")
+    _put(owner_client, "studio", studio, [("studio", sister, None)])
+    r = _put_with_also(
+        owner_client,
+        "studio",
+        studio,
+        [("studio", sister, []), ("publisher", publisher, [("studio", sister)])],
+    )
+    assert r.status_code == 200, r.text
+    assert _related(owner_client, "publisher", publisher) == sorted(
+        [("studio", studio.display_name, None), ("studio", sister.display_name, None)],
+        key=lambda t: t[1].casefold(),
+    )
+    assert ("publisher", publisher.display_name, None) in _related(
+        owner_client, "studio", sister
+    )
+
+
+def test_an_unticked_record_stays_unrelated(owner_client, db_session, studio, publisher):
+    """The mirror case: the same two records, nothing named, are not related."""
+    sister = _studio(db_session, "Zvornik Company Sister")
+    _put(owner_client, "studio", studio, [("studio", sister, None)])
+    r = _put_with_also(
+        owner_client,
+        "studio",
+        studio,
+        [("studio", sister, []), ("publisher", publisher, [])],
+    )
+    assert r.status_code == 200, r.text
+    assert _related(owner_client, "publisher", publisher) == [
+        ("studio", studio.display_name, None)
+    ]
+
+
+def test_also_related_keeps_a_relation_that_already_exists(
+    owner_client, db_session, studio, publisher
+):
+    """A pair already related keeps its remarks; nothing is duplicated."""
+    sister = _studio(db_session, "Zvornik Company Sister")
+    _put(owner_client, "publisher", publisher, [("studio", sister, "kept")])
+    r = _put_with_also(
+        owner_client,
+        "studio",
+        studio,
+        [("studio", sister, []), ("publisher", publisher, [("studio", sister)])],
+    )
+    assert r.status_code == 200, r.text
+    assert ("studio", sister.display_name, "kept") in _related(
+        owner_client, "publisher", publisher
+    )
+    assert db_session.query(models.CompanyRelation).count() == 6
+
+
+def test_also_related_must_name_a_record_on_the_list(
+    owner_client, db_session, studio, publisher
+):
+    """Only the records this list holds can be ticked: 422, nothing written."""
+    stranger = _studio(db_session, "Zvornik Company Stranger")
+    r = _put_with_also(
+        owner_client, "studio", studio, [("publisher", publisher, [("studio", stranger)])]
+    )
+    assert r.status_code == 422
+    assert _related(owner_client, "studio", studio) == []
+    assert _related(owner_client, "studio", stranger) == []
+
+
+def test_also_related_cannot_name_the_record_itself(owner_client, studio, publisher):
+    r = _put_with_also(
+        owner_client, "studio", studio, [("publisher", publisher, [("publisher", publisher)])]
+    )
+    assert r.status_code == 422
+    assert _related(owner_client, "studio", studio) == []
+
+
 def test_the_pre_publisher_tab_title_still_restores():
     assert "Studio Relation" in LEGACY_TAB_NAMES["Company Relation"]
 

@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import RelatedRecords, { pickerItems, recordName } from "./RelatedRecords";
+import RelatedRecords, { alsoRelatedTargets, pickerItems, recordName } from "./RelatedRecords";
 
 vi.mock("../../hooks/useToast", () => ({
   useToast: () => ({ showToast: vi.fn() }),
@@ -130,6 +130,37 @@ describe("RelatedRecords on a studio", () => {
     expect(putBodies[0].body.relations.map((r) => r.id)).toEqual(["p"]);
   });
 
+  it("relates an added record to the others on the list, ticked by default", async () => {
+    const user = userEvent.setup();
+    mount(true);
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    await user.type(screen.getByPlaceholderText("Search to add…"), "Dee");
+    await user.click(await screen.findByRole("option", { name: /Studio Dee/ }));
+    const group = screen.getByRole("group", { name: "Also relate Studio Dee to" });
+    expect(screen.getByRole("checkbox", { name: "Studio Bee" })).toBeChecked();
+    expect(group).toContainElement(screen.getByRole("checkbox", { name: "Pub Pea" }));
+    await user.click(screen.getByRole("checkbox", { name: "Pub Pea" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    expect(putBodies[0].body.relations).toEqual([
+      { kind: "studio", id: "b", remark: "animation subsidiary" },
+      { kind: "publisher", id: "p", remark: null },
+      {
+        kind: "studio",
+        id: "d",
+        remark: null,
+        also_related_to: [{ kind: "studio", id: "b" }],
+      },
+    ]);
+  });
+
+  it("offers no ticks on records that were already related", async () => {
+    const user = userEvent.setup();
+    mount(true);
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
   it("asks both lists for candidates when editing starts", async () => {
     const user = userEvent.setup();
     mount(true);
@@ -173,17 +204,39 @@ describe("RelatedRecords on a franchise", () => {
   });
 });
 
+describe("alsoRelatedTargets", () => {
+  // Two records added in one edit offer their pair once - on the later one -
+  // so one tick decides it and the two can never disagree.
+  it("offers an added record only the records above it", () => {
+    const draft = [
+      ref("studio", "b", "Bee"),
+      { ...ref("studio", "c", "Sea"), isNew: true, unticked: [] },
+      { ...ref("studio", "d", "Dee"), isNew: true, unticked: [] },
+    ];
+    expect(alsoRelatedTargets(draft, 1).map((r) => r.system_id)).toEqual(["b"]);
+    expect(alsoRelatedTargets(draft, 2).map((r) => r.system_id)).toEqual(["b", "c"]);
+  });
+
+  it("offers nothing on a record that was already related", () => {
+    const draft = [ref("studio", "b", "Bee"), ref("studio", "c", "Sea")];
+    expect(alsoRelatedTargets(draft, 1)).toEqual([]);
+  });
+});
+
 describe("pickerItems", () => {
   it("offers neither the page's own record nor one already chosen", () => {
     const candidates = {
-      studio: [{ system_id: "a", display_name: "Ay" }, { system_id: "b", display_name: "Bee" }],
+      studio: [
+        { system_id: "a", display_name: "Ay" },
+        { system_id: "b", display_name: "Bee" },
+      ],
       publisher: [{ system_id: "a", display_name: "Pub Ay" }],
     };
     const chosen = [ref("studio", "b", "Bee")];
     // The publisher sharing the page's id is a different record, so it stays.
-    expect(
-      pickerItems(candidates, chosen, { kind: "studio", id: "a" }).map((i) => i.id),
-    ).toEqual(["publisher:a"]);
+    expect(pickerItems(candidates, chosen, { kind: "studio", id: "a" }).map((i) => i.id)).toEqual([
+      "publisher:a",
+    ]);
   });
 
   it("marks each row with its kind when two kinds are offered", () => {
