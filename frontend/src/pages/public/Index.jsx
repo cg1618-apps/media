@@ -73,6 +73,8 @@ function readingSortName(item) {
 
 const MEDIA_TYPES = [
   "Anime",
+  "Anime Movie",
+  "Movie",
   "TV Show",
   "Cartoon",
   "Manga",
@@ -81,10 +83,15 @@ const MEDIA_TYPES = [
   "Game",
 ];
 
+// The types the Watching division holds, in the order its card view groups
+// them. A film has no episode counter, so its card carries no stepper - see
+// DashboardCard - but it is watched, paused and finished like the rest.
+const WATCHING_TYPES = ["Anime", "Anime Movie", "Movie", "TV Show", "Cartoon"];
+
 // The divisions each media type is tracked in. A type filter shows only the
 // division that can hold the picked type.
 const DIVISION_TYPES = {
-  watching: ["Anime", "TV Show", "Cartoon"],
+  watching: WATCHING_TYPES,
   reading: ["Manga", "Book", "Comic"],
   playing: ["Game"],
 };
@@ -241,7 +248,7 @@ function Section({
   headerTop,
   view,
 }) {
-  const typeGroups = { Anime: [], "TV Show": [], Cartoon: [] };
+  const typeGroups = Object.fromEntries(WATCHING_TYPES.map((t) => [t, []]));
   items.forEach((item) => {
     const type = item._ui_type || "Anime";
     if (typeGroups[type]) typeGroups[type].push(item);
@@ -271,7 +278,7 @@ function Section({
         // List view drops the per-type sub-headings: Type is a column, so
         // grouping by it would say the same thing twice and cost the density
         // the view exists for. `items` already arrives sorted by rating then
-        // name across all three types.
+        // name across every watching type.
         <div className="pt-4">
           <DashboardTable>
             {items.map((anime) => (
@@ -290,7 +297,7 @@ function Section({
         </div>
       ) : (
         <div className="pt-4 space-y-6">
-          {["Anime", "TV Show", "Cartoon"].map((type) => {
+          {WATCHING_TYPES.map((type) => {
             const typeItems = typeGroups[type];
             if (!typeItems?.length) return null;
             const sorted = [...typeItems].sort(
@@ -584,8 +591,10 @@ function CatalogueDashboard() {
   const gameQuery = useMediaList("game", memberListOptions);
   // Coming Next reads the viewer's own statuses, so it is drawn only for a
   // signed-in member, and its two extra lists and the current season are
-  // fetched only then. Like announcements, they stay out of the combined
-  // loading/error state: a slow movie list must not hold up the dashboard.
+  // fetched only then. The Watching division reads the same two movie lists.
+  // Like announcements, they stay out of the combined loading/error state: a
+  // slow movie list must not hold up the dashboard, so the films join
+  // Watching when they arrive.
   const showComingNext = isMember;
   const animeMovieQuery = useMediaList("anime-movie", {
     ...LIST_OPTIONS,
@@ -807,6 +816,14 @@ function CatalogueDashboard() {
   }
 
   const animeTagged = animeData.map((a) => ({ ...a, _ui_type: "Anime" }));
+  const animeMovieTagged = (animeMovieQuery.data || []).map((m) => ({
+    ...m,
+    _ui_type: "Anime Movie",
+  }));
+  const movieTagged = (movieQuery.data || []).map((m) => ({
+    ...m,
+    _ui_type: "Movie",
+  }));
   const tvTagged = tvData.map((t) => ({ ...t, _ui_type: "TV Show" }));
   const cartoonTagged = cartoonData.map((c) => ({ ...c, _ui_type: "Cartoon" }));
   const mangaTagged = mangaData.map((m) => ({ ...m, _ui_type: "Manga" }));
@@ -844,9 +861,15 @@ function CatalogueDashboard() {
 
   // _ui_type is a display label ("TV Show"); getSortName wants the slug.
   const sortSlug = (item) =>
-    item._ui_type === "TV Show" ? "tv-show" : (item._ui_type || "").toLowerCase();
+    (item._ui_type || "").toLowerCase().replace(" ", "-");
 
-  const sorted = [...animeTagged, ...tvTagged, ...cartoonTagged].sort(
+  const sorted = [
+    ...animeTagged,
+    ...animeMovieTagged,
+    ...movieTagged,
+    ...tvTagged,
+    ...cartoonTagged,
+  ].sort(
     (a, b) => {
       const fA = franchiseData.find((f) => f.system_id === a.franchise_id);
       const fB = franchiseData.find((f) => f.system_id === b.franchise_id);
@@ -857,7 +880,7 @@ function CatalogueDashboard() {
       // watch_order column, which has been dropped. Name keeps the order
       // stable and predictable instead of leaving it to array position.
       // getSortName is needed rather than a plain field: this list mixes
-      // three media types, and each keeps its title under its own prefix.
+      // five media types, and each keeps its title under its own prefix.
       return getSortName(a, sortSlug(a)).localeCompare(getSortName(b, sortSlug(b)));
     },
   );
@@ -1037,7 +1060,7 @@ function CatalogueDashboard() {
                 <div id="watching">
                   <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
                     <div>
-                      <Eyebrow className="mb-1">Anime · TV Show · Cartoon</Eyebrow>
+                      <Eyebrow className="mb-1">{WATCHING_TYPES.join(" · ")}</Eyebrow>
                       <h2 className="font-display text-3xl font-semibold text-text leading-none">
                         Watching
                       </h2>

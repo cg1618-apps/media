@@ -32,6 +32,7 @@ import { Chip, RatingStamp } from "../ui/primitives";
 import PlatformIcons from "./PlatformIcons";
 import LazyImage from "../ui/LazyImage";
 import { formatProgress, parseProgressTotal } from "../../lib/progressStep";
+import { progressEstimate } from "../../lib/gameHours";
 
 const SPINE_LABEL = {
   anime: "Anime",
@@ -482,14 +483,16 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
     );
   }
 
-  // A game has no episode/chapter counter - playtime against the main-story
-  // estimate is its progress. With neither figure there is nothing to show.
+  // A game has no episode/chapter counter - playtime against the Main + Extra
+  // estimate (progressEstimate) is its progress. With neither figure there is
+  // nothing to show.
   if (type === "game") {
-    if (data.hours_played == null && data.hltb_main == null) return null;
+    const estimate = progressEstimate(data);
+    if (data.hours_played == null && estimate == null) return null;
     return (
       <Count
         fin={data.hours_played ?? 0}
-        total={data.hltb_main != null ? data.hltb_main : "?"}
+        total={estimate ?? "?"}
         unit="h"
       />
     );

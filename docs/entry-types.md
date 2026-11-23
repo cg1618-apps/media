@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-11-19
+Last verified: 2026-11-23
 
 ## What this is for
 
@@ -438,10 +438,10 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | 攻略 group — `beginner` (`text_links`), `trivia` (`structured`) | | | | | | | | | x | |  | |
 | 養成&流派 group — `stats_and_points`, `classes`, `skills`, `builds_and_styles`, `team_composition` (`structured`) | | | | | | | | | x | | x | |
 | 物品 group — `weapons_and_gear`, `items`, `collectibles` (`structured`) | | | | | | | | | x | | x | |
-| 圖鑑與名詞 group — `characters_guide`, `enemies`, `game_terms` (`structured`); for h-game also `geography` (nestable), which a game has in 世界觀 | | | | | | | | | x | | x | |
-| 圖鑑與名詞 group — `player_terms` (`structured`) | | | | | | | | | x | |  | |
+| 圖鑑&名詞 group — `characters_guide`, `enemies`, `game_terms` (`structured`); for h-game also `geography` (nestable), which a game has in 世界觀 | | | | | | | | | x | | x | |
+| 圖鑑&名詞 group — `player_terms` (`structured`) | | | | | | | | | x | |  | |
 | 資源&工具 group — `mods_and_tools`, `guide_resources` (`structured`) | | | | | | | | | x | | x | |
-| 劇情&任務 group — `story_list_main`, `story_list_side`, `story_list_character`, `story_list_event` (`structured`, nestable), `side_quests` (`structured`, nestable), `endings` (`structured`) | | | | | | | | | x | | x | |
+| 劇情列表&任務 group — `story_list_main`, `story_list_side`, `story_list_character`, `story_list_event` (`structured`, nestable), `side_quests` (`structured`, nestable), `endings` (`structured`) | | | | | | | | | x | | x | |
 | 世界觀 group — `lore`, `timeline`, `mysteries`, `story_other` (`text_links`), `story_terms`, `geography` (`structured`, nestable; above `timeline`) | | | | | | | | | x | |  | |
 | NG 多周目 group — `ng_flow`, `ng_carried_over`, `ng_before_starting` (`structured`) | | | | | | | | | x | | x | |
 | 待辦 group — `todo_now`, `todo_next`, `todo_later`, `todo_maybe` (`text_links`), `saves` (`structured`), all personal scope | | | | | | | | | x | | x | |
@@ -458,4 +458,4 @@ Sections every owner has (all twelve types plus `series`, `franchise`, `collecti
 | `h_comic_highlights` (`structured`, grouped by `female_characters`, KR entries only) | | | | | | | | | | x |  | |
 | `h_game_highlights` (`structured`, grouped by `female_characters`, locator "Route / Scene", audio / H 演出形式 / art style selects) |  |  |  |  |  |  |  |  |  |  | x |  |
 
-Movie and comic get only the shared sections, and H-Comic one of its own, `h_comic_highlights`, which a JP entry refuses (422) through the section's `owner_where`. H-Game takes game's sections less the ones that do not describe how it plays - 各章評論, 神場景, 新手, 小知識, 玩家術語, 世界觀 and 名言/梗 - with game's labels, placeholders and groups. It adds `h_game_highlights`: female and male characters, a locator labelled "Route / Scene", dialogue audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness and description, with no `owner_where`. Game carries 42 of its own - `highlight_moments` plus the 攻略 (5), 養成&流派 (5), 物品 (3), 圖鑑與名詞 (4), 資源&工具 (2), 劇情&任務 (6), 世界觀 (6), NG 多周目 (5) and 待辦 (5) groups - beside the shared ones. The guide is five cards, each answering one question, rather than one card of twenty sections. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, in the 資源&工具 card immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, its own card everywhere else) is a separate section games also inherit, and on a game and an h-game it is the last subsection of that same card. Two keys with two labels is deliberate, because two subsections called "Resources" in one card would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).
+Movie and comic get only the shared sections, and H-Comic one of its own, `h_comic_highlights`, which a JP entry refuses (422) through the section's `owner_where`. H-Game takes game's sections less the ones that do not describe how it plays - 各章評論, 神場景, 新手, 小知識, 玩家術語, 世界觀 and 名言&梗 - with game's labels, placeholders and groups. It adds `h_game_highlights`: female and male characters, a locator labelled "Route / Scene", dialogue audio, H 演出形式 and art style (selects over the `h_game` columns' options), label, usefulness and description, with no `owner_where`. Game carries 42 of its own - `highlight_moments` plus the 攻略 (5), 養成&流派 (5), 物品 (3), 圖鑑&名詞 (4), 資源&工具 (2), 劇情列表&任務 (6), 世界觀 (6), NG 多周目 (5) and 待辦 (5) groups - beside the shared ones. The guide is five cards, each answering one question, rather than one card of twenty sections. It is also the one owner type that reads 解析 Analysis inside 評論 Reviews rather than in a card of its own (`groups_by_owner`), and the one whose 待辦 buckets render inside the detail page's Progress slip rather than as a card. Its guide bookmarks are **`guide_resources`, in the 資源&工具 card immediately before Resources**; the site-wide `resources` section (shape `name_links`, `ALL_OWNERS`, its own card everywhere else) is a separate section games also inherit, and on a game and an h-game it is the last subsection of that same card. Two keys with two labels is deliberate, because two subsections called "Resources" in one card would be unreadable. Shapes, groups and validation: [systems/notes.md](systems/notes.md).

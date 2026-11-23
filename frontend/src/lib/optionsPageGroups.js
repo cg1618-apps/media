@@ -140,12 +140,14 @@ export const TIER2_GROUPS = [
   // The common options (COMMON_OPTION_CATEGORIES) come last, in the four
   // groups the Common Options sub-tab's picker reads them in.
   //
-  // What the game guide note sections' free-text fields suggest - a
+  // What the note sections' free-text fields suggest - a game guide
   // character's group, a collectible's, an item's or a weapon's type, an
-  // enemy's tier, a side quest's type, a place's group.
+  // enemy's tier, a side quest's type, a place's group - and an easter egg's
+  // group.
   {
     title: "Note Suggestion",
     categories: [
+      "Easter Egg Group",
       "Character Group",
       "Collectible Type",
       "Item Type",

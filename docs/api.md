@@ -918,6 +918,15 @@ Replaces the `watch_next` / `read_next` booleans, `franchise.watch_next_group`,
 and the nine `to_rewatch` / `to_reread` booleans — see data-model.md and
 business-rules.md.
 
+| Method   | Path           | Description |
+| -------- | -------------- | ----------- |
+| `GET`    | `/kinds`       | The vocabulary: `scopes`, `kinds`, `allowed_scopes` per kind and media type, `size_groups`, and `platform_groups` (`{"game": ["PC", "Console", "Handheld Console", "Switch"]}`). |
+| `GET`    | `/`            | The caller's rows. Optional `media_type`, `scope`, `kind`. A row whose entry is hidden from the caller is left out; one whose target was deleted reads `missing: true`. |
+| `POST`   | `/`            | Plan something. Body: `media_type`, `scope`, `target_id`, optional `remark`, `kind` (default `next`) and `platform_group`. 409 when already planned under that kind; 422 for an unknown kind, or a `platform_group` that is not one of `platform_groups` or sits on anything but a game's `next` row. |
+| `PATCH`  | `/{system_id}` | Body `{platform_group}`: files one of the caller's own rows under a group, or `null` back under none. Same 422s as create; 404 for another user's row or a hidden target. |
+| `DELETE` | `/target`      | Un-plan by `scope`, `media_type`, `target_id` and `kind`. |
+| `DELETE` | `/{system_id}` | Un-plan by row id. |
+
 ## Quote — `/api/quote`
 
 Memorable lines attached to a media entry. Reads need the caller's account to
@@ -1218,7 +1227,8 @@ card, `[]` elsewhere), `owner_where` (`{owner column:
 `link_text_category` (the option category suggesting a link's title),
 `kind_category` (`kind` is free text suggested from this option category),
 `kind_is_group` (`kind` is a free-text group name the card draws a heading
-per - Resources),
+per - Resources and 彩蛋 Easter Eggs; beside a `kind_category` the category
+only suggests the group),
 `default_status`, `one_per_kind` (one row per owner and `kind`), `hidden` (no
 card of its own), and `type_status_section` / `type_statuses` /
 `type_status_default` (the section holding this list's status row, keyed by

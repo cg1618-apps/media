@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hours, timeToBeatFields } from "./gameHours";
+import { hours, progressEstimate, timeToBeatFields } from "./gameHours";
 
 describe("hours", () => {
   it("formats a figure and drops a missing or unreadable one", () => {
@@ -24,5 +24,20 @@ describe("timeToBeatFields", () => {
   it("returns nothing when no figure is recorded", () => {
     expect(timeToBeatFields({})).toEqual([]);
     expect(timeToBeatFields(null)).toEqual([]);
+  });
+});
+
+describe("progressEstimate", () => {
+  it("measures against Main + Extra", () => {
+    expect(progressEstimate({ hltb_main: 20, hltb_main_extra: 35 })).toBe(35);
+  });
+
+  it("falls back to Main when Main + Extra was never recorded", () => {
+    expect(progressEstimate({ hltb_main: 20, hltb_main_extra: null })).toBe(20);
+  });
+
+  it("is null with neither figure, or a zero", () => {
+    expect(progressEstimate({ hltb_main: null, hltb_main_extra: 0 })).toBeNull();
+    expect(progressEstimate(null)).toBeNull();
   });
 });

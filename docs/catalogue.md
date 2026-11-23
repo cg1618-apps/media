@@ -1,6 +1,6 @@
 # The catalogue and your data
 
-Last verified: 2026-11-20
+Last verified: 2026-11-23
 
 ## What this is for
 
@@ -82,7 +82,7 @@ that type, or a group (collection, franchise, series).
 | 玩法系統 Gameplay Systems | Game, H-Game | shared |
 | 操作 Controls | Game, H-Game | shared |
 | 攻略筆記 Guide Notes | Game, H-Game | shared |
-| 小知識 Trivia | Game | shared |
+| 小知識&技巧 Trivia & Tips | Game | shared |
 | 屬性&配點 Stats & Points | Game, H-Game | shared |
 | 職業 Classes | Game, H-Game | shared |
 | 技能 Skills | Game, H-Game | shared |

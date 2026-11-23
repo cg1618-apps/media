@@ -13,9 +13,17 @@ import { ToastProvider } from "../../hooks/useToast";
 import Game, { GameCopiesSection, GameProgress, outOf, yesNo } from "./Game";
 
 describe("GameProgress", () => {
-  it("shows playtime against the main-story estimate", () => {
-    render(<GameProgress game={{ hours_played: 32.5, hltb_main: 45 }} />);
+  it("shows playtime against the Main + Extra estimate", () => {
+    render(
+      <GameProgress game={{ hours_played: 32.5, hltb_main: 45, hltb_main_extra: 70 }} />,
+    );
     expect(screen.getByText(/32\.5 h/)).toBeInTheDocument();
+    expect(screen.getByText(/70 h/)).toBeInTheDocument();
+    expect(screen.queryByText(/45 h/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to the Main estimate when Main + Extra is missing", () => {
+    render(<GameProgress game={{ hours_played: 32.5, hltb_main: 45 }} />);
     expect(screen.getByText(/45 h/)).toBeInTheDocument();
   });
 

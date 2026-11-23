@@ -250,6 +250,29 @@ describe("SourcesCard", () => {
     });
   });
 
+  it("splits a joined original source and gives each platform its icon", () => {
+    render(
+      <SourcesCard
+        sources={[]}
+        mediaType="tv-show"
+        originalSource="Netflix, Cinema"
+      />,
+    );
+    const tags = screen.getAllByTestId("source-tag");
+    expect(tags.map((t) => t.textContent)).toEqual(["Netflix", "Cinema"]);
+    expect(within(tags[0]).getByTestId("source-tag-icon")).toBeInTheDocument();
+    // Cinema has no site, so no icon: the mirror case proves the icon comes
+    // from the value rather than from every tag.
+    expect(within(tags[1]).queryByTestId("source-tag-icon")).toBeNull();
+  });
+
+  it("gives an exclusive source its icon", () => {
+    render(<SourcesCard sources={[]} mediaType="anime" exclusiveSource="Crunchyroll" />);
+    const tag = screen.getByTestId("source-tag");
+    expect(tag).toHaveTextContent("Crunchyroll");
+    expect(within(tag).getByTestId("source-tag-icon")).toBeInTheDocument();
+  });
+
   it("says so when there is nothing at all", () => {
     render(<SourcesCard sources={[]} mediaType="anime" />);
     expect(screen.getByText(/no sources recorded/i)).toBeInTheDocument();

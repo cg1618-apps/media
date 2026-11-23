@@ -131,7 +131,7 @@ def test_the_section_is_offered_to_h_comic_with_its_grouping(owner_client):
     ],
 )
 def test_h_comic_and_hentai_keep_a_reviews_card_of_two(owner_client, owner_type, expected):
-    """No 解析, Questions or 名言/梗 - a 評論 card of public and personal reviews."""
+    """No 解析, Questions or 名言&梗 - a 評論 card of public and personal reviews."""
     sections = owner_client.get("/api/notes/sections", params={"owner_type": owner_type}).json()
     assert [s["key"] for s in sections] == expected
     by_key = {s["key"]: s for s in sections}

@@ -78,7 +78,7 @@ def test_the_game_labels_and_placeholders_carry_over(owner_client):
 
 def test_game_and_h_game_read_one_story_and_quests_card(owner_client):
     """The four strands, the side quests and the endings, in that order, in
-    one card labelled 劇情&任務 for both owners."""
+    one card labelled 劇情列表&任務 for both owners."""
     expected = [
         "story_list_main",
         "story_list_side",
@@ -92,7 +92,7 @@ def test_game_and_h_game_read_one_story_and_quests_card(owner_client):
         card = [k for k, s in sections.items() if s.get("group") == "story_list"]
         assert card == expected, owner_type
         assert {sections[k]["group_label"] for k in card} == {
-            "劇情&任務 Story & Quests"
+            "劇情列表&任務 Story & Quests"
         }, owner_type
         assert not [k for k, s in sections.items() if s.get("group") == "story"]
 

@@ -196,9 +196,11 @@ def test_the_status_vocabularies_have_one_source():
 
 
 def test_note_option_categories_come_from_the_registry():
-    # Registry order: the game sections' field-level suggestion categories
-    # come before the music group's section-level ones.
+    # Registry order: 彩蛋's group category, then the game sections'
+    # field-level suggestion categories, then the music group's
+    # section-level ones.
     assert ns.NOTE_OPTION_CATEGORIES == (
+        "Easter Egg Group",
         "Weapon & Gear Type",
         "Item Type",
         "Collectible Type",
@@ -450,7 +452,7 @@ def test_grouped_sections_are_adjacent():
     # the order hides what belongs together from anyone reading the registry.
     #
     # An ungrouped section that lands in the current run's group for SOME
-    # owner does not break the run: 評論 Reviews and Comments is flat for an
+    # owner does not break the run: 評論&細節 Reviews & Details is flat for an
     # h-comic but opens the 評論 card for an h-game, below 介紹 Introduction.
     runs = []
     for sec in ns.NOTE_SECTIONS:
@@ -593,7 +595,7 @@ def test_quotes_stay_entry_only():
 
 
 def test_memes_span_every_owner():
-    # Bar the gated types, which keep no 名言/梗.
+    # Bar the gated types, which keep no 名言&梗.
     assert set(ns.section_by_key("memes").owners) == set(OWNER_TABLES) - set(
         ns.H_OWNERS
     )
@@ -682,7 +684,7 @@ def test_episode_comments_is_an_episode_and_a_comment_with_no_links():
     # their own labels.
     assert ns.locator_for(sec, "manga") == "Chapter, e.g. ch 1"
     assert ns.locator_for(sec, "game") == "Chapter / Part, e.g. Ch 3"
-    # Not h-game: its comments go in 評論 Reviews and Comments.
+    # Not h-game: its comments go in 評論&細節 Reviews & Details.
     assert sec.owners == ("anime", "tv-show", "cartoon", "manga", "game")
 
 
@@ -846,7 +848,7 @@ CATALOG_KEYS = {
     "mods_and_tools",
     "guide_resources",
     "geography",
-    # 劇情&任務 Story & Quests
+    # 劇情列表&任務 Story & Quests
     "side_quests",
     # 世界觀 Worldbuilding
     "lore",

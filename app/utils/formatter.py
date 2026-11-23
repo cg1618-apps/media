@@ -662,6 +662,9 @@ def parse_plan_next_from_sheet(raw: dict) -> dict:
         # Defaults to "next": a Plan Next tab backed up before rewatch existed
         # has no such column, and every row in it was a queue entry.
         "kind": parse_from_sheet(raw.get("kind"), str) or "next",
+        # A sheet backed up before the column existed carries no header, and
+        # pull.py drops the key, so those rows restore ungrouped.
+        "platform_group": parse_from_sheet(raw.get("platform_group"), str),
     }
 
 

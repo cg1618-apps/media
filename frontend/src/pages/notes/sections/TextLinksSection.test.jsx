@@ -5,7 +5,7 @@
 // optional and a blank one draws nothing (no stray tag, no number), and the
 // links are sent as titled pairs - several of them, the title optional - and a
 // row may be a description, titled links, or both.
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import TextLinksSection from "./TextLinksSection";
@@ -18,6 +18,8 @@ const EASTER_EGGS = {
   locator_placeholder: "Episode(s), e.g. ep 3",
   locator_required: false,
   desc_required: false,
+  kind_is_group: true,
+  kind_category: "Easter Egg Group",
   fields: [],
 };
 
@@ -93,6 +95,7 @@ it("sends an episode, a description and several titled links", async () => {
       { text: "Bilibili", url: "https://b23.tv/x" },
       { text: null, url: "https://a.example/y" },
     ],
+    kind: null,
   });
 });
 
@@ -201,4 +204,70 @@ it("hides the move while the row is being edited", async () => {
   renderSection({ section: TODO_NOW, notes: [TODO_ROW] });
   await userEvent.click(screen.getByRole("button", { name: "Edit" }));
   expect(screen.queryByRole("combobox", { name: /^Move / })).toBeNull();
+});
+
+it("draws one heading per group, the ungrouped rows last under Other", () => {
+  renderSection({
+    notes: [
+      { system_id: "n1", content: "A loose one.", links: [], kind: null },
+      { system_id: "n2", content: "The director.", links: [], kind: "Cameos" },
+      { system_id: "n3", content: "The mug.", links: [], kind: "Callbacks" },
+    ],
+  });
+  expect(
+    screen.getAllByTestId("group-heading").map((h) => h.textContent),
+  ).toEqual(["Cameos", "Callbacks", "Other"]);
+  // Drawn in grouped order, so the ungrouped row moves to the end.
+  const order = ["The director.", "The mug.", "A loose one."].map((t) =>
+    screen.getByText(t),
+  );
+  for (let i = 1; i < order.length; i += 1) {
+    expect(
+      order[i - 1].compareDocumentPosition(order[i]) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  }
+});
+
+it("draws no heading while no row has a group", () => {
+  renderSection({
+    notes: [{ system_id: "n1", content: "The poster.", links: [], kind: null }],
+  });
+  expect(screen.queryByTestId("group-heading")).toBeNull();
+});
+
+it("suggests the common option's groups and the owner's own, and sends the group", async () => {
+  const user = userEvent.setup();
+  const onCreate = vi.fn();
+  renderSection({
+    onCreate,
+    notes: [{ system_id: "n1", content: "x.", links: [], kind: "Cameos" }],
+    optionValues: { "Easter Egg Group": ["Callbacks", "Cameos"] },
+  });
+  await user.click(screen.getByRole("button", { name: /add/i }));
+  const group = screen.getByPlaceholderText("Group (optional)");
+  const options = within(document.getElementById(group.getAttribute("list")))
+    .getAllByRole("option", { hidden: true })
+    .map((o) => o.value);
+  expect(options).toEqual(["Cameos", "Callbacks"]);
+  await user.type(group, "  Callbacks ");
+  await user.type(screen.getByPlaceholderText("Description (optional)"), "The mug");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate).toHaveBeenCalledWith(
+    expect.objectContaining({ section: "easter_eggs", content: "The mug", kind: "Callbacks" }),
+  );
+});
+
+it("offers no group on a section without the flag", async () => {
+  const user = userEvent.setup();
+  const onCreate = vi.fn();
+  renderSection({
+    onCreate,
+    section: { ...EASTER_EGGS, kind_is_group: false, kind_category: null },
+  });
+  await user.click(screen.getByRole("button", { name: /add/i }));
+  expect(screen.queryByPlaceholderText("Group (optional)")).toBeNull();
+  await user.type(screen.getByPlaceholderText("Description (optional)"), "The mug");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  expect(onCreate.mock.calls[0][0]).not.toHaveProperty("kind");
 });

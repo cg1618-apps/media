@@ -75,7 +75,7 @@ function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFra
     ...row,
     bucket: entryBucket(
       row.media_type,
-      selfGroupValue(row.media_type, entry),
+      selfGroupValue(row, entry),
       seriesMap[String(entry?.series_id)],
       franchiseMap[String(entry?.franchise_id)],
     ),
@@ -90,8 +90,11 @@ const SELF_GROUP_COLUMN = {
   book: "type",
 };
 
-function selfGroupValue(mediaType, entry) {
-  const column = SELF_GROUP_COLUMN[mediaType];
+// A game's group is not the entry's at all: it is the plan row's own
+// platform_group, picked on the card.
+function selfGroupValue(row, entry) {
+  if (row.media_type === "game") return row.platform_group ?? null;
+  const column = SELF_GROUP_COLUMN[row.media_type];
   return column ? (entry?.[column] ?? null) : null;
 }
 

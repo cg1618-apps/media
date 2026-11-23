@@ -334,7 +334,7 @@ it("heads a row with its title column, not with the first filled text field", ()
 
 // --- Hierarchical sections -------------------------------------------------
 
-// Mirrors a 劇情&任務 Story & Quests strand: an order number or a name, nesting to
+// Mirrors a 劇情列表&任務 Story & Quests strand: an order number or a name, nesting to
 // any depth.
 const STORY_LIST = {
   key: "story_list_main",

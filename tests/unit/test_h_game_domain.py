@@ -145,7 +145,7 @@ GAME_ONLY_SECTIONS = {
     "timeline",
     "mysteries",
     "story_other",
-    # 名言/梗, whole.
+    # 名言&梗, whole.
     "quotes",
     "memes",
     # 彩蛋 reaches the unrestricted types only.

@@ -23,7 +23,7 @@ const CHARACTERS = {
   require_any: [],
   hierarchical: false,
   group: "compendium",
-  group_label: "圖鑑與名詞 Compendium & Terms",
+  group_label: "圖鑑&名詞 Compendium & Terms",
   fields: [NAME],
 };
 const SIDE_QUESTS = {
@@ -34,7 +34,7 @@ const SIDE_QUESTS = {
   require_any: [["name"]],
   hierarchical: true,
   group: "story_list",
-  group_label: "劇情&任務 Story & Quests",
+  group_label: "劇情列表&任務 Story & Quests",
   fields: [
     NAME,
     {

@@ -102,7 +102,7 @@ it("sends a trimmed group, suggested from the groups already used", async () => 
     .map((o) => o.value);
   expect(options).toEqual(["設定資料"]);
 
-  await user.type(screen.getByPlaceholderText("Name (optional)"), "Guide");
+  await user.type(screen.getByPlaceholderText("Description (optional)"), "Guide");
   await user.type(group, "  攻略  ");
   await user.click(screen.getByRole("button", { name: "Save" }));
   expect(onCreate).toHaveBeenCalledWith({
@@ -117,7 +117,7 @@ it("sends no group when the field is left blank", async () => {
   const user = userEvent.setup();
   const { onCreate } = renderSection();
   await user.click(screen.getByRole("button", { name: /add/i }));
-  await user.type(screen.getByPlaceholderText("Name (optional)"), "Guide");
+  await user.type(screen.getByPlaceholderText("Description (optional)"), "Guide");
   await user.click(screen.getByRole("button", { name: "Save" }));
   expect(onCreate).toHaveBeenCalledWith({
     section: "resources",
@@ -141,7 +141,18 @@ it("offers no Group field on a section without the flag", async () => {
   const { onCreate } = renderSection({ section: { ...RESOURCES, kind_is_group: false } });
   await user.click(screen.getByRole("button", { name: /add/i }));
   expect(screen.queryByPlaceholderText("Group (optional)")).toBeNull();
-  await user.type(screen.getByPlaceholderText("Name (optional)"), "Guide");
+  await user.type(screen.getByPlaceholderText("Description (optional)"), "Guide");
   await user.click(screen.getByRole("button", { name: "Save" }));
   expect(onCreate).toHaveBeenCalledWith({ section: "resources", title: "Guide", links: [] });
+});
+
+it("asks for the group before the description", async () => {
+  const user = userEvent.setup();
+  renderSection();
+  await user.click(screen.getByRole("button", { name: /add/i }));
+  const group = screen.getByPlaceholderText("Group (optional)");
+  const description = screen.getByPlaceholderText("Description (optional)");
+  expect(
+    group.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 });

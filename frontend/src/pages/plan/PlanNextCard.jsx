@@ -3,10 +3,37 @@
 // Franchise and series cards carry an explicit tier label, because the three
 // scopes now sit side by side in the same bucket and would otherwise be
 // indistinguishable.
+//
+// A game queued to play next also carries a platform picker under its title:
+// the group it is filed under on the Do next tab (PLATFORM_GROUPS), or none.
+// It sits outside the card's link, so picking does not open the game.
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, entryCover, focusStyle, thumbUrl } from "../../lib/covers";
-import { SCOPE_LABELS } from "../../config/planNextGroups";
+import { PLATFORM_GROUPS, SCOPE_LABELS } from "../../config/planNextGroups";
 import LazyImage from "../../components/ui/LazyImage";
+import { usePlanPlatformGroup } from "../../api/mutations/usePlanPlatformGroup";
+
+function PlatformGroupSelect({ row }) {
+  const { mutate, isPending } = usePlanPlatformGroup();
+  return (
+    <select
+      value={row.platform_group || ""}
+      disabled={isPending}
+      onChange={(e) =>
+        mutate({ systemId: row.system_id, platformGroup: e.target.value || null })
+      }
+      aria-label={`Platform group for ${row.display_name || "this game"}`}
+      className="w-full px-2 py-1 border-t border-border bg-surface text-xs text-text-muted focus:outline-none focus:ring-2 focus:ring-brand"
+    >
+      <option value="">Ungrouped</option>
+      {PLATFORM_GROUPS.map((group) => (
+        <option key={group} value={group}>
+          {group}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 export default function PlanNextCard({ row }) {
   if (row.missing) {
@@ -51,11 +78,18 @@ export default function PlanNextCard({ row }) {
   const className =
     "group relative overflow-hidden bg-surface border border-border hover:border-border-strong transition-colors block";
 
-  return row.nav_path ? (
+  const card = row.nav_path ? (
     <Link to={`${row.nav_path}/${row.target_id}`} className={className}>
       {body}
     </Link>
   ) : (
     <div className={className}>{body}</div>
+  );
+  if (row.media_type !== "game" || row.kind !== "next") return card;
+  return (
+    <div className="flex flex-col border border-border [&>*:first-child]:border-0">
+      {card}
+      <PlatformGroupSelect row={row} />
+    </div>
   );
 }
