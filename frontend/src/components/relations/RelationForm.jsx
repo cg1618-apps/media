@@ -174,13 +174,13 @@ export default function RelationForm({
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-black text-text">{entry.display_name}</h2>
         <span
-          className={`px-1.5 py-px font-mono text-[9px] uppercase tracking-[0.12em] ${mediaTypeChip(
+          className={`px-1.5 py-px font-mono text-[9px] ${mediaTypeChip(
             entry.media_type,
           )}`}
         >
           {entry.media_type}
         </span>
-        <span className="ml-auto text-[10px] font-black uppercase tracking-wider text-text-faint">
+        <span className="ml-auto text-[10px] font-black text-text-faint">
           {rows.length} relation{rows.length === 1 ? "" : "s"}
         </span>
       </div>
@@ -219,7 +219,7 @@ export default function RelationForm({
 
         <div className="mt-2 flex flex-wrap items-end gap-2">
           <label className="flex min-w-[12rem] flex-1 flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
+            <span className="text-[10px] font-black text-text-faint">
               Other entry
             </span>
             <select
@@ -241,7 +241,7 @@ export default function RelationForm({
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
+            <span className="text-[10px] font-black text-text-faint">
               Kind
             </span>
             <select
@@ -259,7 +259,7 @@ export default function RelationForm({
           </label>
 
           <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
-            <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
+            <span className="text-[10px] font-black text-text-faint">
               Remark
             </span>
             <input
@@ -277,7 +277,7 @@ export default function RelationForm({
             disabled={writing}
             onClick={() => setDraft((d) => ({ ...d, swapped: !d.swapped }))}
             title="Turn the sentence around"
-            className="rounded-lg border border-border px-2 py-2 text-[10px] font-black uppercase text-text-faint disabled:opacity-40"
+            className="rounded-lg border border-border px-2 py-2 text-[10px] font-black text-text-faint disabled:opacity-40"
           >
             Swap
           </button>
@@ -358,7 +358,7 @@ function ExistingRow({ row, entry, kinds, busy, onWrite }) {
 
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
+          <span className="text-[10px] font-black text-text-faint">
             Kind
           </span>
           <select
@@ -376,7 +376,7 @@ function ExistingRow({ row, entry, kinds, busy, onWrite }) {
         </label>
 
         <label className="flex min-w-[10rem] flex-1 flex-col gap-1">
-          <span className="text-[10px] font-black uppercase tracking-wider text-text-faint">
+          <span className="text-[10px] font-black text-text-faint">
             Remark
           </span>
           <input
@@ -401,7 +401,7 @@ function ExistingRow({ row, entry, kinds, busy, onWrite }) {
               ? `A ${label} reads the same both ways, so there is nothing to swap`
               : `Make ${to.display_name} the ${label} of ${from.display_name} instead`
           }
-          className="rounded-lg border border-border px-2 py-2 text-[10px] font-black uppercase text-text-faint disabled:opacity-40"
+          className="rounded-lg border border-border px-2 py-2 text-[10px] font-black text-text-faint disabled:opacity-40"
         >
           Swap
         </button>
@@ -410,7 +410,7 @@ function ExistingRow({ row, entry, kinds, busy, onWrite }) {
           type="button"
           disabled={busy}
           onClick={remove}
-          className="rounded-lg border border-danger/40 px-2 py-2 text-[10px] font-black uppercase text-danger disabled:opacity-40"
+          className="rounded-lg border border-danger/40 px-2 py-2 text-[10px] font-black text-danger disabled:opacity-40"
         >
           Remove
         </button>

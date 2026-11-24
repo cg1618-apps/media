@@ -65,7 +65,7 @@ export default function EdgeInspector({
         // "Remark" heading would be the only content under it.
         edge.remark ? (
           <>
-            <p className="mt-3 text-[10px] font-black uppercase tracking-wider text-text-faint">
+            <p className="mt-3 text-[10px] font-black text-text-faint">
               Remark
             </p>
             <p className="mt-1 text-sm font-medium text-text-muted">
@@ -75,7 +75,7 @@ export default function EdgeInspector({
         ) : null
       ) : (
         <>
-          <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-text-faint">
+          <label className="mt-3 block text-[10px] font-black text-text-faint">
             Kind
           </label>
           <select
@@ -100,13 +100,13 @@ export default function EdgeInspector({
                 ? `A ${edge.label} reads the same both ways, so there is nothing to swap`
                 : `Make ${edge.targetName} the ${edge.label} of ${edge.sourceName} instead`
             }
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[10px] font-black uppercase text-text-faint disabled:opacity-40"
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-[10px] font-black text-text-faint disabled:opacity-40"
           >
             <i className="fas fa-right-left"></i>
             Swap direction
           </button>
 
-          <label className="mt-3 block text-[10px] font-black uppercase tracking-wider text-text-faint">
+          <label className="mt-3 block text-[10px] font-black text-text-faint">
             Remark
           </label>
           <input
@@ -129,7 +129,7 @@ export default function EdgeInspector({
             type="button"
             disabled={busy}
             onClick={onDelete}
-            className="mt-3 w-full rounded-lg border border-danger/40 px-2 py-1.5 text-[11px] font-black uppercase text-danger disabled:opacity-40"
+            className="mt-3 w-full rounded-lg border border-danger/40 px-2 py-1.5 text-[11px] font-black text-danger disabled:opacity-40"
           >
             Remove relation
           </button>

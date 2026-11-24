@@ -76,7 +76,7 @@ export default function ContentsBar({
             type="button"
             onClick={() => scrollToAnchor(id, offsetFor)}
             aria-current={isActive ? "location" : undefined}
-            className={`shrink-0 whitespace-nowrap px-2.5 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+            className={`shrink-0 whitespace-nowrap px-2.5 py-1 border font-mono text-[11px] transition-colors ${
               isActive
                 ? "border-brand text-brand"
                 : "border-border text-text-faint hover:text-text hover:border-border-strong"

@@ -23,7 +23,7 @@ import {
   formatFocus,
   parseFocus,
 } from "../../lib/covers";
-import { Button } from "../ui/primitives";
+import { Button, eyebrowCls, sectionTitleCls } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
 const NUDGE = 1;
@@ -145,7 +145,7 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
         <div className="flex items-center justify-between border-b border-border px-6 py-3">
           <h3
             id="focus-picker-title"
-            className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted"
+            className={sectionTitleCls}
           >
             Adjust position &amp; zoom
           </h3>
@@ -241,7 +241,7 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
                   style={focusStyle(current)}
                 />
               </div>
-              <figcaption className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+              <figcaption className={eyebrowCls}>
                 Card
               </figcaption>
             </figure>
@@ -254,7 +254,7 @@ export default function FocusPicker({ src, focus, onDone, onCancel }) {
                   style={focusStyle(current)}
                 />
               </div>
-              <figcaption className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+              <figcaption className={eyebrowCls}>
                 Square
               </figcaption>
             </figure>

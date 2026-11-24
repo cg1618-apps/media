@@ -90,7 +90,7 @@ export default function ChoiceBranch({ data, isConnectable = true }) {
             e.stopPropagation();
             onAddNext(edge.id);
           }}
-          className="nodrag nopan absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap border border-dashed border-brand/60 bg-surface px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.1em] text-brand hover:bg-brand-soft"
+          className="nodrag nopan absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap border border-dashed border-brand/60 bg-surface px-1.5 py-0.5 font-mono text-[9px] text-brand hover:bg-brand-soft"
         >
           + next part
         </button>

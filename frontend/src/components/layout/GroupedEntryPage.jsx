@@ -53,7 +53,7 @@ export function Toggle({ active, onClick, children }) {
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`px-2.5 py-1.5 border font-mono text-[10px] uppercase tracking-[0.12em] transition ${
+      className={`px-2.5 py-1.5 border font-mono text-[10px] transition ${
         active
           ? "bg-brand text-on-brand border-brand"
           : "bg-surface border-border-strong text-text-muted hover:border-text hover:text-text"
@@ -164,7 +164,7 @@ export default function GroupedEntryPage({
                         // more work than a group header is worth.
                         <div className="w-9 h-12 bg-ink text-ink-text flex items-center justify-center shrink-0">
                           <span
-                            className="font-mono text-[9px] uppercase tracking-[0.16em] whitespace-nowrap"
+                            className="font-mono text-[9px] whitespace-nowrap"
                             style={{ writingMode: "vertical-rl" }}
                           >
                             {TIER_ICONS[ownerType] || "Group"}

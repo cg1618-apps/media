@@ -39,7 +39,7 @@ import {
   useEntityPatch,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
-import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { Eyebrow, RatingStamp, eyebrowCls } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePageTitle } from "../../contexts/PageTitleContext";
@@ -168,7 +168,7 @@ export default function Person() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
           <Link to="/library/person" className="hover:text-brand transition">
@@ -243,7 +243,7 @@ export default function Person() {
               {name}
             </h1>
             <div className="flex flex-wrap items-center gap-3 mt-2">
-              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint">
+              <p className="font-mono text-[11px] text-text-faint">
                 {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
               </p>
               {/* The ways out to MAL and IMDb, by the name as on the
@@ -332,7 +332,7 @@ export default function Person() {
           ) : (
             groups.map((group) => (
               <section key={`${group.media_type}:${group.role}`}>
-                <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] text-text-muted">
                   {group.label}
                   <span className="text-text-faint">{group.entries.length}</span>
                   <span className="flex-1 border-t border-dotted border-border-strong/60" />
@@ -400,7 +400,7 @@ function CreditCard({ entry, navPath }) {
         >
           {title}
         </h3>
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+        <span className={eyebrowCls}>
           {year || "Undated"}
         </span>
       </div>

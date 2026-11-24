@@ -37,7 +37,7 @@ import {
   usePatchChoiceNode,
   useSetChoiceMark,
 } from "../../api/mutations/useGameChoiceMutations";
-import { Button, Eyebrow } from "../ui/primitives";
+import { Button, Eyebrow, eyebrowCls } from "../ui/primitives";
 import ChoiceGraph from "./ChoiceGraph";
 import {
   BLOCK_KINDS,
@@ -57,7 +57,7 @@ import { useChoiceGraphView } from "./useChoiceGraphView";
 
 const inputCls =
   "w-full border border-border-strong bg-surface text-text px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand";
-const labelCls = "font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint";
+const labelCls = eyebrowCls;
 
 const errorText = (e) => e?.message || "Could not reach the server.";
 
@@ -696,7 +696,7 @@ function RailSection({ label, nodes, marks, canMark, showDone, onShow }) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint hover:text-text"
+        className="flex w-full items-center justify-between font-mono text-[10px] text-text-faint hover:text-text"
       >
         <span>
           {label} ({nodes.length})
@@ -883,7 +883,7 @@ export default function ChoiceGraphModal({
       >
         <div className="px-6 py-3 border-b border-border flex justify-between items-center gap-3 shrink-0">
           <div className="min-w-0">
-            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+            <div className={eyebrowCls}>
               分歧 Choices
             </div>
             <h3
@@ -968,7 +968,7 @@ export default function ChoiceGraphModal({
               />
             )}
             {isAdmin && nodes.length > 0 ? (
-              <p className="pointer-events-none absolute left-3 top-3 max-w-[80%] font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+              <p className="pointer-events-none absolute left-3 top-3 max-w-[80%] font-mono text-[10px] text-text-faint">
                 Drag from a block&apos;s bottom handle to another block to link them, or from a
                 branch&apos;s to set its next part
               </p>

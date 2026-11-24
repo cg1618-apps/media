@@ -170,7 +170,7 @@ function LogsTable({ logs, onRefresh }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
       <div className="bg-surface-2 border-b border-border px-6 py-4 flex items-center justify-between">
-        <h2 className="text-lg font-black text-text uppercase tracking-widest flex items-center">
+        <h2 className="text-lg font-black text-text flex items-center">
           Data Control Log
         </h2>
         <div className="flex items-center gap-3">
@@ -191,7 +191,7 @@ function LogsTable({ logs, onRefresh }) {
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider bg-surface border-b border-border">
+          <thead className="text-[10px] font-black text-text-faint bg-surface border-b border-border">
             <tr>
               <th className="px-6 py-3">Action</th>
               <th className="px-6 py-3">Trigger</th>
@@ -245,7 +245,7 @@ function LogsTable({ logs, onRefresh }) {
                   </td>
                   <td className="px-6 py-3">
                     <span
-                      className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${triggerCls}`}
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold ${triggerCls}`}
                     >
                       {log.type || "Manual"}
                     </span>
@@ -304,7 +304,7 @@ function LogsTable({ logs, onRefresh }) {
           >
             <i className="fas fa-chevron-left"></i>
           </button>
-          <div className="text-xs font-black text-text-muted uppercase tracking-tighter">
+          <div className="text-xs font-black text-text-muted tracking-tighter">
             Page {page} of {totalPages}
           </div>
           <button
@@ -909,7 +909,7 @@ function AnnouncementsCard() {
   const announcements = query.data || [];
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
-      <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
+      <h2 className="text-lg font-black text-text mb-4 flex items-center border-b border-border pb-2">
         Announcement &amp; Notes
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -1433,12 +1433,12 @@ export default function Admin() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Current Season Block */}
         <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 flex flex-col">
-          <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
+          <h2 className="text-lg font-black text-text mb-4 flex items-center border-b border-border pb-2">
             Current
             Season
           </h2>
           <div className="text-center mb-6">
-            <div className="text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+            <div className="text-[10px] font-bold text-text-faint mb-1">
               Active Season Config
             </div>
             <div className="text-3xl font-black text-brand tracking-tight">
@@ -1475,7 +1475,7 @@ export default function Admin() {
 
         {/* Data Control Action Buttons */}
         <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 xl:col-span-2 flex flex-col">
-          <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
+          <h2 className="text-lg font-black text-text mb-4 flex items-center border-b border-border pb-2">
             Data Control
             Actions
           </h2>
@@ -1686,7 +1686,7 @@ export default function Admin() {
 
       {/* 3. Calculate & Fix */}
       <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
-        <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
+        <h2 className="text-lg font-black text-text mb-4 flex items-center border-b border-border pb-2">
           Calculate &amp;
           Fix
         </h2>

@@ -29,7 +29,7 @@ export default function ReportProblemButton({ targetType, targetId, targetLabel 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint hover:text-brand transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="shrink-0 font-mono text-[11px] text-text-faint hover:text-brand transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
       >
         Report a problem
       </button>

@@ -19,6 +19,7 @@ import { endpoints } from "../../api/endpoints";
 import { scopeChip } from "../../config/scopeColors";
 import { groupAliasesBySource } from "../../lib/aliasGroups";
 
+import { eyebrowCls } from "../../components/ui/primitives";
 // Anchor id for a source's section. Sources are short lowercase keys, but the
 // id is derived rather than used raw so a future "comic vine" cannot produce a
 // fragment with a space in it.
@@ -40,7 +41,7 @@ function CategoryTable({ category, rows, unaliased }) {
     <div className="mb-8 last:mb-0">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
         <h3 className="text-sm font-black text-text">{category}</h3>
-        <span className="font-mono text-[10px] text-text-faint uppercase tracking-widest">
+        <span className={eyebrowCls}>
           {rows.length} {rows.length === 1 ? "row" : "rows"}
         </span>
         <Link
@@ -57,13 +58,13 @@ function CategoryTable({ category, rows, unaliased }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-surface-2">
-              <th className="text-left px-3 py-2 text-[10px] font-black text-text-faint uppercase tracking-widest">
+              <th className="text-left px-3 py-2 text-[10px] font-black text-text-faint">
                 What the API says
               </th>
-              <th className="text-left px-3 py-2 text-[10px] font-black text-text-faint uppercase tracking-widest">
+              <th className="text-left px-3 py-2 text-[10px] font-black text-text-faint">
                 What it becomes
               </th>
-              <th className="text-left px-3 py-2 text-[10px] font-black text-text-faint uppercase tracking-widest">
+              <th className="text-left px-3 py-2 text-[10px] font-black text-text-faint">
                 Scopes
               </th>
             </tr>
@@ -196,10 +197,10 @@ export default function Aliases() {
             className="mb-10 scroll-mt-28"
           >
             <div className="flex flex-wrap items-baseline gap-3 mb-4 pb-2 border-b-2 border-border">
-              <h2 className="text-lg font-black text-text uppercase tracking-wide">
+              <h2 className="text-lg font-black text-text">
                 {source.source}
               </h2>
-              <span className="font-mono text-[10px] text-text-faint uppercase tracking-widest">
+              <span className={eyebrowCls}>
                 {source.total} alias {source.total === 1 ? "row" : "rows"} in{" "}
                 {source.categories.length}{" "}
                 {source.categories.length === 1 ? "category" : "categories"}

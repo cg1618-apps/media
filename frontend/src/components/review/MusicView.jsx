@@ -87,7 +87,7 @@ export default function MusicView({ results }) {
           </div>
         ) : (
           <table className="w-full text-sm text-left">
-            <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border bg-surface">
+            <thead className="text-[10px] font-black text-text-faint border-b border-border bg-surface">
               <tr>
                 <th className="px-5 py-3 whitespace-nowrap">Name (CN)</th>
                 <th className="px-5 py-3 whitespace-nowrap">Name (EN)</th>
@@ -129,7 +129,7 @@ export default function MusicView({ results }) {
                       <ul className="space-y-1">
                         {row.songs.map((s, i) => (
                           <li key={i} className="flex flex-wrap items-center gap-2">
-                            <span className="text-text-faint font-mono text-[10px] uppercase">
+                            <span className="text-text-faint font-mono text-[10px]">
                               {LIST_LABELS[s.section] || s.section}
                             </span>
                             <span className="text-text">{s.title || "Untitled"}</span>

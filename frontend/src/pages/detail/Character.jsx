@@ -123,7 +123,7 @@ export default function Character() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
           <Link to="/library/character" className="hover:text-brand transition">
@@ -195,7 +195,7 @@ export default function Character() {
               {name}
             </h1>
             <div className="flex flex-wrap items-center gap-3 mt-2">
-              <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint">
+              <p className="font-mono text-[11px] text-text-faint">
                 {castingTotal} appearance{castingTotal === 1 ? "" : "s"}
               </p>
               {/* The way out to MAL, by the name rather than only in the
@@ -245,7 +245,7 @@ export default function Character() {
 
           {character.identities?.length > 0 && (
             <section>
-              <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+              <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] text-text-muted">
                 Identities
                 <span className="text-text-faint">{character.identities.length}</span>
                 <span className="flex-1 border-t border-dotted border-border-strong/60" />
@@ -266,7 +266,7 @@ export default function Character() {
           ) : (
             groups.map((group) => (
               <section key={group.media_type}>
-                <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] text-text-muted">
                   {mediaTypeLabel(group.media_type)}
                   <span className="text-text-faint">{group.entries.length}</span>
                   <span className="flex-1 border-t border-dotted border-border-strong/60" />

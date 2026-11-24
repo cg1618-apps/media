@@ -49,7 +49,7 @@ export function toQuotePayload(val, extra = {}) {
 function Row({ label, children, hint }) {
   return (
     <div className="space-y-1">
-      <label className="block text-[11px] font-bold text-text-faint uppercase tracking-wide">
+      <label className="block text-[11px] font-bold text-text-faint">
         {label}
       </label>
       {children}

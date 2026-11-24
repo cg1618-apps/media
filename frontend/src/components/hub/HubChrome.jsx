@@ -7,7 +7,7 @@
 // tiers at once. See docs/frontend/design-system.md.
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, focusStyle } from "../../lib/covers";
-import { Eyebrow, Slip, RatingStamp, ProgressRule } from "../ui/primitives";
+import { Eyebrow, Slip, RatingStamp, ProgressRule, sectionTitleCls } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
 /**
@@ -32,7 +32,7 @@ export const SELECT_CLS =
 
 /** A toggle pill for the hubs' filter rows: brand outline when active. */
 export const pillCls = (active) =>
-  `border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] leading-none transition ${
+  `border px-2 py-1 font-mono text-[10px] leading-none transition ${
     active
       ? "border-brand text-brand bg-brand-soft"
       : "border-border text-text-muted hover:border-border-strong hover:text-text"
@@ -48,7 +48,7 @@ export function Crumbs({ trail, current, action = null }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <nav
-        className="min-w-0 font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint flex items-center gap-3 flex-wrap"
+        className="min-w-0 font-mono text-[11px] text-text-faint flex items-center gap-3 flex-wrap"
         aria-label="Breadcrumb"
       >
         {trail.map((c) => (
@@ -72,7 +72,7 @@ export function Crumbs({ trail, current, action = null }) {
 export function AdminStrip({ editId }) {
   return (
     <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between">
-      <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+      <div className={sectionTitleCls}>
         Admin
       </div>
       <Link
@@ -115,7 +115,7 @@ export function HeroCover({ cover, rating, done, total, pct }) {
         {total !== undefined && (
           <>
             <ProgressRule value={total > 0 ? done / total : 0} />
-            <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+            <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] text-text-faint">
               <span>Completed</span>
               <span className="text-text">
                 {done} / {total} · {pct}%
@@ -163,7 +163,7 @@ export function HubTabs({ groups, activeTab, onSelect, getCount }) {
                 key={tab}
                 type="button"
                 onClick={() => onSelect(tab)}
-                className={`px-3 pb-2 pt-1 font-mono text-[11px] uppercase tracking-[0.14em] border-b-2 transition whitespace-nowrap ${
+                className={`px-3 pb-2 pt-1 font-mono text-[11px] border-b-2 transition whitespace-nowrap ${
                   active
                     ? "border-brand text-brand"
                     : "border-transparent text-text-muted hover:text-text"

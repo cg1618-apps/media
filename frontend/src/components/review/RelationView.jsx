@@ -100,7 +100,7 @@ export default function RelationView({ results, onReviewed }) {
           <EmptyTab>No single-entry {tab} to review</EmptyTab>
         ) : (
           <table className="w-full text-sm text-left">
-            <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border bg-surface">
+            <thead className="text-[10px] font-black text-text-faint border-b border-border bg-surface">
               <tr>
                 <th className="px-5 py-3 whitespace-nowrap">
                   {tab === "franchise" ? "Franchise" : "Series"}

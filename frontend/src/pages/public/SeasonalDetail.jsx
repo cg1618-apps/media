@@ -345,7 +345,7 @@ function SeasonalDetailWithList() {
           return (
             <section key={section.key}>
               <div className="flex items-center gap-3 mb-6 pb-2 border-b border-border">
-                <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted font-normal">
+                <h2 className="font-mono text-[11px] text-text-muted font-normal">
                   {section.label}
                 </h2>
                 <span className="font-mono text-[11px] text-text-faint tabular-nums">

@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { endpoints } from "../../api/endpoints";
 import { useEntryLists, GROUP_LIST_TYPES } from "../../hooks/useEntryLists";
 import { useGroupMembers } from "../../hooks/useGroupMembers";
-import { mediaTypeLabel } from "../../config/mediaRegistry";
+import { mediaTypeLabel, ownerTypeLabel } from "../../config/mediaRegistry";
 import { entityPath } from "../../lib/entityPath";
 import { ADD_TAB_LISTS, listsForTab } from "../../config/adminEntryLists";
 import { useToast } from "../../hooks/useToast";
@@ -41,6 +41,7 @@ import LazyImage from "../../components/ui/LazyImage";
 import { focusStyle } from "../../lib/covers";
 
 
+import { eyebrowCls } from "../../components/ui/primitives";
 function getClean(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
 }
@@ -266,7 +267,7 @@ function GroupMembers({ tier, members }) {
         <div className="max-h-64 overflow-y-auto border border-border rounded-lg divide-y divide-border text-left">
           {groups.map((g) => (
             <div key={g.type} className="px-3 py-2">
-              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+              <div className={eyebrowCls}>
                 {g.label} · {g.rows.length}
               </div>
               <ul className="mt-1 space-y-0.5">
@@ -3414,8 +3415,8 @@ export default function Delete() {
               <div className="w-14 h-14 bg-danger/10 rounded-full flex items-center justify-center mx-auto mb-3">
                 <i className="fas fa-trash-alt text-danger text-xl"></i>
               </div>
-              <div className="text-xs font-bold text-text-faint uppercase tracking-widest">
-                {modal.type.toUpperCase()}
+              <div className="text-xs font-bold text-text-faint">
+                {ownerTypeLabel(modal.type)}
                 {modal.item.category ? ` (${modal.item.category})` : ""}
               </div>
               <h3 className="font-black text-text text-lg mt-1">

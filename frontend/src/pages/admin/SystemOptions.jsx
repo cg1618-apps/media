@@ -186,7 +186,7 @@ function TitleBar({ tier1Sections, tier2Sections, activeId }) {
         ref={listRef}
         className="sticky top-28 max-h-[calc(100vh-9rem)] overflow-y-auto bg-surface border border-border rounded-2xl shadow-sm p-4"
       >
-        <p className="text-[10px] font-black text-text-faint uppercase tracking-widest px-2 mb-3">
+        <p className="text-[10px] font-black text-text-faint px-2 mb-3">
           On this page
         </p>
 
@@ -252,7 +252,7 @@ function SectionHeader({ tier, title, subtitle, source, children }) {
   return (
     <div className="border-b border-border pb-4 mb-6">
       <div className="flex flex-wrap items-baseline gap-3">
-        <span className="bg-ink text-ink-text text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded">
+        <span className="bg-ink text-ink-text text-[10px] font-black px-2.5 py-1 rounded">
           Tier {tier}
         </span>
         <h2 className="text-xl font-black text-text tracking-tight">
@@ -340,7 +340,7 @@ function Tier1({ constants, sections }) {
             className="scroll-mt-28"
           >
             <div className="flex items-baseline gap-2 mb-3">
-              <h3 className="text-xs font-black text-text uppercase tracking-widest">
+              <h3 className="text-xs font-black text-text">
                 {section.title}
               </h3>
               <span className="text-[10px] font-bold text-text-faint">
@@ -374,7 +374,7 @@ function CategoryTable({ category, rows }) {
       </div>
       <div className="overflow-x-auto border border-border rounded-xl">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-[10px] uppercase tracking-widest text-text-faint">
+          <thead className="bg-surface-2 text-[10px] text-text-faint">
             <tr>
               <th className="text-left font-black px-3 py-2 w-16">#</th>
               <th className="text-left font-black px-3 py-2">Value</th>
@@ -480,7 +480,7 @@ function Tier2({ sections, loading }) {
               className="scroll-mt-28"
             >
               <div className="flex items-baseline gap-2 mb-3">
-                <h3 className="text-xs font-black text-text uppercase tracking-widest">
+                <h3 className="text-xs font-black text-text">
                   {section.title}
                 </h3>
                 <span className="text-[10px] font-bold text-text-faint">
@@ -530,7 +530,7 @@ function Tier3({ roleCounts, studioCount, loading }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="border border-border rounded-xl p-4">
-          <div className="text-[10px] font-bold text-text-faint uppercase tracking-widest mb-1">
+          <div className="text-[10px] font-bold text-text-faint mb-1">
             Studio records
           </div>
           <div className="text-3xl font-black text-text tracking-tight">
@@ -538,7 +538,7 @@ function Tier3({ roleCounts, studioCount, loading }) {
           </div>
         </div>
         <div className="border border-border rounded-xl p-4">
-          <div className="text-[10px] font-bold text-text-faint uppercase tracking-widest mb-1">
+          <div className="text-[10px] font-bold text-text-faint mb-1">
             Person roles held
           </div>
           <div className="text-3xl font-black text-text tracking-tight">
@@ -554,7 +554,7 @@ function Tier3({ roleCounts, studioCount, loading }) {
 
       <div className="overflow-x-auto border border-border rounded-xl">
         <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-[10px] uppercase tracking-widest text-text-faint">
+          <thead className="bg-surface-2 text-[10px] text-text-faint">
             <tr>
               <th className="text-left font-black px-3 py-2">
                 Old categories

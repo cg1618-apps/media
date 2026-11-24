@@ -8,7 +8,7 @@ export default function BarChart({ items, label }) {
   const hasData = items.some((d) => d.count > 0);
   return (
     <div>
-      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-4">
+      <p className="font-mono text-[10px] text-text-faint mb-4">
         {label}
       </p>
       {!hasData ? (
@@ -31,7 +31,7 @@ export default function BarChart({ items, label }) {
                   height: `${Math.max((count / max) * 72, count > 0 ? 4 : 2)}px`,
                 }}
               />
-              <span className="font-mono text-[9px] uppercase tracking-[0.08em] text-text-faint mt-1.5 truncate w-full text-center">
+              <span className="font-mono text-[9px] text-text-faint mt-1.5 truncate w-full text-center">
                 {key}
               </span>
             </div>
