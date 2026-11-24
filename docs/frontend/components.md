@@ -370,7 +370,13 @@ columns.
   `FollowedStep` (one step line shared by those two views),
   `RelationsSection` (its optional `onRows` prop is handed every row the card
   loads, so the h-comic page names the hentai its derived animation status
-  comes from without a second request), `OrderSection`, `OrderGuide`,
+  comes from without a second request), `OrderSection` (its order chips on
+  two labelled rows, Custom then Built-in, an empty row not drawn),
+  `OrderGuide` (its `typeFilter` prop narrows the steps to one media type and
+  keeps their whole-order numbers; the same file exports `MediaTypeFilter`,
+  the order page's scope drawn as type pills — toggle pills with **All** on a
+  cross-type order, one static selected-style pill on a single-type one —
+  and the text-only `MediaScopeLine` the hub tab, the editor and the admin `/orders` page keep),
   `OrderEditor` (steps and parts dragged by a grip, plus a typed
   position box; its move arithmetic is the pure `orderLayout.js` beside
   it, which flattens the drawn blocks into a token stream - one token per step

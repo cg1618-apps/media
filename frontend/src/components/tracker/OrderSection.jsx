@@ -118,28 +118,34 @@ function OrderChip({ list, active, followed, onSelect }) {
   );
 }
 
-/** The chip rendering of the picker: one labelled cluster per origin group. */
+/**
+ * The chip rendering of the picker: one row per origin group, Custom above
+ * Built-in. A grid rather than stacked flex rows so the two labels share a
+ * column and both rows of chips start at the same edge. A group with no orders
+ * was already dropped by splitByOrigin, so it draws no row.
+ */
 function OrderChips({ groups, selectedId, followedId, onSelect }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      {groups.map((group, i) => (
-        <div key={group.label} className="flex flex-wrap items-center gap-2">
-          {i > 0 && (
-            <div
-              className="w-px h-5 bg-border-strong shrink-0 mr-1"
-              aria-hidden="true"
-            />
-          )}
+    <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2">
+      {groups.map((group) => (
+        <div
+          key={group.label}
+          role="group"
+          aria-label={`${group.label} orders`}
+          className="contents"
+        >
           <Eyebrow className="whitespace-nowrap">{group.label}</Eyebrow>
-          {group.lists.map((l) => (
-            <OrderChip
-              key={l.system_id}
-              list={l}
-              active={l.system_id === selectedId}
-              followed={l.system_id === followedId}
-              onSelect={onSelect}
-            />
-          ))}
+          <div className="flex flex-wrap items-center gap-2">
+            {group.lists.map((l) => (
+              <OrderChip
+                key={l.system_id}
+                list={l}
+                active={l.system_id === selectedId}
+                followed={l.system_id === followedId}
+                onSelect={onSelect}
+              />
+            ))}
+          </div>
         </div>
       ))}
     </div>
