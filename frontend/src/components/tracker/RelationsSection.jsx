@@ -78,8 +78,10 @@ export default function RelationsSection({ mediaType, entryId, onRows }) {
       {ordered.map((row) => {
         const other = row.other;
 
-        // A dangling endpoint stays visible rather than vanishing: entries
-        // are FK-less, and a silently dropped row is one nobody ever fixes.
+        // Defensive only: both ends of a stored relation are foreign keys
+        // onto media, ON DELETE CASCADE, so deleting an entry deletes its
+        // relations and none should arrive missing. Shown, not dropped, if
+        // one ever does.
         if (other.missing) {
           return (
             <div

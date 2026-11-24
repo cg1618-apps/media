@@ -341,7 +341,7 @@ def relations_for_entry(
     `viewer` drops any edge whose far end - or whose `via` intermediate - the
     caller may not see. An edge is removed rather than blanked: leaving it with
     missing=True would both name the relation and tell the reader something is
-    there, and the UI reads missing as a dangling row to go and fix.
+    there.
     """
     rows = (
         db.query(MediaRelation)

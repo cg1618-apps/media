@@ -6,6 +6,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    ForeignKeyConstraint,
     Index,
     String,
     Text,
@@ -20,11 +21,13 @@ class MediaRelation(Base):
     """
     One typed link between two media entries, stored once and read both ways.
 
-    Both endpoints are deliberately FK-less (media_type, entry_id) pairs, the
-    same contract `order_item` uses: no single foreign key can span the
-    seven media tables. A deleted entry therefore leaves a dangling endpoint,
-    which the read-time resolver flags as missing rather than silently dropping,
-    so it stays visible and fixable in the admin page.
+    Each endpoint is a (type, id) pair held by a composite foreign key onto
+    media(system_id, media_type), ON DELETE CASCADE. `media` is the supertable
+    every media type shares, and each entry's AFTER DELETE trigger removes its
+    media row - so deleting an entry, by whatever path, takes every relation
+    touching it from either end, and no relation can name an entry that is not
+    there or file one under the wrong type. The type stays on the row because
+    the pair is what every reader and the Sheets tab key on.
 
     Direction matters. The row reads `from` -> `to`: with relation_type
     "sequel", `from` is the sequel of `to`. The reverse label ("Prequel") is
@@ -60,6 +63,21 @@ class MediaRelation(Base):
         # can rely on the other's index.
         Index("ix_media_relation_from", "from_type", "from_id"),
         Index("ix_media_relation_to", "to_type", "to_id"),
+        # Deleting an entry removes its relations, both ways round. The same
+        # composite shape as fk_plan_next_media_type: the type column is part
+        # of the key, so an anime id can never be stored as a manga.
+        ForeignKeyConstraint(
+            ["from_id", "from_type"],
+            ["media.system_id", "media.media_type"],
+            ondelete="CASCADE",
+            name="fk_media_relation_from",
+        ),
+        ForeignKeyConstraint(
+            ["to_id", "to_type"],
+            ["media.system_id", "media.media_type"],
+            ondelete="CASCADE",
+            name="fk_media_relation_to",
+        ),
     )
 
     system_id = Column(

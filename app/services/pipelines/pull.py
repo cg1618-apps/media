@@ -915,6 +915,37 @@ def _fold_one_row_ost(payload: dict) -> None:
     )
 
 
+def _missing_relation_endpoint(db: Session, payload: dict):
+    """
+    A Media Relation row whose end names no entry of that type here.
+
+    Both ends are foreign keys onto media(system_id, media_type), so such a
+    row would raise at the tab's single commit and roll back every relation
+    the sheet carries. That happens to a sheet backed up from a database that
+    still held relations to deleted entries, or to an entry the other machine
+    has and this one does not. Returns a one-line reason, or None.
+    """
+    for end in ("from", "to"):
+        media_type = payload.get(f"{end}_type")
+        entry_id = payload.get(f"{end}_id")
+        exists = (
+            entry_id is not None
+            and db.query(Media.system_id)
+            .filter(Media.system_id == entry_id, Media.media_type == media_type)
+            .first()
+            is not None
+        )
+        if not exists:
+            logger.warning(
+                "Media Relation: no %s entry %s; row skipped.", media_type, entry_id
+            )
+            return (
+                f"Media Relation: its {end} entry ({media_type}, {entry_id}) "
+                "is unknown here"
+            )
+    return None
+
+
 def _resolve_owner_columns(db: Session, tab_name: str, payload: dict):
     """
     Turn a Note or Meme row's owner into exactly one of its four FK columns.
@@ -1491,6 +1522,15 @@ def execute_pull_specific(
                 rows_skipped += 1
                 continue
             clean_header_dict["values"] = values
+
+        # A relation to an entry this database does not hold is skipped and
+        # reported, rather than failing every relation at the commit.
+        if tab_name == "Media Relation":
+            unresolved = _missing_relation_endpoint(db, clean_header_dict)
+            if unresolved is not None:
+                unresolved_refs.append(unresolved)
+                rows_skipped += 1
+                continue
 
         # Note and Meme alone carry the pre-m5b1notefks (owner_type, owner_id)
         # pair their parsers rename to _legacy_*; Quote never had one.

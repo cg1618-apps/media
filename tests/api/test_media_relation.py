@@ -731,37 +731,57 @@ def test_graph_adds_a_ghost_node_for_an_out_of_scope_endpoint(
     assert ghost["franchise_id"] == str(other_franchise.system_id)
 
 
-def test_graph_marks_a_dangling_target_as_missing(
+def test_graph_draws_no_ghost_for_a_deleted_entry(
     owner_client, client, db_session, sample_franchise, sample_anime
 ):
-    import uuid as _uuid
-
-    from app import models
-
-    # Written straight to the table: the API would refuse a nonexistent
-    # endpoint, but a row can be orphaned later by deleting the entry.
-    orphan_id = _uuid.uuid4()
+    """
+    Deleting the far end of a relation takes the relation with it, so the
+    canvas has no missing node to draw. The out-of-scope ghost is checked
+    present first, so its absence afterwards is the delete's doing.
+    """
+    other_franchise = models.Franchise(
+        system_id=uuid.uuid4(), franchise_type="Manga", franchise_name_en="Elsewhere"
+    )
+    db_session.add(other_franchise)
+    db_session.flush()
+    manga = models.Manga(
+        system_id=uuid.uuid4(),
+        franchise_id=other_franchise.system_id,
+        manga_name_en="Gone Soon",
+    )
+    db_session.add(manga)
+    db_session.flush()
     db_session.add(
         models.MediaRelation(
-            system_id=_uuid.uuid4(),
+            system_id=uuid.uuid4(),
             from_type="anime",
             from_id=sample_anime.system_id,
             relation_type="adaptation",
             to_type="manga",
-            to_id=orphan_id,
+            to_id=manga.system_id,
         )
     )
     db_session.flush()
+    key = f"manga:{manga.system_id}"
 
-    body = client.get(
-        "/api/media-relation/graph",
-        params={"franchise_id": str(sample_franchise.system_id)},
-    ).json()
+    def graph():
+        return client.get(
+            "/api/media-relation/graph",
+            params={"franchise_id": str(sample_franchise.system_id)},
+        ).json()
 
-    ghost = next(n for n in body["nodes"] if n["key"] == f"manga:{orphan_id}")
-    assert ghost["missing"] is True
-    assert ghost["in_scope"] is False
-    assert ghost["display_name"] is None
+    before = graph()
+    assert any(n["key"] == key for n in before["nodes"])
+    assert len(before["edges"]) == 1
+
+    res = owner_client.delete(f"/api/manga/{manga.system_id}")
+    assert res.status_code == 200, res.text
+    db_session.expire_all()
+
+    after = graph()
+    assert all(n["key"] != key for n in after["nodes"])
+    assert all(not n["missing"] for n in after["nodes"])
+    assert after["edges"] == []
 
 
 def test_graph_scope_can_be_a_collection(
