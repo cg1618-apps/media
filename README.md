@@ -2,7 +2,7 @@
 
 A personal, cloud-hosted tracker for a media collection — anime, anime movies,
 movies, TV shows, cartoons, manga, books and comics — organised as
-**Collection → Franchise → Series → entry**, with watch orders, relations,
+**Collection → Franchise → Series → entry**, with orders, relations,
 notes, quotes/memes, a plan-next board and per-season statistics. Guests can
 browse; an admin manages everything, enriches entries from Tenrai (MAL), TMDB,
 OMDb and Comic Vine, and backs the whole database up to Google Sheets.
@@ -47,7 +47,7 @@ API keys, Google credentials and the "port 8000 serves the built bundle" rule
 
 Everything is under [`docs/`](docs/README.md): architecture, data model,
 every API endpoint, business rules, the data-control pipelines, each
-subsystem (watch orders, relations, plan-next, notes, quotes/memes, credits),
+subsystem (orders, relations, plan-next, notes, quotes/memes, credits),
 authentication and authorization, the frontend pages and components, testing,
 and deployment.
 

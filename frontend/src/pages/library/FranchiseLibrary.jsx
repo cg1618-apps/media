@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getDisplayName, cleanString, parseTypes } from "../../utils/media";
-import { compareGroups } from "../../lib/groupSort";
+import { compareGroups, expectationTone } from "../../lib/groupSort";
 import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import FranchiseCard from "../../components/cards/FranchiseCard";
@@ -151,7 +151,9 @@ const TABLE_COLUMNS = [
     tdClass: `text-center ${HIDDEN.lg}`,
     render: (f) =>
       f.franchise_expectation ? (
-        <Chip className="text-[9px]">{f.franchise_expectation}</Chip>
+        <Chip tone={expectationTone(f.franchise_expectation)} className="text-[9px]">
+          {f.franchise_expectation}
+        </Chip>
       ) : (
         "-"
       ),
@@ -385,7 +387,6 @@ export default function FranchiseLibrary() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <div className="flex-1 min-w-0">
-              <Eyebrow className="mb-1">Library</Eyebrow>
               <h1 className="font-display text-3xl font-semibold text-text leading-none">
                 Franchises
               </h1>

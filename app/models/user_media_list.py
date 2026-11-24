@@ -21,6 +21,7 @@ column, not the values.
 import uuid
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -88,6 +89,10 @@ class UserMediaList(Base):
     # One of constants.H_COMIC_USEFULNESS. Personal for the reason my_rating
     # is: it says how useful the work was to this reader.
     usefulness = Column(String, nullable=True)            # h-comic, hentai
+    # Pinned to the top of the viewer's dashboard (the Pinged division).
+    # Whatever the status: a pin is the viewer's shortcut, not a progress
+    # state. The nine ordinary types only - the dashboard draws no gated type.
+    is_pinged = Column(Boolean, nullable=False, default=False, server_default="false")
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)

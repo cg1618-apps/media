@@ -21,7 +21,7 @@ from app.services.domain.h_game import CHOICE_LISTS, SINGLE_CHOICES, lenient_cho
 
 # Imported rather than duplicated so the Sheets tab and the API agree on what
 # the three rungs are.
-from app.services.domain.watch_order import normalize_importance
+from app.services.domain.order import normalize_importance
 from app.utils import release_date
 
 # character.role, kept only when it is one of CHARACTER_ROLES.
@@ -294,9 +294,9 @@ def _public_id_from_sheet(raw: dict) -> dict:
     return {"public_id": value} if value is not None else {}
 
 
-def parse_watch_order_list_from_sheet(raw: dict) -> dict:
+def parse_order_list_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Watch Order List sheet into typed data
+    Parses a raw dictionary from the Order List sheet into typed data
     ready for the Database.
     """
     parsed = {
@@ -323,9 +323,9 @@ def parse_watch_order_list_from_sheet(raw: dict) -> dict:
     return parsed
 
 
-def parse_watch_order_section_from_sheet(raw: dict) -> dict:
+def parse_order_section_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Watch Order Section sheet into typed data
+    Parses a raw dictionary from the Order Section sheet into typed data
     ready for the Database.
     """
     return {
@@ -339,9 +339,9 @@ def parse_watch_order_section_from_sheet(raw: dict) -> dict:
     }
 
 
-def parse_watch_order_item_from_sheet(raw: dict) -> dict:
+def parse_order_item_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Watch Order Item sheet into typed data
+    Parses a raw dictionary from the Order Item sheet into typed data
     ready for the Database.
     """
     return {
@@ -367,9 +367,9 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
     }
 
 
-def parse_watch_order_follow_from_sheet(raw: dict) -> dict:
+def parse_order_follow_from_sheet(raw: dict) -> dict:
     """
-    One user's follow of one watch order. user_id is not in the sheet -
+    One user's follow of one order. user_id is not in the sheet -
     pull.py resolves the row's `username` - and every other id is a real FK
     whose uuid travels unchanged, so an unparseable cell becomes None and the
     database refuses the row rather than the tab.
@@ -556,6 +556,8 @@ def parse_user_media_list_from_sheet(raw: dict) -> dict:
         "page_fin": parse_from_sheet(raw.get("page_fin"), float),
         "usefulness": parse_from_sheet(raw.get("usefulness"), str),
         "time_fin": _text_cell_from_sheet(raw.get("time_fin")),
+        # NOT NULL; a sheet backed up before the column existed reads unpinned.
+        "is_pinged": bool(parse_from_sheet(raw.get("is_pinged"), bool)),
     }
 
 
@@ -2494,6 +2496,26 @@ _RETIRED_NOTE_SECTIONS = {
 }
 
 
+def _pulled_note_personal(raw: dict) -> bool:
+    """The row's kind, as parse_note_from_sheet's comment explains."""
+    section = section_by_key(_pulled_note_section(raw.get("section")) or "")
+    if section is not None and section.kind_choice:
+        return parse_from_sheet(raw.get("public"), bool) is not True
+    return parse_from_sheet(raw.get("personal"), bool) is True
+
+
+def note_public_cell(row: Any, db: Any) -> Optional[bool]:
+    """
+    The Note tab's `public` column: TRUE on a public row of a section whose
+    writer picks the kind, blank on every other row. Pull reads those
+    sections' kind from here (_pulled_note_personal).
+    """
+    section = section_by_key(row.section or "")
+    if section is not None and section.kind_choice and not row.personal:
+        return True
+    return None
+
+
 def _pulled_note_section(value) -> str | None:
     section = parse_from_sheet(value, str)
     return _RETIRED_NOTE_SECTIONS.get(section, section)
@@ -2527,7 +2549,13 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # as catalogue; a sheet backed up before the column existed has no
         # header, so Pull leaves the key out and the column's default - also
         # catalogue - applies, which is all such a sheet can hold.
-        "personal": parse_from_sheet(raw.get("personal"), bool) is True,
+        #
+        # A section whose writer picks the kind (`kind_choice`) reads it from
+        # `public` instead: public only when that cell says so. Those sections
+        # were personal-scope before, and an older sheet carries their rows
+        # with `personal` FALSE and no `public` column, so reading `personal`
+        # would publish every one of them.
+        "personal": _pulled_note_personal(raw),
         # The tree link for the hierarchical sections. A plain UUID column, so
         # it needs no JSON handling - but it does need to be here, or Pull
         # flattens every nested Story List entry to a root.

@@ -33,6 +33,8 @@ vi.mock("./pages/library/CollectionLibrary", () => stub("collection library"));
 vi.mock("./pages/detail/Franchise", () => stub("franchise"));
 vi.mock("./pages/detail/Anime", () => stub("anime"));
 vi.mock("./pages/detail/Book", () => stub("book"));
+vi.mock("./pages/detail/Order", () => stub("order"));
+vi.mock("./pages/admin/Orders", () => stub("orders"));
 vi.mock("./pages/library/StudioLibrary", () => stub("studio library"));
 vi.mock("./pages/library/PublisherLibrary", () => stub("publisher library"));
 vi.mock("./pages/library/PersonLibrary", () => stub("person library"));
@@ -324,5 +326,26 @@ describe("the old /novel routes", () => {
     await screen.findByText("book page");
     // visit() pushes one entry; the redirect replaces it rather than adding one.
     expect(window.history.length).toBe(before + 1);
+  });
+});
+
+// Orders were watch orders. Their old URLs land on the same page, with the
+// public id, slug, query and hash carried over and the old path replaced.
+describe("the old watch-order routes", () => {
+  it("send an order link on to /order, keeping the id, slug, query and hash", async () => {
+    asGuest();
+    await visit("/watch-order/7/marvel?step=3#notes");
+    expect(await screen.findByText("order page")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/order/7/marvel");
+    expect(window.location.search).toBe("?step=3");
+    expect(window.location.hash).toBe("#notes");
+  });
+
+  it("send the old editor on to /orders, keeping the query", async () => {
+    asSuper();
+    await visit("/watch-orders?order=7");
+    expect(await screen.findByText("orders page")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/orders");
+    expect(window.location.search).toBe("?order=7");
   });
 });

@@ -1,5 +1,5 @@
 // Person detail page: the profile controls it shares with Character.jsx -
-// Quick edit, the rating select and the remark editor for an admin, text for
+// Edit, the rating select and the remark editor for an admin, text for
 // everyone else - and the Naming card.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -255,7 +255,7 @@ describe("Person detail page", () => {
   it("shows a guest the remark and rating as text, with no admin controls", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Hayao Miyazaki" });
-    expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit this person" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
     expect(screen.getByText("Retired, twice.")).toBeInTheDocument();
@@ -372,7 +372,7 @@ describe("Person detail page", () => {
       await user.selectOptions(await screen.findByLabelText("My rating"), "C");
       await waitFor(() => expect(putCalls()).toHaveLength(1));
       expect(putCalls()[0][0]).toBe("/api/me/ratings/person/p1");
-      expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit this person" })).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
     });
 
@@ -398,14 +398,14 @@ describe("Person detail page", () => {
 
     it("draws no rating editor", async () => {
       renderPage();
-      await screen.findByRole("button", { name: "Quick edit" });
+      await screen.findByRole("button", { name: "Edit this person" });
       expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     });
 
-    it("links Quick edit to this person's Modify editor", async () => {
+    it("links Edit to this person's Modify editor", async () => {
       const user = userEvent.setup();
       renderPage();
-      await user.click(await screen.findByRole("button", { name: "Quick edit" }));
+      await user.click(await screen.findByRole("button", { name: "Edit this person" }));
       expect(await screen.findByText("at /modify?id=p1&type=person")).toBeInTheDocument();
     });
 
@@ -469,7 +469,7 @@ describe("Person Autofill & update", () => {
     auth = ADMIN;
     mockFetch({ ...SEIYUU, mal_id: null, mal_link: null });
     renderPage();
-    await screen.findByRole("button", { name: "Quick edit" });
+    await screen.findByRole("button", { name: "Edit this person" });
     expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
   });
 

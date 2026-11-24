@@ -89,11 +89,20 @@ class NoteBase(BaseModel):
 
 
 class NoteCreate(NoteBase):
-    pass
+    # The row's kind, asked for. Read only in a section with `kind_choice`,
+    # and only from a manage.catalog holder: null there means personal. Every
+    # other section decides the kind itself and ignores this.
+    personal: Optional[bool] = None
 
 
 class NoteUpdate(NoteBase):
     pass
+
+
+class NoteKindUpdate(BaseModel):
+    """PATCH /api/notes/{id}/kind: switch a row between personal and public."""
+
+    personal: bool
 
 
 class NoteResponse(NoteBase):
@@ -247,6 +256,9 @@ class NoteSectionOut(BaseModel):
     # catalogue's (rows carrying `personal`). A viewer holding manage.catalog
     # writes catalogue rows here, any other writer personal rows.
     mixed: bool = False
+    # A manage.catalog holder picks each row's kind here, personal by
+    # default (NoteSection.kind_choice).
+    kind_choice: bool = False
 
 
 class NoteReorder(BaseModel):
@@ -256,6 +268,10 @@ class NoteReorder(BaseModel):
     owner_id: UUID
     section: str
     ordered_ids: List[UUID]
+    # Which kind is being renumbered, in a section with `kind_choice`, whose
+    # catalogue writer keeps rows of both. Null there means personal; every
+    # other section reads the kind from the viewer and ignores this.
+    personal: Optional[bool] = None
 
 
 class NoteGroupRename(BaseModel):
@@ -415,6 +431,7 @@ def section_out(
         personal_status=section.personal_status,
         status_granted=section.status_granted,
         mixed=section.mixed,
+        kind_choice=section.kind_choice,
     )
 
 

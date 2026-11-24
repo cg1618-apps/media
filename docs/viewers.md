@@ -1,6 +1,6 @@
 # What each viewer sees
 
-Last verified: 2026-11-14
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -23,7 +23,7 @@ it; "per account" is a per-account feature switch, off by default.
 
 | | admin | super | user | guest | shared |
 | --- | --- | --- | --- | --- | --- |
-| Media and group libraries, detail pages, watch orders | — | ✓ | ✓ | ✓ | ✓ |
+| Media and group libraries, detail pages, orders | — | ✓ | ✓ | ✓ | ✓ |
 | The nine ordinary media types | — | ✓ | switch, on | switch, on | switch, on |
 | H-Comic, H-Game, Hentai | — | in `unrestricted` | in `unrestricted` | never | never |
 | Studio, publisher, person, character pages | — | ✓ | switch, off | switch, off | switch, off |
@@ -90,7 +90,7 @@ The catalogue account — in practice the owner's, `cg1618`.
 - **Quotes and memes** only through a per-account switch.
 - **`/resources`**, always — it is admin's and super's alone.
 - **Writes the catalogue**: entries, groups, people, credits, relations,
-  watch orders, catalogue notes, images, options, announcements, and
+  orders, catalogue notes, images, options, announcements, and
   attaching labels. In mixed sections it writes catalogue rows only.
 - **The Note pages, `/images`, and every pipeline** — its Pull skips the
   account tabs, so keeping Backup and Pull here costs no
@@ -168,7 +168,7 @@ and off for guest. Plan and Completions ask `self.list`.
 
 The logged-out visitor.
 
-- **Reads** the libraries, entry and group pages, watch orders, the
+- **Reads** the libraries, entry and group pages, orders, the
   dashboard's announcements, broadcast schedule and library links, Future
   Releases and Seasonal (each in its catalogue version, without personal
   data), and Search and the entity kinds where its role's switches
@@ -260,7 +260,7 @@ Every page listed below is settled in its general version.
 | Restricted | H-Comic, H-Game, Hentai | — | in `unrestricted` | in `unrestricted` | — | — |
 | **Track** | Plan, Completions | — | ✓ | ✓ | — | — |
 | **Explore** | Seasonal, Future Releases, Random Picker, Statistics | — | ✓ | ✓ | Seasonal, Future Releases | ✓ |
-| **Extras** | Quotes, Memes, Resources ┃ Relations, Watch Orders | Resources | Resources, Relations, Watch Orders; quotes and memes by switch | quotes and memes by switch | — | — |
+| **Extras** | Quotes, Memes, Resources ┃ Relations, Orders | Resources | Resources, Relations, Orders; quotes and memes by switch | quotes and memes by switch | — | — |
 | Entry | catalogue editing, Picker Defaults, Images | Images | ✓ | — | — | — |
 | Note | System Options, Alias Conversion, External APIs, Content Labels, Business Logic | ✓ | ✓ | — | — | — |
 | **System** | Control Center, Data History, Review Queue, Clean Orphans, Inbox | ✓ | ✓ | — | — | — |
@@ -269,7 +269,7 @@ Every page listed below is settled in its general version.
 - **Track** holds the account's own progress — Plan and Completions.
   **Explore** holds the browsing pages — Seasonal, Future Releases, Random
   Picker and Statistics. **Extras** holds quotes, memes and resources and,
-  after a rule, super's Relations and Watch Orders editors.
+  after a rule, super's Relations and Orders editors.
 - **A tab with nothing left in it is not drawn.**
 - **Requests sits in the header's account strip**, beside sign out, for
   shared, user and super, opening My requests — the same place for every
@@ -308,19 +308,19 @@ Every page listed below is settled in its general version.
 Granted features — the music and mod statuses, favourites — appear only for
 an account that has them switched on.
 
-### Collection, franchise and series pages, and watch order pages
+### Collection, franchise and series pages, and order pages
 
-| Viewer | Collection / franchise / series page | Watch order page |
+| Viewer | Collection / franchise / series page | Order page |
 | --- | --- | --- |
-| **super** | catalogue information; its own rating and expectation of the group; the entries' list status as its own; personal and catalogue notes; edit controls; Report a problem | the watch order, the follow toggle, a link to the Watch Orders editor |
-| **user** | the same without edit controls | the watch order, the follow toggle |
-| **guest** | catalogue only — no rating, expectation or list status | the watch order only |
-| **shared** | the guest's page, plus Report a problem | the watch order only |
+| **super** | catalogue information; its own rating and expectation of the group; the entries' list status as its own; personal and catalogue notes; edit controls; Report a problem | the order, the follow toggle, a link to the Orders editor |
+| **user** | the same without edit controls | the order, the follow toggle |
+| **guest** | catalogue only — no rating, expectation or list status | the order only |
+| **shared** | the guest's page, plus Report a problem | the order only |
 | **admin** | none | none |
 
-A watch order, or a relations graph, whose owning collection, franchise or
+An order, or a relations graph, whose owning collection, franchise or
 series the viewer's mode hides reads as missing wherever it would be listed
-— the group's page, the watch order page, the dashboard's followed orders.
+— the group's page, the order page, the dashboard's followed orders.
 
 ### Seasonal and Statistics
 
@@ -385,5 +385,5 @@ kind's key the viewer lacks is plain text rather than a link.
 | **admin** | its own page: the same summary of pending registrations and open requests, shown even when nothing waits and linking to the pending-registrations panel and the inbox; the latest pipeline runs; and announcements to edit. No catalogue |
 
 The tracker is the viewer's own watch schedule, Coming Next, followed watch
-orders and the Watching, Reading and Playing divisions.
+orders and the Pinged, Watching, Reading and Playing divisions.
 

@@ -1,7 +1,7 @@
 // Frontend: page component file for CollectionPage.
 //
-// The Collection hub. Same shape as the Franchise and Series hubs - cover with
-// spine strip, identity block, two-group tab bar, section slips - but a
+// The Collection hub. Same shape as the Franchise and Series hubs - cover,
+// identity block, two-group tab bar, section slips - but a
 // collection groups franchises rather than media entries, so its contents
 // group holds the one "Franchises" tab instead of a tab per media type, and
 // there are no status filters or roll-up statistics. Clicking a member card
@@ -48,7 +48,7 @@ import {
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
-import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import OrderSection from "../../components/tracker/OrderSection";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import CollectionNotes from "./CollectionNotes";
 import { usePageTitle } from "../../contexts/PageTitleContext";
@@ -231,13 +231,11 @@ export default function CollectionPage() {
 
       {isAdmin && <AdminStrip editId={collection.system_id} />}
 
-      {/* Hero: cover with spine strip, then the identity block */}
+      {/* Hero: the cover, then the identity block */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
           <HeroCover
             cover={cover}
-            spine="Collection"
-            id={collection.system_id}
             rating={ownData ? collection.my_rating : null}
           />
         </div>
@@ -290,7 +288,7 @@ export default function CollectionPage() {
           </header>
 
           {ownData && (
-            <Slip title="Curation">
+            <Slip title="Personal Status">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Overall rating">
                   <select
@@ -344,7 +342,7 @@ export default function CollectionPage() {
       <HubTabs
         groups={[
           { label: "Members", tabs: ["Franchises"], counted: true },
-          { label: "Extras", tabs: ["Watch Order", "Relations", "Notes"] },
+          { label: "Extras", tabs: ["Order", "Relations", "Notes"] },
         ]}
         activeTab={activeTab}
         onSelect={setActiveTab}
@@ -354,7 +352,6 @@ export default function CollectionPage() {
       {activeTab === "Franchises" && (
         <Section
           title="Franchises"
-          subtitle="Franchises grouped under this collection"
           count={sortedMembers.length}
         >
           {sortedMembers.length === 0 ? (
@@ -385,12 +382,11 @@ export default function CollectionPage() {
         </Section>
       )}
 
-      {activeTab === "Watch Order" && (
+      {activeTab === "Order" && (
         <Section
-          title="Watch order"
-          subtitle="Cross-franchise orders covering this collection"
+          title="Order"
         >
-          <WatchOrderSection collectionId={system_id} />
+          <OrderSection collectionId={system_id} />
         </Section>
       )}
 
@@ -403,7 +399,6 @@ export default function CollectionPage() {
       {activeTab === "Relations" && (
         <Section
           title="Relations"
-          subtitle="How this collection's entries connect - prequels, alternatives, side stories and adaptations"
         >
           {/* Read-only everywhere outside the admin Relations page, for admins
               too: this is a view of the structure, and curating it belongs in
@@ -426,7 +421,6 @@ export default function CollectionPage() {
       {activeTab === "Notes" && (
         <Section
           title="Notes"
-          subtitle="Structured notes belonging to the whole collection"
         >
           <CollectionNotes
             collection={collection}

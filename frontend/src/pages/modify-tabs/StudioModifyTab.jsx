@@ -8,7 +8,7 @@
 // duplicated - see the comment on that export.
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=studio, the
-// detail page's Quick edit): that studio's editor opens on mount.
+// detail page's Edit button): that studio's editor opens on mount.
 import RelatedRecords from "../../components/info/RelatedRecords";
 import {
   applyMyRating,

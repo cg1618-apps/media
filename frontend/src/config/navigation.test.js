@@ -75,7 +75,7 @@ describe("activeSectionKey", () => {
     expect(activeSectionKey("/anime/1234")).toBe("library");
     expect(activeSectionKey("/franchise/77")).toBe("library");
     expect(activeSectionKey("/series/77")).toBe("library");
-    expect(activeSectionKey("/watch-order/77")).toBe("library");
+    expect(activeSectionKey("/order/77")).toBe("library");
   });
 
   it("does not let one library prefix claim another", () => {
@@ -178,18 +178,18 @@ describe("NAV_SECTIONS", () => {
     expect(activeSectionKey("/business-logic")).toBe("note");
   });
 
-  it("reads Relations and Watch Orders as Extras, gated on manage.catalog", () => {
+  it("reads Relations and Orders as Extras, gated on manage.catalog", () => {
     // They belong with the other ways of reading the collection, but both
     // write through catalogue endpoints, so they stay gated inside a tab a
     // member can open.
     expect(ownersOf("/relations")).toEqual(["extras"]);
-    expect(ownersOf("/watch-orders")).toEqual(["extras"]);
+    expect(ownersOf("/orders")).toEqual(["extras"]);
 
     const extras = NAV_SECTIONS.find((s) => s.key === "extras");
     const gated = sectionItems(extras)
       .filter((i) => !i.divider && itemRequirement(i) === "manage.catalog")
       .map((i) => i.to);
-    expect(gated).toEqual(["/relations", "/watch-orders"]);
+    expect(gated).toEqual(["/relations", "/orders"]);
     expect(itemRequirement({ to: "/statistics" })).toBeNull();
   });
 
@@ -380,7 +380,7 @@ describe("visibleSections", () => {
     const routes = sectionItems(extras).map((i) => i.to);
     expect(routes).toContain("/resources");
     expect(routes).not.toContain("/relations");
-    expect(routes).not.toContain("/watch-orders");
+    expect(routes).not.toContain("/orders");
   });
 
   it("shows Quotes and Memes only to an account with the feature switch", () => {
@@ -473,8 +473,8 @@ describe("visibleSections", () => {
     expect(sectionItems(extras)).toEqual(
       sectionItems(NAV_SECTIONS.find((s) => s.key === "extras")),
     );
-    expect(activeItem("/watch-orders").item).toBe(
-      sectionItems(extras).find((i) => i.to === "/watch-orders"),
+    expect(activeItem("/orders").item).toBe(
+      sectionItems(extras).find((i) => i.to === "/orders"),
     );
   });
 
@@ -646,7 +646,7 @@ describe("visibleSections - the entity rows, one key per kind", () => {
 describe("the header's tab grouping", () => {
   // Track is the account's own progress, Explore the browsing pages, Extras
   // the quotes, memes and resources plus the catalogue editors' relations
-  // and watch orders.
+  // and orders.
   const labelsIn = (sections, key) =>
     sectionItems(sections.find((s) => s.key === key))
       .filter((i) => !i.divider)
@@ -734,7 +734,7 @@ describe("the header's tab grouping", () => {
     expect(labelsIn(sections, "extras")).toEqual([
       "Resources",
       "Relations",
-      "Watch Orders",
+      "Orders",
     ]);
   });
 
@@ -746,7 +746,7 @@ describe("the header's tab grouping", () => {
       "Resources",
       "---",
       "Relations",
-      "Watch Orders",
+      "Orders",
     ]);
     expect(items.find((i) => i.divider).requires).toBe("manage.catalog");
   });

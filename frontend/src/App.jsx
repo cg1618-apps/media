@@ -58,7 +58,7 @@ const Identity = lazy(() => import("./pages/detail/Identity"));
 // (@xyflow) and the statistics pages are a large share of the bundle and
 // never needed on first paint. Each becomes its own chunk, fetched on
 // first navigation.
-const WatchOrder = lazy(() => import("./pages/detail/WatchOrder"));
+const Order = lazy(() => import("./pages/detail/Order"));
 const SeasonalDetail = lazy(() => import("./pages/public/SeasonalDetail"));
 const Plan = lazy(() => import("./pages/public/Plan"));
 const SeasonalOverall = lazy(() => import("./pages/public/SeasonalOverall"));
@@ -84,7 +84,7 @@ const ReviewQueue = lazy(() => import("./pages/admin/ReviewQueue"));
 const RequestInbox = lazy(() => import("./pages/admin/RequestInbox"));
 const NeedsWork = lazy(() => import("./pages/admin/NeedsWork"));
 const CleanOrphans = lazy(() => import("./pages/admin/CleanOrphans"));
-const WatchOrders = lazy(() => import("./pages/admin/WatchOrders"));
+const Orders = lazy(() => import("./pages/admin/Orders"));
 const Relations = lazy(() => import("./pages/admin/Relations"));
 const SystemOptions = lazy(() => import("./pages/admin/SystemOptions"));
 const Aliases = lazy(() => import("./pages/admin/Aliases"));
@@ -104,6 +104,15 @@ const AccessModes = lazy(() => import("./pages/admin/AccessModes"));
 function NovelToBookRedirect() {
   const { pathname, search, hash } = useLocation();
   const to = pathname.replace(/^(\/library)?\/novel(?=\/|$)/, "$1/book");
+  return <Navigate to={`${to}${search}${hash}`} replace />;
+}
+
+// Orders were called watch orders, at /watch-order/<id> and /watch-orders. An
+// order may mix watching, reading and playing, so the feature is an "order";
+// an old link or bookmark lands on the same page the way /novel's do.
+function WatchOrderToOrderRedirect() {
+  const { pathname, search, hash } = useLocation();
+  const to = pathname.replace(/^\/watch-order(s?)(?=\/|$)/, "/order$1");
   return <Navigate to={`${to}${search}${hash}`} replace />;
 }
 
@@ -234,7 +243,12 @@ export default function App() {
                 <Route path="/collection/:publicId/:slug?" element={<Collection />} />
                 <Route path="/franchise/:publicId/:slug?" element={<Franchise />} />
                 <Route path="/series/:publicId/:slug?" element={<Series />} />
-                <Route path="/watch-order/:publicId/:slug?" element={<WatchOrder />} />
+                <Route path="/order/:publicId/:slug?" element={<Order />} />
+                <Route
+                  path="/watch-order/:publicId/:slug?"
+                  element={<WatchOrderToOrderRedirect />}
+                />
+                <Route path="/watch-orders" element={<WatchOrderToOrderRedirect />} />
                 <Route
                   path="/under-development"
                   element={<UnderDevelopment />}
@@ -375,7 +389,7 @@ export default function App() {
                   <Route path="/delete" element={<Delete />} />
                   <Route path="/defaults" element={<FormDefaults />} />
                   <Route path="/random-defaults" element={<PickerDefaults />} />
-                  <Route path="/watch-orders" element={<WatchOrders />} />
+                  <Route path="/orders" element={<Orders />} />
                   <Route path="/relations" element={<Relations />} />
                 </Route>
 

@@ -505,6 +505,12 @@ class NoteSection:
     # by manage.catalog (routers/note.py). Catalogue sections only, never a
     # singleton; checked at import.
     mixed: bool = False
+    # A mixed section whose catalogue writer also picks each row's kind:
+    # a manage.catalog holder writes a personal row by default and a
+    # catalogue (public) row when it asks for one, and may switch a row it
+    # wrote between the two. Everyone else writes personal rows, as in any
+    # mixed section. Only on a mixed section; checked at import.
+    kind_choice: bool = False
 
 
 OP_ED_KINDS = ("變化OP", "變化ED", "無OP", "無ED", "特殊OP", "特殊ED")
@@ -876,29 +882,38 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         scope=SCOPE_CATALOG,
         group="reviews",
     ),
+    # The three pros-and-cons lists hold public rows, which everyone reads,
+    # beside each account's personal ones, and the catalogue writer picks
+    # which each row is - personal unless asked (`kind_choice`).
     NoteSection(
         key="advantages",
         shape=SHAPE_TEXT_LINKS,
         label="優點 Advantages",
         owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
-        scope=SCOPE_PERSONAL,
+        scope=SCOPE_CATALOG,
         group="reviews",
+        mixed=True,
+        kind_choice=True,
     ),
     NoteSection(
         key="disadvantages",
         shape=SHAPE_TEXT_LINKS,
         label="缺點 Disadvantages",
         owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
-        scope=SCOPE_PERSONAL,
+        scope=SCOPE_CATALOG,
         group="reviews",
+        mixed=True,
+        kind_choice=True,
     ),
     NoteSection(
         key="double_edged",
         shape=SHAPE_TEXT_LINKS,
         label="優缺點",
         owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
-        scope=SCOPE_PERSONAL,
+        scope=SCOPE_CATALOG,
         group="reviews",
+        mixed=True,
+        kind_choice=True,
     ),
     NoteSection(
         # Every owner, the gated types included: for an h-comic or a hentai
@@ -2517,6 +2532,8 @@ def _check_mixed(section: NoteSection) -> None:
     never on a singleton or a `one_per_kind` section, whose one row per owner
     (per kind) has no room for a second kind of row.
     """
+    if section.kind_choice and not section.mixed:
+        raise ValueError(f"Section '{section.key}' has a kind choice but is not mixed.")
     if not section.mixed:
         return
     if section.scope != SCOPE_CATALOG:

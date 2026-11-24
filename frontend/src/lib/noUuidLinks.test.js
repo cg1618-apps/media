@@ -9,7 +9,7 @@ const DETAIL_TYPES = [
   "anime-movie",
   "anime",
   "tv-show",
-  "watch-order",
+  "order",
   "movie",
   "cartoon",
   "manga",

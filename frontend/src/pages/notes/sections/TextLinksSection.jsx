@@ -4,11 +4,22 @@
 //
 // A section flagged `kind_is_group` (彩蛋 Easter Eggs) takes an optional Group
 // per row, stored in `kind` and drawn as headings (kindGroups.jsx).
+//
+// The review sections (優點 Advantages, 缺點 Disadvantages, 優缺點) are mixed
+// and flagged `kind_choice`: public rows everyone reads, and each viewer's own
+// personal rows. They are drawn as two groups, Public then Personal, each
+// reordered on its own, and `canEditRow` / `canMoveRow` (NotesContext's
+// rowAccessFor) decide each row's Edit, Delete and handle. A viewer who writes
+// both kinds (`choosesKind`) picks a row's kind in its form. The Personal
+// heading already says whose rows those are, so they carry no MineChip.
 import { Fragment, useState } from "react";
+
+import { useAuth } from "../../../contexts/AuthContext";
 
 import {
   EmptyHint,
   ItemActions,
+  KindChoice,
   ReorderHandle,
   ReorderList,
   ReorderRow,
@@ -32,15 +43,23 @@ import {
   pairsIncomplete,
   pairsToLinks,
 } from "./linkPairValues";
-import { GroupInput, useKindGroups } from "./kindGroups";
+import { GroupInput, groupHeadingCls, useKindGroups } from "./kindGroups";
 
-const empty = () => ({ locator: "", content: "", links: [], group: "" });
+// `personal` is the row's kind, which only a `kind_choice` section sends.
+const empty = (personal = true) => ({
+  locator: "",
+  content: "",
+  links: [],
+  group: "",
+  personal,
+});
 
 const fromNote = (n) => ({
   locator: n.locator || "",
   content: n.content || "",
   links: pairsFromLinks(n.links),
   group: n.kind || "",
+  personal: Boolean(n.personal),
 });
 
 // The row as the API wants it: links with no URL dropped, blanks sent as null
@@ -52,9 +71,16 @@ const toFields = (val, section) => ({
   ...(section.kind_is_group ? { kind: val.group.trim() || null } : {}),
 });
 
-function TextLinksForm({ val, setVal, section, groupOptions }) {
+// `choosesKind` draws the Personal / Public choice above the fields.
+function TextLinksForm({ val, setVal, section, groupOptions, choosesKind }) {
   return (
     <div className="space-y-2">
+      {choosesKind && (
+        <KindChoice
+          personal={val.personal}
+          onChange={(personal) => setVal({ ...val, personal })}
+        />
+      )}
       <GroupInput
         value={val.group}
         onChange={(group) => setVal({ ...val, group })}
@@ -113,12 +139,32 @@ function MoveToSection({ canWrite, note, targets, onMove }) {
   );
 }
 
+// One group of a `kind_choice` section's rows: its heading, in the look of
+// kindGroups' in-card headings, then its rows, sortable among themselves.
+function KindGroup({ label, reorder, children }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1 pt-1 first:pt-0">
+        <p data-testid="kind-heading" className={groupHeadingCls}>
+          {label}
+        </p>
+      </div>
+      <ReorderList reorder={reorder}>{children}</ReorderList>
+    </div>
+  );
+}
+
 export default function TextLinksSection({
   section,
   notes,
   canWrite,
+  canEditRow = () => canWrite,
+  canMoveRow,
+  choosesKind = false,
+  defaultPersonal = true,
   onCreate,
   onUpdate,
+  onSwitchKind,
   onDelete,
   onReorder,
   onRenameGroup,
@@ -126,26 +172,54 @@ export default function TextLinksSection({
   reordering,
 }) {
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState(empty());
+  const [draft, setDraft] = useState(() => empty(defaultPersonal));
   const [editId, setEditId] = useState(null);
   const [editVal, setEditVal] = useState(empty());
   const { rows, groupOptions, opensGroup, heading } = useKindGroups({
     section,
     notes,
-    canEditRow: () => canWrite,
+    canEditRow,
     onRenameGroup,
     optionValues,
   });
-  const cap = useEntryCap(rows, {
-    keep: (row) => row.system_id === editId,
-  });
+  const keep = (row) => row.system_id === editId;
+  const cap = useEntryCap(rows, { keep });
   const reorder = useRowReorder({
     section,
     notes: rows,
     canWrite,
+    canMoveRow,
     onReorder,
     reordering,
     cap,
+  });
+  // A `kind_choice` section's two groups, each with its own fold and its own
+  // reorder. Built for every section, since hooks cannot be conditional, and
+  // drawn only for that one.
+  const byKind = Boolean(section.kind_choice);
+  const publicRows = rows.filter((n) => !n.personal);
+  const personalRows = rows.filter((n) => n.personal);
+  const publicCap = useEntryCap(publicRows, { keep });
+  const personalCap = useEntryCap(personalRows, { keep });
+  const publicReorder = useRowReorder({
+    section,
+    notes: publicRows,
+    canWrite,
+    canMoveRow,
+    onReorder,
+    reordering,
+    cap: publicCap,
+    personal: false,
+  });
+  const personalReorder = useRowReorder({
+    section,
+    notes: personalRows,
+    canWrite,
+    canMoveRow,
+    onReorder,
+    reordering,
+    cap: personalCap,
+    personal: true,
   });
 
   // An empty row is never worth storing, and some sections demand a body. A
@@ -161,18 +235,104 @@ export default function TextLinksSection({
     return !content && !hasLinkPair(val.links);
   };
 
-  const commit = () => {
-    if (invalid(draft)) return;
-    onCreate({ section: section.key, ...toFields(draft, section) });
-    setDraft(empty());
+  const resetDraft = () => {
+    setDraft(empty(defaultPersonal));
     setAdding(false);
   };
 
+  // A `kind_choice` section always sends the kind - the one picked, or the
+  // viewer's only one - so the server never falls back on its default for a
+  // viewer that writes public rows alone.
+  const commit = () => {
+    if (invalid(draft)) return;
+    onCreate({
+      section: section.key,
+      ...toFields(draft, section),
+      ...(byKind ? { personal: draft.personal } : {}),
+    });
+    resetDraft();
+  };
+
+  // A changed kind goes through the kind endpoint, carrying the content when
+  // that changed too; content alone is the ordinary PATCH.
   const saveEdit = () => {
     if (invalid(editVal)) return;
-    onUpdate(editId, toFields(editVal, section));
+    const note = notes.find((n) => n.system_id === editId);
+    const fields = toFields(editVal, section);
+    const switched =
+      byKind && onSwitchKind && note && editVal.personal !== Boolean(note.personal);
+    if (switched) {
+      const changed =
+        JSON.stringify(fields) !== JSON.stringify(toFields(fromNote(note), section));
+      onSwitchKind(editId, editVal.personal, changed ? fields : undefined);
+    } else {
+      onUpdate(editId, fields);
+    }
     setEditId(null);
   };
+
+  // The server switches the kind of the viewer's own rows only: every
+  // personal row it is served is the viewer's, and a public row is when its
+  // author is the signed-in account.
+  const userId = useAuth()?.userId;
+  const editChoosesKind = (n) =>
+    choosesKind && (Boolean(n.personal) || (Boolean(userId) && n.author_id === userId));
+
+  const renderRow = (n, rowReorder, visible, i) => (
+    <Fragment key={n.system_id}>
+      {opensGroup(n, visible[i - 1]) && heading(n)}
+      <ReorderRow reorder={rowReorder} id={n.system_id} className={rowCls}>
+        {editId === n.system_id ? (
+          <div>
+            <TextLinksForm
+              val={editVal}
+              setVal={setEditVal}
+              section={section}
+              groupOptions={groupOptions}
+              choosesKind={editChoosesKind(n)}
+            />
+            <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
+          </div>
+        ) : (
+          <div className="flex gap-2 items-start">
+            <ReorderHandle reorder={rowReorder} note={n} className="pt-0.5" />
+            <div className="flex-1 space-y-1">
+              {n.locator && <span className={brandTagCls}>{n.locator}</span>}
+              {n.content && (
+                <p className="text-sm text-text whitespace-pre-wrap">
+                  {n.content}
+                </p>
+              )}
+              <LinkPairPills links={n.links} />
+              {!n.content && !(n.links || []).filter(Boolean).length && (
+                <span className="text-xs text-text-faint">(empty)</span>
+              )}
+            </div>
+            <MoveToSection
+              canWrite={canEditRow(n)}
+              note={n}
+              targets={section.move_targets}
+              onMove={(key) => onUpdate(n.system_id, { section: key })}
+            />
+            <ItemActions
+              canWrite={canEditRow(n)}
+              onEdit={() => {
+                setEditId(n.system_id);
+                setEditVal(fromNote(n));
+              }}
+              onDelete={() => onDelete(n.system_id)}
+            />
+          </div>
+        )}
+      </ReorderRow>
+    </Fragment>
+  );
+
+  // Public first, then the viewer's own; a group with no rows is not drawn.
+  const kindGroups = [
+    ["Public", publicCap, publicReorder],
+    ["Personal", personalCap, personalReorder],
+  ].filter(([, groupCap]) => groupCap.toggle.total > 0);
 
   return (
     <SectionCard
@@ -182,87 +342,35 @@ export default function TextLinksSection({
       canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
-      <ReorderList reorder={reorder}>
-        {cap.visible.map((n, i) => (
-          <Fragment key={n.system_id}>
-            {opensGroup(n, cap.visible[i - 1]) && heading(n)}
-            <ReorderRow reorder={reorder} id={n.system_id} className={rowCls}>
-              {editId === n.system_id ? (
-                <div>
-                  <TextLinksForm
-                    val={editVal}
-                    setVal={setEditVal}
-                    section={section}
-                    groupOptions={groupOptions}
-                  />
-                  <SaveCancel
-                    onSave={saveEdit}
-                    onCancel={() => setEditId(null)}
-                  />
-                </div>
-              ) : (
-                <div className="flex gap-2 items-start">
-                  <ReorderHandle
-                    reorder={reorder}
-                    note={n}
-                    className="pt-0.5"
-                  />
-                  <div className="flex-1 space-y-1">
-                    {n.locator && (
-                      <span className={brandTagCls}>{n.locator}</span>
-                    )}
-                    {n.content && (
-                      <p className="text-sm text-text whitespace-pre-wrap">
-                        {n.content}
-                      </p>
-                    )}
-                    <LinkPairPills links={n.links} />
-                    {!n.content && !(n.links || []).filter(Boolean).length && (
-                      <span className="text-xs text-text-faint">(empty)</span>
-                    )}
-                  </div>
-                  <MoveToSection
-                    canWrite={canWrite}
-                    note={n}
-                    targets={section.move_targets}
-                    onMove={(key) => onUpdate(n.system_id, { section: key })}
-                  />
-                  <ItemActions
-                    canWrite={canWrite}
-                    onEdit={() => {
-                      setEditId(n.system_id);
-                      setEditVal(fromNote(n));
-                    }}
-                    onDelete={() => onDelete(n.system_id)}
-                  />
-                </div>
+      {byKind ? (
+        kindGroups.map(([label, groupCap, groupReorder]) => (
+          <Fragment key={label}>
+            <KindGroup label={label} reorder={groupReorder}>
+              {groupCap.visible.map((n, i) =>
+                renderRow(n, groupReorder, groupCap.visible, i),
               )}
-            </ReorderRow>
+            </KindGroup>
+            <ShowAllToggle {...groupCap.toggle} />
           </Fragment>
-        ))}
-      </ReorderList>
-      <ShowAllToggle {...cap.toggle} />
+        ))
+      ) : (
+        <>
+          <ReorderList reorder={reorder}>
+            {cap.visible.map((n, i) => renderRow(n, reorder, cap.visible, i))}
+          </ReorderList>
+          <ShowAllToggle {...cap.toggle} />
+        </>
+      )}
       {adding && (
-        <DraftPopup
-          title={`Add to ${section.label}`}
-          onClose={() => {
-            setDraft(empty());
-            setAdding(false);
-          }}
-        >
+        <DraftPopup title={`Add to ${section.label}`} onClose={resetDraft}>
           <TextLinksForm
             val={draft}
             setVal={setDraft}
             section={section}
             groupOptions={groupOptions}
+            choosesKind={choosesKind}
           />
-          <SaveCancel
-            onSave={commit}
-            onCancel={() => {
-              setDraft(empty());
-              setAdding(false);
-            }}
-          />
+          <SaveCancel onSave={commit} onCancel={resetDraft} />
         </DraftPopup>
       )}
       {!notes.length && !adding && <EmptyHint />}

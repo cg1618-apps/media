@@ -6,7 +6,7 @@ author_id is a uuid minted per database, and the Users tab matches accounts on
 all the `admin` account, which app/main.py mints everywhere. Written as a raw
 uuid, every row the other machine's admin wrote named nobody here and fell back
 to the installation owner. So the three tabs drop author_id for `username`, the
-way Plan Next, Seasonal and Watch Order Follow drop user_id.
+way Plan Next, Seasonal and Order Follow drop user_id.
 
 A sheet written before the column existed still carries author_id and no
 `username` header; it restores the old way.

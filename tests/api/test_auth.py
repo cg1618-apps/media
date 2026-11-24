@@ -69,12 +69,16 @@ class TestGetMe:
         assert data["is_admin"] is True
         assert data["username"] == "aaa_testowner"
 
+    def test_carries_the_accounts_own_id(self, owner_client, owner_user):
+        assert owner_client.get("/api/auth/me").json()["user_id"] == str(owner_user.id)
+
     def test_without_cookie_returns_admin_false(self, client):
         response = client.get("/api/auth/me")
         assert response.status_code == 200
         data = response.json()
         assert data["is_admin"] is False
         assert data["username"] is None
+        assert data["user_id"] is None
 
     def test_with_bad_cookie_returns_admin_false(self, client):
         client.cookies.set("access_token", "Bearer not.a.real.token")

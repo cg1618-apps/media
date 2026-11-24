@@ -154,7 +154,7 @@ function HentaiTrackerBlock({ hentai, canTrack, onPatch }) {
 export default function Hentai() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin } = useAuth();
   const { showToast } = useToast();
 
   const [hentai, setHentai] = useState(null);
@@ -294,7 +294,7 @@ export default function Hentai() {
           <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => navigate(`/modify?id=${system_id}&type=hentai`)}>
-              Quick edit
+              Edit
             </Button>
             <Button onClick={markCompleted}>Mark completed</Button>
             <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
@@ -309,22 +309,6 @@ export default function Hentai() {
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
           <div className="flex border border-border bg-surface">
-            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
-              <span
-                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
-                style={{ writingMode: "vertical-rl" }}
-              >
-                Hentai{hentai.source_material ? ` · ${hentai.source_material}` : ""}
-              </span>
-              {has("manage.catalog") && (
-                <span
-                  className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
-                  style={{ writingMode: "vertical-rl" }}
-                >
-                  {hentai.system_id}
-                </span>
-              )}
-            </div>
             <div className="relative flex-1 min-w-0">
               <RatingStamp
                 rating={hentai.my_rating}
@@ -396,8 +380,8 @@ export default function Hentai() {
             </div>
           </header>
 
-          {/* Where this entry sits in the watch orders the viewer follows. */}
-          <TocSection id="watch-orders" label="Watch orders">
+          {/* Where this entry sits in the orders the viewer follows. */}
+          <TocSection id="orders" label="Orders">
             <FollowedOrderPanel entryId={hentai.system_id} />
           </TocSection>
 

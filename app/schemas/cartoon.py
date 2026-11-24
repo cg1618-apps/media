@@ -33,6 +33,8 @@ class CartoonBase(BaseModel):
     runtime_min: Optional[int] = None
 
     my_rating: Optional[str] = None
+    # Pinned to the viewer's dashboard (user_media_list.is_pinged).
+    is_pinged: bool = False
     imdb_rating: Optional[str] = None
     imdb_series_rating: Optional[str] = None
     release_date: Optional[str] = None

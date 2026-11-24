@@ -19,7 +19,7 @@ The chains that must hold, all pinned by tests/api/test_sheet_restore_order.py:
     Media            -> User Media List      (user_media_list.media_id)
     Media            -> the media tabs       (detail.system_id -> media)
     Collection -> Franchise -> Series -> Media
-    Watch Order List -> Section -> Item
+    Order List -> Section -> Item
     Person / Studio / Publisher / Character / Content Label -> the media tabs
     Character -> Character Identity -> Character Casting
     Users, the three tiers, Character / Person / Studio / Publisher
@@ -305,7 +305,7 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_franchise_relation_from_sheet,
     ),
     SheetTab("Series", models.Series, f.parse_series_from_sheet),
-    # Per-user, like Watch Order Follow: user_id is dropped for `username`.
+    # Per-user, like Order Follow: user_id is dropped for `username`.
     # After the three tiers and the four entities its owner columns name -
     # person_id, studio_id and publisher_id are translated through their own
     # tabs (DERIVED_IDENTITY_PARENTS in pull.py), since those uuids are
@@ -393,16 +393,16 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         ),
     ),
     # Lists -> Sections -> Items (FK chain), all after the media rows they cite.
-    SheetTab("Watch Order List", models.WatchOrderList, f.parse_watch_order_list_from_sheet),
-    SheetTab("Watch Order Section", models.WatchOrderSection, f.parse_watch_order_section_from_sheet),
-    SheetTab("Watch Order Item", models.WatchOrderItem, f.parse_watch_order_item_from_sheet),
+    SheetTab("Order List", models.OrderList, f.parse_order_list_from_sheet),
+    SheetTab("Order Section", models.OrderSection, f.parse_order_section_from_sheet),
+    SheetTab("Order Item", models.OrderItem, f.parse_order_item_from_sheet),
     # Per-user, like Plan Next: user_id is dropped for `username`. After
-    # Watch Order List, which list_id names, and after the three tiers the
+    # Order List, which list_id names, and after the three tiers the
     # copied owner columns name.
     SheetTab(
-        "Watch Order Follow",
-        models.WatchOrderFollow,
-        f.parse_watch_order_follow_from_sheet,
+        "Order Follow",
+        models.OrderFollow,
+        f.parse_order_follow_from_sheet,
         drop_columns=("user_id",),
         extra_columns=(("username", _row_username),),
     ),
@@ -454,7 +454,18 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         drop_columns=("user_id",),
         extra_columns=(("username", _row_username),),
     ),
-    SheetTab("Note", models.Note, f.parse_note_from_sheet, **AUTHOR_BY_USERNAME),
+    SheetTab(
+        "Note",
+        models.Note,
+        f.parse_note_from_sheet,
+        drop_columns=AUTHOR_BY_USERNAME["drop_columns"],
+        # `public` carries the kind of a row whose section lets its writer
+        # pick it, which an older sheet's `personal` cannot be trusted for.
+        extra_columns=(
+            *AUTHOR_BY_USERNAME["extra_columns"],
+            ("public", f.note_public_cell),
+        ),
+    ),
     # One account's personal values on one catalogue note row. After Users
     # and Note: user_id is dropped for `username`, the way every per-user tab
     # drops it, and note_id names the Note tab's row by its uuid - translated

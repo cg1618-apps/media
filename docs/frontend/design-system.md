@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -22,7 +22,7 @@ badges). This document is the rulebook; the code lives in
 | `brand` / `brand-hover` | `#7a4c9e` wisteria | `#c2a0e6` | the one accent |
 | `on-brand` | white | charcoal | text on a brand fill |
 | `brand-soft` | 8 % tint | 14 % tint | selected rows, active tab |
-| `ink` / `ink-text` | dark in both themes | | nav drawer front, spine strips |
+| `ink` / `ink-text` | dark in both themes | | nav drawer front, the dashboard cards' spine strips |
 | `danger` / `success` / `warning` / `info` | fixed hues | | state only, never decoration |
 
 Geometry: Tailwind's `--radius-*` scale is capped at 6 px and `shadow-sm` /
@@ -46,7 +46,7 @@ counts). `h1` is display by default.
    Never use Tailwind palette colours (`blue-500`, `emerald-100`, …) for
    categories, statuses or decoration. `danger` marks destructive or
    critical state; `success`/`warning`/`info` may tint a toast, a
-   pipeline status or the watch order page's state chips (rule 5), tinted
+   pipeline status or the order page's state chips (rule 5), tinted
    with opacity (`bg-success/15`).
 2. **Structure is mono.** Labels, section titles, breadcrumbs, ids, dates
    and counts are set in `font-mono`, small, uppercase, letter-spaced
@@ -59,9 +59,12 @@ counts). `h1` is display by default.
    not get an icon.
 5. **Colour never encodes a category.** Media type, airing status,
    expectation and the like are text (`Chip`, tone `ink`). The exceptions
-   are the rating stamp (brand), destructive states (danger), two
+   are the rating stamp (brand), a **Highest** expectation (brand, and only
+   Highest - `expectationTone` in `lib/groupSort.js`, on the group cards,
+   the franchise and series tables and the future-release cover overlay, so
+   the most anticipated stand out of a library), destructive states (danger), two
    type-coloured chips, both drawn from `config/scopeColors.js` and the
-   `--color-scope-*` tokens in all three palettes, and the watch order
+   `--color-scope-*` tokens in all three palettes, and the order
    page's state chips (below):
 
    - The **scope chips** (`scopeChip`), on the System Options page and the
@@ -88,9 +91,9 @@ counts). `h1` is display by default.
    rows in ink too — and a further colour-coded category needs the same
    argument made again, not these cited.
 
-   - The **watch order page's status and importance chips**
-     (`config/watchOrderColors.js`), on `/watch-order/:publicId` only —
-     `WatchOrderPage` passes `colourCoded` to `WatchOrderGuide`, and the
+   - The **order page's status and importance chips**
+     (`config/orderColors.js`), on `/order/:publicId` only —
+     `OrderPage` passes `colourCoded` to `OrderGuide`, and the
      franchise and collection tab draws the same guide in ink. That page is
      read as a checklist down a column of steps: "how far through this am I,
      and which of what is left matters" is a scan for the gaps, not a
@@ -113,7 +116,7 @@ counts). `h1` is display by default.
      under AA as 10 px text on bone paper. Each clears 4.5:1 against its own
      tint over `--c-surface` — floors 4.98 light, 5.64 dark — and muted grey
      is `text-text-muted`, since the `muted` tone's `text-faint` is under 3:1.
-     `config/watchOrderColors.test.js` checks that every status in the three
+     `config/orderColors.test.js` checks that every status in the three
      vocabularies has a tone and that each token is in all three palettes.
    Adding a type means adding its `--c-scope-*` hue to `:root`,
    `[data-theme="dark"]` **and** the `prefers-color-scheme` block
@@ -135,7 +138,7 @@ counts). `h1` is display by default.
    hues cannot all sit far apart round the wheel, so the close pairs are told
    apart by saturation as well as hue.
 6. **Copy** is sentence case, plain verbs, no exclamation marks:
-   "Quick edit", "Mark completed", "Saved". Empty states say what is
+   "Edit", "Mark completed", "Saved". Empty states say what is
    missing and what to do, not a mood.
 7. **Both themes.** Anything on a brand fill uses `text-on-brand`, never
    `text-white`. Nothing sits on a hard-coded grey (`src/theme-tokens.test.js`
@@ -253,7 +256,7 @@ grip (`fa-grip-vertical`, `text-text-faint/60`, `cursor-grab`) at the left of
 each row. There are no up/down chevron buttons anywhere. The grip is
 `DragHandle` from `components/ui/Sortable.jsx` (see
 [components.md](components.md)); a surface that is not one flat list - the
-Resources tree, the watch-order editor - draws its own grip with the same look,
+Resources tree, the order editor - draws its own grip with the same look,
 the same `Reorder <name>` label and the same keys.
 
 - **Only the grip picks a row up**, so the inputs inside the row stay usable,
@@ -276,13 +279,13 @@ Detail page (`pages/detail/*.jsx`):
 
 ```
 ANIME  /  <title>                REPORT A PROBLEM  ← Eyebrow breadcrumb; the report link for self.requests (provisional)
-[ ADMIN .... Quick edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
-┌spine┬─────────┐  ANIME · TV · FINISHED AIRING · SPR 2021    ← Eyebrow line
-│ANIME│  cover  │  <Title in display face>
-│ ·TV │   [A]   │  subtitle (muted)
-│ id  │─────────│  ───────────────────────────────
-│     │ progress│  FRANCHISE <link>   SERIES <link>
-└─────┴─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
+[ ADMIN .... Edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
+┌─────────┐  ANIME · TV · FINISHED AIRING · SPR 2021    ← Eyebrow line
+│  cover  │  <Title in display face>
+│   [A]   │  subtitle (muted)
+│─────────│  ───────────────────────────────
+│ progress│  FRANCHISE <link>   SERIES <link>
+└─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
  Sources           My tracker (Slip)                          CONTENTS        ← xl+ only, sticky,
  Relations         Naming / Information / Production (InfoCard)  My tracker     right of the page
                    Notes                                          Naming …
@@ -300,6 +303,12 @@ line of mono chips at the top of the page, styled as the dashboard's type
 filter chips, `brand` on the current one, scrolling sideways inside itself;
 pinned under the nav on a detail page, unpinned on the dashboard, whose own
 sticky headers already hold that strip.
+
+A detail page's cover carries **no spine strip** - neither the type, which the
+breadcrumb and the eyebrow line already name, nor the entry's id. That holds
+for every detail page: the twelve media types, the collection, franchise and
+series hubs (`HeroCover`), and the person, studio, publisher, character and
+identity pages.
 
 Cards (`components/cards/*.jsx`): the cover across the card's full width,
 with no spine - a grid card does not name its type, which the page or tab

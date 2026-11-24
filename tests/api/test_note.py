@@ -18,7 +18,7 @@ from app.utils import note_sections as ns
 @pytest.fixture
 def anime_note(db_session, sample_anime, super_user):
     """
-    A personal-scope note (`advantages`), authored by the account that may
+    A personal-scope note (`personal_notes`), authored by the account that may
     KEEP one. It was `owner_user` until 2026-09-12; an administrative account
     holds no self.personal_notes grant now, and a personal note is edited by
     its AUTHOR - so a fixture authored by the admin makes every edit through
@@ -28,7 +28,7 @@ def anime_note(db_session, sample_anime, super_user):
         author_id=super_user.id,
         system_id=uuid.uuid4(),
         media_id=sample_anime.system_id,
-        section="advantages",
+        section="personal_notes",
         content="敘事結構精巧",
         sort_index=0.0,
     )
@@ -88,7 +88,7 @@ def test_highlight_dropdown_is_resolved_per_owner(guest_reader):
 
 
 def test_list_notes_for_owner(super_client, sample_anime, anime_note):
-    # super_client, not client: `advantages` is a personal-scope section, so a
+    # super_client, not client: `personal_notes` is a personal-scope section, so a
     # logged-out viewer sees none of it - and a personal note is read back by
     # its AUTHOR, which the fixture makes super_user.
     r = super_client.get(
@@ -102,8 +102,8 @@ def test_list_notes_for_owner(super_client, sample_anime, anime_note):
 
 
 def test_list_is_registry_ordered(owner_client, db_session, sample_anime, owner_user):
-    # questions sorts after advantages in the registry, so insert it first.
-    for section, content in (("questions", "為什麼"), ("advantages", "好看")):
+    # questions sorts after personal_notes in the registry, so insert it first.
+    for section, content in (("questions", "為什麼"), ("personal_notes", "好看")):
         db_session.add(
             models.Note(
                 author_id=owner_user.id,
@@ -120,7 +120,7 @@ def test_list_is_registry_ordered(owner_client, db_session, sample_anime, owner_
         "/api/notes",
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
-    assert [n["section"] for n in r.json()] == ["advantages", "questions"]
+    assert [n["section"] for n in r.json()] == ["personal_notes", "questions"]
 
 
 # --- Create ---------------------------------------------------------------
@@ -132,7 +132,7 @@ def test_create_rejects_a_logged_out_visitor(client, sample_anime):
         json={
             "owner_type": "anime",
             "owner_id": str(sample_anime.system_id),
-            "section": "advantages",
+            "section": "personal_notes",
             "content": "配樂與畫面高度契合",
         },
     )
@@ -149,7 +149,7 @@ def test_a_member_creates_a_personal_note(super_client, sample_anime):
         json={
             "owner_type": "anime",
             "owner_id": str(sample_anime.system_id),
-            "section": "advantages",
+            "section": "personal_notes",
             "content": "配樂與畫面高度契合",
         },
     )
@@ -246,7 +246,7 @@ def test_create_assigns_next_sort_index(super_client, sample_anime, anime_note):
         json={
             "owner_type": "anime",
             "owner_id": str(sample_anime.system_id),
-            "section": "advantages",
+            "section": "personal_notes",
             "content": "配樂與畫面高度契合",
         },
     )
@@ -261,7 +261,7 @@ def test_create_next_sort_index_skips_null_rows(super_client, db_session, sample
             author_id=super_user.id,
             system_id=uuid.uuid4(),
             media_id=sample_anime.system_id,
-            section="advantages",
+            section="personal_notes",
             content="無序號",
             sort_index=None,
         )
@@ -271,7 +271,7 @@ def test_create_next_sort_index_skips_null_rows(super_client, db_session, sample
             author_id=super_user.id,
             system_id=uuid.uuid4(),
             media_id=sample_anime.system_id,
-            section="advantages",
+            section="personal_notes",
             content="第三",
             sort_index=2.0,
         )
@@ -283,7 +283,7 @@ def test_create_next_sort_index_skips_null_rows(super_client, db_session, sample
         json={
             "owner_type": "anime",
             "owner_id": str(sample_anime.system_id),
-            "section": "advantages",
+            "section": "personal_notes",
             "content": "新的",
         },
     )
@@ -306,7 +306,7 @@ def test_update_revalidates_against_registry(super_client, anime_note):
     r = super_client.patch(
         f"/api/notes/{anime_note.system_id}", json={"section": "analysis"}
     )
-    # advantages -> analysis with no kind is still valid for an anime, so this
+    # personal_notes -> analysis with no kind is still valid for an anime, so this
     # must succeed; the guard is on unknown sections. episode_comments would
     # not do here - it requires a locator the patch does not supply.
     assert r.status_code == 200
@@ -346,7 +346,7 @@ def test_update_to_singleton_conflict_does_not_flush_mutation(
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     ).json()
     unchanged = next(n for n in got if n["system_id"] == str(anime_note.system_id))
-    assert unchanged["section"] == "advantages"
+    assert unchanged["section"] == "personal_notes"
     assert unchanged["content"] == "敘事結構精巧"
 
 
@@ -379,7 +379,7 @@ def test_reorder_rewrites_sort_index(super_client, db_session, sample_anime, sup
             author_id=super_user.id,
             system_id=uuid.uuid4(),
             media_id=sample_anime.system_id,
-            section="advantages",
+            section="personal_notes",
             content=text,
             sort_index=float(i),
         )
@@ -392,7 +392,7 @@ def test_reorder_rewrites_sort_index(super_client, db_session, sample_anime, sup
         json={
             "owner_type": "anime",
             "owner_id": str(sample_anime.system_id),
-            "section": "advantages",
+            "section": "personal_notes",
             "ordered_ids": [ids[2], ids[0], ids[1]],
         },
     )
@@ -413,7 +413,7 @@ def test_reorder_rejects_a_repeated_id(super_client, db_session, sample_anime, s
             author_id=super_user.id,
             system_id=uuid.uuid4(),
             media_id=sample_anime.system_id,
-            section="advantages",
+            section="personal_notes",
             content=text,
             sort_index=float(i),
         )
@@ -426,7 +426,7 @@ def test_reorder_rejects_a_repeated_id(super_client, db_session, sample_anime, s
         json={
             "owner_type": "anime",
             "owner_id": str(sample_anime.system_id),
-            "section": "advantages",
+            "section": "personal_notes",
             "ordered_ids": [ids[2], ids[0], ids[2], ids[1]],
         },
     )
@@ -472,7 +472,7 @@ def test_sections_endpoint_reports_the_locator_contract(owner_client):
     assert by_key["episode_comments"]["locator_placeholder"] == "Episode, e.g. ep 1"
     assert by_key["episode_comments"]["locator_required"] is True
     assert by_key["foreshadowing"]["locator_required"] is False
-    assert by_key["advantages"]["locator_placeholder"] is None
+    assert by_key["personal_notes"]["locator_placeholder"] is None
 
 
 # --- OP/ED 變動 links over the wire ----------------------------------------

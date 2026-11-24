@@ -22,7 +22,7 @@ class Hentai(Base, NameFallbackMixin):
     Adult anime, seen in the `unrestricted` access mode only.
 
     Tracked like a cartoon: `ep_total` here, the viewer's `ep_fin` on
-    user_media_list, and no ep_previous or ep_special. Watch orders still
+    user_media_list, and no ep_previous or ep_special. Orders still
     treat an entry as whole. Tenrai fills airing_status, release_date,
     ep_total, the cover and the Official site / Twitter reference rows from
     `mal_link` (autofill_hentai_from_mal); AniDB then fills what is still

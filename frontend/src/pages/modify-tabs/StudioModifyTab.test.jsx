@@ -226,7 +226,7 @@ it("scrolls to the top after a successful save", async () => {
   await waitFor(() => expect(scrollTo).toHaveBeenCalledWith(0, 0));
 });
 
-// /modify?id=<system_id>&type=studio (the detail page's Quick edit) hands the
+// /modify?id=<system_id>&type=studio (the detail page's Edit button) hands the
 // id in as initialId.
 it("opens the editor for initialId without a pick", async () => {
   mount({ initialId: "s1" });

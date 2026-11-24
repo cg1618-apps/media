@@ -1,6 +1,6 @@
 // The page chrome shared by the Collection, Franchise and Series hubs, in the
-// archive look: mono breadcrumb, dashed admin strip, cover with an ink spine
-// strip and the rating stamp, underline tab bar, section slips.
+// archive look: mono breadcrumb, dashed admin strip, cover with the rating
+// stamp, underline tab bar, section slips.
 //
 // Each hub still owns its hero *contents* (the fields beside the cover) and
 // its tab wiring; you only come here when a change should land on all three
@@ -79,35 +79,21 @@ export function AdminStrip({ editId }) {
         to={`/modify?id=${editId}`}
         className="border border-border-strong text-text bg-surface px-3 py-1.5 text-sm font-medium hover:border-text transition"
       >
-        Quick edit
+        Edit
       </Link>
     </div>
   );
 }
 
 /**
- * Cover with the ink spine strip, the rating stamp and - when the tier tracks
+ * The cover with the rating stamp and - when the tier tracks
  * completion - a progress rule along the bottom edge. Leave `total` undefined
  * to drop the rule (a collection tracks no completion).
  */
 // `cover` is a resolved { url, focus } from lib/covers.js.
-export function HeroCover({ cover, spine, id, rating, done, total, pct }) {
+export function HeroCover({ cover, rating, done, total, pct }) {
   return (
     <div className="flex border border-border bg-surface">
-      <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
-        <span
-          className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
-          style={{ writingMode: "vertical-rl" }}
-        >
-          {spine}
-        </span>
-        <span
-          className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
-          style={{ writingMode: "vertical-rl" }}
-        >
-          {id}
-        </span>
-      </div>
       <div className="relative flex-1 min-w-0">
         <RatingStamp
           rating={rating}
@@ -156,11 +142,17 @@ export function Field({ label, className = "", children }) {
  * The underline tab bar. `groups` is [{ label, tabs, counted }] in display
  * order; a group with no tabs is dropped. `counted` asks for a count on each
  * of that group's tabs, resolved through `getCount`.
+ *
+ * The bar scrolls sideways on a narrow screen. Its hairline is an inset
+ * shadow rather than a border, so the tabs fit the bar exactly and the
+ * active tab's underline paints over the rule: a tab pulled 1px below a real
+ * border overflowed the bar, and since overflow-x makes overflow-y scroll
+ * too, that 1px drew a vertical scrollbar beside the tabs.
  */
 export function HubTabs({ groups, activeTab, onSelect, getCount }) {
   const filled = groups.filter((g) => g.tabs.length > 0);
   return (
-    <div className="flex items-end gap-6 border-b border-border overflow-x-auto">
+    <div className="flex items-end gap-6 shadow-[inset_0_-1px_0_var(--color-border)] overflow-x-auto overflow-y-hidden">
       {filled.map((group) => (
         <div key={group.label} className="flex items-end gap-1 shrink-0">
           <Eyebrow className="pr-2 pb-2.5">{group.label}</Eyebrow>
@@ -171,7 +163,7 @@ export function HubTabs({ groups, activeTab, onSelect, getCount }) {
                 key={tab}
                 type="button"
                 onClick={() => onSelect(tab)}
-                className={`px-3 pb-2 pt-1 -mb-px font-mono text-[11px] uppercase tracking-[0.14em] border-b-2 transition whitespace-nowrap ${
+                className={`px-3 pb-2 pt-1 font-mono text-[11px] uppercase tracking-[0.14em] border-b-2 transition whitespace-nowrap ${
                   active
                     ? "border-brand text-brand"
                     : "border-transparent text-text-muted hover:text-text"
@@ -190,8 +182,12 @@ export function HubTabs({ groups, activeTab, onSelect, getCount }) {
   );
 }
 
-/** One tab's body: a slip with the count at the right end of the title row. */
-export function Section({ title, subtitle, count, children }) {
+/**
+ * One tab's body: a slip with the count at the right end of the title row.
+ * The title and the count say what it holds; there is no line of grey
+ * description under the title.
+ */
+export function Section({ title, count, children }) {
   return (
     <Slip
       title={title}
@@ -203,7 +199,6 @@ export function Section({ title, subtitle, count, children }) {
         )
       }
     >
-      {subtitle && <p className="text-xs text-text-faint mb-3">{subtitle}</p>}
       {children}
     </Slip>
   );

@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -20,8 +20,8 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 
 | Convention | Where | Behaviour |
 |---|---|---|
-| `limit` / `offset` on list endpoints | collection, franchise, series, all twelve media types, watch-order lists, quote, meme, options | `limit` defaults to 500, range 1–2000; `offset` defaults to 0. |
-| `PATCH` with a raw JSON dict | collection, franchise, series, media entries, watch-order lists/items/sections, quote, meme | Handled by `apply_column_patch` (`app/routers/_patching.py`). Any of `system_id`, `id`, `created_at`, `updated_at` in the body → **422**. Keys that are not real columns of the row (relationship names, virtual fields such as `watch_next`, typos) are **silently ignored** and logged at debug level, so an older bundle sending an extra key does not break. |
+| `limit` / `offset` on list endpoints | collection, franchise, series, all twelve media types, order lists, quote, meme, options | `limit` defaults to 500, range 1–2000; `offset` defaults to 0. |
+| `PATCH` with a raw JSON dict | collection, franchise, series, media entries, order lists/items/sections, quote, meme | Handled by `apply_column_patch` (`app/routers/_patching.py`). Any of `system_id`, `id`, `created_at`, `updated_at` in the body → **422**. Keys that are not real columns of the row (relationship names, virtual fields such as `watch_next`, typos) are **silently ignored** and logged at debug level, so an older bundle sending an extra key does not break. |
 | Post-write enrichment hooks | media entries (`POST` / `PUT`) | The per-type write hook (e.g. `execute_replace_single_movie`) runs after the row is committed. `PUT ?replace=false` skips it and saves the edit alone - Modify's **Save** sends that, **Save & Replace** does not. If it fails the error is logged and the row is still returned — it must **never** surface as a 500, or the SPA retries and creates duplicates. |
 | Personal fields are the viewer's | all twelve media types: `GET` list and detail, `POST`, `PUT`, `PATCH`, `POST /{id}/complete` | The status, rating and progress fields keep **exactly the names they always had** - `watching_status` / `reading_status` / `playing_status`, `my_rating`, `ep_fin`, `vol_fin`, `ch_fin`, `issue_fin`, `my_watch_day`, `completed_at` and the rest - but they are stored on `user_media_list` and resolved for the **acting user**, not read off the entry. `time_fin` (Paused at, on the six watching types) is personal the same way. A write splits into a catalogue half and a personal half (`split_list_payload`) and creates the acting user's list row if it does not exist. An entry with **no list row** reads back as the type's default status (`Might Watch` / `Might Read` / `Might Play`), `null` for the rest, and `0` for the counters that were `NOT NULL DEFAULT 0` before the move - which is also how a row holding `null` for one of them reads back. Those counters accept `null` on every write (`vol_fin`, `vol_fin_page`, `ch_fin`, `arc_fin`, `issue_fin`, `page_fin` are `Optional[...] = 0` in the manga, book, comic and h-comic schemas, as `ep_fin` is on the watching types), and the admin forms send a blank one as `null`. A logged-out visitor has **no list**: `acting_user_id` returns None, no personal field is attached, and the status reads back `null` rather than the default, which would be a claim about a person (see [authorization.md](authorization.md), "Which LIST"). A `?watching_status=` filter goes through an OUTER join rather than a column comparison, so it still matches entries that have no list row. |
 | Progress numbers are floats | the eight types with a progress counter (anime, tv-show, cartoon, hentai, manga, book, comic, h-comic) and `PUT /api/me/list` | Every progress count and total is a JSON number that may carry a fraction - `ep_fin`, `ep_total`, `ep_previous`, `issue_fin`, `issue_total`, `page_fin`, `page_total`, `vol_fin`, `vol_total`, `ch_fin`, `ch_total` and book's counters (`Optional[float]` in every schema) - and is served as stored, so a whole value reads back as `12.0`. A string is still **422**. Not `vol_fin_page`, which is an integer. See [business-rules.md](business-rules.md#progress-numbers-are-floats). |
@@ -30,7 +30,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 | A book unit's `my_rating` and `remark` are the reader's | `/api/book` | Same idea one level down: served on each unit for the viewer from their own `user_book_unit_rating` row, `null` for anyone with none. The `units` items of the catalogue `POST` / `PUT` / `PATCH` do not carry them - a client still sending either has the key ignored - and they are written only through [`PUT /api/me/book-units/{unit_id}`](#my-ratings--apime). A row left holding neither stores nothing. |
 | Delete returning `204` | notes, content labels, users, roles | No body. Every other delete returns a JSON `{status, message}` or the deleted row. |
 | Hidden = missing | every public read | An entry the viewer may not see answers **404** with the router's normal not-found message. |
-| Detail GET takes a `public_id` **or** a UUID | the single-entry GET on all twenty entity endpoints: the twelve media types plus collection, franchise, series, person, studio, publisher, character and `/api/watch-order/lists/{ref}` | One resolver, `find_entity` in `app/utils/entity_ref.py`, decides which form the segment is: a positive decimal integer with no sign or separators is a `public_id`, anything else is parsed as a UUID. **Everything else still takes the UUID** - every write, and the nested `/entries`, credits, relations, sources and cover routes. A reference that parses as neither, or that resolves to no row, is a **404** with the router's normal not-found message - never a 422, because a hand-mangled detail URL is a missing page rather than a bad request. |
+| Detail GET takes a `public_id` **or** a UUID | the single-entry GET on all twenty entity endpoints: the twelve media types plus collection, franchise, series, person, studio, publisher, character and `/api/order/lists/{ref}` | One resolver, `find_entity` in `app/utils/entity_ref.py`, decides which form the segment is: a positive decimal integer with no sign or separators is a `public_id`, anything else is parsed as a UUID. **Everything else still takes the UUID** - every write, and the nested `/entries`, credits, relations, sources and cover routes. A reference that parses as neither, or that resolves to no row, is a **404** with the router's normal not-found message - never a 422, because a hand-mangled detail URL is a missing page rather than a bad request. |
 
 ---
 
@@ -52,7 +52,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [H-Comic — `/api/h-comic`](#h-comic--apih-comic)
 - [Hentai — `/api/hentai`](#hentai--apihentai)
 - [H-Game — `/api/h-game`](#h-game--apih-game)
-- [Watch Order — `/api/watch-order`](#watch-order--apiwatch-order)
+- [Order — `/api/order`](#order--apiorder)
 - [Media Relation — `/api/media-relation`](#media-relation--apimedia-relation)
 - [Game Choice — `/api/game-choice`](#game-choice--apigame-choice)
 - [Plan Next — `/api/plan-next`](#plan-next--apiplan-next)
@@ -82,7 +82,7 @@ All endpoints are prefixed under `/api/`. The app is a SPA — all non-API route
 - [Random Picker Defaults — `/api/random-picker-defaults`](#random-picker-defaults--apirandom-picker-defaults)
 - [Data Control — `/api/data-control`](#data-control--apidata-control)
 - [System — `/api/system`](#system--apisystem)
-- [Watch Order — Sections](#watch-order--sections)
+- [Order — Sections](#order--sections)
 - [My List — `/api/me`](#my-list--apime)
 - [My Ratings — `/api/me`](#my-ratings--apime)
 - [My Highlight Group Order — `/api/me`](#my-highlight-group-order--apime)
@@ -680,7 +680,7 @@ of the highlight groups, as on h-comic; every h-game takes one.
 
 ---
 
-## Watch Order — `/api/watch-order`
+## Order — `/api/order`
 
 Named, ordered, cross-media-type viewing guides owned by a franchise or a
 collection. Reads are public; every write to an order is admin-only, and a
@@ -692,31 +692,31 @@ per-entry `watch_order` Float column, which has been dropped.
 | `GET`    | `/lists`                      | Public | List order summaries (no items). Optional params: `franchise_id`, `collection_id`, `series_id` (owner filters), `search_query`, `auto` (`exclude` hides generated lists, `only` shows just them), `limit` (≤2000), `offset`. Sorted most-recommended, then default, then `sort_index`, then name. An order whose owning collection, franchise or series the viewer's mode hides is left out. |
 | `GET`    | `/lists/{system_id}`          | Public | One order with its items **resolved** to display data. 404 when its owning group is hidden from the viewer, as for a missing order. |
 | `GET`    | `/candidates`                 | Public | Every entry an order for this owner may include, flattened across the eight media tables, in the resolver's shape (`display_name`, `cover_image_file`, `cover_image_focus`, `franchise_id`, `status`, `total_episodes`, `ep_special`). Exactly one of `franchise_id` / `collection_id` required. 404 when the owner is hidden from the viewer; a collection's hidden member franchises are skipped. |
-| `POST`   | `/lists`                      | Admin  | Create an order. Body: `WatchOrderListCreate`. 400 unless exactly one owner is given.                                                               |
+| `POST`   | `/lists`                      | Admin  | Create an order. Body: `OrderListCreate`. 400 unless exactly one owner is given.                                                               |
 | `POST`   | `/lists/release`              | Admin  | Give one owner a built-in order (`franchise_id`, `collection_id` or `series_id`; `anime_only=true` for the anime variant). Idempotent per kind. 400 below 2 entries in scope, or for a collection that opts out. |
 | `POST`   | `/lists/release/backfill`     | Admin  | Give every franchise, series and collection its built-in orders, skipping owners that already have them, those below 2 entries, and opted-out collections. Safe to re-run; returns `created`, `skipped_too_small` and `skipped_opted_out`. |
-| `PUT`    | `/lists/{system_id}`          | Admin  | Full update. Body: `WatchOrderListUpdate`. 400 if it names a different owner - an order's owner is fixed at creation.                              |
+| `PUT`    | `/lists/{system_id}`          | Admin  | Full update. Body: `OrderListUpdate`. 400 if it names a different owner - an order's owner is fixed at creation.                              |
 | `PATCH`  | `/lists/{system_id}`          | Admin  | Partial update (inline edits). Body: raw JSON dict. 400 if it names a different owner.                                                             |
-| `DELETE` | `/lists/{system_id}`          | Admin  | Delete an order. Items cascade; the media entries are untouched. Logs to `deleted_record` as type "Watch Order".                                    |
+| `DELETE` | `/lists/{system_id}`          | Admin  | Delete an order. Items cascade; the media entries are untouched. Logs to `deleted_record` as type "Order".                                    |
 | `POST`   | `/lists/{system_id}/duplicate` | Admin | Copy an order and its steps into a new, editable list named `"<name> (Copy)"`. Keeps the owner, type, note and `sort_index`; clears `is_default` and `is_most_recommended`; always sets `auto_source` to null. A built-in source has its generated steps written out as real rows. 404 on an unknown id. |
-| `POST`   | `/lists/{system_id}/items`    | Admin  | Add a step. Appends unless `position` is given. Body: `WatchOrderItemCreate`. 400 on an unknown media type or a nonexistent entry.                  |
-| `PUT`    | `/items/{item_id}`            | Admin  | Full update of one step. Body: `WatchOrderItemUpdate`.                                                                                             |
+| `POST`   | `/lists/{system_id}/items`    | Admin  | Add a step. Appends unless `position` is given. Body: `OrderItemCreate`. 400 on an unknown media type or a nonexistent entry.                  |
+| `PUT`    | `/items/{item_id}`            | Admin  | Full update of one step. Body: `OrderItemUpdate`.                                                                                             |
 | `PATCH`  | `/items/{item_id}`            | Admin  | Partial update (episode range, optional flag, note). Body: raw JSON dict.                                                                          |
 | `DELETE` | `/items/{item_id}`            | Admin  | Remove one step.                                                                                                                                   |
-| `GET`    | `/follows`                    | `self.list` | The caller's followed orders, each a `WatchOrderFollowSummary`: `list`, `owner` (`tier`, `system_id`, `public_id`, `display_name`), `done`, `total`, `now` (every active step) and `up_next` (the earliest pending step, or null). |
-| `GET`    | `/follows/entry/{entry_id}`   | `self.list` | The followed orders that step through one entry (`media.system_id`), each a `WatchOrderEntryFollow`: `list`, `owner`, `total` and one `occurrences` element per step naming the entry, with `step`, `previous` and `next`. `[]` when none does. |
-| `PUT`    | `/lists/{system_id}/follow`   | `self.list` | Follow the order (`public_id` or UUID), replacing the caller's follow of another order in the same group. Idempotent. Answers the order's `WatchOrderFollowSummary`. 404 on an unknown order. |
+| `GET`    | `/follows`                    | `self.list` | The caller's followed orders, each a `OrderFollowSummary`: `list`, `owner` (`tier`, `system_id`, `public_id`, `display_name`), `done`, `total`, `now` (every active step) and `up_next` (the earliest pending step, or null). |
+| `GET`    | `/follows/entry/{entry_id}`   | `self.list` | The followed orders that step through one entry (`media.system_id`), each a `OrderEntryFollow`: `list`, `owner`, `total` and one `occurrences` element per step naming the entry, with `step`, `previous` and `next`. `[]` when none does. |
+| `PUT`    | `/lists/{system_id}/follow`   | `self.list` | Follow the order (`public_id` or UUID), replacing the caller's follow of another order in the same group. Idempotent. Answers the order's `OrderFollowSummary`. 404 on an unknown order. |
 | `DELETE` | `/lists/{system_id}/follow`   | `self.list` | Unfollow. 404 when the order is unknown or not followed. |
-| `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N, and optionally re-file each step into a part. Body: `WatchOrderReorder` (`item_ids`, optional `section_ids`, optional `section_positions`). 400 unless the payload names every item of the list exactly once, if `section_positions` names a part twice or misses one, or if the order would split a part. |
+| `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N, and optionally re-file each step into a part. Body: `OrderReorder` (`item_ids`, optional `section_ids`, optional `section_positions`). 400 unless the payload names every item of the list exactly once, if `section_positions` names a part twice or misses one, or if the order would split a part. |
 
-`WatchOrderReorder.section_ids` is optional and runs parallel to `item_ids` —
+`OrderReorder.section_ids` is optional and runs parallel to `item_ids` —
 one entry per step, `null` for unfiled. Order and part travel in one request
 because a drag changes both at once; committing them separately would leave the
 guide reordered but still filed under the part the step was dragged out of.
 Omitting it leaves every step filed where it already is. An order that would
 split a part is rejected with 400 and nothing is written.
 
-`WatchOrderReorder.section_positions` is optional too: a list of
+`OrderReorder.section_positions` is optional too: a list of
 `{section_id, position}` naming **every** part of the list exactly once (400
 otherwise, before anything is written), and each part's `position` is written
 in the same commit as the steps. It carries positions rather than an id order
@@ -727,7 +727,7 @@ and all, or empty — is one request. Omitting it leaves every part where it
 is.
 
 **Built-in orders.** A list with `auto_source = "release"` has no
-`watch_order_item` rows: `GET /lists/{id}` computes its steps from the entries'
+`order_item` rows: `GET /lists/{id}` computes its steps from the entries'
 release dates each time, so entries added later appear on their own. Every item
 endpoint (add, update, delete, reorder) returns 400 for such a list, while the
 list's own name, type, note and flags stay editable. The one exception is
@@ -755,13 +755,13 @@ and when the franchise belongs to a collection with `no_built_in_orders` set
 
 **Following.** The four follow routes are gated on `self.list` (401 otherwise,
 an admin account included) and read or write only the caller's own
-`watch_order_follow` rows. A user follows at most one order per franchise,
-series or collection, held by the database (`uq_watch_order_follow_group`).
-Each step in a follow response is a `WatchOrderFollowStep`: `number` (1-based
+`order_follow` rows. A user follows at most one order per franchise,
+series or collection, held by the database (`uq_order_follow_group`).
+Each step in a follow response is a `OrderFollowStep`: `number` (1-based
 over the steps the viewer can see), `state` (`done` / `active` / `pending`),
 `media_type`, `entry_id`, `public_id`, `display_name`, `ep_start`, `ep_end`,
 `importance`, `note` and `section_name`. The state rules are in
-[systems/watch-orders.md](systems/watch-orders.md#progress).
+[systems/orders.md](systems/orders.md#progress).
 
 **Single-winner flags.** `is_default` (opens first) and `is_most_recommended`
 (the one to follow) are independent, and each is limited to one list per owner:
@@ -776,16 +776,16 @@ several mean a cross-type one, and an empty list has none yet. It is computed
 from the items rather than stored, so it cannot drift from them; the listing
 endpoint gets it and `item_count` for every row in one grouped query.
 
-**Response models:** `WatchOrderListResponse` (adds computed `item_count` and `media_types`),
-`WatchOrderListDetailResponse` (adds `items`), `WatchOrderItemResponse`,
-`WatchOrderCandidate`.
+**Response models:** `OrderListResponse` (adds computed `item_count` and `media_types`),
+`OrderListDetailResponse` (adds `items`), `OrderItemResponse`,
+`OrderCandidate`.
 
-**Item resolution.** `watch_order_item` stores only a `media_id` foreign key
+**Item resolution.** `order_item` stores only a `media_id` foreign key
 — `media_type` and `entry_id` are derived from it (see
 [data-model.md](data-model.md#tables-that-hang-off-an-entry-or-a-group)) — so the
 detail endpoint enriches each item
 with `display_name`, `cover_image_file`, `cover_image_focus`, `franchise_id`, `status`,
-`total_episodes` and `ep_special` (anime only, a string such as `"17.5A"`) via `app/services/domain/watch_order.py`. That runs one query
+`total_episodes` and `ep_special` (anime only, a string such as `"17.5A"`) via `app/services/domain/order.py`. That runs one query
 per media type present, never one per item. An item whose entry is gone cannot
 occur — the FK cascades — but a step written without an
 entry still comes back with `missing: true` rather than being dropped.
@@ -795,7 +795,7 @@ entry still comes back with `missing: true` rather than being dropped.
 ## Media Relation — `/api/media-relation`
 
 Typed links between two media entries. Reads are public; every write is
-admin-only, matching watch orders. Replaces the per-entry `prequel_id` /
+admin-only, matching orders. Replaces the per-entry `prequel_id` /
 `sequel_id` / `alternative` columns.
 
 | Method   | Path                                     | Auth   | Description                                                                                                               |
@@ -985,7 +985,7 @@ fields — `owner_display_name`, `owner_label`, `owner_is_tier`, `owner_nav_path
 **Resolution.** `meme` stores only `(owner_type, owner_id)`, resolved through
 `app/utils/media_resolver.py` against **`OWNER_TABLES`** — the eight media
 tables plus Series, Franchise and Collection — one query per table present.
-Quote and watch-order pass the narrower default map, so they keep rejecting a
+Quote and order pass the narrower default map, so they keep rejecting a
 tier. `quote_id` is hydrated in a single batched query for the whole response,
 so the page can show whose line it is without fetching per meme.
 
@@ -1168,9 +1168,10 @@ the id, never from the payload's `owner_type`.
 | -------- | -------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET`    | `/sections`    | Public | The section registry resolved for one owner type, in display order. Required param: `owner_type`. 400 on an unknown one, and on a gated type the viewer cannot see (`h-comic`, `h-game` or `hentai` outside `unrestricted`). Each section carries its `scope` (`catalog` or `personal`), which says who may write it, and `mixed` (`true` on the ten catalogue sections that also hold each viewer's own personal rows). |
 | `GET`    | `""`           | Public | Every note for one owner, ordered the way the page renders them. Required params: `owner_type`, `owner_id`. Catalogue sections for everyone; personal sections only the viewer's own rows, and none for a logged-out viewer. There is no parameter that reads another account's personal notes, the admin's included. The six highlight sections are personal, so their rows are the viewer's own too. A mixed section returns its catalogue rows and then the viewer's own personal rows (`personal: true`), each kind by `sort_index`; nobody reads another account's. |
-| `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. In a mixed section the server picks the row's kind, never the payload (a `personal` key is ignored): a caller holding `manage.catalog` writes a catalogue row, any other caller holding `self.personal_notes` a personal row. 422 on a payload the registry rejects, on a catalogue row nesting under a personal one or a row nesting under another account's personal row, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
-| `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own; in a mixed section exactly its catalogue rows for a `manage.catalog` holder and exactly the caller's own personal rows for anyone else.                |
+| `POST`   | `""`           | By scope | Create (201). Body: `NoteCreate`. In a mixed section the server picks the row's kind, never the payload (a `personal` key is ignored): a caller holding `manage.catalog` writes a catalogue row, any other caller holding `self.personal_notes` a personal row. In a `kind_choice` section (優點, 缺點, 優缺點) a `manage.catalog` holder gets the kind `personal` names, personal when it names none, and any other caller asking for `personal: false` is 401. 422 on a payload the registry rejects, on a catalogue row nesting under a personal one or a row nesting under another account's personal row, on a second row in a singleton section, or on a second `music_status` row for the same anime and `kind`. `sort_index` defaults to the end.     |
+| `PATCH`  | `/reorder`     | By scope | Rewrite `sort_index` for one section of one owner. Body: `NoteReorder`. 400 unless `ordered_ids` names exactly that section's notes, each once - in a personal section, exactly the caller's own; in a mixed section exactly its catalogue rows for a `manage.catalog` holder and exactly the caller's own personal rows for anyone else. In a `kind_choice` section the body's `personal` names the kind renumbered (personal when absent), so an editor sends its public and its personal rows separately.                |
 | `POST`   | `/rename-group` | By scope | Rename one group of one section of one owner, once. Body `{"owner_type", "owner_id", "section", "from", "to"}`; both names are trimmed. Every row filed under `from` is filed under `to`, in one transaction, and renaming onto an existing group merges the two. The group is `kind` on Resources, the `groupable_by` field's column on a section with one (on a hierarchical section, top-level rows only), and one name of the `group_by` names list on a section with one - replaced in each row's list, a repeat dropped, and in the caller's own stored group order. Only rows the caller could edit one by one change: every row of a catalogue section; in a mixed section the catalogue rows for a `manage.catalog` holder plus the caller's own personal rows; in a personal section the caller's own rows. `from` equal to `to` changes nothing. Returns `{"renamed": n}`, the rows changed. 400 unknown `owner_type` or section; 401 a caller who may not write the section; 404 owner not visible; 422 a section with no groups, a blank `from` (the nameless group has no stored name) or `to`, or a `to` outside a closed vocabulary. |
+| `PATCH`  | `/{note_id}/kind` | `manage.catalog`, own rows | Switch a row of a `kind_choice` section (優點, 缺點, 優缺點) between personal and public. Body `{"personal": bool}`; the row moves to the end of its new kind. 401 without `manage.catalog` (or, to personal, without `self.personal_notes`); 422 on a section without `kind_choice` or a row somebody else wrote; 404 on another account's personal row. |
 | `PATCH`  | `/{note_id}`   | By scope | Partial update. Body: `NoteUpdate`, validated as the row *will* be, so a partial update cannot land on an invalid combination. A PATCH that changes `section` without sending `sort_index` puts the row at the end of its new section. A personal row of a mixed section is edited only by its author, may move only to another mixed section (422 otherwise), and never changes kind. |
 | `DELETE` | `/{note_id}`   | By scope | Delete, **204 No Content**. Asks the author rule and then the section's write capability, as a `PATCH` does; a row in a section the registry no longer knows is deletable by a `manage.catalog` holder. Logs to `deleted_record` as type "Note", standing a truncated `content` in for the name a note does not have. Every account's note marks on the row go with it.        |
 | `PUT`    | `/{note_id}/mark` | `self.personal_notes` | Set or clear the caller's own personal values on one catalogue row. Body `{"values": {key: value \| null}}`: each key is one of the row's personal values (a personal field's key, or `status` for a section-level personal status); a value sets it, `null` or blank clears it, a key not named is left alone. Returns the `NoteResponse` as the caller now reads it. **401** without the permission - the `admin` account included, it keeps no personal data - and for a value granted by a feature the caller lacks; **404** for a missing note or an owner the caller may not see; **422** for a key that is not personal on the row's section, or a value outside its vocabulary. |
@@ -1540,7 +1541,7 @@ anything that is not a three-letter currency code are refused with `422`.
 ## Constants — `/api/constants`
 
 Read-only. Serves the Tier 1 closed enums from `app/utils/constants.py` (and
-`ITEM_IMPORTANCE` from `watch_order.py`) so the frontend stops keeping its
+`ITEM_IMPORTANCE` from `order.py`) so the frontend stops keeping its
 own copies of `frontend/src/config/weekdays.js` and the hardcoded status
 lists. `docs/options.md` remains the canonical documentation of what each
 value means; this endpoint just serves them.
@@ -1559,7 +1560,7 @@ Keys served: `watching_status`, `reading_status`, `airing_status`,
 `game_achievement_flag`, `game_release_status`, `game_storefront`,
 `game_ownership`, `game_copy_format`, `game_acquisition`,
 `manga_serialization_status`, `book_serialization_status`, `day_of_week`,
-`music_status`, `music_type_status`, `watch_order_importance`, `h_comic_region`,
+`music_status`, `music_type_status`, `order_importance`, `h_comic_region`,
 `h_comic_originality`, `h_comic_animation_status`, `h_comic_usefulness`,
 `hentai_source_material`, `h_game_playstyle`, `h_game_language_availability`,
 `h_game_audio_availability`, `h_game_h_presentation`, `h_game_art_style`,
@@ -2623,19 +2624,19 @@ members who are not admins. See that section.
 
 ---
 
-## Watch Order — Sections
+## Order — Sections
 
-The grouping tier above a watch order's items. All five require admin, and all
+The grouping tier above an order's items. All five require admin, and all
 refuse a built-in (generated) list, the same way the item endpoints do.
 
 | Method | Path | Body | Notes |
 | --- | --- | --- | --- |
-| POST | `/api/watch-order/lists/{system_id}/sections` | `WatchOrderSectionCreate` | Appends unless `position` is given. `position` is measured against the **items**, since it only anchors the part while it is empty. |
-| PUT | `/api/watch-order/sections/{section_id}` | `WatchOrderSectionUpdate` | Full update. |
-| PATCH | `/api/watch-order/sections/{section_id}` | free dict | Partial: name, position, remark. |
-| DELETE | `/api/watch-order/sections/{section_id}` | — | Steps are **not** deleted; `section_id` is SET NULL and they become ungrouped. |
+| POST | `/api/order/lists/{system_id}/sections` | `OrderSectionCreate` | Appends unless `position` is given. `position` is measured against the **items**, since it only anchors the part while it is empty. |
+| PUT | `/api/order/sections/{section_id}` | `OrderSectionUpdate` | Full update. |
+| PATCH | `/api/order/sections/{section_id}` | free dict | Partial: name, position, remark. |
+| DELETE | `/api/order/sections/{section_id}` | — | Steps are **not** deleted; `section_id` is SET NULL and they become ungrouped. |
 
-`GET /api/watch-order/lists/{system_id}` also returns `sections`. `items` stays
+`GET /api/order/lists/{system_id}` also returns `sections`. `items` stays
 a **flat list in reading order** — ordered by `position` alone. Each item names
 its `section_id`, and a client wraps each run of *adjacent* steps sharing one
 into a part box by walking the flat list once. A part's steps are always
@@ -2664,7 +2665,7 @@ which keys a type owns.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/me/list/{media_id}` | The caller's row. Never creates one: an entry they have never touched reads back the type's default status and `null` for the rest, the same values `attach_list_fields` puts on an untouched entry. 404 on an unknown `media_id`. |
-| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a book's arc cursor is derived. The `time_fin` rules apply here as on the entry endpoints: stripped, a blank stored as `null`, and cleared when `ep_fin` goes up or the status becomes Completed ([business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)). A Completed status stamps `completed_at`, and a write that carries the progress counter up to its total finishes the caller's row as a catalogue `PATCH` does ([business-rules.md](business-rules.md#reaching-the-total-completes)) - the row's half only, never the work's airing or serialization status. |
+| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped - `is_pinged` on a gated type among them. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a book's arc cursor is derived. The `time_fin` rules apply here as on the entry endpoints: stripped, a blank stored as `null`, and cleared when `ep_fin` goes up or the status becomes Completed ([business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)). A Completed status stamps `completed_at`, and a write that carries the progress counter up to its total finishes the caller's row as a catalogue `PATCH` does ([business-rules.md](business-rules.md#reaching-the-total-completes)) - the row's half only, never the work's airing or serialization status. |
 | PUT | `/api/me/plan-flags/{media_id}` | The caller's plan flags on one entry, by the type's own keys (`watch_next`, `to_rewatch`, `read_next`, `to_reread`, `play_next`, `to_replay`, as `PLAN_FLAG_FIELDS` gives each type). Body `{key: bool}`; a key left out is untouched, a key the type lacks is **422**. Returns every flag the type has as the caller now holds it. 404 on an unknown or hidden entry. |
 
 Neither route takes a user id, so there is no shape of request that writes
@@ -2844,7 +2845,7 @@ that was never there. Admin gates answer **401**, as they always did.
 Never raises. Returns:
 
 ```json
-{ "is_admin": false, "username": null, "role": "guest",
+{ "is_admin": false, "username": null, "user_id": null, "role": "guest",
   "permissions": ["media_type.anime", "field_group.sources_restricted", ...],
   "visible_gated_types": [],
   "features": [],
@@ -2856,6 +2857,10 @@ catalogue" — so it is true for `super` and **false for the admin account**,
 which holds no `manage.catalog`. Nothing in the response says "holds
 everything": no role does, and `permissions` is the whole of what the role
 holds.
+
+**`user_id`** is the account's own id, `null` for a guest. The SPA compares
+it with a row's `author_id` where a control belongs to the row's author alone:
+switching the kind of a 優點, 缺點 or 優缺點 row the account wrote.
 
 **`mode.expires_at`** is when a switched-to mode ends and the session returns
 to the account's default mode (ISO 8601, UTC), or `null` when there is no
@@ -3074,7 +3079,7 @@ label.
 Read routes that now consult the viewer: the twelve media list/detail routes
 (`_factory.py`), `/api/search`, `media_resolver.resolve_entries`,
 quote (list/grouped/by-id), meme (list/grouped/by-id), `media_relation`
-(`/for-entry`, the scope listing, and `/graph`), `watch_order` (`/lists/{id}`,
+(`/for-entry`, the scope listing, and `/graph`), `order` (`/lists/{id}`,
 `/candidates`), `plan_next`, `credits`, `notes`, and the `credit_count` on
 person and studio. Field groups the mode lacks are stripped from a copy of the
 row before serialisation. Group and entity ratings, tier expectations and

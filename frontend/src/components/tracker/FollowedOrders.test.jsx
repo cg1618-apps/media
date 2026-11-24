@@ -1,6 +1,6 @@
-// Following watch orders: the entry page's panel, the dashboard section and
+// Following orders: the entry page's panel, the dashboard section and
 // the Follow / Following toggle. The API is the follows endpoints; see
-// docs/systems/watch-orders.md, "Following".
+// docs/systems/orders.md, "Following".
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -88,7 +88,7 @@ afterEach(() => {
 describe("FollowedOrderPanel", () => {
   it("shows the order, its group, the position and the neighbours", async () => {
     respond({
-      "GET /api/watch-order/follows/entry/A": [
+      "GET /api/order/follows/entry/A": [
         {
           list: LIST,
           owner: OWNER,
@@ -121,23 +121,20 @@ describe("FollowedOrderPanel", () => {
     expect(screen.getByText("watch the OVA first")).toBeInTheDocument();
   });
 
-  it("names the feature Play Order on a game and Watch Order elsewhere", async () => {
+  it("calls it an order on every type, a game's page included", async () => {
     respond({
-      "GET /api/watch-order/follows/entry/A": [
+      "GET /api/order/follows/entry/A": [
         { list: LIST, owner: OWNER, total: 1, occurrences: [{ step: step(1, "Here") }] },
       ],
     });
-    const { unmount } = renderWith(<FollowedOrderPanel entryId="A" mediaType="game" />);
-    expect(await screen.findByText("Following Play Order")).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Followed play orders" })).toBeInTheDocument();
-    unmount();
-
-    renderWith(<FollowedOrderPanel entryId="A" mediaType="anime" />);
-    expect(await screen.findByText("Following Watch Order")).toBeInTheDocument();
+    renderWith(<FollowedOrderPanel entryId="A" />);
+    expect(await screen.findByText("Following order")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Followed orders" })).toBeInTheDocument();
+    expect(screen.queryByText(/Play Order|Watch Order|Read Order/)).toBeNull();
   });
 
   it("renders nothing when no followed order holds the entry", async () => {
-    respond({ "GET /api/watch-order/follows/entry/A": [] });
+    respond({ "GET /api/order/follows/entry/A": [] });
     const { container } = renderWith(<FollowedOrderPanel entryId="A" />);
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
@@ -160,7 +157,7 @@ describe("FollowedOrderPanel", () => {
 describe("FollowedOrders", () => {
   it("is collapsed by default and counts the follows in its title", () => {
     renderWith(<FollowedOrders id="x" follows={[SUMMARY]} />);
-    expect(screen.getByText("Followed watch orders (1)")).toBeInTheDocument();
+    expect(screen.getByText("Followed orders (1)")).toBeInTheDocument();
     expect(screen.queryByText("Chronological")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Expand")).toHaveAttribute("aria-expanded", "false");
   });
@@ -182,8 +179,8 @@ describe("FollowedOrders", () => {
 describe("FollowOrderButton", () => {
   it("follows an order the viewer does not follow", async () => {
     respond({
-      "GET /api/watch-order/follows": [],
-      "PUT /api/watch-order/lists/L1/follow": SUMMARY,
+      "GET /api/order/follows": [],
+      "PUT /api/order/lists/L1/follow": SUMMARY,
     });
     renderWith(<FollowOrderButton list={LIST} />);
 
@@ -192,7 +189,7 @@ describe("FollowOrderButton", () => {
     fireEvent.click(button);
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(
-        "/api/watch-order/lists/L1/follow",
+        "/api/order/lists/L1/follow",
         expect.objectContaining({ method: "PUT" }),
       ),
     );
@@ -200,8 +197,8 @@ describe("FollowOrderButton", () => {
 
   it("reads Following and unfollows a followed order", async () => {
     respond({
-      "GET /api/watch-order/follows": [SUMMARY],
-      "DELETE /api/watch-order/lists/L1/follow": { status: "success" },
+      "GET /api/order/follows": [SUMMARY],
+      "DELETE /api/order/lists/L1/follow": { status: "success" },
     });
     renderWith(<FollowOrderButton list={LIST} />);
 
@@ -210,7 +207,7 @@ describe("FollowOrderButton", () => {
     fireEvent.click(button);
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(
-        "/api/watch-order/lists/L1/follow",
+        "/api/order/lists/L1/follow",
         expect.objectContaining({ method: "DELETE" }),
       ),
     );

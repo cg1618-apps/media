@@ -29,11 +29,11 @@ def test_serves_weekdays_monday_first(client):
     assert len(body["day_of_week"]) == 7
 
 
-def test_serves_watch_order_importance(client):
-    from app.services.domain.watch_order import ITEM_IMPORTANCE
+def test_serves_order_importance(client):
+    from app.services.domain.order import ITEM_IMPORTANCE
 
     body = client.get("/api/constants").json()
-    assert body["watch_order_importance"] == list(ITEM_IMPORTANCE)
+    assert body["order_importance"] == list(ITEM_IMPORTANCE)
 
 
 def test_every_value_is_a_list_of_strings(client):

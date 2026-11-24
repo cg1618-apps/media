@@ -267,19 +267,19 @@ def test_a_meme_on_a_hidden_entry_is_not_grouped(quote_reader, hidden_meme):
 
 
 # ---------------------------------------------------------------------------
-# Watch orders - a step names the entry it points at
+# Orders - a step names the entry it points at
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
 def hidden_watch_step(db_session, sample_franchise, hidden_anime):
-    wo = models.WatchOrderList(
+    wo = models.OrderList(
         system_id=uuid.uuid4(),
         franchise_id=sample_franchise.system_id,
         list_name="Order under test",
     )
     db_session.add(wo)
     db_session.flush()
-    item = models.WatchOrderItem(
+    item = models.OrderItem(
         system_id=uuid.uuid4(),
         list_id=wo.system_id,
         position=1,
@@ -291,17 +291,17 @@ def hidden_watch_step(db_session, sample_franchise, hidden_anime):
     return wo
 
 
-def test_a_watch_order_step_on_a_hidden_entry_is_dropped(
+def test_a_order_step_on_a_hidden_entry_is_dropped(
     client, hidden_watch_step
 ):
-    response = client.get(f"/api/watch-order/lists/{hidden_watch_step.system_id}")
+    response = client.get(f"/api/order/lists/{hidden_watch_step.system_id}")
     assert response.status_code == 200
     assert HIDDEN_NAME not in response.text
 
 
-def test_admin_still_sees_the_watch_order_step(owner_client, hidden_watch_step):
+def test_admin_still_sees_the_order_step(owner_client, hidden_watch_step):
     response = owner_client.get(
-        f"/api/watch-order/lists/{hidden_watch_step.system_id}"
+        f"/api/order/lists/{hidden_watch_step.system_id}"
     )
     assert HIDDEN_NAME in response.text
 
@@ -310,7 +310,7 @@ def test_a_hidden_entry_is_not_an_addable_candidate(
     client, sample_franchise, hidden_anime
 ):
     response = client.get(
-        "/api/watch-order/candidates",
+        "/api/order/candidates",
         params={"franchise_id": str(sample_franchise.system_id)},
     )
     assert response.status_code == 200

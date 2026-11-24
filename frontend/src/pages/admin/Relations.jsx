@@ -7,12 +7,12 @@
 // click on the canvas both set, and both the canvas and the form read.
 //
 // The franchise/collection picker is a browsing lens, not ownership: unlike a
-// watch order, a relation belongs to no tier - it links two entries. Collection
+// order, a relation belongs to no tier - it links two entries. Collection
 // works as the wider lens because it sits strictly above Franchise, which is
 // also where most cross-franchise relations live.
 //
 // The picked scope lives in the URL as ?owner=<tier>:<system_id>, the key
-// /watch-orders uses, so a reload, a shared link or a hub's "Edit relations"
+// /orders uses, so a reload, a shared link or a hub's "Edit relations"
 // lands on that franchise or collection rather than at square one.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -65,7 +65,7 @@ export default function Relations() {
 
     // limit=2000 (the endpoint's ceiling), not the default 500: there are
     // already ~600 franchises, and a truncated list would silently hide owners
-    // from the picker. Same reasoning as WatchOrders.jsx.
+    // from the picker. Same reasoning as Orders.jsx.
     Promise.all([
       fetch(buildUrl(endpoints.resource("franchise").list(), { limit: 2000 }), {
         credentials: "include",
@@ -110,7 +110,7 @@ export default function Relations() {
         : { collection_id: scopeId };
 
     const [entries, rows] = await Promise.all([
-      fetch(buildUrl(endpoints.watchOrder.candidates(), scopeParam), {
+      fetch(buildUrl(endpoints.order.candidates(), scopeParam), {
         credentials: "include",
       }).then((r) => (r.ok ? r.json() : [])),
       fetch(buildUrl(endpoints.mediaRelation.inScope(), scopeParam), {

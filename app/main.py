@@ -59,6 +59,7 @@ from app.routers import (
     needs_work,
     note,
     options,
+    order,
     person,
     person_work_images,
     plan_next,
@@ -76,7 +77,6 @@ from app.routers import (
     system,
     tv_show,
     users,
-    watch_order,
 )
 from app.schema_guard import ensure_schema
 from app.services.domain.gated_labels import ensure_labels
@@ -323,7 +323,7 @@ app.include_router(game.router)
 app.include_router(h_comic.router)
 app.include_router(hentai.router)
 app.include_router(h_game.router)
-app.include_router(watch_order.router)
+app.include_router(order.router)
 app.include_router(media_relation.router)
 app.include_router(game_choice.router)
 app.include_router(plan_next.router)

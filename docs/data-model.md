@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -26,7 +26,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, note_mark, quote, meme
 - [Resources page](#resources-page): resource_node
 - [Image library](#image-library): image, image_attachment
-- [Relations and watch orders](#relations-and-watch-orders): media_relation, watch_order_list, watch_order_section, watch_order_item, watch_order_follow
+- [Relations and orders](#relations-and-orders): media_relation, order_list, order_section, order_item, order_follow
 - [Planning](#planning): plan_next
 - [Requests and reports](#requests-and-reports): user_request
 - [Needs Work](#needs-work): needs_work
@@ -68,7 +68,7 @@ carries a `series_id`:
 | Entry table    | `franchise_id` | `series_id` | Notes |
 |----------------|:--------------:|:-----------:|-------|
 | `anime`        | yes | yes | |
-| `anime_movies` | yes | **no** | A series-owned watch order can therefore never contain an anime movie. |
+| `anime_movies` | yes | **no** | A series-owned order can therefore never contain an anime movie. |
 | `movies`       | yes | yes | |
 | `tv_shows`     | yes | yes | |
 | `cartoons`     | yes | yes | |
@@ -92,7 +92,7 @@ deleting a group leaves its members in place and simply ungrouped.
   `(user_id, seasonal)` - one row per user per season string.
 - **Public id.** Every entity with a detail page - the twelve media tables plus
   `collection`, `franchise`, `series`, `person`, `studio`, `publisher`,
-  `character`, `character_identity` and `watch_order_list` - also carries
+  `character`, `character_identity` and `order_list` - also carries
   `public_id INTEGER NOT NULL UNIQUE`, fed by a per-table sequence
   (`<table>_public_id_seq`) declared on the model, so every insert path gets
   one for free. It is the **only id a user ever sees**: detail-page URLs are
@@ -1029,6 +1029,7 @@ number among them is `vol_fin_page`, a page. See
 | `issue_fin` | Float | yes | | comic |
 | `page_fin` | Float | yes | | h_comic (JP; cleared on KR) |
 | `usefulness` | String | yes | | h_comic, h_game, hentai. H_COMIC_USEFULNESS, checked on every write; personal for the reason `my_rating` is |
+| `is_pinged` | Boolean | **no** | false | **Pinged**: the entry is drawn in the dashboard's Pinged division, whatever its status. The nine ordinary types; the gated three do not own the key. An entry with no row reads `false`, and a `null` written through `PUT /api/me/list` stores `false`. |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 **Which keys a type owns** is `LIST_FIELDS`, not this table's shape. A write
@@ -1831,7 +1832,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed. Who wrote the row - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
-| `personal` | Boolean | **no** | false (server default) | A personal row of a mixed section (`NoteSection.mixed`): one account's own, read and written by its `author_id` alone, beside the section's catalogue rows. False on a catalogue row and on a row of a personal-scope section, which is personal by its section. Set by the server on create from `manage.catalog`; nothing changes it after. A catalogue row may not nest under a personal one (the router refuses it) |
+| `personal` | Boolean | **no** | false (server default) | A personal row of a mixed section (`NoteSection.mixed`): one account's own, read and written by its `author_id` alone, beside the section's catalogue rows. False on a catalogue row and on a row of a personal-scope section, which is personal by its section. Set by the server on create from `manage.catalog`; nothing changes it after. A catalogue row may not nest under a personal one (the router refuses it). In a section with `kind_choice` (優點, 缺點, 優缺點) its writer picks it, and an editor may switch it on a row it wrote |
 | `parent_id` | UUID | yes | | FK `note.system_id` ON DELETE CASCADE, indexed. The row this one nests under, for a section the registry marks `hierarchical`; unbounded depth. In a mixed section, deleting a catalogue row first moves members' personal rows under it to the top level, so the CASCADE takes only catalogue rows. A child is kept in its parent's owner and section by the router, not by the database - a CHECK cannot read another row. |
 | `locator` | String | yes | | Where in the work: episode, chapter, scene, timestamp, or a question's source. The section supplies the label and whether it is required. |
 | `kind` | String | yes | | Only where the section declares `kinds`, a `kind_category` (free text - an OP or ED's Song Type) or `kind_is_group` (free text - a Resources row's group). On a `music_status` row, the song list it is about (`op`, `ed`, `insert_songs`, `ost`) |
@@ -1918,7 +1919,7 @@ a specific work). Model: `Quote`.
 `media_type` and `entry_id` are not stored: `entry_id` is a **synonym** for
 `media_id` (readable, writable, filterable) and `media_type` a read-only
 `column_property` off the `media` row, both attached at the bottom of
-`app/models/__init__.py` - the same treatment `watch_order_item` gets. So the
+`app/models/__init__.py` - the same treatment `order_item` gets. So the
 pair cannot disagree with the entry it points at, which the old FK-less
 version could.
 
@@ -2099,7 +2100,7 @@ replacing `_file` with `_focus`:
 
 ---
 
-## Relations and watch orders
+## Relations and orders
 
 ### `media_relation`
 
@@ -2127,10 +2128,10 @@ from_id = to_id)`; `uq_media_relation_pair` UNIQUE (`from_type`, `from_id`,
 "same fact from the other side" duplicate; indexes `ix_media_relation_from`,
 `ix_media_relation_to`.
 
-### `watch_order_list`
+### `order_list`
 
 One named viewing order belonging to **exactly one** franchise, collection or
-series. Model: `WatchOrderList` (`app/models/watch_order.py`).
+series. Model: `OrderList` (`app/models/order.py`).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -2142,18 +2143,18 @@ series. Model: `WatchOrderList` (`app/models/watch_order.py`).
 | `list_type` | String | yes | `"Custom"` | `Custom`, `Recommended`, or `Release` (stamped on generated lists) - plain string, not validated as an enum |
 | `is_default` | Boolean | yes | `False` | The list that opens first |
 | `is_most_recommended` | Boolean | yes | `False` | The single one to follow; need not be the default |
-| `auto_source` | String | yes | | NULL for an ordinary list. `release` / `release-anime` mark a **generated** list whose steps are built from release dates on every read; it has no item rows and the item endpoints refuse to write to it (`BUILT_IN_KINDS` in `app/routers/watch_order.py`). |
+| `auto_source` | String | yes | | NULL for an ordinary list. `release` / `release-anime` mark a **generated** list whose steps are built from release dates on every read; it has no item rows and the item endpoints refuse to write to it (`BUILT_IN_KINDS` in `app/routers/order.py`). |
 | `sort_index` | Float | yes | | |
 | `remark` | Text | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Constraint: `ck_watch_order_list_single_owner` - exactly one of
+Constraint: `ck_order_list_single_owner` - exactly one of
 `franchise_id` / `collection_id` / `series_id` is non-NULL (CASCADE rather
 than SET NULL on the owners because a nulled owner would leave an
 unsavable orphan). Relationships: `items`, `sections` (both cascade
 delete-orphan, ordered by `position`), `franchise`, `collection`, `series`.
 
-### `watch_order_section`
+### `order_section`
 
 Optional grouping tier ("Part 3 - X of Swords") between a list and its items.
 A section does **not** sort the guide - reading order is the item's own
@@ -2163,13 +2164,13 @@ A section does **not** sort the guide - reading order is the item's own
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `list_id` | UUID | no | | FK `watch_order_list` ON DELETE CASCADE, indexed |
+| `list_id` | UUID | no | | FK `order_list` ON DELETE CASCADE, indexed |
 | `position` | Float | yes | | Only matters while the part has no steps: anchors an empty part in the item stream |
 | `section_name` | String | yes | | `display_name` falls back to "Untitled Section" |
 | `remark` | Text | yes | | Commentary printed under the heading |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-### `watch_order_item`
+### `order_item`
 
 One step in a list. The same entry may appear in several steps of one list -
 that is how a split run (A ep 1-10 → B → A ep 11-12) is expressed.
@@ -2177,35 +2178,35 @@ that is how a split run (A ep 1-10 → B → A ep 11-12) is expressed.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `list_id` | UUID | no | | FK `watch_order_list` ON DELETE CASCADE, indexed |
+| `list_id` | UUID | no | | FK `order_list` ON DELETE CASCADE, indexed |
 | `position` | Float | yes | | Float so a step can be slotted between two others |
 | `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - see [Tables that hang off an entry or a group](#tables-that-hang-off-an-entry-or-a-group). `media_type` and `entry_id` are still served by the API, derived from this |
-| `section_id` | UUID | yes | | FK `watch_order_section` ON DELETE **SET NULL** - deleting a part leaves its steps unsectioned |
+| `section_id` | UUID | yes | | FK `order_section` ON DELETE **SET NULL** - deleting a part leaves its steps unsectioned |
 | `ep_start` / `ep_end` | Integer | yes | | Both NULL = the whole entry. Unit depends on type (Ep / Ch / issue #) - see [entry-types.md](entry-types.md) |
 | `importance` | String | yes | `"Normal"` | ITEM_IMPORTANCE: Essential / Recommended / Normal / Optional |
 | `note` | Text | yes | | |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-### `watch_order_follow`
+### `order_follow`
 
-One user following one watch order. A user follows at most one order per
+One user following one order. A user follows at most one order per
 group; following another of the group repoints the row, unfollowing deletes
-it. Model: `WatchOrderFollow` (`app/models/watch_order.py`). Progress through
+it. Model: `OrderFollow` (`app/models/order.py`). Progress through
 the order is computed on read and not stored - see
-[systems/watch-orders.md](systems/watch-orders.md#following).
+[systems/orders.md](systems/orders.md#following).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
-| `user_id` | UUID | no | | FK `users.id` ON DELETE CASCADE (`fk_watch_order_follow_user`), indexed |
-| `list_id` | UUID | no | | FK `watch_order_list` ON DELETE CASCADE (`fk_watch_order_follow_list`), indexed |
+| `user_id` | UUID | no | | FK `users.id` ON DELETE CASCADE (`fk_order_follow_user`), indexed |
+| `list_id` | UUID | no | | FK `order_list` ON DELETE CASCADE (`fk_order_follow_list`), indexed |
 | `franchise_id` / `series_id` / `collection_id` | UUID | yes | | The followed order's owner, copied when the follow is written; each an FK to its tier, ON DELETE CASCADE |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Constraints: `ck_watch_order_follow_one_owner` - exactly one owner column is
-set; `uq_watch_order_follow_group` - UNIQUE NULLS NOT DISTINCT `(user_id,
+Constraints: `ck_order_follow_one_owner` - exactly one owner column is
+set; `uq_order_follow_group` - UNIQUE NULLS NOT DISTINCT `(user_id,
 franchise_id, series_id, collection_id)`, which is the one-per-group rule.
-The owner copy stays true because `watch_order_list`'s owner cannot be
+The owner copy stays true because `order_list`'s owner cannot be
 changed once the list exists (the list endpoints answer 400).
 
 ---
@@ -2941,13 +2942,13 @@ delete and no service call is involved. The rules differ on purpose:
 | `collection_content_label` | CASCADE | Same, for a deleted collection |
 | `series_content_label` | CASCADE | Same, for a deleted series |
 | `quote` | **SET NULL** | A quote carries its own text, translation, speaker and episode. Deleting an entry must never destroy hand-written content, so the quote survives, unattached. Not confused with a deliberately general quote - that is its own flag, `is_general` |
-| `watch_order_item` | CASCADE | A step is almost pure pointer: `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry |
+| `order_item` | CASCADE | A step is almost pure pointer: `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry |
 
 `media_credit` and `media_tag` keep their unique rows as
 `(media_id, role, person_id, studio_id, publisher_id)` and
 `(media_id, field, option_id)`.
 
-`quote` and `watch_order_item` expose `media_type` and `entry_id` **in the
+`quote` and `order_item` expose `media_type` and `entry_id` **in the
 API**, because the SPA reads that pair in ~93 places. They are derived, not
 stored: `entry_id` is a SQLAlchemy synonym for `media_id`, and `media_type` is
 a read-only `column_property` off the `media` row — the same pattern

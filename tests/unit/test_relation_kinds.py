@@ -1,7 +1,7 @@
 """
 Unit tests for the relation kind registry.
 
-Pure data, no database — mirrors tests/unit/test_watch_order_resolver.py in
+Pure data, no database — mirrors tests/unit/test_order_resolver.py in
 spirit but needs no fixtures.
 """
 

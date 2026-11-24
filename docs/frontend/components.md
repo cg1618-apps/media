@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -33,7 +33,7 @@ src/
 | Piece | What it does |
 |---|---|
 | `api/client.js` `fetchJson(url, init)` | `fetch` with `credentials: "include"`; parses JSON; **throws** on `!res.ok` with the server `detail`. There is no automatic redirect on 401 — a stale session surfaces as a thrown error. |
-| `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, statistics, announcements, watchOrder, mediaRelation, gameChoice, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
+| `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, statistics, announcements, order, mediaRelation, gameChoice, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
 | `api/mutations/useResourceMutations.js` | `useCreateResource`, `usePatchResource`, `useDeleteResource`, `useReorderResources`: `useMutation` wrappers for `/api/resources` that invalidate `RESOURCES_QUERY_KEY` (`["resources"]`) when they settle. The reorder one also applies the move to the cache first (`applyReorder`) and restores the previous tree on failure. |
 | `api/mutations/useRequestMutations.js` | Requests and reports. `useMyRequests(status?)` reads `GET /api/requests/mine` under `["requests", "mine", status ?? "all"]`; `useRequestInbox(status = "open")` reads `GET /api/requests?status=` under `["requests", "inbox", status]`. `useFileRequest` (POST), `useEditRequest` (`{id, data}`, PATCH), `useSetRequestStatus` (`{id, status, response?}`, PUT `/status`) and `useDeleteRequest` (`id`) each invalidate the whole `["requests"]` prefix when they settle, so both pages and every status filter refetch. |
 | `api/mutations/useMyRatingMutations.js` | The caller's own ratings. `useSaveMyRating()` sends `PUT /api/me/ratings/{owner_type}/{owner_id}` with a partial `{my_rating?, expectation?}` and invalidates `["media-list", ownerType]` and `["api", "search"]`; `useMyRatingSaver(ownerType, ownerId, setRow)` wraps it for one page, folding the answer into the page's row (`applyMyRating`, which writes `expectation` back under the tier's own field, `EXPECTATION_FIELD`) and toasting. `useSaveMyBookUnit(bookId)` sends `PUT /api/me/book-units/{unit_id}` `{my_rating?, remark?}` and invalidates the book's list and detail; the book detail page's Units card calls it, with the book's `public_id`, from each unit's rating select and remark field. |
@@ -81,8 +81,7 @@ toggled inside a hub does not update the library cache until it goes stale.
   (`pages/notes` below); a control belonging to the administrator asks
   its own key with `has()` (the role chip asks `isAdmin || has("admin.authz")`,
   Back up asks `has("manage.pipelines")`, the announcement editor on
-  `/system` asks `has("manage.announcements")`, the poster-spine entry id on
-  the twelve detail pages asks `has("manage.catalog")`), and the guest
+  `/system` asks `has("manage.announcements")`), and the guest
   scope's flags are read through `useViewScope()`. `refetchAuth()` is
   *not* how an identity change is applied: sign-in, sign-out and an
   access-mode switch each call `hardNavigate()` (`lib/hardNavigate.js`) and
@@ -264,8 +263,9 @@ columns.
   `franchiseColumn`, `airingStatusColumn`, `myRatingColumn`, `malRatingColumn`,
   `imdbRatingColumn` (any IMDb field - TV shows and cartoons add one for
   `imdb_series_rating`), `watchButtonColumn`, `readButtonColumn`,
-  `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`,
-  `imdbSeriesRatingSort`, `usefulnessSort`; the factories that read the
+  `planFlagColumn`, `myRatingSort` (a factory: each library passes its public
+  score sort and its title order, the two tie-breaks), `malRatingSort`,
+  `imdbRatingSort`, `imdbSeriesRatingSort`, `usefulnessSort`; the factories that read the
   viewer's own value - `myRatingColumn`, the three status buttons,
   `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
   themselves, see [The `personal` flag](#the-personal-flag)),
@@ -364,15 +364,21 @@ columns.
   `RELEASE_PERSONAL_FIELDS` in `lib/releaseAction.js`), `WeeklySchedule`,
   `ComingNext` (the dashboard's next-season block; its selection is the pure
   `selectComingNext` in `lib/comingNext.js`), `FollowedOrders` (the
-  dashboard's followed watch orders, under Coming Next), `FollowedOrderPanel`
+  dashboard's followed orders, under Coming Next), `FollowedOrderPanel`
   (where the entry sits in the viewer's followed orders, under every entry
   detail page's header), `FollowOrderButton` (the Follow / Following toggle),
   `FollowedStep` (one step line shared by those two views),
   `RelationsSection` (its optional `onRows` prop is handed every row the card
   loads, so the h-comic page names the hentai its derived animation status
-  comes from without a second request), `WatchOrderSection`, `WatchOrderGuide`,
-  `WatchOrderEditor` (steps and parts dragged by a grip, plus a typed
-  position box; its move arithmetic is the pure `watchOrderLayout.js` beside
+  comes from without a second request), `OrderSection` (its order chips on
+  two labelled rows, Custom then Built-in, an empty row not drawn),
+  `OrderGuide` (its `typeFilter` prop narrows the steps to one media type and
+  keeps their whole-order numbers; the same file exports `MediaTypeFilter`,
+  the order page's scope drawn as type pills — toggle pills with **All** on a
+  cross-type order, one static selected-style pill on a single-type one —
+  and the text-only `MediaScopeLine` the hub tab, the editor and the admin `/orders` page keep),
+  `OrderEditor` (steps and parts dragged by a grip, plus a typed
+  position box; its move arithmetic is the pure `orderLayout.js` beside
   it, which flattens the drawn blocks into a token stream - one token per step
   and per *empty* part - and turns every move into one `PUT /reorder` body:
   `item_ids`, `section_ids` and every part's `section_positions`).
@@ -721,7 +727,7 @@ columns.
   drag - see [design-system.md](design-system.md#reordering-a-list).
   `CastEditor`, `BookUnitsEditor`, `GameCopiesEditor`, `ClubMembership`,
   `WorkImagesEditor`, `NameEntriesSection` and `StructuredSection` use it directly; `ResourceTree`,
-  `WatchOrderEditor` and the Fav 3x3 ranked list are not one flat list, so they
+  `OrderEditor` and the Fav 3x3 ranked list are not one flat list, so they
   build on dnd-kit's `useDraggable` / `useDroppable` with `useDragSensors` and
   the same ArrowUp / ArrowDown keys - the first two with the same grip and
   label, the ranked list by its whole row, which holds no inputs.
@@ -903,6 +909,20 @@ columns.
   they held, so the other kind never moves on screen. A personal row
   carries a **Mine** chip (`MineChip` in `ui.jsx`, the ink `Chip`). The
   look is **provisional UI**, pending the owner's design.
+
+  A section flagged `kind_choice` (優點, 缺點, 優缺點) lets a holder of both
+  `manage.catalog` and `self.personal_notes` write and move rows of both
+  kinds (`choosesKind`). `TextLinksSection` draws it as a **Public** group
+  then a **Personal** group, each under the in-card group heading
+  (`groupHeadingCls` from `kindGroups.jsx`), a group with no rows left out,
+  and each with its own reorder, which sends `personal: false` or `true` to
+  `reorderNotes`. The add and edit forms carry `KindChoice` (`ui.jsx`, a
+  Personal / Public pair), Personal on a new row; on edit it is offered on
+  the viewer's own rows - every personal row, and a public row whose
+  `author_id` is `useAuth().userId` - and a changed kind saves through
+  `onSwitchKind`, which writes changed content first and then calls
+  `switchNoteKind` (`PATCH /api/notes/{id}/kind`). No Mine chip there: the
+  Personal heading says it.
   **Personal values on catalogue rows are marks, gated apart from the
   section.** A field the registry marks `personal` (an item's collected and
   collected amount, an enemy's beaten, an ending's completion, a stat's
@@ -1391,7 +1411,7 @@ another:
 | Nav rows (Restricted → H-Comic, H-Game, Hentai) | `gatedType` on each item in `config/navigation.js`; `visibleSections(sections, has, canSeeType)` drops it, and drops the Restricted tab once no gated row is left in it. Both permission surfaces ask the same helper, and `navigation.test.js` pins the pair |
 | Add / Modify / Delete / Form Defaults tab | `AdminTabBar` filters every tab list through `visibleByType` |
 | Nav search scope | `canSearchScope` in `NavSearch.jsx`: `canSeeGatedType` and the role's `media_type.<type>` key, the rule the server picks its search buckets by |
-| Plan tabs, Completions tabs, Random Picker mode strip and media-type chips, Quotes filter, image owner-type filter, watch-order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
+| Plan tabs, Completions tabs, Random Picker mode strip and media-type chips, Quotes filter, image owner-type filter, order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
 | Favourite grids (the h-game franchise and entry grids) | `gatedType` on the grid in `config/favoriteGrids.js`; `visibleFavoriteGrids(auth)` filters them for the statistics page and the admin 3x3 editor, and the statistics sidebar drops their links the same way |
 | Options scope picker (`ScopePicker`, both Options tabs) | `visibleMediaTypes` over the list it is handed, so the `MEDIA_TYPES` fallback drawn before `/api/constants` answers does not name a hidden gated type either |
 | Lists fetched only when visible | `usePlanData`, `Completions`, `RandomPicker`, `useStatisticsData` (the h-comic, h-game and hentai rating cards and the h-game favourite grids), `SeriesPage` (h-games and hentai only under a parent franchise of the restricted family) and `FranchiseLibrary` (which waits for `/api/auth/me`) |
@@ -1436,7 +1456,7 @@ content-label endpoints refuse (422) a set that drops it.
 | `forms/WorkImagesEditor.jsx` | A person's gallery of works in `PersonFields`, offered on Modify only (it needs a saved person) and only while the form's roles hold `author` or `illustrator` (`holdsGalleryRole`, `lib/workImages.js`). Every action saves at once over `/api/person/{id}/work-images`: **Upload pictures** POSTs every chosen file in one multipart request (field `files`) and appends them; a caption PATCHes on blur when it changed; a drag or ArrowUp / ArrowDown on a row's grip PUTs the whole `attachment_ids` order, shows it at once, freezes the grips until it settles and puts the old order back if it fails; the × DELETEs the picture. Each row is the library thumbnail (`data-focus="none"`), the caption input and the ×. "Loading works…" while it reads, "No works yet." with what to do when empty, and the server's `detail` - the 422 for a role ticked but not yet saved, say - in `danger` under the list. |
 | `forms/CharacterFirstsFields.jsx` | A **First Appearances** section header and three text inputs — **First Mention**, **First Appearance**, **First Encounter** — each with the `CHARACTER_FIRST_PLACEHOLDER` notation and a one-line hint saying what it records. Rendered last by both `CharacterFields` and `IdentityFields`, so a character and an identity edit their firsts the same way. |
 | `forms/EntityProfileFields.jsx` | The profile inputs `CharacterFields` and `PersonFields` share: `GenderField` (`kind` picks the vocabulary: `"character"`, the default, is `GENDERS`, `"person"` is `PERSON_GENDERS`; `QuickPicks` chips for 男 and 女, filtered against that vocabulary, beside a closed select of "—" plus its every value, both editing the one value; stores `""` for unset, which the savers send as null) and, on Modify only (an unsaved row has no entries), `PhotoFallbackField`: "— Auto (latest with cover) —" plus the row's entries from `GET /api/{character\|person}/{id}/entries`, once each (`uniqueGroupEntries`), labelled `name (year) [type]` like the franchise cover picker. Its hint follows `ownerType`: a character's chosen entry lends its casting photo before its cover, a person's only its cover. It writes `photo_fallback_entry_id`, which the Modify tab's `PUT` carries. No rating field here: the viewer's own rating is `MyRatingFields`, which the four entity field sets draw above Remark. |
-| `info/EntityProfileControls.jsx` | The controls every entity detail page shares — character, person, studio and publisher: `AdminToolbar` (the dashed Admin strip with **Quick edit** to `/modify?id=<system_id>&type=<character\|person\|studio\|publisher>`, plus **Autofill & update** when the page passes `onAutofilled`: it POSTs `endpoints.{character\|person\|studio}.autofill(id)`, reads **Autofilling…** while it runs, hands the response to `onAutofilled` and toasts **Autofill completed** or the server's `detail`), `RatingSelect` (the viewer's own rating — Unrated plus `MY_RATINGS`, saving on change; the pages draw it for a holder of `self.list` and save it through `useMyRatingSaver`), `RemarkEditor` (a textarea saving on blur — emptied is null, untouched saves nothing) and `useEntityPatch(ownerType, systemId, onSaved)`, which PATCHes the partial body to `endpoints.{character\|person\|studio\|publisher}.patch(id)`, hands the response to `onSaved` and toasts. |
+| `info/EntityProfileControls.jsx` | The controls every entity detail page shares — character, person, studio and publisher: `AdminToolbar` (the dashed Admin strip with **Edit** to `/modify?id=<system_id>&type=<character\|person\|studio\|publisher>`, plus **Autofill & update** when the page passes `onAutofilled`: it POSTs `endpoints.{character\|person\|studio}.autofill(id)`, reads **Autofilling…** while it runs, hands the response to `onAutofilled` and toasts **Autofill completed** or the server's `detail`), `RatingSelect` (the viewer's own rating — Unrated plus `MY_RATINGS`, saving on change; the pages draw it for a holder of `self.list` and save it through `useMyRatingSaver`), `RemarkEditor` (a textarea saving on blur — emptied is null, untouched saves nothing) and `useEntityPatch(ownerType, systemId, onSaved)`, which PATCHes the partial body to `endpoints.{character\|person\|studio\|publisher}.patch(id)`, hands the response to `onSaved` and toasts. |
 | `lib/characterCards.js` | The character library's cards. `characterCards(characters)` flattens the `/api/character/` list into one card per character, and one card per identity of its `identities`, each emitted right after its character (the library sorts them afterwards, an identity card by its own name). An identity card carries its own `public_id` (so it links to the identity page), `display_name`, `display_photo_file` / `display_photo_focus` and resolved gender (`display_gender`), the character's `public_id` as `character_public_id`, `character_display_name`, the character's face for its footer as `character_photo_file` / `character_photo_focus` (the character's displayed photo pair, else its own), and the character's `my_rating`, `role`, `media_types`, `restricted`, `appearance`, `trait` and `casting_count`, so it filters as the character does; it has `card_kind: "identity"`, `identity_id` and a unique `card_id`. Every card of a character carries `search_names`, the names of the character and of all its identities, and `has_identities`. Exports the `Characters` / `Identities` / `Has identities` / `No identities` filter option labels. |
 | `lib/entityFilters.js` | The entity libraries' FilterDefs. `characterFilterDefs(auth)` (Entry type, Role — the character's own `role`, with Not set for null — My Rating, Gender, then **Appearance** and **Trait**: `set-dynamic` defs over the values the rows' lists hold, sorted, plus Not set when a row's list is empty, matching a row that holds any ticked value, then **Card** - Characters / Identities, by the card's `card_kind` - and **Identities** - Has identities / No identities, by `has_identities`); `personFilterDefs(auth, role?)` (Type — the `PERSON_SUB_TABS` roles — then Entry type, My Rating, Gender over `PERSON_GENDERS`; with a `role`, as on `/library/seiyuu`, no Type group); `studioFilterDefs(auth, { studios })` (Entry type, My Rating, **Country** — a `set-dynamic` def whose chips are the countries more than five of `studios` name (`studioChipCountries`; a studio naming several counts for each), the most-named first, ties by name, then **Others** for a studio naming any country without a chip and **Not set** for one naming none, each only when a row needs it; a studio matches every chip one of its countries falls under — and **Relation** — Has relation / No relation, off the list's `has_relations`, which counts only related studios the viewer may see) and `publisherFilterDefs(auth)` (the same three after **Kind**, then the studio's **Relation** filter - both read `has_relations`, which counts related studios and publishers alike: the `PUBLISHER_KINDS` — 遊戲發行商 for game, 台灣出版社 for manga and book, 台灣代理商 for anime and anime movie — then 其他 for any type none of them names, matched over `media_types` ∪ `scopes`, so a publisher covering several kinds matches each). Entry type offers the entity's plain types, then **No entries**, which matches a row whose `media_types` is empty, then a **Restricted** parent over the gated types the entity can have — h-comic and hentai for a character, those and h-game for a person, hentai and h-game for a studio, none for a publisher — keeping only the ones `canSeeGatedType` allows. It matches `media_types`, and for a publisher `media_types` ∪ `scopes`, so one offered on a type but not yet credited on it is still found there. Rating, gender, role and country add Unrated / Not set for null. Every entity library opens with nothing ticked; Entry type's `idle(item)` (honoured by `applyFilterDefs` for a def with nothing chosen) then keeps every row but one whose entries are all of restricted types, so an empty group reads as its plain options and No entries ticked. |
 | `info/PersonLinks.jsx` | `creditValue(item, role, legacyValue)` for an InfoCard credit row: links built from `credit_refs` when the entry has them (plain names for a viewer without `view.person`, through `useEntityHref`), the legacy comma-joined string when it does not — which is also what a viewer without the Credits permission sees. `creditLabel(item, role, fallback)` takes the heading from the ref, so 原作 / Author / Writer stays owned by `credit_label()` on the backend. |

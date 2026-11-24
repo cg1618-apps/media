@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -96,7 +96,7 @@ Users            ->  before  User Media List   (user_media_list.user_id)
 Media            ->  before  User Media List   (user_media_list.media_id)
 Media            ->  before  the twelve media tabs (detail.system_id -> media)
 Collection -> Franchise -> Series -> Media
-Watch Order List -> Watch Order Section -> Watch Order Item -> Watch Order Follow
+Order List -> Order Section -> Order Item -> Order Follow
 Person / Studio / Publisher / Character / Content Label -> the media tabs
 Character -> Character Identity -> Character Casting
 Users, Collection / Franchise / Series, Character / Person / Studio / Publisher -> User Rating
@@ -108,7 +108,7 @@ Collection, Franchise, Series, Media -> Needs Work
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
-`Seasonal`, `Watch Order Follow`, `User Rating`, `User Book Unit Rating`, `User Highlight Group Order`, `Game Copy`, `Game Choice Mark`, `Note Mark` and `User Favorite` all carry a NOT NULL `user_id`. The enforcement is
+`Seasonal`, `Order Follow`, `User Rating`, `User Book Unit Rating`, `User Highlight Group Order`, `Game Copy`, `Game Choice Mark`, `Note Mark` and `User Favorite` all carry a NOT NULL `user_id`. The enforcement is
 `tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
 test. It is first for a second reason too: every tab that files a row under
 the [installation owner](#the-installation-owner) reads the owner from the
@@ -131,7 +131,7 @@ does not say. It answers, in order:
 
 **None skips the row, and the report says so by name.** Every row Pull could
 not file for want of an owner — `User Media List`, `Plan Next`, `Seasonal`,
-`Watch Order Follow`, `User Rating` and `User Book Unit Rating` on a sheet
+`Order Follow`, `User Rating` and `User Book Unit Rating` on a sheet
 with no `username` header, a `Note`, `Quote` or `Meme` row whose author is
 unknown here, and every `Game Copy` and `Game Choice Mark` row — is counted in the tab's `owner_missing`, as well as in
 `rows_skipped`, and the tab adds one line to `unresolved_refs`:
@@ -195,10 +195,10 @@ reader's half without an owner and says so the same way
 | 41 | `H-Game` | `HGame` | `h-game` |
 | 42 | `User Media List` | `UserMediaList` |  |
 | 43 | `User Highlight Group Order` | `UserHighlightGroupOrder` |  |
-| 44 | `Watch Order List` | `WatchOrderList` |  |
-| 45 | `Watch Order Section` | `WatchOrderSection` |  |
-| 46 | `Watch Order Item` | `WatchOrderItem` |  |
-| 47 | `Watch Order Follow` | `WatchOrderFollow` |  |
+| 44 | `Order List` | `OrderList` | Read from `Watch Order List` on a sheet backed up before orders were renamed (`LEGACY_TAB_NAMES`) |
+| 45 | `Order Section` | `OrderSection` | Read from `Watch Order Section` likewise |
+| 46 | `Order Item` | `OrderItem` | Read from `Watch Order Item` likewise |
+| 47 | `Order Follow` | `OrderFollow` | Read from `Watch Order Follow` likewise |
 | 48 | `Media Relation` | `MediaRelation` |  |
 | 49 | `Plan Next` | `PlanNext` |  |
 | 50 | `Quote` | `Quote` |  |
@@ -270,7 +270,9 @@ kinds of older name onto the current ones before anything parses a row
 
 - **Tab titles.** `LEGACY_TAB_NAMES` lists the titles a tab may carry on an
   older sheet: `Book` may be `Novel`, `Book Unit` may be `Novel Unit`, `User
-  Book Unit Rating` may be `User Novel Unit Rating`. The current title wins
+  Book Unit Rating` may be `User Novel Unit Rating`, `Company Relation` may be
+  `Studio Relation`, and each `Order …` tab may be `Watch Order …`. The
+  current title wins
   whenever it holds any row, because a sheet backed up since may keep the old
   tab beside it and that one is stale. The old title is read only when the
   current one is empty **and** the sheet lists the old one
@@ -371,7 +373,10 @@ next Pull. Pull drops one leading apostrophe if a cell still carries it
 rule in [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)
 runs on a restore.
 
-**`Plan Next`, `Seasonal`, `Watch Order Follow`, `User Rating` and `User Book Unit Rating`** drop `user_id` for `username` too, for the same
+`is_pinged` travels as `TRUE` / `FALSE`. The column is NOT NULL, so a blank
+cell - a sheet backed up before the column existed - restores as `false`.
+
+**`Plan Next`, `Seasonal`, `Order Follow`, `User Rating` and `User Book Unit Rating`** drop `user_id` for `username` too, for the same
 reason (the follow and the two rating tabs have carried `username` from their first day, so they meet the fallback below only for a hand-built sheet). Pull falls back to `_restore_owner_id` — the [installation owner](#the-installation-owner), and with none the row is skipped and counted — **only** when the header is absent
 altogether, which means a sheet written before the column existed and in which
 everything did belong to one person. A `username` that is present and names
@@ -398,7 +403,14 @@ normalised as the write path does; a row naming an entry of another type, an
 unknown entry or an unknown user, or an order that is not a list of names, is
 skipped and named in `unresolved_refs`, and an empty order is skipped.
 
-**The Note tab carries `personal`**, after `section`. A personal row of a
+**The Note tab carries `personal`**, after `section`, and a `public` column
+at its end. In 優點, 缺點 and 優缺點, whose writer picks each row's kind
+(`kind_choice`), the kind is read from `public` instead: Backup writes TRUE on
+a public row of those sections and a blank everywhere else, and Pull restores
+one of their rows as public only when `public` says TRUE. Those sections were
+personal-scope before, so an older sheet holds their rows with `personal`
+FALSE and no `public` column, and every one restores personal - reading
+`personal` would have published them. Elsewhere `personal` decides. A personal row of a
 mixed section restores under its author by `username`, like every Note row,
 and keeps its kind; a blank cell reads false. A backup taken before the
 column existed has no `personal` header, and every row it holds restores as
@@ -810,13 +822,13 @@ Returns a status dict; the route streams it as the last event, `"status": "error
      | `Franchise` | `franchise_name_en` or `franchise_name_cn` |
      | `Collection` | `collection_name_en` or `collection_name_cn` |
      | `System Configs` | `config_key` (UNIQUE — a blind insert would roll back the whole tab) |
-     | `Watch Order List` | `list_name` + `franchise_id` + `collection_id` |
+     | `Order List` | `list_name` + `franchise_id` + `collection_id` |
      | `Meme` | whichever owner column is set + `text` |
      | `Note` | whichever owner column is set + `section` + `content` (content may be `None`) |
      | `Quote` | `media_type` + `entry_id` + `text` |
      | `Series` | `series_name_en` or `series_name_cn` |
      | `Anime`, `Anime Movie`, `Movies`, `TV Shows`, `Cartoons`, `Manga` | the type's `*_name_en` or `*_name_cn` |
-     | everything else (incl. `Book`, `Comic`, `Watch Order Item`) | no natural key — an id-less row always inserts |
+     | everything else (incl. `Book`, `Comic`, `Order Item`) | no natural key — an id-less row always inserts |
 
      If matched, the local PK is used; otherwise the PK key is dropped so the database mints one.
    - **Singleton notes**: a `Note` row in a `singleton` section is retargeted at the existing row in that section for the same owner, whoever wrote it, keeping the local `system_id`. No registry section is a singleton at present; `remark` is a list, so every remark row in the sheet lands as a row of its own.
@@ -837,7 +849,7 @@ Returns a status dict; the route streams it as the last event, `"status": "error
        `unresolved_refs` rather than written, because the CHECK would reject it.
      - **The author travels as `username`, not as `author_id`.** Backup
        drops the uuid and writes the author's name, the way `Plan Next`,
-       `Seasonal` and `Watch Order Follow` drop `user_id`: `users.id` is minted
+       `Seasonal` and `Order Follow` drop `user_id`: `users.id` is minted
        per database — `admin` above all, which `app/main.py`'s lifespan mints
        on every machine — so the uuid would name nobody on the other one. Pull
        resolves the name back to the local account. A name nobody here holds,

@@ -85,7 +85,9 @@ DEFAULT_STATUS: dict[str, str] = {
 # `ep_fin` is deliberately absent: it was nullable on the anime, tv_shows and
 # cartoons tables, so None is a value it always could have had - and hentai
 # reads it the same way.
-LIST_FIELD_DEFAULTS: dict[str, int] = {
+LIST_FIELD_DEFAULTS: dict[str, int | bool] = {
+    # NOT NULL on the row; an entry the viewer has no row for is unpinned.
+    "is_pinged": False,
     "vol_fin": 0,
     "vol_fin_page": 0,
     "ch_fin": 0,
@@ -100,25 +102,36 @@ LIST_FIELD_DEFAULTS: dict[str, int] = {
 #
 # time_fin ("Paused at") belongs to the six watching types and to nothing else:
 # a playback position means nothing for a page count or a save file.
+#
+# is_pinged belongs to the nine ordinary types: it puts the entry in the
+# dashboard's Pinged division, and the dashboard draws no gated type.
 LIST_FIELDS: dict[str, tuple[str, ...]] = {
     "anime": (
         "watching_status", "my_rating", "ep_fin", "time_fin", "my_watch_day",
-        "completed_at",
+        "completed_at", "is_pinged",
     ),
-    "anime-movie": ("watching_status", "my_rating", "time_fin", "completed_at"),
-    "movie": ("watching_status", "my_rating", "time_fin", "completed_at"),
-    "tv-show": ("watching_status", "my_rating", "ep_fin", "time_fin", "completed_at"),
-    "cartoon": ("watching_status", "my_rating", "ep_fin", "time_fin", "completed_at"),
+    "anime-movie": (
+        "watching_status", "my_rating", "time_fin", "completed_at", "is_pinged",
+    ),
+    "movie": ("watching_status", "my_rating", "time_fin", "completed_at", "is_pinged"),
+    "tv-show": (
+        "watching_status", "my_rating", "ep_fin", "time_fin", "completed_at",
+        "is_pinged",
+    ),
+    "cartoon": (
+        "watching_status", "my_rating", "ep_fin", "time_fin", "completed_at",
+        "is_pinged",
+    ),
     "manga": (
         "reading_status", "my_rating", "vol_fin", "vol_fin_page", "ch_fin",
-        "completed_at",
+        "completed_at", "is_pinged",
     ),
     "book": (
         "reading_status", "my_rating", "vol_fin", "arc_fin", "ch_fin",
-        "ch_fin_in_arc", "progress_display", "completed_at",
+        "ch_fin_in_arc", "progress_display", "completed_at", "is_pinged",
     ),
-    "comic": ("reading_status", "my_rating", "issue_fin", "completed_at"),
-    "game": ("playing_status", "my_rating", "completed_at"),
+    "comic": ("reading_status", "my_rating", "issue_fin", "completed_at", "is_pinged"),
+    "game": ("playing_status", "my_rating", "completed_at", "is_pinged"),
     # page_fin is JP's counter and ch_fin KR's; the other is cleared on every
     # write (app/services/domain/h_comic.py). usefulness is personal, like
     # my_rating.
@@ -509,6 +522,9 @@ def apply_list_payload(row, personal: dict, media_type: str) -> None:
             row.status = value if value is not None else DEFAULT_STATUS[media_type]
         elif key == "time_fin":
             row.time_fin = clean_time_fin(value)
+        elif key == "is_pinged":
+            # NOT NULL: a null from an untyped payload reads as unpinned.
+            row.is_pinged = bool(value)
         else:
             setattr(row, key, value)
     if "time_fin" in LIST_FIELDS[media_type]:

@@ -211,7 +211,7 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 export default function Book() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin } = useAuth();
   const { showToast } = useToast();
 
   const [book, setBook] = useState(null);
@@ -411,7 +411,7 @@ export default function Book() {
           </Eyebrow>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => navigate(`/modify?id=${system_id}&type=book`)}>
-              Quick edit
+              Edit
             </Button>
             <Button
               onClick={async () => {
@@ -444,27 +444,8 @@ export default function Book() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Poster: cover with a spine strip and the rating stamp */}
+          {/* Poster: the cover and the rating stamp */}
           <div className="flex border border-border bg-surface">
-            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
-              <span
-                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
-                style={{ writingMode: "vertical-rl" }}
-              >
-                Book{book.type ? ` · ${book.type}` : ""}
-              </span>
-              {/* Cosmetic only: the id is this page's own URL, so hiding it
-                  tidies the spine rather than concealing the value. Shown to
-                  a catalogue editor (manage.catalog). */}
-              {has("manage.catalog") && (
-                <span
-                  className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
-                  style={{ writingMode: "vertical-rl" }}
-                >
-                  {book.system_id}
-                </span>
-              )}
-            </div>
             <div className="relative flex-1 min-w-0">
               <RatingStamp
                 rating={book.my_rating}
@@ -565,8 +546,8 @@ export default function Book() {
             />
           </header>
 
-          {/* Where this entry sits in the watch orders the viewer follows. */}
-          <TocSection id="watch-orders" label="Watch orders">
+          {/* Where this entry sits in the orders the viewer follows. */}
+          <TocSection id="orders" label="Orders">
             <FollowedOrderPanel entryId={book.system_id} />
           </TocSection>
 
@@ -592,6 +573,9 @@ export default function Book() {
               }
               onReadNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
               onToRerereadChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
+              onPingedChange={(v) =>
+                saveOwn({ is_pinged: v }, v ? "Pinned to the dashboard" : "Unpinned")
+              }
               onProgressDisplayChange={(v) =>
                 saveOwn({ progress_display: v || null }, "Progress display updated")
               }

@@ -46,6 +46,16 @@ function metacriticValue(g) {
 // ---------------------------------------------------------------------------
 // Game library config
 // ---------------------------------------------------------------------------
+const metacriticSort = {
+  key: "metacritic_score",
+  label: "Metacritic",
+  compare: (a, b) => metacriticValue(b) - metacriticValue(a),
+};
+
+// The library's title order: the Title sort, and the last tie-break of
+// My Rating.
+const compareTitle = (a, b) => compareTitles(getSortName(a, "game"), getSortName(b, "game"));
+
 const GAME_LIBRARY_CONFIG = {
   usesSeries: true,
   navPath: "/game",
@@ -110,8 +120,7 @@ const GAME_LIBRARY_CONFIG = {
       label: "Title",
       // Sorted on the English name first (getSortName), as every other
       // library is; the card still shows the CN-first title.
-      compare: (a, b) =>
-        compareTitles(getSortName(a, "game"), getSortName(b, "game")),
+      compare: compareTitle,
     },
     {
       key: "release_date",
@@ -123,12 +132,8 @@ const GAME_LIBRARY_CONFIG = {
       label: "Playtime",
       compare: (a, b) => hoursValue(b) - hoursValue(a),
     },
-    {
-      key: "metacritic_score",
-      label: "Metacritic",
-      compare: (a, b) => metacriticValue(b) - metacriticValue(a),
-    },
-    myRatingSort,
+    metacriticSort,
+    myRatingSort({ publicScore: metacriticSort, title: compareTitle }),
   ],
 
   tableColumns: [

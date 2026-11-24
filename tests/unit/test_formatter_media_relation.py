@@ -1,7 +1,7 @@
 """
 Unit tests for the Media Relation sheet parser.
 
-Mirrors tests/unit/test_formatter_watch_order.py. Pure parsing — no database.
+Mirrors tests/unit/test_formatter_order.py. Pure parsing — no database.
 """
 
 import uuid

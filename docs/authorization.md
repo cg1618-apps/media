@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -301,7 +301,7 @@ The matrix above is the grants; this is what holding one means.
 
 | A viewer may… | `guest` | `shared` | `user` | `super` | `admin` |
 |---|---|---|---|---|---|
-| browse entries of a type — the library lists and detail pages, collection, franchise, series and watch-order pages | yes | yes | yes | yes | **never** |
+| browse entries of a type — the library lists and detail pages, collection, franchise, series and order pages | yes | yes | yes | yes | **never** |
 | open the pages of one entity kind, and follow the links to them: studios (`view.studio`), publishers (`view.publisher`), people and the seiyuu library (`view.person`), characters and their identities (`view.character`) | — (seeded off) | — (seeded off) | — (seeded off) | yes | **never** |
 | search (`view.search`) | — | — | yes | yes | **never** |
 | open the Random Picker and read its saved defaults (`view.random_picker`) | **never** | **always** | **always** | **always** | **never** |
@@ -322,7 +322,7 @@ The matrix above is the grants; this is what holding one means.
 | file a request or report, and read and edit their own (`self.requests`) | — | **always** | **always** | **always** | **never** |
 | handle requests — the inbox: mark done or declined, reopen, delete (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | mark an entry or a group 待補充 Needs Work, and read the Needs Work page, names included (`manage.requests`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
-| write the catalogue — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes - the 備註 remark among them - form and picker defaults (`manage.catalog`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
+| write the catalogue — entries, groups, people, credits, relations, orders, a game's choice graph, quotes, memes, catalogue notes - the 備註 remark among them - form and picker defaults (`manage.catalog`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
 | write, edit and remove announcements (`manage.announcements`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | read the Note pages' inventories — System Options, Alias Conversion, External APIs (`manage.options`); an option itself is written under `manage.catalog` | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | manage the image library, `/images` (`manage.images`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
@@ -365,7 +365,7 @@ this is what showing it means.
 
 | Item | Without it, a session… | `safe` | `normal` | `borderline` | `unrestricted` |
 |---|---|---|---|---|---|
-| a content label | never learns an entry carrying that label exists — absent from lists, search, relations, watch orders, quotes and memes, 404 on its detail page | none | `nsfw`, `ecchi` | adds `erotica` | every label row |
+| a content label | never learns an entry carrying that label exists — absent from lists, search, relations, orders, quotes and memes, 404 on its detail page | none | `nsfw`, `ecchi` | adds `erotica` | every label row |
 | `field_group.sources_restricted` | gets a source list with the `restricted` bucket missing | **—** | yes | yes | yes |
 
 Which fields each group covers is [Field groups](#field-groups); it is not
@@ -434,7 +434,7 @@ handed the catalogue, or vice versa:
 | Name | Meaning | Source of keys |
 |---|---|---|
 | `admin.authz` | may **change who may do what** — roles, accounts, each account's mode ceiling, default and denials, and the access modes' names and descriptions | `ADMIN_PERMISSION_KEYS` in `app/services/rbac/permissions.py` |
-| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, relations, watch orders, a game's choice graph, quotes, memes, catalogue notes, form and picker defaults, and **which labels an entry or a group carries** | `MANAGE_PERMISSION_KEYS` in the same module |
+| `manage.catalog` | may **write the catalogue** — entries, groups, people, credits, relations, orders, a game's choice graph, quotes, memes, catalogue notes, form and picker defaults, and **which labels an entry or a group carries** | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.pipelines` | may **run a pipeline** — Backup, Pull, Fill, Replace, Calculate | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.requests` | may **handle requests** — the request inbox: read every account's requests, set their status, delete them — and **the 待補充 Needs Work marks**: mark an entry or a group as not complete yet, change or clear the mark, and read the Needs Work page (every route on `/api/needs-work`) | `MANAGE_PERMISSION_KEYS` in the same module |
 | `manage.announcements` | may **write, edit and remove the announcements** (`/api/announcements` writes; the list is public) | `MANAGE_PERMISSION_KEYS` in the same module |
@@ -670,9 +670,8 @@ field group:
   *is*, and nothing withholds them from anyone — not a role permission either.
 - **`created_at` / `updated_at` are ungated.** When the catalogue *row* was
   last edited is a fact about the database rather than about the work, and no
-  page displays it. See
-  [The entry id on the poster spine](#the-entry-id-on-the-poster-spine) for
-  the one visible id.
+  page displays it. Nor does any page print an entry's `system_id`; see
+  [The entry id](#the-entry-id).
 
 **`sources_restricted` is withheld in `safe`.**
 `FIELD_GROUP_LOWEST_MODE` in `app/services/rbac/seed_modes.py` names `normal`
@@ -699,7 +698,7 @@ with the component named in JSX. A string documenting a mapping the code does
 not make is worse than no string, because the next reader changes it and
 expects an effect.
 
-#### The entry id on the poster spine
+#### The entry id
 
 **`system_id` is not gated at all**, and never was. That id is the route
 parameter of the page the viewer is already on (`/anime/<system_id>`), as well
@@ -710,13 +709,8 @@ answering 404, and a viewer can only learn an id for an entry they were
 already allowed to see. Removing it from the UI entirely would mean routing on
 slugs instead of UUIDs.
 
-A decorative copy of it is printed down the spine of a detail page's poster,
-and **that block is drawn for a catalogue editor** — `has("manage.catalog")`,
-which in practice is `super`, the account that reads and writes the
-catalogue. There is nothing to gate server-side, so there is no permission to
-invent: the SPA asks a key `/api/auth/me` already carries. It is
-presentation, like every `has()` call that hides a block the server has
-already emptied.
+No page prints it: a detail page's cover carries no spine strip, so neither
+the type label nor the id is drawn beside it.
 
 Withheld fields are **absent, not blanked**, in the UI as well as the API: the
 "Last updated" figure is dropped rather than showing `—`, for the same reason
@@ -1013,7 +1007,7 @@ only part of the question.
 | `franchise_visible(db, viewer, franchise_id)` | franchise detail and its writes | bool; callers **404 with their normal not-found message** |
 | `apply_series_visibility(query, db, viewer)` / `series_visible(db, viewer, series_id)` | series list, search bucket, detail and writes; series-scope plan targets | `NOT EXISTS` on `_series_hidden` — its own labels, its franchise's and that franchise's collection's, reached read-time via `series.franchise_id` |
 | `tier_visible(db, viewer, tier_id)` / `require_visible_owner(db, viewer, owner_id, detail)` | note and meme owners | `tier_visible` resolves a collection, franchise or series **from the id**, never from a caller-supplied tier type, and answers True for anything else. `require_visible_owner` is `require_visible_media` plus that tier half, raising the caller's own 404 |
-| `apply_owner_visibility(query, db, viewer, *, collection_id_column, franchise_id_column, series_id_column)` / `visible_scope_franchise_ids(db, viewer, franchise_id, collection_id)` | watch orders; the watch-order candidates and the relations scope reads | `apply_owner_visibility` narrows rows owned through three nullable owner columns to those whose owner is visible, each tier with its cascade. `visible_scope_franchise_ids` resolves a franchise or collection scope to its franchises, 404 for a hidden scope, dropping a collection's hidden members |
+| `apply_owner_visibility(query, db, viewer, *, collection_id_column, franchise_id_column, series_id_column)` / `visible_scope_franchise_ids(db, viewer, franchise_id, collection_id)` | orders; the order candidates and the relations scope reads | `apply_owner_visibility` narrows rows owned through three nullable owner columns to those whose owner is visible, each tier with its cascade. `visible_scope_franchise_ids` resolves a franchise or collection scope to its franchises, 404 for a hidden scope, dropping a collection's hidden members |
 | `apply_media_visibility(query, db, viewer)` | anything spanning every type at once | The same two gates over the `media` supertable rather than one detail table: the media-type check becomes an `IN` over the types the viewer holds, and the label anti-join is `_hidden_by_label` over `media.system_id`, so the groups above each entry count. `group_counts.py` uses it to count across all twelve types in one query. The query must already select from or join `Media` |
 | `entry_visible(db, viewer, media_type, entry_id)` | detail and per-entry sub-routes | bool; callers **404 with their normal not-found message** |
 | `filter_visible_pairs(db, viewer, pairs)` | cross-type batches | one query for many `(media_type, id)` pairs. A pair naming a grouping tier passes the media-type half (a tier holds no such permission) and meets the label half as a tier, through that tier's condition above: a `collection`, `franchise` or `series` pair is hidden by its own labels and by every group above it |
@@ -1253,7 +1247,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | a game's choice graph and its marks | `routers/game_choice.py` (`require_visible_media`) — a hidden game → 404 "Game not found." on the read and on every write; graph writes are `require_manage_catalog`, marks need `self.personal_notes` and the read returns only the viewer's own |
 | attaching an image to a media entry or an entity | `routers/images.py` → 404 "Entry not found." An entity owner is asked through `shared_record_visible`; quote/meme owners carry no label and are not checked |
 | serving a cover image (`/api/covers/{owner_type}/{id}.jpg`) | `routers/covers.py` → 404, with its viewer from `cover_viewer.get_cover_viewer` ([cached for 5 s](#the-cover-routes-viewer-cache-cover_viewerpy)). The media type is resolved from the `media` row, never read out of the path: both halves of the pair are caller-supplied there, so trusting the folder would gate an entry under another type's permission. An id naming no `media` row is an entity owner (staff, character, publisher, studio), a shared record asked through `shared_record_visible` (a `character-identity` owner is asked through its character, `identity_visible`); its folder is read from the path, which is safe because the folder names the file |
-| watch orders, their items, addable candidates, follows | `routers/watch_order.py` (`apply_owner_visibility`, `tier_visible`, `resolve_items`, `list_candidate_entries`) — an order whose owning group is hidden is absent from `/lists` and `/follows` and 404 on its detail, follow and unfollow; candidates for a hidden owner are 404 |
+| orders, their items, addable candidates, follows | `routers/order.py` (`apply_owner_visibility`, `tier_visible`, `resolve_items`, `list_candidate_entries`) — an order whose owning group is hidden is absent from `/lists` and `/follows` and 404 on its detail, follow and unfollow; candidates for a hidden owner are 404 |
 | search | `routers/search.py` — behind `view.search`; entries, collections, franchises, series and the person/studio/publisher buckets, each bucket carrying the viewer's own ratings as its own list route does ([Ratings and expectations](#ratings-and-expectations-user_rating)). A bucket the viewer may not see has **no key** in `results` (`_viewer_may_search`, `services/domain/search.py`): a media type needs `media_type.<type>` (and a gated one also the mode), `person`, `studio`, `publisher` and `character` need `view.person`, `view.studio`, `view.publisher` and `view.character`; `collection`, `franchise`, `series` and `seasonal` are always present. An empty bucket would still say the type exists, so the key goes. In the SPA the nav search offers a scope only on the same rule, and an entity row or card links through its kind's key |
 | own-list reads and writes (`/api/me/list/{media_id}`) | `routers/me_list.py`, behind `self.list` **and** `entry_visible` in `_media_or_404`. Both are needed: the capability gate alone lets an account holding `self.list` rate an entry it cannot see, or a media type it does not hold, by knowing the uuid. Writes follow reads: 404 with the not-found message, never 403 |
 | own values on catalogue note rows (`PUT /api/notes/{note_id}/mark`, `POST /api/notes/ng-reset`) | `routers/note.py`, behind `self.personal_notes` **and** `require_visible_owner` on the note's owner: 404 "Note not found." / "Owner not found." for a hidden one. Reads overlay only the viewer's own marks (`note_marks.notes_out`) |
@@ -1270,10 +1264,10 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 
 **A write answers exactly what a read would.** Nine routers — the per-type
 entry routes, `casting`, `credits`, `quote`, `meme`, `note`, `media_relation`,
-`watch_order`, `images` — resolve a client-supplied entry id through
+`order`, `images` — resolve a client-supplied entry id through
 `entry_visible` before writing, and a hidden or nonexistent entry gets the
 same answer a `GET` of it would: the per-type routes and `casting`/`credits`
-their existing 404, `media_relation`/`watch_order` their existing
+their existing 404, `media_relation`/`order` their existing
 `400 "Referenced entry does not exist."`, `note` its existing
 `404 "Owner not found."`, `images` its existing `404 "Entry not found."`.
 `entry_visible` (`enforcement.py`) is the single place this is decided;
@@ -1356,7 +1350,7 @@ is a **422**, checked before anything is deleted - see
   count to accounts that keep a library, never to the public. The catalogue
   counts (`/api/seasonal/catalogue`, and `/api/statistics/catalogue` behind
   `view.statistics`) are narrowed to what the viewer may see.
-- Watch-order *list* summaries expose `media_types` and `item_count` including
+- Order *list* summaries expose `media_types` and `item_count` including
   hidden items.
 - `/static/library/...` files are served without checks. The mount is
   unauthenticated, so anyone holding the URL gets the bytes — but a
@@ -1505,7 +1499,7 @@ feature**: only an account holding `favourites` keeps any.
 
 **Which PAGES:** the libraries of every media type the guest role holds, the
 collection and franchise libraries, and the detail pages they lead to - entry
-pages, collection, franchise, series and watch-order pages - plus the
+pages, collection, franchise, series and order pages - plus the
 dashboard's announcements and broadcast schedule. Everything else is behind a
 `view.*` key the guest role does not hold as seeded, and its API answers
 **401**: studios (`view.studio`), publishers (`view.publisher`), people and
@@ -1617,7 +1611,7 @@ missing from the twenty-first.
 | `Viewer.has()` (`services/rbac/resolver.py`) | a set membership test, for every role; the admin's set holds no `self.*` |
 | `AuthContext.has()` (`frontend/src/contexts/AuthContext.jsx`) | the same test over `/me`'s `permissions`, so the nav never advertises Plan or Completions to an account the API answers 401, nor Seasonal, Future Releases or Statistics to one that reads no catalogue |
 | `/api/me/*`, `/api/plan-next/*`, `/api/seasonal/*` | all three prefixes are gated on `self.list` at the router, so a route added later is covered by default. An admin gets 401. The exception is `/api/seasonal/current-season` and `/api/seasonal/catalogue`, which are about the catalogue and sit on a separate, ungated router |
-| `/api/watch-order/follows*`, `/api/watch-order/lists/{id}/follow` | gated on `self.list` **per route** (`require_self_list` in `routers/watch_order.py`), because the rest of that router is public reads and catalogue writes. An admin gets 401. The SPA asks `has("self.list")` before drawing the follow toggle, the entry panel or the dashboard section, and before fetching for them |
+| `/api/order/follows*`, `/api/order/lists/{id}/follow` | gated on `self.list` **per route** (`require_self_list` in `routers/order.py`), because the rest of that router is public reads and catalogue writes. An admin gets 401. The SPA asks `has("self.list")` before drawing the follow toggle, the entry panel or the dashboard section, and before fetching for them |
 | Nested game `copies` | skipped, not refused, for a viewer without `self.list` (`services/domain/game_copies.py`). A copy is personal ownership written through a **catalogue** route, so failing the whole Game edit would refuse a legitimate catalogue change. The SPA hides the editor, so this is the second stop |
 | `navigation.js`, `App.jsx` | both ask `self.list`, so the personal pages disappear from an admin's nav with no change of their own — the payoff of putting the rule in the permission set |
 
@@ -1666,10 +1660,15 @@ data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves it.
 | `catalog` | `manage.catalog` | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only | `WHERE author_id = viewer`, and nothing else: there is no way to read another account's personal notes, the admin included, and a logged-out viewer gets none. An `author` query parameter is ignored |
 
-**Mixed sections.** Ten catalogue sections (`NoteSection.mixed`) also hold
-personal rows, `note.personal`, beside the catalogue's. Which kind a write
-makes is fixed by `manage.catalog`, never by the payload, and nobody writes
-both in one section:
+**Mixed sections.** Thirteen catalogue sections (`NoteSection.mixed`) also
+hold personal rows, `note.personal`, beside the catalogue's. Which kind a
+write makes is fixed by `manage.catalog`, never by the payload, and nobody
+writes both in one section - except in 優點, 缺點 and 優缺點
+(`kind_choice`), where a `manage.catalog` holder writes both and picks each
+row's kind, personal by default; there a non-editor asking for a public row
+is **401**, and switching a row's kind (`PATCH /api/notes/{id}/kind`) is the
+editor's, on rows it wrote (**422** otherwise). See
+[systems/notes.md](systems/notes.md#picking-the-kind):
 
 | Account | Writes in a mixed section | Reads |
 |---|---|---|
@@ -1683,7 +1682,8 @@ author alone, and is **404** to anyone else - a member, a catalogue editor,
 the `admin` account: `_authorize_edit` exempts no role. A
 catalogue row is edited under `manage.catalog` (**401** otherwise). A reorder
 renumbers one kind: the catalogue rows for a `manage.catalog` holder, the
-caller's own personal rows for anyone else. No write changes a row's kind.
+caller's own personal rows for anyone else. No write changes a row's kind,
+except the kind switch in a `kind_choice` section.
 
 **Two answers, and there is no 403 in this router.** `401` means *you may not
 do this kind of thing* — a capability failure, matching what
@@ -2027,9 +2027,8 @@ What an admin can change from the browser, and what needs a commit:
 | which field groups exist | | `field_groups.py` |
 | which media types / field-group families exist | | `permissions.py`, the registry |
 
-Some blocks the SPA hides itself: the detail pages ask
-`useAuth().has("manage.catalog")` to draw the poster-spine id. The component is named in
-JSX, not declared anywhere server-side — there is no `ui_block` field and
+Some blocks the SPA hides itself, asking `useAuth().has(...)` for a key
+`/api/auth/me` already carries. The component is named in JSX, not declared anywhere server-side — there is no `ui_block` field and
 never was a mapping behind it.
 Where the server already blanks the value there is nothing to ask —
 `ScoreBlock.jsx` drops its "Last updated" figure on a null timestamp, so the
@@ -2046,7 +2045,7 @@ matters is enforced server-side.
 | `tests/api/test_rbac_core.py` | seed idempotence, `/me` never raises, deleted-user / de-admined tokens rejected |
 | `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards |
 | `tests/api/test_group_content_labels.py` | labels on collections and series and the cascade: an unlabelled tree hides nothing; a collection's label hides the whole tree, a franchise's its series and entries but not its collection, a series' itself and its entries only (not its franchise or a sibling); moving a franchise out of a labelled collection reveals it; a labelled collection and series absent from lists and search; `tier_visible` and `filter_visible_pairs` on collection and series ids; per tier, assignment adding `nsfw`, refusing to drop it, 422 on an unknown key, 404 to a narrow editor and refused to a plain user; group responses carrying their own labels; the reference counting each tier; `add_missing_nsfw` on a group. Every refusal pairs with `owner_client`, and `nsfw_label` makes refusal possible |
-| `tests/api/test_watch_order_hidden_owner.py` | an order owned by a hidden collection, franchise or series (and a series under a hidden franchise) is absent from `/lists`, filtered and not, 404 on its detail, its follow and its candidates, and left out of `/follows`; a hidden relations scope is 404 on `/graph` at every tier and on the scope listing. Every refusal pairs with `user_client` (`unrestricted`), and the `nsfw` label on the owner makes refusal possible |
+| `tests/api/test_order_hidden_owner.py` | an order owned by a hidden collection, franchise or series (and a series under a hidden franchise) is absent from `/lists`, filtered and not, 404 on its detail, its follow and its candidates, and left out of `/follows`; a hidden relations scope is 404 on `/graph` at every tier and on the scope listing. Every refusal pairs with `user_client` (`unrestricted`), and the `nsfw` label on the owner makes refusal possible |
 | `tests/api/test_mode_ceiling.py` | `set_mode_ceiling`'s refusals and acceptances, denial pruning on a lowered ceiling, a switch above the ceiling 404 with the mirror at and below it, a live override above a just-lowered ceiling resolving nothing, `/me` listing exactly the modes up to the ceiling, a denial applying in every mode that shows it, a denial the ceiling does not show 422 with the mirror, a new account at `normal` / `normal`, and the three `ck_users_mode_*` constraints |
 | `tests/api/test_labels_in_code.py` | the six labels and their lowest modes, each mode showing everything the mode below shows, a session in each mode seeing exactly its labels (refusals paired with the mode above), restricted sources withheld in `safe`, the removed create/delete/regrant routes absent, a mode's name still adjustable, the reference read by admin and super and refused to a member, `ensure_labels` restoring a missing label and a rewritten name |
 | `tests/api/test_user_mode_constraint.py` | `ck_users_mode_keys`: no account can be given a mode that does not exist |
@@ -2077,7 +2076,7 @@ matters is enforced server-side.
 | `tests/api/test_h_game_shared_records.py` | a studio, a game genre and an H Genre value connected only to h-game are hidden; an unused game genre stays visible; the notes registry, `/api/constants` and the external-API catalogue leave h-game out for a narrow session, with the `unrestricted` mirror |
 | `tests/api/test_h_comic_shared_records.py` | people in every h-comic role, a club with no credit, characters and vocabulary values connected only to h-comic are hidden; club membership filters hidden members and reveals nobody |
 | `tests/api/test_visibility.py` | label hiding on lists/detail — asserts on `response.text` so an id cannot leak through any field |
-| `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, watch orders, person counts |
+| `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
 | `tests/api/test_resources.py` | the Resources page: a guest and a `user` are refused the read (401) against a populated tree, which `super` reads; both are refused every write (401), and the same writes succeed for a `manage.resources` holder |
 | `tests/api/test_user_rating.py`, `test_user_rating_sheets.py` | two accounts rating one row each read their own, a guest reads null, every write without `self.list` (the admin's included) is 401 against an existing row and changes nothing, the vocabularies on all seven owners, writes following reads, merges moving rows; the two Sheets tabs round-tripping and an old sheet's columns landing on the owner |

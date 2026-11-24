@@ -326,7 +326,7 @@ export default function HGame() {
             <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => navigate(`/modify?id=${system_id}&type=h-game`)}>
-                Quick edit
+                Edit
               </Button>
               <Button onClick={markCompleted}>Mark completed</Button>
               <MarkReleaseButton type="h-game" entry={hGame} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
@@ -341,22 +341,6 @@ export default function HGame() {
           {/* ========== LEFT COLUMN ========== */}
           <div className="lg:col-span-1 space-y-6">
             <div className="flex border border-border bg-surface">
-              <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
-                <span
-                  className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
-                  style={{ writingMode: "vertical-rl" }}
-                >
-                  H-Game{hGame.game_type ? ` · ${hGame.game_type}` : ""}
-                </span>
-                {has("manage.catalog") && (
-                  <span
-                    className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
-                    style={{ writingMode: "vertical-rl" }}
-                  >
-                    {hGame.system_id}
-                  </span>
-                )}
-              </div>
               <div className="relative flex-1 min-w-0">
                 <RatingStamp
                   rating={hGame.my_rating}
@@ -437,8 +421,8 @@ export default function HGame() {
               </div>
             </header>
 
-            {/* Where this entry sits in the watch orders the viewer follows. */}
-            <TocSection id="watch-orders" label="Watch orders">
+            {/* Where this entry sits in the orders the viewer follows. */}
+            <TocSection id="orders" label="Orders">
               <FollowedOrderPanel entryId={hGame.system_id} />
             </TocSection>
 

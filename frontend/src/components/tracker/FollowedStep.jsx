@@ -1,4 +1,4 @@
-// Frontend: one step of a followed watch order, drawn on one compact line.
+// Frontend: one step of a followed order, drawn on one compact line.
 //
 // Shared by the entry page's FollowedOrderPanel and the dashboard's
 // FollowedOrders, so a step reads the same in both: the entry linked by name,
@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 
 import { entityPath } from "../../lib/entityPath";
 import { Chip } from "../ui/primitives";
-import { rangeLabel } from "./WatchOrderGuide";
+import { rangeLabel } from "./OrderGuide";
 
 /**
  * The step's rung as a chip. Every rung is shown - in these compact views the
@@ -21,7 +21,7 @@ export function ImportanceChip({ importance }) {
 }
 
 /**
- * `step` is a WatchOrderFollowStep from the API. `label` is the mono caption
+ * `step` is an OrderFollowStep from the API. `label` is the mono caption
  * leading the line ("Prev", "Next", "Now"); `showNote` draws the step's note.
  */
 export default function FollowedStep({ step, label, showNote = true }) {

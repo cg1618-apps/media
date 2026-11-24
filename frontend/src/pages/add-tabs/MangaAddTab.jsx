@@ -128,6 +128,7 @@ export function MangaFormBody({ f, u, sources, ownerId }) {
         f={f}
         u={u}
         flags={[
+          ["is_pinged", "Pinged", "Pin to the dashboard"],
           ["read_next", "Read Next", "Add to Read Next list"],
           ["to_reread", "To Reread", "Mark for reread"],
         ]}

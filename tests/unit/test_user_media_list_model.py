@@ -10,9 +10,16 @@ def test_user_media_list_has_exactly_the_contracted_columns():
         "my_rating", "completed_at", "my_watch_day",
         "ep_fin", "vol_fin", "vol_fin_page", "ch_fin",
         "arc_fin", "ch_fin_in_arc", "progress_display", "issue_fin",
-        "page_fin", "usefulness", "time_fin",
+        "page_fin", "usefulness", "time_fin", "is_pinged",
         "created_at", "updated_at",
     }
+
+
+def test_the_pin_is_not_nullable_and_defaults_to_unpinned():
+    """NOT NULL with a server default, so every row predating it reads false."""
+    col = models.UserMediaList.__table__.c.is_pinged
+    assert col.nullable is False
+    assert col.server_default.arg == "false"
 
 
 def test_the_three_identity_columns_are_not_nullable():

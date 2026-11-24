@@ -11,7 +11,7 @@ from app.services.pipelines.tabs import SHEET_TABS, TAB_PARSERS
 # their own tab that must carry it.
 OWN_ID_TABS = {
     "Collection", "Franchise", "Series",
-    "Person", "Studio", "Publisher", "Character", "Watch Order List",
+    "Person", "Studio", "Publisher", "Character", "Order List",
 }
 
 # The nine media types keep a public_id, but it lives on `media` now, so it

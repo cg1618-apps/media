@@ -1,6 +1,6 @@
 # The catalogue and your data
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -25,7 +25,7 @@ card. It carries no technical detail; the tables behind it are
 | Your rating of, and remark on, each book volume | a book's volumes |
 | Your game copies: where you bought it, the format, what you paid | a game's copies |
 | Your progress through a game's choices: what you have done, and a note | a game's Choices card |
-| The watch orders you follow | a watch order's follow toggle |
+| The orders you follow | an order's follow toggle |
 | Your personal notes — the sections marked **yours** in [Notes](#notes-yours-or-shared), your highlights among them | the Notes card on an entry or group |
 | The order of the highlight groups on an H-Comic or H-Game | its 亮點 Highlights card |
 | Your favourite quotes and memes — only once the admin turns favourites on for your account | the star on a quote or meme, and the Favorites filter on Quotes and Memes |
@@ -39,7 +39,7 @@ list counts towards.
 Entries and everything about the work itself: titles, dates, episodes,
 covers, sources, and the scores other sites publish (MAL, AniList, IMDb,
 Metacritic); collections, franchises and series; people, studios,
-publishers and characters; credits, tags, relations and watch orders; a
+publishers and characters; credits, tags, relations and orders; a
 game's choice graph; the Resources page; quotes and memes; and the note
 sections marked **shared** in [Notes](#notes-yours-or-shared).
 
@@ -59,9 +59,9 @@ that type, or a group (collection, franchise, series).
 | 備註 Remark | every type; every group | shared |
 | 個人筆記 Personal Notes | every type; every group | **yours** |
 | 介紹 Introduction | every type but H-Comic, Hentai; every group | shared |
-| 優點 Advantages | every type but H-Comic, Hentai; every group | **yours** |
-| 缺點 Disadvantages | every type but H-Comic, Hentai; every group | **yours** |
-| 優缺點 | every type but H-Comic, Hentai; every group | **yours** |
+| 優點 Advantages | every type but H-Comic, Hentai; every group | **both** — each row public or yours; a catalogue editor picks, yours by default |
+| 缺點 Disadvantages | every type but H-Comic, Hentai; every group | **both**, as 優點 |
+| 優缺點 | every type but H-Comic, Hentai; every group | **both**, as 優點 |
 | 大眾評價 Public Reviews | every type; every group | shared |
 | 我的評價 Personal Reviews | every type; every group | **yours** |
 | 各集評論 Episode Comments (Manga: 各話評論 Chapter Comments; Game: 各章評論 Part Reviews) | Anime, TV Show, Cartoon, Manga, Game | **yours** |

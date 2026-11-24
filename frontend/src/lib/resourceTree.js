@@ -102,7 +102,7 @@ export function moveAmongSiblings(tree, id, direction) {
  * Places `id` in `targetParentId`'s child list at `index` (appended when
  * `index` is omitted). `index` counts the list as it is BEFORE the move, so a
  * drop onto a sibling further down the same list lands in that sibling's slot,
- * which is what the watch-order editor's drag does too.
+ * which is what the order editor's drag does too.
  *
  * Returns the reorder body - the full new list of the TARGET parent - or null
  * when the drop is forbidden or changes nothing. The old parent needs no

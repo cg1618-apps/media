@@ -3,7 +3,7 @@ Two viewers, one entry: the same request returns two different personal answers
 and one identical catalogue answer.
 
 That is the whole point of scoping. A catalogue note (`public_reviews`) is one
-shared row everybody reads; a personal note (`advantages`) is one row per user
+shared row everybody reads; a personal note (`personal_notes`) is one row per user
 and reaches nobody else.
 """
 
@@ -50,9 +50,9 @@ def test_a_viewer_sees_only_their_own_personal_notes(
     alice, bob = two_authors
     db.add_all(
         [
-            _note(sample_anime.system_id, "advantages", "admin 的優點", owner_user.id),
-            _note(sample_anime.system_id, "advantages", "alice 的優點", alice.id),
-            _note(sample_anime.system_id, "advantages", "bob 的優點", bob.id),
+            _note(sample_anime.system_id, "personal_notes", "admin 的優點", owner_user.id),
+            _note(sample_anime.system_id, "personal_notes", "alice 的優點", alice.id),
+            _note(sample_anime.system_id, "personal_notes", "bob 的優點", bob.id),
         ]
     )
     db.commit()
@@ -62,7 +62,7 @@ def test_a_viewer_sees_only_their_own_personal_notes(
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
     assert r.status_code == 200
-    bodies = [n["content"] for n in r.json() if n["section"] == "advantages"]
+    bodies = [n["content"] for n in r.json() if n["section"] == "personal_notes"]
     assert bodies == ["admin 的優點"]
 
 
@@ -87,7 +87,7 @@ def test_a_logged_out_viewer_sees_no_personal_notes(
     db, client, sample_anime, two_authors
 ):
     alice, _bob = two_authors
-    db.add(_note(sample_anime.system_id, "advantages", "alice 的優點", alice.id))
+    db.add(_note(sample_anime.system_id, "personal_notes", "alice 的優點", alice.id))
     db.commit()
 
     r = client.get(
@@ -95,7 +95,7 @@ def test_a_logged_out_viewer_sees_no_personal_notes(
         params={"owner_type": "anime", "owner_id": str(sample_anime.system_id)},
     )
     assert r.status_code == 200
-    assert not [n for n in r.json() if n["section"] == "advantages"]
+    assert not [n for n in r.json() if n["section"] == "personal_notes"]
 
 
 def test_the_personal_notes_field_group_never_hides_a_viewers_own_rows(

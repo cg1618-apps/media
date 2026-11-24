@@ -3,7 +3,7 @@ routers/media_relation.py
 Handles Media Relations - typed, cross-media-type links between two entries.
 
 Reads are public (a relation is ordinary catalogue data); every write is
-admin-only, matching watch orders.
+admin-only, matching orders.
 
 Replaces the prequel_id / sequel_id / alternative columns. Nothing here derives
 relations automatically: they are curated on the /relations admin page. The one
@@ -28,7 +28,7 @@ from app.services.domain.media_relation import (
     normalize_relation,
     relations_for_entry,
 )
-from app.services.domain.watch_order import list_candidate_entries
+from app.services.domain.order import list_candidate_entries
 from app.services.rbac.enforcement import (
     entry_visible,
     filter_visible_pairs,
@@ -242,7 +242,7 @@ def list_relations_in_scope(
 
     One request backs the admin page's per-entry count badges, instead of one
     /for-entry call per row. A collection resolves to its member franchises
-    first, exactly as the watch order candidates endpoint does.
+    first, exactly as the order candidates endpoint does.
     """
     if bool(franchise_id) == bool(collection_id):
         raise HTTPException(
@@ -552,7 +552,7 @@ def delete_relation(
     _validate_endpoint(db, row.from_type, row.from_id, admin)
     _validate_endpoint(db, row.to_type, row.to_id, admin)
     # Signature is (db, entry, entry_type), and it deliberately does not
-    # commit - the delete below commits both together, as watch_order.py:904
+    # commit - the delete below commits both together, as order.py:904
     # does.
     log_deleted_record(db, row, "Media Relation")
     db.delete(row)

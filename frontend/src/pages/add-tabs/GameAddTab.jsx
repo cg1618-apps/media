@@ -209,6 +209,7 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
         f={f}
         u={u}
         flags={[
+          ["is_pinged", "Pinged", "Pin to the dashboard"],
           ["play_next", "Play Next", "Add to Play Next list"],
           ["to_replay", "To Replay", "Mark for replay"],
         ]}

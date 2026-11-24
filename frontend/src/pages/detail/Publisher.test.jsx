@@ -119,7 +119,7 @@ describe("Publisher detail page", () => {
   it("shows a guest the remark as text, with no admin controls", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "木棉花" });
-    expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit this publisher" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     expect(screen.getByText(PUBLISHER.remark)).toBeInTheDocument();
   });
@@ -139,7 +139,7 @@ describe("Publisher detail page", () => {
       expect(putCalls()[0][0]).toBe("/api/me/ratings/publisher/pb1");
       expect(JSON.parse(putCalls()[0][1].body)).toEqual({ my_rating: "B" });
       expect(patchCalls()).toHaveLength(0);
-      expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit this publisher" })).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
     });
   });
@@ -153,14 +153,14 @@ describe("Publisher detail page", () => {
 
     it("draws no rating editor", async () => {
       renderPage();
-      await screen.findByRole("button", { name: "Quick edit" });
+      await screen.findByRole("button", { name: "Edit this publisher" });
       expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     });
 
-    it("links Quick edit to this publisher's Modify editor", async () => {
+    it("links Edit to this publisher's Modify editor", async () => {
       const user = userEvent.setup();
       renderPage();
-      await user.click(await screen.findByRole("button", { name: "Quick edit" }));
+      await user.click(await screen.findByRole("button", { name: "Edit this publisher" }));
       expect(await screen.findByText("at /modify?id=pb1&type=publisher")).toBeInTheDocument();
     });
 

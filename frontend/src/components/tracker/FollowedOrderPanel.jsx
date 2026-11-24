@@ -1,4 +1,4 @@
-// Frontend: where this entry sits in the watch orders the viewer follows.
+// Frontend: where this entry sits in the orders the viewer follows.
 //
 // Mounted once per entry detail page, directly under the header. It is drawn
 // as a brand-ruled band rather than a Slip on purpose: Relations, in the left
@@ -8,10 +8,9 @@
 // when no followed order contains the entry.
 import { Link } from "react-router-dom";
 
-import { useEntryFollows } from "../../api/mutations/useWatchOrderFollows";
+import { useEntryFollows } from "../../api/mutations/useOrderFollows";
 import { useAuth } from "../../contexts/AuthContext";
 import { entityPath } from "../../lib/entityPath";
-import { orderNoun } from "../../lib/orderNoun";
 import { Eyebrow } from "../ui/primitives";
 import FollowedStep from "./FollowedStep";
 
@@ -21,15 +20,15 @@ export function stepPosition(occurrences, total) {
   return `${numbers.length > 1 ? "steps" : "step"} ${numbers.join(", ")} / ${total}`;
 }
 
-function FollowedOrder({ context, noun }) {
+function FollowedOrder({ context }) {
   const { list, owner, total, occurrences } = context;
-  const orderPath = entityPath("watch-order", list);
+  const orderPath = entityPath("order", list);
   const ownerPath = entityPath(owner.tier, owner);
   const orderName = list.list_name || "Untitled order";
   return (
     <div className="bg-surface border border-border border-l-2 border-l-brand px-4 py-3">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <Eyebrow className="text-brand">{`Following ${noun}`}</Eyebrow>
+        <Eyebrow className="text-brand">Following order</Eyebrow>
         {orderPath ? (
           <Link
             to={orderPath}
@@ -76,16 +75,18 @@ function FollowedOrder({ context, noun }) {
   );
 }
 
-/** `mediaType` is the page's own entry type, which picks the feature's name. */
-export default function FollowedOrderPanel({ entryId, mediaType }) {
+/**
+ * One name on every type: an order may mix watching, reading and playing, so
+ * it is an "order" whatever the page's own entry is.
+ */
+export default function FollowedOrderPanel({ entryId }) {
   const { has } = useAuth();
   const { data } = useEntryFollows(entryId, has("self.list"));
   if (!data?.length) return null;
-  const noun = orderNoun(mediaType);
   return (
-    <section aria-label={`Followed ${noun.toLowerCase()}s`} className="space-y-3">
+    <section aria-label="Followed orders" className="space-y-3">
       {data.map((context) => (
-        <FollowedOrder key={context.list.system_id} context={context} noun={noun} />
+        <FollowedOrder key={context.list.system_id} context={context} />
       ))}
     </section>
   );

@@ -1633,8 +1633,8 @@ export default function Admin() {
                   <option value="Collection">Collection</option>
                   <option value="Franchise">Franchise</option>
                   <option value="Series">Series</option>
-                  <option value="Watch Order List">Watch Order List</option>
-                  <option value="Watch Order Item">Watch Order Item</option>
+                  <option value="Order List">Order List</option>
+                  <option value="Order Item">Order Item</option>
                   <option value="Media Relation">Media Relation</option>
                   <option value="Quote">Quote</option>
                   <option value="Meme">Meme</option>

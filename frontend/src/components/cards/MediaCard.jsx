@@ -33,6 +33,7 @@ import PlatformIcons from "./PlatformIcons";
 import LazyImage from "../ui/LazyImage";
 import { formatProgress, parseProgressTotal } from "../../lib/progressStep";
 import { progressEstimate } from "../../lib/gameHours";
+import { expectationTone } from "../../lib/groupSort";
 
 // The statuses the future variant's select offers, per status axis. A game
 // is on the play axis, so it must not be offered the watch vocabulary, and a
@@ -59,6 +60,10 @@ const BOLT_RELEASE = {
 // Small ink label laid over cover art.
 const OVERLAY_CLS =
   "bg-black/60 text-white px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] leading-none z-10";
+// The same label in the brand fill: a Highest expectation, and only that,
+// stands out from the rest (lib/groupSort.js, expectationTone).
+const OVERLAY_BRAND_CLS =
+  "bg-brand text-on-brand px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] leading-none z-10";
 
 // Score figure on a mono meta line (MAL / AniList / IMDb).
 function Score({ value, label = "Score" }) {
@@ -107,7 +112,11 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
     return (
       <>
         {expectation && (type === "anime" || type === "cartoon") && (
-          <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
+          <div
+            className={`absolute top-1 left-1 ${
+              expectationTone(expectation) === "brand" ? OVERLAY_BRAND_CLS : OVERLAY_CLS
+            }`}
+          >
             {expectation}
           </div>
         )}

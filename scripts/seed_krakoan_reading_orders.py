@@ -13,7 +13,7 @@ import sys
 import uuid
 
 from app.database import SessionLocal, get_taipei_now
-from app.models import Comic, WatchOrderItem, WatchOrderList, WatchOrderSection
+from app.models import Comic, OrderItem, OrderList, OrderSection
 
 FRANCHISE_ID = uuid.UUID("502071de-e004-460d-8e9e-ea223a179fe2")
 
@@ -513,10 +513,10 @@ def build(db, name, list_type, remark, plan, most_recommended=False):
         return None
 
     existing = (
-        db.query(WatchOrderList)
+        db.query(OrderList)
         .filter(
-            WatchOrderList.franchise_id == FRANCHISE_ID,
-            WatchOrderList.list_name == name,
+            OrderList.franchise_id == FRANCHISE_ID,
+            OrderList.list_name == name,
         )
         .first()
     )
@@ -526,7 +526,7 @@ def build(db, name, list_type, remark, plan, most_recommended=False):
         print("  (replaced existing list)")
 
     now = get_taipei_now()
-    db_list = WatchOrderList(
+    db_list = OrderList(
         system_id=uuid.uuid4(),
         franchise_id=FRANCHISE_ID,
         list_name=name,
@@ -542,7 +542,7 @@ def build(db, name, list_type, remark, plan, most_recommended=False):
     item_pos = 0
     total = 0
     for s_index, (section_name, section_remark, entries) in enumerate(plan, start=1):
-        section = WatchOrderSection(
+        section = OrderSection(
             system_id=uuid.uuid4(),
             list_id=db_list.system_id,
             position=float(s_index),
@@ -557,7 +557,7 @@ def build(db, name, list_type, remark, plan, most_recommended=False):
         for nm, yr, start, end, imp, note in entries:
             item_pos += 1
             db.add(
-                WatchOrderItem(
+                OrderItem(
                     system_id=uuid.uuid4(),
                     list_id=db_list.system_id,
                     section_id=section.system_id,

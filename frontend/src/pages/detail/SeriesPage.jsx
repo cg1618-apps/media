@@ -46,7 +46,7 @@ import {
 import MediaCard from "../../components/cards/MediaCard";
 import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
-import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import OrderSection from "../../components/tracker/OrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import SeriesNotes from "./SeriesNotes";
@@ -458,7 +458,7 @@ export default function SeriesPage() {
       series
         ? [
             ...(showCharacters ? ["Characters"] : []),
-            "Watch Order",
+            "Order",
             "Relations",
             "Notes",
           ]
@@ -1052,13 +1052,11 @@ export default function SeriesPage() {
 
       {isAdmin && <AdminStrip editId={system_id} />}
 
-      {/* Hero: cover with spine strip, then the identity block */}
+      {/* Hero: the cover, then the identity block */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
           <HeroCover
             cover={cover}
-            spine="Series"
-            id={series.system_id}
             rating={ownData ? series.my_rating : null}
             done={completedCount}
             total={totalEntries}
@@ -1133,7 +1131,7 @@ export default function SeriesPage() {
           {/* The rating and expectation are the viewer's own (self.list);
               the rewatch controls stay the catalogue manager's. */}
           {(ownData || isAdmin) && (
-            <Slip title="Curation">
+            <Slip title="Personal Status">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {ownData && (
                   <>
@@ -1218,7 +1216,6 @@ export default function SeriesPage() {
       {activeTab === "Anime" && animeList.length > 0 && (
         <Section
           title="Anime"
-          subtitle="TV · ONA · Movie · OVA · Special"
           count={filteredAndSortedAnime.length}
         >
 
@@ -1321,7 +1318,6 @@ export default function SeriesPage() {
       {activeTab === "Manga" && mangaList.length > 0 && (
         <Section
           title="Manga"
-          subtitle="Manga · Manhwa · Manhua"
           count={filteredAndSortedManga.length}
         >
 
@@ -1405,7 +1401,6 @@ export default function SeriesPage() {
       {activeTab === "Book" && bookList.length > 0 && (
         <Section
           title="Book"
-          subtitle="輕小說 · 小說 · 網路小說 · 短篇集 · 指南/設定集 · 其他"
           count={filteredAndSortedBook.length}
         >
 
@@ -1488,7 +1483,6 @@ export default function SeriesPage() {
       {activeTab === "Comic" && comicList.length > 0 && (
         <Section
           title="Comic"
-          subtitle="Western comic runs"
           count={filteredAndSortedComic.length}
         >
 
@@ -1559,7 +1553,6 @@ export default function SeriesPage() {
       {activeTab === "Game" && gameList.length > 0 && (
         <Section
           title="Game"
-          subtitle="Base games, DLC &amp; expansions"
           count={filteredAndSortedGame.length}
         >
 
@@ -1628,7 +1621,6 @@ export default function SeriesPage() {
       {activeTab === "H-Comic" && hComicList.length > 0 && (
         <Section
           title="H-Comic"
-          subtitle="In series order"
           count={hComicList.length}
         >
           <div className={GRID_CLS}>
@@ -1657,7 +1649,6 @@ export default function SeriesPage() {
       {activeTab === "H-Game" && hGameList.length > 0 && (
         <Section
           title="H-Game"
-          subtitle="In series order"
           count={hGameList.length}
         >
           <div className={GRID_CLS}>
@@ -1684,7 +1675,7 @@ export default function SeriesPage() {
 
       {/* ── Hentai tab content ──────────────────────────────────────────── */}
       {activeTab === "Hentai" && hentaiList.length > 0 && (
-        <Section title="Hentai" subtitle="In series order" count={hentaiList.length}>
+        <Section title="Hentai" count={hentaiList.length}>
           <div className={GRID_CLS}>
             {[...hentaiList]
               .sort(
@@ -1711,7 +1702,6 @@ export default function SeriesPage() {
       {activeTab === "Movies" && movieList.length > 0 && (
         <Section
           title="Movies"
-          subtitle="Live-action &amp; animated films"
           count={filteredAndSortedMovies.length}
         >
 
@@ -1784,7 +1774,6 @@ export default function SeriesPage() {
       {activeTab === "TV Shows" && tvShowList.length > 0 && (
         <Section
           title="TV Shows"
-          subtitle="Live-action series"
           count={filteredAndSortedTvShows.length}
         >
 
@@ -1858,7 +1847,6 @@ export default function SeriesPage() {
       {activeTab === "Cartoons" && cartoonList.length > 0 && (
         <Section
           title="Cartoons"
-          subtitle="Cartoon entries"
           count={filteredAndSortedCartoons.length}
         >
 
@@ -1949,19 +1937,17 @@ export default function SeriesPage() {
       {showCharacters && activeTab === "Characters" && (
         <Section
           title="Characters"
-          subtitle="Everyone cast on this series's entries, and the identities they appear as"
         >
           <HubCharacters scope="series" tierId={system_id} />
         </Section>
       )}
 
-      {/* ── Watch Order tab content ──────────────────────────────────────── */}
-      {activeTab === "Watch Order" && (
+      {/* ── Order tab content ──────────────────────────────────────── */}
+      {activeTab === "Order" && (
         <Section
-          title="Watch Order"
-          subtitle="Ordered viewing guide across every media type"
+          title="Order"
         >
-          <WatchOrderSection seriesId={system_id} />
+          <OrderSection seriesId={system_id} />
         </Section>
       )}
 
@@ -1969,7 +1955,6 @@ export default function SeriesPage() {
       {activeTab === "Relations" && (
         <Section
           title="Relations"
-          subtitle="How this series' entries connect - prequels, alternatives, side stories and adaptations"
         >
           {/* Read-only everywhere outside the admin Relations page, for admins
               too: this is a view of the structure, and curating it belongs in
@@ -1982,7 +1967,6 @@ export default function SeriesPage() {
       {activeTab === "Notes" && (
         <Section
           title="Notes"
-          subtitle="Structured notes belonging to the whole series"
         >
           <SeriesNotes
             series={series}

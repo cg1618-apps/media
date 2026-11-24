@@ -1,6 +1,6 @@
 # Media Relations
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 "Relation" in this repository means what this page describes. The untyped
 two-way links between companies and between franchises are a different system,
@@ -17,7 +17,7 @@ Every relation is a `media_relation` row. There are no `prequel_id` / `sequel_id
 
 ### Table `media_relation` — `app/models/media_relation.py`
 
-One row is one fact, read as **`from` is the {label} of `to`**. With `relation_type = sequel`, `from` is the sequel and `to` the prequel. Both endpoints are FK-less `(type, id)` pairs, the same contract `watch_order_item` uses, because no single foreign key can span seven tables. A deleted entry therefore leaves a dangling endpoint that the read side flags as `missing` instead of dropping.
+One row is one fact, read as **`from` is the {label} of `to`**. With `relation_type = sequel`, `from` is the sequel and `to` the prequel. Both endpoints are FK-less `(type, id)` pairs, the same contract `order_item` uses, because no single foreign key can span seven tables. A deleted entry therefore leaves a dangling endpoint that the read side flags as `missing` instead of dropping.
 
 | Column | Type | Null | Notes |
 | --- | --- | --- | --- |
@@ -74,7 +74,7 @@ Fifteen labels in the dropdown, fourteen kinds in the column: **Prequel is Seque
 | Rule | Behaviour | Where |
 | --- | --- | --- |
 | Unknown kind | `400` "Unknown relation kind … Expected one of: …" (refused, never coerced). A malformed body — non-UUID id, missing field — is the usual pydantic `422` | `_validate_kind` |
-| Unknown media type / non-existent entry | `400` | `_validate_endpoint` (uses `entry_exists` re-exported from `watch_order`) |
+| Unknown media type / non-existent entry | `400` | `_validate_endpoint` (uses `entry_exists` re-exported from `order`) |
 | Prequel | Kind becomes `sequel` and the two endpoints swap | `normalize_relation` step 1 |
 | Symmetric kind | Endpoints sorted by `(type, str(id))` so the same pair always stores one way | `normalize_relation` step 2 |
 | Directional kinds | Stored exactly as typed — which movie is the Director's Cut is the point | |
@@ -114,7 +114,7 @@ It returns `relations_created`, `franchises_seeded` and `groups_skipped_tied`, w
 
 ### Graph rules — `graph_for_scope` in `app/services/domain/media_relation.py`
 
-- Candidate nodes come from `list_candidate_entries` (`app/services/domain/watch_order.py`) for the franchise ids, or `series_ids` for a series scope. **Every in-scope entry is a node, connected or not** — you cannot drag a line from a node that is not drawn.
+- Candidate nodes come from `list_candidate_entries` (`app/services/domain/order.py`) for the franchise ids, or `series_ids` for a series scope. **Every in-scope entry is a node, connected or not** — you cannot drag a line from a node that is not drawn.
 - Candidates are narrowed by `filter_visible_pairs(db, viewer, …)` first; hidden entries are not nodes.
 - Rows are loaded by id at either end, then re-checked against `(type, id)` because SQL cannot express the type discriminator across seven tables.
 - Endpoints outside the scope become **ghost nodes** (`in_scope: false`), resolved in one batch via `resolve_entries`; a ghost whose row is gone has `missing: true`. Ghosts the viewer may not see are dropped **with every edge touching them**, so an edge label alone can never reveal a hidden entry.
@@ -202,7 +202,7 @@ Unknown families fall back to the derivation style. Stroke width is 2 throughout
 ## Sheets
 
 - Tab **"Media Relation"**, registered in `app/services/pipelines/tabs.py` (`SHEET_TABS`). Backup writes the model's columns in table order (`app/services/pipelines/backup.py`, `headers = [c.name for c in tab.model.__table__.columns]`): `system_id, from_type, from_id, relation_type, to_type, to_id, remark, created_at, updated_at`.
-- **Restore order**: after every media tab and the Watch Order tabs, before Plan Next / Quote / Meme / Note / Seasonal — both endpoints must already exist. Order in `SHEET_TABS` is the restore order.
+- **Restore order**: after every media tab and the Order tabs, before Plan Next / Quote / Meme / Note / Seasonal — both endpoints must already exist. Order in `SHEET_TABS` is the restore order.
 - Parser `parse_media_relation_from_sheet` (`app/utils/formatter.py`): `from_id` / `to_id` use `_uuid_or_none`, so an unparseable cell becomes a missing endpoint on the admin page rather than failing the whole Pull; `relation_type` is preserved as written so a kind from a newer version survives a round trip (it then shows as its raw key). The CHECK constraint still rejects a self-relation row on Pull.
 
 ## Related
@@ -210,5 +210,5 @@ Unknown families fall back to the derivation style. Stroke width is 2 throughout
 - Tests: `tests/api/test_media_relation.py`, `tests/api/test_media_relation_model.py`, `tests/api/test_media_relation_service.py`, `tests/api/test_seed_sequel_relations.py`, `tests/unit/test_relation_kinds.py`, `tests/unit/test_formatter_media_relation.py`; frontend `frontend/src/lib/relationLayout.test.js`, `relationUndo.test.js`, and the `*.test.jsx` files beside each component in `frontend/src/components/relations/`.
 - Cross-table resolver and `MEDIA_TABLES`: `app/utils/media_resolver.py`.
 - RBAC visibility used by every read: `app/services/rbac/enforcement.py` (`entry_visible`, `filter_visible_pairs`), `app/services/rbac/resolver.py` (`get_viewer`).
-- Watch orders share the FK-less endpoint contract and `list_candidate_entries`: `app/services/domain/watch_order.py`.
+- Orders share the FK-less endpoint contract and `list_candidate_entries`: `app/services/domain/order.py`.
 - Older prose (partly stale): `../frontend/pages.md` relation-graph section, `docs/api.md`, `../business-rules.md`, `../data-model.md`.
