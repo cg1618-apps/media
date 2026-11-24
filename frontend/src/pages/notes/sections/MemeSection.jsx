@@ -5,6 +5,10 @@
 //
 // It moved out of NotesTemplate when that component became registry-driven;
 // the franchise and collection pages mount it directly.
+//
+// `GroupMemeRows` is the same read view for rows this section does not own:
+// an entry's series' and franchise's memes, which the notes provider fetches
+// and hands to GroupNotes like any other section's group rows.
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -25,11 +29,63 @@ import {
   ShowAllToggle,
   brandTagCls,
   DraftPopup,
+  EmptyHint,
   rowCls,
   useEntryCap,
 } from "./ui";
 import FavoriteStar from "../../../components/ui/FavoriteStar";
 import LazyImage from "../../../components/ui/LazyImage";
+
+// One meme as it reads: its image, its text, its episode, favourite and
+// remark, and its link. `readOnly` draws the favourite as a mark rather than a
+// toggle, for a row the page cannot write.
+function MemeView({ item, readOnly = false }) {
+  const imageUrl = getQuoteImageUrl(item.image_file);
+  return (
+    <div className="flex-1 space-y-1">
+      {imageUrl && (
+        <LazyImage
+          src={imageUrl}
+          alt=""
+          className="mb-1 max-h-40 border border-border"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      )}
+      {item.text && (
+        <p className="text-sm text-text whitespace-pre-wrap">
+          {item.text}
+          {item.quote_id && <span className={`${brandTagCls} ml-1.5`}>quote</span>}
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-text-faint">
+        {item.episode && <span>{item.episode}</span>}
+        {/* The viewer's own favourite - only with the feature. */}
+        <FavoriteStar kind="meme" item={item} readOnly={readOnly} className="px-0.5" />
+        {item.remark && <span>{item.remark}</span>}
+      </div>
+      {item.link && <LinkPill url={item.link} />}
+    </div>
+  );
+}
+
+// Another owner's memes, read-only: no Edit, Delete or favourite toggle, and
+// folded past the same cap as the section's own rows. `notes` is the name
+// GroupNotes passes a section's group rows under; here they are memes.
+export function GroupMemeRows({ notes }) {
+  const cap = useEntryCap(notes);
+  return (
+    <>
+      {cap.visible.map((item) => (
+        <div key={item.system_id} className={rowCls}>
+          <MemeView item={item} readOnly />
+        </div>
+      ))}
+      <ShowAllToggle {...cap.toggle} />
+    </>
+  );
+}
 
 export default function MemeSection({
   label,
@@ -144,65 +200,33 @@ export default function MemeSection({
       canWrite={canWrite}
       onAdd={() => setAdding(true)}
     >
-      {cap.visible.map((item) => {
-        const imageUrl = getQuoteImageUrl(item.image_file);
-        return (
-          <div
-            key={item.system_id}
-            className={rowCls}
-          >
-            {editId === item.system_id ? (
-              <div>
-                <MemeForm
-                  val={editVal}
-                  setVal={setEditVal}
-                  ownerType={ownerType}
-                  ownerId={ownerId}
-                />
-                <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
-              </div>
-            ) : (
-              <div className="flex gap-2 items-start">
-                <div className="flex-1 space-y-1">
-                  {imageUrl && (
-                    <LazyImage
-                      src={imageUrl}
-                      alt=""
-                      className="mb-1 max-h-40 border border-border"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
-                  )}
-                  {item.text && (
-                    <p className="text-sm text-text whitespace-pre-wrap">
-                      {item.text}
-                      {item.quote_id && (
-                        <span className={`${brandTagCls} ml-1.5`}>quote</span>
-                      )}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-text-faint">
-                    {item.episode && <span>{item.episode}</span>}
-                    {/* The viewer's own favourite - only with the feature. */}
-                    <FavoriteStar kind="meme" item={item} className="px-0.5" />
-                    {item.remark && <span>{item.remark}</span>}
-                  </div>
-                  {item.link && <LinkPill url={item.link} />}
-                </div>
-                <ItemActions
-                  canWrite={canWrite}
-                  onEdit={() => {
-                    setEditId(item.system_id);
-                    setEditVal(emptyMeme(item));
-                  }}
-                  onDelete={() => remove(item.system_id)}
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {cap.visible.map((item) => (
+        <div key={item.system_id} className={rowCls}>
+          {editId === item.system_id ? (
+            <div>
+              <MemeForm
+                val={editVal}
+                setVal={setEditVal}
+                ownerType={ownerType}
+                ownerId={ownerId}
+              />
+              <SaveCancel onSave={saveEdit} onCancel={() => setEditId(null)} />
+            </div>
+          ) : (
+            <div className="flex gap-2 items-start">
+              <MemeView item={item} />
+              <ItemActions
+                canWrite={canWrite}
+                onEdit={() => {
+                  setEditId(item.system_id);
+                  setEditVal(emptyMeme(item));
+                }}
+                onDelete={() => remove(item.system_id)}
+              />
+            </div>
+          )}
+        </div>
+      ))}
       <ShowAllToggle {...cap.toggle} />
       {adding && (
         <DraftPopup
@@ -227,11 +251,13 @@ export default function MemeSection({
           />
         </DraftPopup>
       )}
-      {!items.length && !adding && (
-        <p className="text-xs text-text-faint">
-          {isLoading ? "Loading..." : "No entries."}
-        </p>
-      )}
+      {!items.length &&
+        !adding &&
+        (isLoading ? (
+          <p className="text-xs text-text-faint">Loading...</p>
+        ) : (
+          <EmptyHint />
+        ))}
     </SectionCard>
   );
 }

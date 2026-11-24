@@ -885,7 +885,9 @@ columns.
   (per row in a mixed section, below).
   The admin holds neither key, so no section draws it a control, and a
   `user` writes its own personal sections and reads the catalogue ones. The series' and franchise's
-  rows shown on an entry (`GroupNotes`) are drawn with `canWrite` false.
+  rows shown on an entry (`GroupNotes`) are drawn with `canWrite` false, and
+  their memes by `GroupMemeRows`, which draws no write control and the
+  favourite star as a read-only mark.
   `NotesTemplate` and `NotesProvider` take no admin flag, and nor do the
   `*Notes.jsx` wrappers.
   **A `mixed` section gates each row by its kind** (`rowAccessFor`). The

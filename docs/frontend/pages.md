@@ -1715,7 +1715,8 @@ for its header to the notes (through the `*Notes.jsx` wrapper, or straight to
 it has none). Each section the entry has then also lists, after its own rows,
 the rows the series and then the franchise hold in that section, each under a
 mono "From series" / "From franchise" heading linking to the group's page,
-read-only. The Modify tabs and the Add page's notes panel pass neither, so
+read-only. 梗/迷因 Memes does the same with the series' and franchise's memes,
+read from `/api/meme` since memes are not notes. The Modify tabs and the Add page's notes panel pass neither, so
 they show the entry's own rows alone. The rules are in
 [systems/notes.md](../systems/notes.md#series-and-franchise-notes-on-an-entry).
 
