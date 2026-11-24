@@ -20,7 +20,9 @@ import { groupNotes } from "./groupedRows";
 
 const OTHER = "Other";
 
-const headingCls =
+// Shared with TextLinksSection's Public and Personal headings, which are
+// in-card group headings too.
+export const groupHeadingCls =
   "font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint";
 
 /**
@@ -84,7 +86,7 @@ function KindGroupHeading({ name, onRename }) {
   return (
     <div className="flex items-center gap-1 pt-1 first:pt-0">
       {name === null ? (
-        <p data-testid="group-heading" className={headingCls}>
+        <p data-testid="group-heading" className={groupHeadingCls}>
           {OTHER}
         </p>
       ) : (
@@ -93,7 +95,7 @@ function KindGroupHeading({ name, onRename }) {
           onRename={onRename}
           inputClassName="max-w-xs py-0.5"
         >
-          <p data-testid="group-heading" className={headingCls}>
+          <p data-testid="group-heading" className={groupHeadingCls}>
             {name}
           </p>
         </GroupName>

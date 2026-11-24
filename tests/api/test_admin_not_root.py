@@ -187,7 +187,7 @@ def members_personal_note(db_session, sample_anime, plain_user):
     note = models.Note(
         system_id=uuid.uuid4(),
         media_id=sample_anime.system_id,
-        section="advantages",
+        section="personal_notes",
         content="member 的優點",
         author_id=plain_user.id,
     )

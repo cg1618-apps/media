@@ -403,7 +403,14 @@ normalised as the write path does; a row naming an entry of another type, an
 unknown entry or an unknown user, or an order that is not a list of names, is
 skipped and named in `unresolved_refs`, and an empty order is skipped.
 
-**The Note tab carries `personal`**, after `section`. A personal row of a
+**The Note tab carries `personal`**, after `section`, and a `public` column
+at its end. In 優點, 缺點 and 優缺點, whose writer picks each row's kind
+(`kind_choice`), the kind is read from `public` instead: Backup writes TRUE on
+a public row of those sections and a blank everywhere else, and Pull restores
+one of their rows as public only when `public` says TRUE. Those sections were
+personal-scope before, so an older sheet holds their rows with `personal`
+FALSE and no `public` column, and every one restores personal - reading
+`personal` would have published them. Elsewhere `personal` decides. A personal row of a
 mixed section restores under its author by `username`, like every Note row,
 and keeps its kind; a blank cell reads false. A backup taken before the
 column existed has no `personal` header, and every row it holds restores as

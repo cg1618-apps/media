@@ -282,6 +282,28 @@ export function MineChip() {
   return <Chip title="Your own row, not the catalogue's">Mine</Chip>;
 }
 
+// The Personal / Public choice on a row of a `kind_choice` section, for a
+// viewer who writes both kinds. Two toggle buttons, the chosen one in brand
+// ink - the look of a section's view toggles.
+export function KindChoice({ personal, onChange }) {
+  const option = (label, value) => (
+    <button
+      type="button"
+      aria-pressed={personal === value}
+      onClick={() => onChange(value)}
+      className={`${personal === value ? brandTagCls : tagCls} cursor-pointer`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div role="group" aria-label="Kind" className="flex items-center gap-1.5">
+      {option("Personal", true)}
+      {option("Public", false)}
+    </div>
+  );
+}
+
 // --- The draft popup ------------------------------------------------------
 
 // A new row's form, in a floating panel rather than at the end of its card.
@@ -522,6 +544,11 @@ export function ShowAllToggle({ total, expanded, onToggle, noun }) {
 // take a handle, and a move sends their ids alone, in their new order - the
 // server renumbers the viewer's kind of row and leaves the other. It defaults
 // to `canWrite`, so every row of any other section moves.
+//
+// `personal` is for a `kind_choice` section, which draws its public and
+// personal rows as two lists, each with its own reorder: every move sends
+// the kind its list holds, and the server renumbers that kind alone. Left
+// out, nothing is sent with the ids.
 export function useRowReorder({
   section,
   notes,
@@ -530,6 +557,7 @@ export function useRowReorder({
   onReorder,
   reordering,
   cap,
+  personal,
 }) {
   const ids = notes.filter(canMoveRow).map((n) => n.system_id);
   const movable = new Set(ids);
@@ -542,7 +570,9 @@ export function useRowReorder({
       if (from === to) return;
       const landing = notes.findIndex((n) => n.system_id === ids[to]);
       if (landing >= VISIBLE_ENTRIES) cap.expand();
-      onReorder(section.key, arrayMove(ids, from, to));
+      const ordered = arrayMove(ids, from, to);
+      if (personal === undefined) onReorder(section.key, ordered);
+      else onReorder(section.key, ordered, personal);
     },
   };
 }

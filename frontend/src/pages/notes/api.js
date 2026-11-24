@@ -44,7 +44,12 @@ export const updateNote = (id, payload) =>
 // exactly that section's notes - the endpoint answers 400 otherwise, which is
 // what keeps a partial list from quietly renumbering half a section. A
 // hierarchical section therefore sends its whole tree, flattened depth-first.
-export const reorderNotes = (ownerType, ownerId, section, orderedIds) =>
+//
+// `personal` names the kind renumbered in a `kind_choice` section, whose
+// catalogue writer orders its personal and public rows apart; `orderedIds`
+// is then exactly the caller's rows of that kind. Left out, the key is not
+// sent, and the server reads the kind from the caller as in any other section.
+export const reorderNotes = (ownerType, ownerId, section, orderedIds, personal) =>
   fetchJson(`${BASE}/reorder`, {
     method: "PATCH",
     ...jsonBody({
@@ -52,8 +57,15 @@ export const reorderNotes = (ownerType, ownerId, section, orderedIds) =>
       owner_id: ownerId,
       section,
       ordered_ids: orderedIds,
+      ...(personal === undefined ? {} : { personal }),
     }),
   });
+
+// Switches one row of a `kind_choice` section between personal and public.
+// Only a manage.catalog holder may, and only on a row it wrote; the row moves
+// to the end of its new kind. Answers the row as the caller now reads it.
+export const switchNoteKind = (id, personal) =>
+  fetchJson(`${BASE}/${id}/kind`, { method: "PATCH", ...jsonBody({ personal }) });
 
 // Renames one group of one section of one owner, `from` to `to`, in one
 // write: every row the caller could edit that is filed under `from` is filed
