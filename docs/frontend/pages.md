@@ -1109,8 +1109,8 @@ address bar.
 Layout: a breadcrumb **Characters** (`/library/character`) / the character's
 name, linking to its page / the identity's name → (admin) the dashed
 **Admin** strip with **Quick edit**, linking to
-`/modify?id=<system_id>&type=identity` → left column with the photo under an
-**Identity** spine (`display_photo_file`, the identity's own photo else the
+`/modify?id=<system_id>&type=identity` → left column with the photo
+(`display_photo_file`, the identity's own photo else the
 character's displayed one, as the server resolves it; else `FALLBACK_SVG`),
 the character's `my_rating` stamp on it, read-only, and a **Naming** card
 (`NamingCard type="identity"`, each of the four names that is set) → right column with the
@@ -1224,7 +1224,7 @@ Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
 from `components/hub/` (`HubShell`, `Crumbs` — whose `action` slot holds the
 hub's **Report a problem**, beside the **待補充** badge —, `AdminStrip` — the admin-only
 dashed strip with the **Quick edit** link `/modify?id=…` —, `HeroCover` with
-the spine strip and optional progress rule, cropping the borrowed cover at
+the rating stamp and optional progress rule, cropping the borrowed cover at
 its entry's focal point, `Field`, `HubTabs`, `Section`,
 `HubLoading/HubError/HubEmpty/FilterEmpty`).
 
@@ -1598,8 +1598,7 @@ Material, Originality, Airing Status, Release Date, Episodes), **Credits** (Stud
 **Genres** (Genre Plot / Appearance / Relation), with a **Cast** slip between
 Credits and Genres - the shared `CastSection`, characters with "voiced by"
 every seiyuu, from `useCasting("hentai", …)`, drawn only when the entry has a
-cast. The spine reads "Hentai" and
-the source material; the series number sits beside the series link. The left
+cast. The series number sits beside the series link. The left
 column carries `SourcesCard` with `malLink` and `anidbLink` and `RelationsSection`. The admin
 toolbar has Quick edit, Mark completed and **Autofill & update**, the
 single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing

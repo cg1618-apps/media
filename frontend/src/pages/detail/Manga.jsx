@@ -284,7 +284,7 @@ const LIST_OPTIONS = { params: { limit: 2000 } };
 export default function Manga() {
   const { publicId } = useParams();
   const navigate = useNavigate();
-  const { isAdmin, has } = useAuth();
+  const { isAdmin } = useAuth();
   const { showToast } = useToast();
 
   const [manga, setManga] = useState(null);
@@ -478,27 +478,8 @@ export default function Manga() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Poster: cover with a spine strip and the rating stamp */}
+          {/* Poster: the cover and the rating stamp */}
           <div className="flex border border-border bg-surface">
-            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
-              <span
-                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
-                style={{ writingMode: "vertical-rl" }}
-              >
-                Manga{manga.region ? ` · ${manga.region}` : ""}
-              </span>
-              {/* Cosmetic only: the id is this page's own URL, so hiding it
-                  tidies the spine rather than concealing the value. Shown to
-                  a catalogue editor (manage.catalog). */}
-              {has("manage.catalog") && (
-                <span
-                  className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
-                  style={{ writingMode: "vertical-rl" }}
-                >
-                  {manga.system_id}
-                </span>
-              )}
-            </div>
             <div className="relative flex-1 min-w-0">
               <RatingStamp
                 rating={manga.my_rating}

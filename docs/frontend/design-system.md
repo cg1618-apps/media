@@ -22,7 +22,7 @@ badges). This document is the rulebook; the code lives in
 | `brand` / `brand-hover` | `#7a4c9e` wisteria | `#c2a0e6` | the one accent |
 | `on-brand` | white | charcoal | text on a brand fill |
 | `brand-soft` | 8 % tint | 14 % tint | selected rows, active tab |
-| `ink` / `ink-text` | dark in both themes | | nav drawer front, spine strips |
+| `ink` / `ink-text` | dark in both themes | | nav drawer front, the dashboard cards' spine strips |
 | `danger` / `success` / `warning` / `info` | fixed hues | | state only, never decoration |
 
 Geometry: Tailwind's `--radius-*` scale is capped at 6 px and `shadow-sm` /
@@ -280,12 +280,12 @@ Detail page (`pages/detail/*.jsx`):
 ```
 ANIME  /  <title>                REPORT A PROBLEM  ← Eyebrow breadcrumb; the report link for self.requests (provisional)
 [ ADMIN .... Quick edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
-┌spine┬─────────┐  ANIME · TV · FINISHED AIRING · SPR 2021    ← Eyebrow line
-│ANIME│  cover  │  <Title in display face>
-│ ·TV │   [A]   │  subtitle (muted)
-│ id  │─────────│  ───────────────────────────────
-│     │ progress│  FRANCHISE <link>   SERIES <link>
-└─────┴─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
+┌─────────┐  ANIME · TV · FINISHED AIRING · SPR 2021    ← Eyebrow line
+│  cover  │  <Title in display face>
+│   [A]   │  subtitle (muted)
+│─────────│  ───────────────────────────────
+│ progress│  FRANCHISE <link>   SERIES <link>
+└─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
  Sources           My tracker (Slip)                          CONTENTS        ← xl+ only, sticky,
  Relations         Naming / Information / Production (InfoCard)  My tracker     right of the page
                    Notes                                          Naming …
@@ -303,6 +303,12 @@ line of mono chips at the top of the page, styled as the dashboard's type
 filter chips, `brand` on the current one, scrolling sideways inside itself;
 pinned under the nav on a detail page, unpinned on the dashboard, whose own
 sticky headers already hold that strip.
+
+A detail page's cover carries **no spine strip** - neither the type, which the
+breadcrumb and the eyebrow line already name, nor the entry's id. That holds
+for every detail page: the twelve media types, the collection, franchise and
+series hubs (`HeroCover`), and the person, studio, publisher, character and
+identity pages.
 
 Cards (`components/cards/*.jsx`): the cover across the card's full width,
 with no spine - a grid card does not name its type, which the page or tab
