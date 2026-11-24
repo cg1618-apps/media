@@ -64,7 +64,7 @@ import {
   useImages,
   useUploadImage,
 } from "../../hooks/useImages";
-import { Button, Chip } from "../ui/primitives";
+import { Button, Chip, sectionTitleCls } from "../ui/primitives";
 import FocusPicker from "./FocusPicker";
 import LazyImage from "../ui/LazyImage";
 
@@ -447,7 +447,7 @@ function LibraryModal({ onSelect, onClose }) {
         className="m-4 w-full max-w-3xl overflow-hidden border border-border bg-surface shadow-xl"
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-3">
-          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+          <h3 className={sectionTitleCls}>
             Choose from library
           </h3>
           <button
@@ -470,7 +470,7 @@ function LibraryModal({ onSelect, onClose }) {
               role="tab"
               aria-selected={source === tab.key}
               onClick={() => setSource(tab.key)}
-              className={`-mb-px border-b-2 px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] ${
+              className={`-mb-px border-b-2 px-3 py-1.5 font-mono text-[11px] ${
                 source === tab.key
                   ? "border-brand bg-surface text-brand"
                   : "border-transparent text-text-faint hover:text-text-muted"
@@ -535,7 +535,7 @@ function LibraryModal({ onSelect, onClose }) {
             <button
               type="button"
               onClick={clearFilters}
-              className="text-[11px] uppercase tracking-wide text-text-faint underline hover:text-text"
+              className="text-[11px] text-text-faint underline hover:text-text"
             >
               Clear filters
             </button>
@@ -690,7 +690,7 @@ function EntryCoverSearch({ onSelect }) {
               <span className="block px-1.5 pt-1 text-xs leading-tight text-text line-clamp-2">
                 {hit.display_name}
               </span>
-              <span className="block px-1.5 pb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+              <span className="block px-1.5 pb-1 font-mono text-[10px] text-text-faint">
                 {mediaTypeLabel(hit.media_type)}
               </span>
             </button>

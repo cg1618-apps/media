@@ -667,7 +667,7 @@ export default function FutureReleases() {
               <button
                 key={key}
                 onClick={() => setActiveTypeFilter(key)}
-                className={`px-3 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition ${
+                className={`px-3 py-1 border font-mono text-[11px] transition ${
                   activeTypeFilter === key
                     ? "bg-brand text-on-brand border-brand"
                     : "bg-surface text-text-muted border-border-strong hover:border-text"

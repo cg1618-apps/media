@@ -5,6 +5,7 @@
 // messages surface as Error messages. DELETE answers 204, which has no body,
 // so it cannot use fetchJson.
 import { buildUrl, fetchJson, jsonBody } from "../../api/client";
+import { endpoints } from "../../api/endpoints";
 
 const BASE = "/api/notes";
 
@@ -33,6 +34,13 @@ export const fetchOptionValues = async (category, ownerType) => {
 
 export const fetchNotes = (ownerType, ownerId) =>
   fetchJson(buildUrl(BASE, { owner_type: ownerType, owner_id: ownerId }));
+
+// One owner's memes, through the same /api/meme read the Memes section makes:
+// an entry's detail page reads its series' and franchise's here, to show them
+// after the entry's own. Memes are not notes - the `external` memes section's
+// rows live in the meme table - so /api/notes never carries them.
+export const fetchMemes = (ownerType, ownerId) =>
+  fetchJson(endpoints.memes.byOwner(ownerType, ownerId));
 
 export const createNote = (payload) =>
   fetchJson(BASE, { method: "POST", ...jsonBody(payload) });

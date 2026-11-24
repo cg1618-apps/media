@@ -72,7 +72,7 @@ function OptionsForm({
         />
       </Field>
       <div className="space-y-2">
-        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider">
+        <label className="block text-[10px] font-bold text-text-faint">
           Option Values
         </label>
         {optValues.map((v, i) => (

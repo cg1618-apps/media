@@ -7,6 +7,7 @@
 // a Movie toggle.
 import { scopesFor } from "../../config/planNextGroups";
 
+import { sectionTitleCls } from "../ui/primitives";
 const LABELS = {
   anime: "Anime",
   "anime-movie": "Anime Movie",
@@ -71,7 +72,7 @@ export default function PlanKindToggles({
             onChange={(e) => onToggle(mediaType, e.target.checked)}
             className="w-4 h-4 accent-brand"
           />
-          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted">
+          <span className={sectionTitleCls}>
             {LABELS[mediaType]}
           </span>
         </label>

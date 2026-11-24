@@ -108,7 +108,7 @@ const TV_LIBRARY_CONFIG = {
     airingStatusColumn(),
     {
       key: "ep",
-      header: "EP",
+      header: "Ep",
       personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",

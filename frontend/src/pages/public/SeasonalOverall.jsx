@@ -169,7 +169,7 @@ function SeasonalBlock({
               <RatingStamp rating={seasonal?.my_rating} size="sm" />
               <Link
                 to={`/seasonal/${encodeURIComponent(seasonalId)}`}
-                className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted hover:text-brand transition"
+                className="font-mono text-[11px] text-text-muted hover:text-brand transition"
               >
                 View detail →
               </Link>
@@ -247,7 +247,7 @@ function SeasonalBlock({
             return (
               <div key={section.key}>
                 <div className="flex items-center gap-3 mb-4 pb-2 border-b border-border">
-                  <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted font-normal">
+                  <h3 className="font-mono text-[11px] text-text-muted font-normal">
                     {section.label}
                   </h3>
                   <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -547,13 +547,13 @@ function SeasonalOverallWithList() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="px-6 py-3 text-left font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em] w-20">
+                  <th className="px-6 py-3 text-left font-mono text-[10px] font-normal text-text-faint w-20">
                     Year
                   </th>
                   {SEASONS.map((s) => (
                     <th
                       key={s}
-                      className="px-4 py-3 text-center font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em]"
+                      className="px-4 py-3 text-center font-mono text-[10px] font-normal text-text-faint"
                     >
                       {SEASON_LABELS[s]}
                       <span className="block text-[10px] text-text-faint/70 mt-0.5">
@@ -583,7 +583,7 @@ function SeasonalOverallWithList() {
                           {hasEntries ? (
                             <Link
                               to={`/seasonal/${encodeURIComponent(id)}`}
-                              className={`inline-flex items-center justify-center px-3 py-1.5 border font-mono text-[11px] uppercase tracking-[0.12em] transition ${
+                              className={`inline-flex items-center justify-center px-3 py-1.5 border font-mono text-[11px] transition ${
                                 isCurrent
                                   ? "bg-brand text-on-brand border-brand"
                                   : isNext
@@ -627,7 +627,7 @@ function CatalogueSeasonBlock({ blockTitle, seasonalId, anime }) {
           </h2>
           <Link
             to={`/seasonal/${encodeURIComponent(seasonalId)}`}
-            className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted hover:text-brand transition"
+            className="font-mono text-[11px] text-text-muted hover:text-brand transition"
           >
             View detail →
           </Link>
@@ -780,13 +780,13 @@ function SeasonalOverallCatalogue() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="px-6 py-3 text-left font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em] w-20">
+                  <th className="px-6 py-3 text-left font-mono text-[10px] font-normal text-text-faint w-20">
                     Year
                   </th>
                   {SEASONS.map((s) => (
                     <th
                       key={s}
-                      className="px-4 py-3 text-center font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em]"
+                      className="px-4 py-3 text-center font-mono text-[10px] font-normal text-text-faint"
                     >
                       {SEASON_LABELS[s]}
                     </th>
@@ -805,7 +805,7 @@ function SeasonalOverallCatalogue() {
                           {count ? (
                             <Link
                               to={`/seasonal/${encodeURIComponent(id)}`}
-                              className={`inline-flex items-center gap-2 px-3 py-1.5 border font-mono text-[11px] uppercase tracking-[0.12em] transition ${
+                              className={`inline-flex items-center gap-2 px-3 py-1.5 border font-mono text-[11px] transition ${
                                 id === currentSeason
                                   ? "bg-brand text-on-brand border-brand"
                                   : "bg-surface text-text-muted border-border-strong hover:border-text"

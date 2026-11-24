@@ -97,7 +97,7 @@ function computeRatingRows(items) {
   };
 }
 
-const TH = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint font-normal px-4 py-2.5";
+const TH = "font-mono text-[10px] text-text-faint font-normal px-4 py-2.5";
 
 function CountCell({ value }) {
   return (

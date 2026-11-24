@@ -9,7 +9,7 @@ export default function AnnouncementBoard({ announcements = [] }) {
   if (announcements.length === 0) {
     return (
       <div className="mt-2 border border-dashed border-border-strong px-4 py-6 text-center">
-        <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
+        <div className="font-mono text-[11px] text-text-muted mb-1">
           Announcements
         </div>
         <p className="text-sm text-text-faint">

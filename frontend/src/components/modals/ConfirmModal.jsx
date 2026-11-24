@@ -6,7 +6,7 @@
 // cancels, as clicking Cancel does.
 import { useEffect } from "react";
 
-import { Button } from "../ui/primitives";
+import { Button, sectionTitleCls } from "../ui/primitives";
 
 export default function ConfirmModal({
   title,
@@ -36,7 +36,7 @@ export default function ConfirmModal({
         <div className="px-6 py-3 border-b border-border">
           <h3
             id="confirm-modal-title"
-            className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted"
+            className={sectionTitleCls}
           >
             {title}
           </h3>

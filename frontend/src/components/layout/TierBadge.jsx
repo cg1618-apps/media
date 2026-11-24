@@ -24,8 +24,8 @@ export function tierAccent(tier) {
 
 /**
  * `prefix` qualifies the tier without replacing it - the Franchise hub passes
- * its franchise_type, so the chip reads "ANIME FRANCHISE" rather than a bare
- * "ANIME", which would look like a media type instead of a tier.
+ * its franchise_type, so the chip reads "Anime Franchise" rather than a bare
+ * "Anime", which would look like a media type instead of a tier.
  */
 export default function TierBadge({ tier, prefix }) {
   const meta = TIERS[tier];

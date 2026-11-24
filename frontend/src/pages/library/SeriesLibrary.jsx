@@ -159,7 +159,7 @@ function SeriesTable({ series, columnCtx, showPersonal }) {
             {columns.map((col, i) => (
               <th
                 key={col.key}
-                className={`px-4 py-2.5 font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em] text-center ${
+                className={`px-4 py-2.5 font-mono text-[10px] font-normal text-text-faint text-center ${
                   i < columns.length - 1 ? "border-r border-border" : ""
                 } ${col.thClass ?? ""}`}
               >

@@ -143,7 +143,7 @@ function TypeFilterBar({ types, value, onChange, onHeightChange, view, onViewCha
           <button
             key={label}
             onClick={() => onChange(isActive ? null : val)}
-            className={`px-2.5 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+            className={`px-2.5 py-1 border font-mono text-[11px] transition-colors ${
               isActive
                 ? "border-brand text-brand"
                 : "border-border text-text-faint hover:text-text hover:border-border-strong"
@@ -166,7 +166,7 @@ function TypeFilterBar({ types, value, onChange, onHeightChange, view, onViewCha
               key={val}
               onClick={() => onViewChange(val)}
               aria-pressed={isActive}
-              className={`px-2.5 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+              className={`px-2.5 py-1 border font-mono text-[11px] transition-colors ${
                 isActive
                   ? "border-brand text-brand"
                   : "border-border text-text-faint hover:text-text hover:border-border-strong"
@@ -280,7 +280,7 @@ function Section({
         <h2 className="font-display text-2xl font-semibold text-text leading-none">
           {title}
         </h2>
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+        <span className="font-mono text-[11px] text-text-faint">
           {count} entries
         </span>
       </div>
@@ -373,7 +373,7 @@ function ReadingSection({
         <h2 className="font-display text-2xl font-semibold text-text leading-none">
           {title}
         </h2>
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+        <span className="font-mono text-[11px] text-text-faint">
           {count} entries
         </span>
       </div>
@@ -563,7 +563,7 @@ function PingedDivision({ groups, franchiseData, canTrack, handlers, view }) {
             Pinged
           </h2>
         </div>
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+        <span className="font-mono text-[11px] text-text-faint">
           {total} pinned
         </span>
       </div>
@@ -637,7 +637,7 @@ function PlayingSection({
         <h2 className="font-display text-2xl font-semibold text-text leading-none">
           {title}
         </h2>
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+        <span className="font-mono text-[11px] text-text-faint">
           {count} entries
         </span>
       </div>
@@ -1224,7 +1224,7 @@ function CatalogueDashboard() {
                         Watching
                       </h2>
                     </div>
-                    <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                    <span className="font-mono text-[11px] text-text-faint">
                       {active.length + passive.length + paused.length} in progress
                     </span>
                   </div>
@@ -1277,7 +1277,7 @@ function CatalogueDashboard() {
                         Reading
                       </h2>
                     </div>
-                    <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                    <span className="font-mono text-[11px] text-text-faint">
                       {activeReading.length +
                         passiveReading.length +
                         pausedReading.length}{" "}
@@ -1339,7 +1339,7 @@ function CatalogueDashboard() {
                         Playing
                       </h2>
                     </div>
-                    <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                    <span className="font-mono text-[11px] text-text-faint">
                       {activePlaying.length +
                         passivePlaying.length +
                         anytimePlaying.length +

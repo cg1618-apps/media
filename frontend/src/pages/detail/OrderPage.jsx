@@ -14,7 +14,7 @@ import OrderGuide, {
   MediaTypeFilter,
 } from "../../components/tracker/OrderGuide";
 import { getDisplayName } from "../../utils/media";
-import { Chip, Slip } from "../../components/ui/primitives";
+import { Chip, Slip, sectionTitleCls } from "../../components/ui/primitives";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
@@ -99,13 +99,13 @@ export default function OrderPage() {
     return (
       <div className="max-w-4xl mx-auto px-4 py-24">
         <section className="border border-dashed border-border-strong px-4 py-6 text-center">
-          <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
+          <div className="font-mono text-[11px] text-text-muted mb-1">
             Order
           </div>
           <p className="text-sm text-text-faint">{error}</p>
           <Link
             to="/"
-            className="inline-block mt-4 font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted hover:text-brand transition"
+            className="inline-block mt-4 font-mono text-[11px] text-text-muted hover:text-brand transition"
           >
             Back home
           </Link>
@@ -121,7 +121,7 @@ export default function OrderPage() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumb: the owner, then this order */}
       <nav
-        className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-8 flex items-center gap-3 flex-wrap"
+        className="font-mono text-[11px] text-text-faint mb-8 flex items-center gap-3 flex-wrap"
         aria-label="Breadcrumb"
       >
         {owner && (
@@ -142,7 +142,7 @@ export default function OrderPage() {
 
       {isAdmin && (
         <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+          <div className={sectionTitleCls}>
             Admin
           </div>
           <Link
@@ -176,7 +176,7 @@ export default function OrderPage() {
           {list.list_type && <Chip>{list.list_type}</Chip>}
           {list.is_most_recommended && <Chip tone="brand">Most recommended</Chip>}
           {list.is_default && <Chip tone="muted">Default</Chip>}
-          <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+          <span className="ml-auto font-mono text-[11px] text-text-faint">
             {list.item_count} steps
           </span>
           <FollowOrderButton list={list} />
@@ -201,7 +201,7 @@ export default function OrderPage() {
                   <span className="text-sm text-text">
                     {s.list_name || "Untitled order"}
                   </span>
-                  <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+                  <span className="ml-auto font-mono text-[11px] text-text-faint">
                     {s.item_count} steps
                   </span>
                 </Link>

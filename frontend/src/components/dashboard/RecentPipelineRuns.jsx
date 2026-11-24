@@ -58,7 +58,7 @@ export default function RecentPipelineRuns({ limit = RECENT_RUNS_LIMIT }) {
                 )}
               </span>
               <span
-                className={`font-mono text-[11px] uppercase tracking-[0.12em] ${
+                className={`font-mono text-[11px] ${
                   STATUS_CLS[run.status] ?? "text-danger"
                 }`}
                 title={run.error_message || undefined}

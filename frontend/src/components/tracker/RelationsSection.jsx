@@ -20,7 +20,7 @@ import { Link } from "react-router-dom";
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import { Chip, Slip } from "../ui/primitives";
+import { Chip, Slip, eyebrowCls } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 
@@ -119,7 +119,7 @@ export default function RelationsSection({ mediaType, entryId, onRows }) {
               <div className="text-sm font-medium text-text truncate">
                 {other.display_name}
               </div>
-              <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+              <div className={eyebrowCls}>
                 {other.label}
                 {row.remark ? ` · ${row.remark}` : ""}
                 {/* A derived row has no relation of its own behind it - it

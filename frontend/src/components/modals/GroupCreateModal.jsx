@@ -13,7 +13,7 @@
 import { useState } from "react";
 
 import { inputCls } from "../forms/FormField";
-import { Button, Eyebrow } from "../ui/primitives";
+import { Button, Eyebrow, sectionTitleCls } from "../ui/primitives";
 import { GROUP_NAME_KEYS, hasAnyName, orderTypes } from "../../lib/groupQuickCreate";
 
 const NAME_LABELS = { en: "EN", cn: "CN", roman: "Roman", jp: "JP", alt: "Alt" };
@@ -23,7 +23,7 @@ function NameFields({ kind, names, onChange }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {GROUP_NAME_KEYS.map((key) => (
         <label key={key} className="block">
-          <span className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+          <span className="block text-[10px] font-bold text-text-faint mb-1">
             Name {NAME_LABELS[key]}
           </span>
           <input
@@ -41,7 +41,7 @@ function NameFields({ kind, names, onChange }) {
 function TypeChoices({ offered, types, locked, onChange }) {
   return (
     <fieldset>
-      <legend className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+      <legend className="block text-[10px] font-bold text-text-faint mb-1">
         Franchise Type
       </legend>
       <div className="flex flex-wrap gap-x-3 gap-y-1.5">
@@ -110,7 +110,7 @@ export default function GroupCreateModal({
         className="bg-surface border border-border shadow-xl max-w-lg w-full mx-4 max-h-[90vh] flex flex-col overflow-hidden"
       >
         <div className="px-6 py-3 border-b border-border">
-          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+          <h3 className={sectionTitleCls}>
             Create new {title}
           </h3>
         </div>

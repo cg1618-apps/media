@@ -16,7 +16,7 @@ export default function DivisionHeader({ eyebrow, title, count }) {
         </h2>
       </div>
       {count != null && (
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+        <span className="font-mono text-[11px] text-text-faint">
           {count}
         </span>
       )}

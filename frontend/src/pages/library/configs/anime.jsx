@@ -147,7 +147,7 @@ const ANIME_LIBRARY_CONFIG = {
     airingStatusColumn({ hidden: null }),
     {
       key: "ep",
-      header: "EP",
+      header: "Ep",
       personal: true,
       thClass: "hidden sm:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden sm:table-cell",

@@ -686,7 +686,7 @@ export default function FranchisePage() {
 
         <div className="lg:col-span-3 space-y-6">
           <header>
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+            <div className="font-mono text-[11px] text-text-muted mb-3">
               {eyebrow}
             </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
@@ -979,7 +979,7 @@ export default function FranchisePage() {
       {/* No content at all */}
       {tabs.length === 0 && !loading && (
         <section className="border border-dashed border-border-strong px-4 py-6 text-center">
-          <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-1">
+          <div className="font-mono text-[11px] text-text-muted mb-1">
             No entries
           </div>
           <p className="text-sm text-text-faint">

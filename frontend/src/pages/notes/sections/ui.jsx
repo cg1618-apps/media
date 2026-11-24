@@ -38,9 +38,9 @@ export const inputCls =
 // A mono tag for a row's locator / kind / status. Ink only - colour never
 // encodes a category.
 export const tagCls =
-  "inline-flex items-center border border-border-strong px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none text-text-muted whitespace-nowrap";
+  "inline-flex items-center border border-border-strong px-1.5 py-0.5 font-mono text-[10px] leading-none text-text-muted whitespace-nowrap";
 export const brandTagCls =
-  "inline-flex items-center border border-brand px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none text-brand whitespace-nowrap";
+  "inline-flex items-center border border-brand px-1.5 py-0.5 font-mono text-[10px] leading-none text-brand whitespace-nowrap";
 
 // A row inside a section: a hairline above, no box.
 export const rowCls = "border-t border-border pt-2 first:border-t-0 first:pt-0";
@@ -141,7 +141,7 @@ export function SectionCard({
         className="flex items-center gap-3 px-3 py-2 border-b border-border cursor-pointer select-none"
         onClick={() => setCollapsed(!collapsed)}
       >
-        <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted shrink-0">
+        <h4 className="font-mono text-[10px] text-text-muted shrink-0">
           {label}
           {personal && <PersonalBadge />}
           {mixed && <MixedBadge />}
@@ -198,7 +198,7 @@ export function GroupCard({ label, count, showCount = true, openWhenEmpty, child
         className="flex items-center gap-3 px-4 py-2.5 border-b border-border cursor-pointer select-none"
         onClick={() => setCollapsed(!collapsed)}
       >
-        <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted shrink-0">
+        <h3 className="font-mono text-[11px] text-text-muted shrink-0">
           {label}
         </h3>
         {showCount && count > 0 && <span className={countCls}>{count}</span>}
@@ -409,7 +409,7 @@ export function DraftPopup({ title, onClose, children }) {
         onPointerDown={startDrag}
         className="flex items-center gap-3 px-3 py-2 border-b border-border cursor-move select-none touch-none"
       >
-        <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted truncate">
+        <h4 className="font-mono text-[10px] text-text-muted truncate">
           {title}
         </h4>
         <span className="flex-1 border-t border-dotted border-border-strong/60" />
@@ -531,7 +531,7 @@ export function ShowAllToggle({ total, expanded, onToggle, noun }) {
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
-        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
+        className="font-mono text-[11px] text-text-muted hover:text-brand transition"
       >
         {expanded ? `Show fewer ${noun}` : `Show all ${noun} (${total})`}
       </button>
@@ -542,7 +542,7 @@ export function ShowAllToggle({ total, expanded, onToggle, noun }) {
       type="button"
       onClick={onToggle}
       aria-expanded={expanded}
-      className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
+      className="font-mono text-[11px] text-text-muted hover:text-brand transition"
     >
       {expanded ? "Show less" : `Show all (${total})`}
     </button>

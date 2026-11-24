@@ -33,7 +33,7 @@ export default function NodePanel({
             {node.display_name || "Missing entry"}
           </p>
           <span
-            className={`mt-1 inline-block px-1.5 py-px font-mono text-[9px] uppercase tracking-[0.12em] ${mediaTypeChip(
+            className={`mt-1 inline-block px-1.5 py-px font-mono text-[9px] ${mediaTypeChip(
               node.media_type,
             )}`}
           >
@@ -70,7 +70,7 @@ export default function NodePanel({
         <button
           type="button"
           onClick={onToggleIsolate}
-          className={`rounded-lg border px-2 py-1.5 text-[10px] font-black uppercase ${
+          className={`rounded-lg border px-2 py-1.5 text-[10px] font-black ${
             isolated
               ? "border-brand bg-brand/10 text-brand"
               : "border-border text-text-faint"
@@ -81,7 +81,7 @@ export default function NodePanel({
         {node.nav_path ? (
           <Link
             to={node.nav_path}
-            className="ml-auto text-[10px] font-black uppercase text-text-faint hover:text-brand"
+            className="ml-auto text-[10px] font-black text-text-faint hover:text-brand"
           >
             Open entry <i className="fas fa-arrow-up-right-from-square"></i>
           </Link>

@@ -17,6 +17,7 @@ import { useHighlightGroupOrderSaver } from "../../api/mutations/useMyHighlightG
 import { useAuth } from "../../contexts/AuthContext";
 import NotesTemplate from "../notes/NotesTemplate";
 
+import { sectionTitleCls } from "../../components/ui/primitives";
 export default function AddedEntryNotes({ ownerType, entry, name }) {
   const auth = useAuth();
   const ownsOrder = Boolean(auth?.has?.("self.personal_notes"));
@@ -25,7 +26,7 @@ export default function AddedEntryNotes({ ownerType, entry, name }) {
 
   return (
     <section className="mb-6 space-y-2" aria-label={`Notes for ${name}`}>
-      <h2 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+      <h2 className={sectionTitleCls}>
         Notes for {name}
       </h2>
       <NotesTemplate

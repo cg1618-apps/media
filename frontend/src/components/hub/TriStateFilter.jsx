@@ -22,7 +22,7 @@ export default function TriStateFilter({ label, value, onChange }) {
             type="button"
             aria-pressed={value === opt.value}
             onClick={() => onChange(opt.value)}
-            className={`px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+            className={`px-2 py-1 font-mono text-[10px] leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
               value === opt.value
                 ? "bg-brand-soft text-brand"
                 : "text-text-muted hover:text-text"
