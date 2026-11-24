@@ -215,7 +215,7 @@ export default function Cartoon() {
           </Eyebrow>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => navigate(`/modify?id=${system_id}&type=cartoon`)}>
-              Quick edit
+              Edit
             </Button>
             <Button
               onClick={async () => {

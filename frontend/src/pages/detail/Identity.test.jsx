@@ -327,14 +327,14 @@ describe("Identity detail page", () => {
   it("shows no admin toolbar to a guest", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Edogawa Conan" });
-    expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit this identity" })).not.toBeInTheDocument();
   });
 
-  it("links Quick edit to this identity's Modify editor for an admin", async () => {
+  it("links Edit to this identity's Modify editor for an admin", async () => {
     auth = { isAdmin: true, has: holdsEntityKeys };
     const user = userEvent.setup();
     renderPage();
-    await user.click(await screen.findByRole("button", { name: "Quick edit" }));
+    await user.click(await screen.findByRole("button", { name: "Edit this identity" }));
     expect(
       await screen.findByText("at /modify?id=i1&type=identity"),
     ).toBeInTheDocument();

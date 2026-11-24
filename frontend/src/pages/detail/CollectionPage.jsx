@@ -288,7 +288,7 @@ export default function CollectionPage() {
           </header>
 
           {ownData && (
-            <Slip title="Curation">
+            <Slip title="Personal Status">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label="Overall rating">
                   <select
@@ -352,7 +352,6 @@ export default function CollectionPage() {
       {activeTab === "Franchises" && (
         <Section
           title="Franchises"
-          subtitle="Franchises grouped under this collection"
           count={sortedMembers.length}
         >
           {sortedMembers.length === 0 ? (
@@ -386,7 +385,6 @@ export default function CollectionPage() {
       {activeTab === "Order" && (
         <Section
           title="Order"
-          subtitle="Cross-franchise orders covering this collection"
         >
           <OrderSection collectionId={system_id} />
         </Section>
@@ -401,7 +399,6 @@ export default function CollectionPage() {
       {activeTab === "Relations" && (
         <Section
           title="Relations"
-          subtitle="How this collection's entries connect - prequels, alternatives, side stories and adaptations"
         >
           {/* Read-only everywhere outside the admin Relations page, for admins
               too: this is a view of the structure, and curating it belongs in
@@ -424,7 +421,6 @@ export default function CollectionPage() {
       {activeTab === "Notes" && (
         <Section
           title="Notes"
-          subtitle="Structured notes belonging to the whole collection"
         >
           <CollectionNotes
             collection={collection}

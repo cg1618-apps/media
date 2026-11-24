@@ -370,7 +370,7 @@ describe("Character detail page", () => {
       mockFetch({ character: { ...CHARACTER, my_rating: "A", remark: "Quiet." } });
       renderPage();
       await screen.findByRole("heading", { name: "Yuki Nagato" });
-      expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit this character" })).not.toBeInTheDocument();
       expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
       expect(screen.getByText("Quiet.")).toBeInTheDocument();
@@ -392,7 +392,7 @@ describe("Character detail page", () => {
       await user.selectOptions(await screen.findByLabelText("My rating"), "B");
       await waitFor(() => expect(putCalls()).toHaveLength(1));
       expect(putCalls()[0][0]).toBe("/api/me/ratings/character/c1");
-      expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit this character" })).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
     });
 
@@ -427,14 +427,14 @@ describe("Character detail page", () => {
 
     it("draws no rating editor", async () => {
       renderPage();
-      await screen.findByRole("button", { name: "Quick edit" });
+      await screen.findByRole("button", { name: "Edit this character" });
       expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     });
 
-    it("links Quick edit to this character's Modify editor", async () => {
+    it("links Edit to this character's Modify editor", async () => {
       const user = userEvent.setup();
       renderPage();
-      await user.click(await screen.findByRole("button", { name: "Quick edit" }));
+      await user.click(await screen.findByRole("button", { name: "Edit this character" }));
       expect(
         await screen.findByText("at /modify?id=c1&type=character"),
       ).toBeInTheDocument();
@@ -514,7 +514,7 @@ describe("Character Autofill & update", () => {
   it("is not offered for a character with no MAL link", async () => {
     auth = ADMIN;
     renderPage();
-    await screen.findByRole("button", { name: "Quick edit" });
+    await screen.findByRole("button", { name: "Edit this character" });
     expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
   });
 

@@ -207,7 +207,7 @@ export default function Movie() {
           </Eyebrow>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => navigate(`/modify?id=${system_id}&type=movie`)}>
-              Quick edit
+              Edit
             </Button>
             <Button
               onClick={async () => {

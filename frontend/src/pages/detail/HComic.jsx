@@ -190,7 +190,7 @@ function HComicTrackerBlock({ hComic, canTrack, onPatch }) {
           </div>
         ) : (
           <p className="text-sm text-text-faint">
-            No region yet, so there is no counter. Set one on Quick edit.
+            No region yet, so there is no counter. Set one under Edit.
           </p>
         )}
 
@@ -425,7 +425,7 @@ export default function HComic() {
           <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => navigate(`/modify?id=${system_id}&type=h-comic`)}>
-              Quick edit
+              Edit
             </Button>
             <Button onClick={markCompleted}>Mark completed</Button>
             <MarkReleaseButton type="h-comic" entry={hComic} title={titleMain} canTrack={ownData} onPatch={saveRelease} />

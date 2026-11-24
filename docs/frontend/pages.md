@@ -970,7 +970,7 @@ by the URL's public id, then `.../entries` by the `system_id` it returns —
 where the profile call failing is the page's 404 while the entries call
 failing is not.
 
-Layout: breadcrumb → (admin) the dashed **Admin** strip with **Quick edit**,
+Layout: breadcrumb → (admin) the dashed **Admin** strip with **Edit**,
 linking to `/modify?id=<system_id>&type=person`, and — for a person with a
 MAL link or an IMDb link, whatever their role — **Autofill & update**,
 `POST /api/person/{system_id}/autofill` (`AdminToolbar`'s `onAutofilled`): it
@@ -1025,7 +1025,7 @@ a new tab (`GET /api/person/{id}/work-images`, in display order). It is drawn
 only when the gallery has something in it, and only for a person whose
 visible roles hold `author` or `illustrator`. It is not edited here: an admin
 adds, captions, reorders and removes pictures in the person form, under the
-photo (**Quick edit**).
+photo (**Edit**).
 
 **Club membership** (`components/info/ClubMembership.jsx`, under the Profile
 card) is drawn only for a session that can see h-comic. A club - a person holding the `club` role -
@@ -1054,7 +1054,7 @@ MAL icon, opening in a new tab); one without draws none. The Profile card shows 
 then **Appearance** and **Trait**, each list as a row of `Chip`s in its stored
 order (`tagChips`) ("—" when empty, like every unset row), and a **MAL** row: the `mal_link` as an external link reading
 `Character #<mal_id>` (`MyAnimeList` when no id was derived), "—" without a
-link. The layout and the admin controls — Quick edit
+link. The layout and the admin controls — Edit
 to `/modify?id=<system_id>&type=character`, **Autofill & update** for a
 character with a MAL link (`POST /api/character/{system_id}/autofill`, as on
 the person page), and the Remarks textarea,
@@ -1108,7 +1108,7 @@ address bar.
 
 Layout: a breadcrumb **Characters** (`/library/character`) / the character's
 name, linking to its page / the identity's name → (admin) the dashed
-**Admin** strip with **Quick edit**, linking to
+**Admin** strip with **Edit**, linking to
 `/modify?id=<system_id>&type=identity` → left column with the photo
 (`display_photo_file`, the identity's own photo else the
 character's displayed one, as the server resolves it; else `FALLBACK_SVG`),
@@ -1145,7 +1145,7 @@ distributor, copied from `Studio.jsx` and behaving identically: two raw
 fetches (`GET /api/publisher/{id}`, then `.../entries` by the `system_id` it
 returns), the profile call failing being the page's 404 while the entries
 call failing is not, a breadcrumb back to `/library/publisher`, the admin
-strip with Quick edit to `/modify?id=<system_id>&type=publisher`, the
+strip with Edit to `/modify?id=<system_id>&type=publisher`, the
 logo-plus-rating left column with the viewer's own My rating select
 (`self.list`, `PUT /api/me/ratings/publisher/{system_id}`) and the Naming
 card, the Remarks textarea for an admin (the remark row for anyone else),
@@ -1177,7 +1177,7 @@ serves where the media detail pages need TanStack hooks.
 Layout:
 
 1. **Breadcrumb** `/library/studio` → display name.
-2. **Admin strip** (admin only) — the dashed strip with **Quick edit** to
+2. **Admin strip** (admin only) — the dashed strip with **Edit** to
    `/modify?id=<system_id>&type=studio`, and **Autofill & update** for a
    studio with a MAL link (`POST /api/studio/{system_id}/autofill`, as on the
    person page: blank columns only, then the response is the page's state).
@@ -1223,9 +1223,10 @@ Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
 (thin wrappers `Franchise.jsx`, `Series.jsx`, `Collection.jsx`). Chrome comes
 from `components/hub/` (`HubShell`, `Crumbs` — whose `action` slot holds the
 hub's **Report a problem**, beside the **待補充** badge —, `AdminStrip` — the admin-only
-dashed strip with the **Quick edit** link `/modify?id=…` —, `HeroCover` with
+dashed strip with the **Edit** link `/modify?id=…` —, `HeroCover` with
 the rating stamp and optional progress rule, cropping the borrowed cover at
-its entry's focal point, `Field`, `HubTabs`, `Section`,
+its entry's focal point, `Field`, `HubTabs`, `Section` (a slip titled with the
+list and its count - no grey description line under the title),
 `HubLoading/HubError/HubEmpty/FilterEmpty`).
 
 All three fetch with raw `fetch` in one effect keyed on `system_id` with a
@@ -1237,9 +1238,9 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, **game** lists `?franchise_id=`, **h-comic**, **hentai** and **h-game** only when `franchise_type` names a type of the restricted family (`H-Comic`, `Hentai` or `H-Game`, `inFranchiseFamily`); `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, book, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, **h-game** and **hentai** likewise, and only once the parent franchise has loaded and its `franchise_type` names a type of the restricted family; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
-| Curation controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), one row per type the franchise's `franchise_type` offers, that it holds entries for, and that `scopesFor("next", type)` allows at franchise scope - the whole field is absent when none qualifies - and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
+| Personal Status controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), one row per type the franchise's `franchise_type` offers, that it holds entries for, and that `scopesFor("next", type)` allows at franchise scope - the whole field is absent when none qualifies - and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
 | Related | **Related franchises** (`RelatedRecords type="franchise"`) under the hero: each related franchise as a link with this franchise's remark; an admin edits the list in place, and a franchise added there offers an **Also related to** tick for each franchise above it on the list, all ticked, so the new one can join the others in the same save (the studio and publisher pages' **Related companies** box does the same). Drawn for a reader only when something is related | none | none |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** ("Base games, DLC & expansions", sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** (sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
@@ -1531,7 +1532,7 @@ tag, and the MAL link and the E-Hentai gallery (`ehentaiLink`, tag "EH")
 under "Where to Look Up"; `RelationsSection`; a **Cast** slip, the shared
 `CastSection` (characters only - an h-comic casting never carries a seiyuu);
 the series number beside the
-series link on JP. The admin toolbar has Quick edit, Mark completed and
+series link on JP. The admin toolbar has Edit, Mark completed and
 **Autofill & update**, which runs `POST /replace/h-comic/{id}` - Tenrai's
 manga record, then the E-Hentai gallery's cover and illustrator where still
 blank, all fill-only.
@@ -1600,7 +1601,7 @@ Credits and Genres - the shared `CastSection`, characters with "voiced by"
 every seiyuu, from `useCasting("hentai", …)`, drawn only when the entry has a
 cast. The series number sits beside the series link. The left
 column carries `SourcesCard` with `malLink` and `anidbLink` and `RelationsSection`. The admin
-toolbar has Quick edit, Mark completed and **Autofill & update**, the
+toolbar has Edit, Mark completed and **Autofill & update**, the
 single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing
 status, release date, episode count, cover and the Official site / Twitter
 reference rows,

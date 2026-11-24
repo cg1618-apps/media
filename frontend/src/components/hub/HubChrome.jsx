@@ -79,7 +79,7 @@ export function AdminStrip({ editId }) {
         to={`/modify?id=${editId}`}
         className="border border-border-strong text-text bg-surface px-3 py-1.5 text-sm font-medium hover:border-text transition"
       >
-        Quick edit
+        Edit
       </Link>
     </div>
   );
@@ -182,8 +182,12 @@ export function HubTabs({ groups, activeTab, onSelect, getCount }) {
   );
 }
 
-/** One tab's body: a slip with the count at the right end of the title row. */
-export function Section({ title, subtitle, count, children }) {
+/**
+ * One tab's body: a slip with the count at the right end of the title row.
+ * The title and the count say what it holds; there is no line of grey
+ * description under the title.
+ */
+export function Section({ title, count, children }) {
   return (
     <Slip
       title={title}
@@ -195,7 +199,6 @@ export function Section({ title, subtitle, count, children }) {
         )
       }
     >
-      {subtitle && <p className="text-xs text-text-faint mb-3">{subtitle}</p>}
       {children}
     </Slip>
   );

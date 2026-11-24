@@ -411,7 +411,7 @@ export default function Book() {
           </Eyebrow>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => navigate(`/modify?id=${system_id}&type=book`)}>
-              Quick edit
+              Edit
             </Button>
             <Button
               onClick={async () => {

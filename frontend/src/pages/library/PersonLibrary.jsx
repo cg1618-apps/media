@@ -152,7 +152,6 @@ export default function PersonLibrary({ role } = {}) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <div className="flex-1 min-w-0">
-              <Eyebrow className="mb-1">Library</Eyebrow>
               <h1 className="font-display text-3xl font-semibold text-text leading-none">
                 {noun.title}
               </h1>

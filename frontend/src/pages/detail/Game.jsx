@@ -369,7 +369,7 @@ export default function Game() {
             <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => navigate(`/modify?id=${system_id}&type=game`)}>
-                Quick edit
+                Edit
               </Button>
               <Button
                 onClick={async () => {

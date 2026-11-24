@@ -339,3 +339,22 @@ describe("FranchisePage plan next toggles", () => {
     expect(screen.queryByText("Plan next")).toBeNull();
   });
 });
+
+// The hub's wording: the viewer's own rating and expectation sit under
+// "Personal Status", and a list carries no grey line describing what it holds
+// (Game's was "Base games, DLC & expansions") - its title and count say it.
+describe("FranchisePage labels", () => {
+  it("titles the viewer's own slip Personal Status", async () => {
+    me = { username: "reader", role: "user", permissions: ["self.list"] };
+    renderPage();
+    expect(await screen.findByText("Personal Status")).toBeInTheDocument();
+    expect(screen.queryByText("Curation")).toBeNull();
+  });
+
+  it("draws no description under a list's title", async () => {
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /^Game\s*2$/ }));
+    expect(await screen.findByText("Shadow of the Erdtree")).toBeInTheDocument();
+    expect(screen.queryByText(/Base games, DLC/)).toBeNull();
+  });
+});
