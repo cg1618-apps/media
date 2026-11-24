@@ -14,9 +14,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import {
   getDisplayName,
   getNamingFields,
-  getSortName,
-  FALLBACK_SVG,
 } from "../../utils/media";
+import { compareGroups } from "../../lib/groupSort";
 import {
   MY_RATINGS,
   FRANCHISE_EXPECTATIONS,
@@ -42,8 +41,6 @@ import { HubLoading, HubError } from "../../components/hub/HubStates";
 import {
   Eyebrow,
   Slip,
-  RatingStamp,
-  Chip,
 } from "../../components/ui/primitives";
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
@@ -68,6 +65,10 @@ export default function CollectionPage() {
   const [allEntriesDict, setAllEntriesDict] = useState({});
   const [allEntriesByFranchise, setAllEntriesByFranchise] = useState({});
   const [activeTab, setActiveTab] = useState("Franchises");
+  // The member franchises' rating and expectation are the viewer's own, so
+  // without own data only the title sort is offered and applied.
+  const [memberSort, setMemberSort] = useState("title");
+  const sort = ownData ? memberSort : "title";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   // Everything past the lookup still speaks UUIDs; only the URL segment
@@ -168,12 +169,15 @@ export default function CollectionPage() {
     };
   }, [publicId]);
 
+  // The cover fallback reads the title order, so it stays independent of the
+  // sort the viewer picks for the grid.
   const sortedMembers = useMemo(
-    () =>
-      [...members].sort((a, b) =>
-        getSortName(a, "franchise").localeCompare(getSortName(b, "franchise")),
-      ),
+    () => [...members].sort((a, b) => compareGroups(a, b, "title", "franchise")),
     [members],
+  );
+  const displayedMembers = useMemo(
+    () => [...members].sort((a, b) => compareGroups(a, b, sort, "franchise")),
+    [members, sort],
   );
 
   // The heading's name, which the browser tab shows too.
@@ -207,11 +211,6 @@ export default function CollectionPage() {
     (f) => f.value && f.value !== name,
   );
 
-  const eyebrow = [
-    "Collection",
-    `${members.length} ${members.length === 1 ? "franchise" : "franchises"}`,
-  ].join("  ·  ");
-
   return (
     <HubShell>
       <Crumbs
@@ -243,7 +242,7 @@ export default function CollectionPage() {
         <div className="lg:col-span-3 space-y-6">
           <header>
             <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
-              {eyebrow}
+              Collection
             </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {name}
@@ -262,13 +261,6 @@ export default function CollectionPage() {
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm pt-3 border-t border-border">
-              <div className="flex items-baseline gap-2">
-                <Eyebrow>Franchises</Eyebrow>
-                <span className="text-text">{members.length}</span>
-              </div>
-            </div>
-
             {/* A collection's labels hide the collection AND every franchise,
                 series and entry in it, so they are said in their own row, as
                 the Franchise hub says its own. */}
@@ -277,14 +269,6 @@ export default function CollectionPage() {
               note="Hides this collection and every franchise, series and entry in it."
               className="mt-4"
             />
-
-            {/* Same chip vocabulary as the Franchise hub, so an expectation
-                reads the same wherever it turns up. */}
-            {ownData && collection.collection_expectation && (
-              <div className="flex flex-wrap gap-2 mt-4">
-                <Chip>Expectation · {collection.collection_expectation}</Chip>
-              </div>
-            )}
           </header>
 
           {ownData && (
@@ -365,8 +349,24 @@ export default function CollectionPage() {
               </p>
             </div>
           ) : (
+            <>
+            <div className="flex flex-wrap gap-2 mb-4 items-center">
+              <select
+                value={sort}
+                onChange={(e) => setMemberSort(e.target.value)}
+                className={SELECT_CLS}
+              >
+                <option value="title">Sort: title</option>
+                {ownData && (
+                  <option value="my_rating">Sort: my rating</option>
+                )}
+                {ownData && (
+                  <option value="expectation">Sort: expectation</option>
+                )}
+              </select>
+            </div>
             <div className={GRID_CLS}>
-              {sortedMembers.map((franchise) => (
+              {displayedMembers.map((franchise) => (
                 <FranchiseCard
                   key={franchise.system_id}
                   franchise={franchise}
@@ -378,6 +378,7 @@ export default function CollectionPage() {
                 />
               ))}
             </div>
+            </>
           )}
         </Section>
       )}

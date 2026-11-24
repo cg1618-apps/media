@@ -149,3 +149,44 @@ describe("SeriesLibrary without self.list", () => {
     expect(rowNames(table)).toEqual(["Alpha Saga", "Attack on Titan", "Switch Sports"]);
   });
 });
+
+describe("SeriesLibrary Type filter", () => {
+  async function openFilters() {
+    await renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+  }
+
+  it("orders Comic between Cartoon and Game, and Other last", async () => {
+    await openFilters();
+    const names = screen.getAllByRole("button").map((b) => b.textContent);
+    const start = names.indexOf("Anime");
+    expect(names.slice(start, start + 9)).toEqual([
+      "Anime",
+      "Manga",
+      "Book",
+      "Movie",
+      "TV",
+      "Cartoon",
+      "Comic",
+      "Game",
+      "Other",
+    ]);
+  });
+
+  it("keeps the series holding none of the listed types under Other", async () => {
+    await openFilters();
+    await userEvent.click(screen.getByRole("button", { name: "Other" }));
+    expect(screen.getByText("1 series")).toBeInTheDocument();
+    expect(screen.getByText("Alpha Saga")).toBeInTheDocument();
+    expect(screen.queryByText("Switch Sports")).toBeNull();
+  });
+
+  it("combines Other with a type as either, and clears with Clear all", async () => {
+    await openFilters();
+    await userEvent.click(screen.getByRole("button", { name: "Other" }));
+    await userEvent.click(screen.getByRole("button", { name: "Game" }));
+    expect(screen.getByText("2 series")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.getByText("3 series")).toBeInTheDocument();
+  });
+});

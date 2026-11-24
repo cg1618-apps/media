@@ -400,8 +400,48 @@ def test_scope_listing_returns_relations_within_a_franchise(
     assert len(res.json()) == 1
 
 
+def test_scope_listing_can_be_a_series(
+    owner_client, client, db_session, sample_series, sample_anime, second_anime,
+    sample_manga_entry,
+):
+    # sample_anime joins the series; the other two stay franchise-only. The
+    # relation between those two touches no series entry, so a series listing
+    # that widened to the franchise would return it as well.
+    sample_anime.series_id = sample_series.system_id
+    db_session.flush()
+    for from_type, from_entry, to_type, to_entry in (
+        ("anime", second_anime, "anime", sample_anime),
+        ("manga", sample_manga_entry, "anime", second_anime),
+    ):
+        created = owner_client.post(
+            "/api/media-relation/",
+            json={
+                "from_type": from_type, "from_id": str(from_entry.system_id),
+                "kind": "sequel",
+                "to_type": to_type, "to_id": str(to_entry.system_id),
+            },
+        )
+        assert created.status_code in (200, 201), created.text
+
+    res = client.get(
+        "/api/media-relation/",
+        params={"series_id": str(sample_series.system_id)},
+    )
+    assert res.status_code == 200
+    rows = res.json()
+    assert len(rows) == 1
+    assert str(sample_anime.system_id) in {rows[0]["from_id"], rows[0]["to_id"]}
+
+
 def test_scope_listing_requires_exactly_one_scope(client):
     assert client.get("/api/media-relation/").status_code == 400
+    assert (
+        client.get(
+            "/api/media-relation/",
+            params={"franchise_id": str(uuid.uuid4()), "series_id": str(uuid.uuid4())},
+        ).status_code
+        == 400
+    )
 
 
 # ---------------------------------------------------------------------------

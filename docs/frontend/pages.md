@@ -708,8 +708,10 @@ viewer holding `self.list`, the viewer's own values, through `compareGroups`
 as the franchise library sorts. Without it the
 viewer has neither, so only `title` is offered and the list sorts by title
 whatever was chosen. No filter panel, no table view, no admin controls.
-Renders `CollectionCard` with member count; the card's rating stamp and
-expectation chip are drawn only with `self.list`. The chip is in the brand
+Renders `CollectionCard` with member count, the expectation chip above the
+count (`GroupCard`'s `expectationFirst`, which only the collection card
+sets); the card's rating stamp and expectation chip are drawn only with
+`self.list`. The chip is in the brand
 tone on a Highest expectation and the neutral ink tone on any other
 (`expectationTone` in `lib/groupSort.js`), as on every card and table that
 shows an expectation.
@@ -728,11 +730,18 @@ type the caller leaves out, and the table's Entries column counts whatever
 `ENTRY_SOURCES` lists, so a gap there undercounts it.
 
 Filter panel "Type": Anime, Manga, Book, Anime Movie, Movie, TV, Cartoon,
-Comic, H-Comic, H-Game, Hentai (each drawn only for a session that can see the type), Other
-(Anime and Manga are the franchise's own `Anime` and `Manga` types) — **there is no Game category**, so a Game-only franchise files
-under "Other". A second group, "Relation" - Has relation / No relation - reads
-`has_relations`, which counts only related franchises the viewer may see; the
-two groups AND. Sort
+Comic, Game, H-Comic, H-Game, Hentai (each gated chip drawn only for a session that can see the type), Other
+(each chip is one of the franchise's own `franchise_type` values; Other is a
+franchise with none of them). A second group, "Relation" - Has relation / No relation - reads
+`has_relations`, which counts only related franchises the viewer may see. A
+third, "Progress", is drawn only for a holder of `self.list`, because it
+reads the viewer's own statuses off the entry lists the page already loads:
+**Any completed** — some belonging entry's status is in `COMPLETED_STATUSES`
+(Completed (解說) included); **Any started** — some belonging entry has a
+status that is none of the not-started ones (Might …, Plan to …, Watch When
+Airs, Watch/Play When Released) and none of the Won't ones, so Paused,
+Dropped and Temp Dropped count as started. Chips within a group OR; the
+groups AND. "Clear all" (`ClearAllButton`) empties every group. Sort
 `title (default) | my_rating | expectation`, shared by both views, through
 `compareGroups` in `lib/groupSort.js`: each key falls through to the next on a
 tie - expectation, then my rating, then title; my rating, then expectation,
@@ -764,8 +773,10 @@ is not fetched. The full set feeds `getSeriesCover()` and the Entries count,
 as in `FranchiseLibrary`.
 
 Search runs over all five name fields. A series carries no type, so the
-filter panel ("Holds") lists the media types the session can see, and a
-series passes when its entries include any chosen one. Sort is the franchise
+filter panel ("Holds") lists the media types the session can see — Anime,
+Manga, Book, Movie, TV, Cartoon, Comic, Game, the gated types, then Other,
+which is a series holding none of the visible types — and a series passes
+when its entries include any chosen one. "Clear all" empties it. Sort is the franchise
 library's: `title (default) | my_rating | expectation` through
 `compareGroups`, the last two only for a holder of `self.list`.
 
@@ -1236,11 +1247,11 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | | FranchisePage | SeriesPage | CollectionPage |
 |---|---|---|---|
 | Loads | `/api/franchise/{id}`; series, anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, **game** lists `?franchise_id=`, **h-comic**, **hentai** and **h-game** only when `franchise_type` names a type of the restricted family (`H-Comic`, `Hentai` or `H-Game`, `inFranchiseFamily`); `/api/plan-next/?scope=franchise`; parent collection lazily | `/api/series/{id}`; anime, movie, tv-show, cartoon, manga, book, comic `?series_id=`, **game** included (no anime-movie — they have no series), **h-comic** in its own effect, only for a session that can see the type, **h-game** and **hentai** likewise, and only once the parent franchise has loaded and its `franchise_type` names a type of the restricted family; `/api/plan-next/?scope=series&kind=rewatch`; parent franchise | `/api/collection/{id}`; `/api/franchise/?collection_id=`; eight entry lists, covers only — game is not among them |
-| Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), parent collection link, "Plan Next: {type} ({bucket})", "To Rewatch/Reread: {type}", total entries, completion bar | same shape with `series_expectation`, rewatch chips, parent franchise link | names, my_rating, `collection_expectation`, "{n} Franchise(s)" |
+| Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), eyebrow "Franchise · {types} · {n} entries" (no completion percentage), a lineage row with the parent collection link only when there is one and "Series {n}" only when n > 0 (the row is gone when neither), "Plan Next: {type} ({bucket})", "To Redo · {type}" (the rewatch mark is called **To Redo** on the franchise hub only), the cover's completed/total footer | same shape with `series_expectation`, "To Rewatch/Reread/Replay" chips, parent franchise link | eyebrow "Collection", names, my_rating — no franchise count and no expectation chip; the expectation is edited in Personal Status |
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
 | Personal Status controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), one row per type the franchise's `franchise_type` offers, that it holds entries for, and that `scopesFor("next", type)` allows at franchise scope - the whole field is absent when none qualifies - and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
 | Related | **Related franchises** (`RelatedRecords type="franchise"`) under the hero: each related franchise as a link with this franchise's remark; an admin edits the list in place, and a franchise added there offers an **Also related to** tick for each franchise above it on the list, all ticked, so the new one can join the others in the same save (the studio and publisher pages' **Related companies** box does the same). Drawn for a reader only when something is related | none | none |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** (sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras. Its **Game** tab carries its own sort (release_date default, then title / my_rating / hours_played) and a Game Type filter the other tabs have no equivalent of — a series usually mixes a base game with its DLC | "Members" → Franchises (`FranchiseCard`s); extras Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** (sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras, and the Relations tab gives an admin "Edit relations" → `/relations?owner=series:{id}` | "Members" → Franchises (`FranchiseCard`s), sorted `title` (default) \| `my_rating` \| `expectation` through `compareGroups`, the last two only with `self.list`; extras Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
@@ -1251,9 +1262,38 @@ tab: an entry counts as completed when its own type's status field
 `playing_status`) holds one of `COMPLETED_STATUSES`. Both pages build the tab
 row, the counts and the totals from one list of
 `{ label, type, entries, offered }` rows (`lib/mediaTabs.js`,
-`buildMediaTabs`), so a tab is never shown without being counted. Media tabs carry a sort select, a group-by-series checkbox
-(on by default for anime/comic/movies/tv/cartoons) and filter pills specific to
-the type. Extras render `HubCharacters` (below), `OrderSection` (see below),
+`buildMediaTabs`), so a tab is never shown without being counted.
+
+**Media tabs.** Both hubs draw every media tab with one
+`components/hub/BelongingTab.jsx`, fed by the per-type table in
+`lib/hubTabs.js` (sorts, default sort, filters, the franchise-only
+group-by-series default; `applyView`, `defaultView`, `isFiltered`) and
+`hooks/useHubTabViews.js`, which keeps each tab's view at page level so a
+tab's filters survive switching away and back. Cards are
+`MediaCard variant="hub"`. Every sort falls back to the type's title order,
+and "Sort: my rating" is offered only with `self.list`. Each strip ends with
+"Clear all", which resets that tab's filters (not its sort or grouping).
+
+Every tab but Game and H-Game has a **Completed** All / Yes / No control
+(`components/hub/TriStateFilter.jsx`, default All; Yes is a status in
+`COMPLETED_STATUSES`) in place of status pills. Per type:
+
+| Tab | Sorts (default first) | Filters besides Completed | Card |
+|---|---|---|---|
+| Anime | release date, title, my rating, MAL | airing type (TV, Movie, ONA, OVA, Special) | as the library |
+| Hentai | release date, title, my rating | none (no `airing_type` column) | as the library |
+| Anime Movie | release date, title, my rating, MAL | none | JP date first, MAL score to its right, runtime (`length_min`) below; no cover stamp |
+| Movie | release date, title, my rating, IMDb | none | TW date first, IMDb score to its right, runtime below; no cover stamp |
+| Manga | release date, title, my rating, MAL, end date | serialization, region | no region tag on the cover |
+| H-Comic | release date, title, my rating | none | no region tag on the cover |
+| Book | title, my rating, MAL, release date, end date | **小說** All / Yes / No (Yes = `type` 輕小說, 小說 or 網路小說; No = anything else, untyped included) | no region tag on the cover |
+| Comic | franchise hub: release date, title, my rating; series hub: title, my rating, release date, end date | franchise hub: comic type, era; series hub: serialization | as the library |
+| TV Show | release date, title, my rating, IMDb | none | region top-left, IMDb right of the release date, no airing status |
+| Cartoon | release date, title, my rating, IMDb | airing type | as the library |
+| Game | release date, title, my rating, Metacritic, Metacritic user, hours played | completion level — Main Story, Main + Extras, Completionist, Post-game, Not completed (`completion_level` empty) — **instead of** Completed; game type chips from the types the list holds, in vocabulary order | game type top-left on the cover, release date above the play-hours row, Metacritic and Metacritic user stacked on the right |
+| H-Game | release date, title, my rating | as Game | game type top-left, release date in place of the play-style line; no Metacritic (no such columns) |
+
+There is no 動畫瘋-only toggle on either hub. Extras render `HubCharacters` (below), `OrderSection` (see below),
 `RelationGraph readOnly scopeType=… scopeId=…`, and `{Tier}Notes`, where the
 group's 備註 remarks are written and read like every other list section.
 
@@ -1265,7 +1305,15 @@ plus one dashed card for each of its identities cast on those entries. It asks
 castings on entries the viewer may see, and draws `CharacterCard`s grouped by
 `characterCardsByRole` (`lib/characterCards.js`): Main, Core, Important Supporting, Supporting,
 Other, then No role, each group by name with an identity right after its
-character. Offered to every viewer holding `view.character`, like the other
+character. A strip above the groups filters and sorts: kind chips
+**Character** (on by default) and **Identity**, gender chips **男**, **女**
+and **其他** (anything but 男 and 女, unset included; an identity is judged by
+its displayed gender). Chips are multi-select with no "All" chip — within a
+row, all on and all off both mean no restriction. A holder of `self.list`
+also gets **Sort: name** (default) / **Sort: my rating** (S first, unrated
+last; an identity carries its character's rating), applied inside each role
+group. Group counts follow the filters, an emptied group is hidden, and
+"Clear all" turns every chip off. Offered to every viewer holding `view.character`, like the other
 extras; an empty tier says so. Without the key the tab is not in the row and
 `HubCharacters` never mounts, so `/api/character/` — which would answer 401 —
 is not asked.

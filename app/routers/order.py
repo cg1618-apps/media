@@ -37,7 +37,7 @@ from app.services.rbac.enforcement import (
     apply_owner_visibility,
     entry_visible,
     tier_visible,
-    visible_scope_franchise_ids,
+    visible_scope,
 )
 from app.services.rbac.permissions import PERM_SELF_LIST
 from app.services.rbac.resolver import (
@@ -703,26 +703,35 @@ def get_order_list(
 def get_order_candidates(
     franchise_id: Optional[str] = None,
     collection_id: Optional[str] = None,
+    series_id: Optional[str] = None,
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
     """
-    Every entry an order owned by this franchise (or collection) may include,
-    flattened across the seven media tables.
+    Every entry an order owned by this franchise, collection or series may
+    include, flattened across the media tables.
 
-    Backs the admin editor's entry picker. A collection resolves to its member
-    franchises first, so one request covers an order that spans several.
+    Backs the admin editor's entry picker and the relations page's entry list.
+    A collection resolves to its member franchises first, so one request
+    covers an order that spans several; a series resolves against series_id
+    directly, so anime movies (which carry no series) never appear.
     """
-    if bool(franchise_id) == bool(collection_id):
+    if sum(1 for owner in (franchise_id, collection_id, series_id) if owner) != 1:
         raise HTTPException(
             status_code=400,
-            detail="Provide exactly one of franchise_id or collection_id.",
+            detail="Provide exactly one of franchise_id, collection_id or series_id.",
         )
 
-    franchise_ids = visible_scope_franchise_ids(
-        db, viewer, franchise_id=franchise_id, collection_id=collection_id
+    franchise_ids, series_ids = visible_scope(
+        db,
+        viewer,
+        franchise_id=franchise_id,
+        collection_id=collection_id,
+        series_id=series_id,
     )
-    return list_candidate_entries(db, franchise_ids, viewer=viewer)
+    return list_candidate_entries(
+        db, franchise_ids, series_ids=series_ids, viewer=viewer
+    )
 
 
 # ==========================================

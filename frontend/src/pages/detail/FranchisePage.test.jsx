@@ -151,14 +151,87 @@ describe("FranchisePage browser tab", () => {
   });
 });
 
-// The header's entry total and completion are taken over every listed tab,
-// each type judged by its own status field.
+// The header's entry total and the cover's completion are taken over every
+// listed tab, each type judged by its own status field. The line above the
+// name carries the total only.
 describe("FranchisePage header totals", () => {
-  it("counts the games and their completion", async () => {
+  it("counts the games, and leaves their completion to the cover", async () => {
     renderPage();
-    expect(
-      await screen.findByText(/2 entries\s+·\s+50% completed/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/·\s+2 entries$/)).toBeInTheDocument();
+    expect(screen.queryByText(/% completed/)).toBeNull();
+    expect(screen.getByText("1 / 2 · 50%")).toBeInTheDocument();
+  });
+});
+
+// The lineage row names the collection and counts the series only when there
+// is one: a franchise outside every collection says no "None".
+describe("FranchisePage lineage", () => {
+  it("draws neither a collection nor a series count when there is none", async () => {
+    renderPage();
+    await screen.findByRole("button", { name: /^Game\s*2$/ });
+    expect(screen.queryByText("Collection")).toBeNull();
+    expect(screen.queryByText("None")).toBeNull();
+  });
+
+  it("names the collection and counts the series when there are some", async () => {
+    franchise = { ...FRANCHISE, collection_id: "CL001" };
+    const base = fetch.getMockImplementation();
+    fetch.mockImplementation((url, init) => {
+      const u = String(url);
+      if (u.startsWith("/api/collection/CL001"))
+        return jsonRes({ system_id: "CL001", collection_name_en: "Souls" });
+      if (u.startsWith("/api/series/"))
+        return jsonRes([{ system_id: "SR001", series_name_en: "Main Line" }]);
+      return base(url, init);
+    });
+    renderPage();
+    // The breadcrumb links it too.
+    expect(await screen.findAllByRole("link", { name: "Souls" })).toHaveLength(2);
+    expect(screen.getByText("Collection")).toBeInTheDocument();
+    // The lineage count, beside the Series slip's own.
+    expect(screen.getAllByText("Series").length).toBeGreaterThan(1);
+  });
+});
+
+// The franchise hub calls every rewatch / reread / replay mark "To Redo".
+describe("FranchisePage To Redo", () => {
+  const EDITOR = { username: "editor", role: "super", is_admin: true, permissions: ["manage.catalog"] };
+
+  it("labels the rewatch control To Redo", async () => {
+    franchise = { ...FRANCHISE, franchise_type: "Anime" };
+    me = EDITOR;
+    renderPage();
+    expect(await screen.findByText("To Redo")).toBeInTheDocument();
+    expect(screen.queryByText(/To (Rewatch|Reread|Replay)/)).toBeNull();
+  });
+});
+
+// The anime tab's strip: the airing type and Completed, nothing else - no
+// airing status, no watching-status pills and no 動畫瘋 toggle.
+describe("FranchisePage anime filters", () => {
+  it("offers the airing type and Completed only", async () => {
+    franchise = { ...FRANCHISE, franchise_type: "Anime" };
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /^Anime\s*1$/ }));
+    expect(await screen.findByRole("group", { name: "Completed" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "OVA" })).toBeInTheDocument();
+    expect(screen.queryByText(/動畫瘋/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Airing" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Watching" })).toBeNull();
+  });
+});
+
+// The Game tab sorts and filters, as the series hub's does.
+describe("FranchisePage game tab", () => {
+  it("filters by game type and resets with Clear all", async () => {
+    renderPage();
+    await userEvent.click(await screen.findByRole("button", { name: /^Game\s*2$/ }));
+    expect(await screen.findByRole("combobox", { name: "Sort" })).toHaveValue("release_date");
+    await userEvent.click(screen.getByRole("button", { name: "DLC" }));
+    await waitFor(() => expect(screen.queryByText("Elden Ring", { selector: "a" })).toBeNull());
+    expect(screen.getByText("Shadow of the Erdtree")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(await screen.findByText("Elden Ring", { selector: "a" })).toBeInTheDocument();
   });
 });
 

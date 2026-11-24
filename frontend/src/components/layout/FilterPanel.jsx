@@ -1,7 +1,7 @@
 // Frontend: the chip panel that renders a list of FilterDefs (the shape is
 // documented in hooks/useLibraryState.js). Used by LibraryLayout, the random
 // picker and the entity libraries (character, person, studio, publisher).
-import { Eyebrow } from "../ui/primitives";
+import { ClearAllButton, Eyebrow } from "../ui/primitives";
 import { isParentActive, toggleParentValues } from "../../lib/libraryFilters";
 
 // ---------------------------------------------------------------------------
@@ -130,13 +130,11 @@ export default function FilterPanel({
             </button>
           )}
           {/* A caller with its own clear control leaves clearFilters out. */}
-          {clearFilters && activeFilterCount > 0 && (
-            <button
+          {clearFilters && (
+            <ClearAllButton
+              active={activeFilterCount > 0}
               onClick={clearFilters}
-              className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint hover:text-danger transition"
-            >
-              Clear all
-            </button>
+            />
           )}
         </div>
       </div>

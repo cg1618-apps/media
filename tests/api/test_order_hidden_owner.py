@@ -141,8 +141,9 @@ def test_opening_an_order_whose_owner_is_hidden_is_404(
     assert user_client.get(path).status_code == 200
 
 
-def test_candidates_for_a_hidden_owner_are_404(client, user_client, labelled_tree):
-    params = {"franchise_id": str(labelled_tree["franchise"].system_id)}
+@pytest.mark.parametrize("tier", TIERS)
+def test_candidates_for_a_hidden_owner_are_404(client, user_client, labelled_tree, tier):
+    params = {f"{tier}_id": str(labelled_tree[tier].system_id)}
     assert client.get("/api/order/candidates", params=params).status_code == 404
     assert (
         user_client.get("/api/order/candidates", params=params).status_code
@@ -212,7 +213,7 @@ def test_the_graph_of_a_hidden_scope_is_404(client, user_client, labelled_tree, 
     )
 
 
-@pytest.mark.parametrize("tier", ("collection", "franchise"))
+@pytest.mark.parametrize("tier", TIERS)
 def test_the_scope_listing_of_a_hidden_scope_is_404(
     client, user_client, labelled_tree, tier
 ):
