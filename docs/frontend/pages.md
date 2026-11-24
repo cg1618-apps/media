@@ -1699,10 +1699,19 @@ File `pages/detail/OrderPage.jsx`. GET `/api/order/lists/{id}`
 (404 → "Order not found."), then the owner (`/api/franchise/{id}` or
 `/api/collection/{id}`) and sibling lists
 `/api/order/lists?franchise_id=&collection_id=` (self excluded);
-cancellable. Shows owner link, `MediaScopeLine`, list name, badges
+cancellable. Shows owner link, `MediaTypeFilter`, list name, badges
 (`list_type`, most-recommended, Default, "{n} steps"), an **admin-only** link
 to `/orders`, `OrderGuide` (filter all / essentials / no-optional,
-section blocks, list remark) and "Other orders for {owner}". The guide is
+section blocks, list remark) and "Other orders for {owner}".
+`MediaTypeFilter` is the scope above the title drawn as type pills, in the
+dashboard type filter's pill style. On a cross-type order it reads
+"Cross-type" then **All** plus one toggle pill per type in the order. Picking a
+type narrows the guide to that type's steps, and picking it again or **All**
+restores every step. A step keeps the number it has in the whole order, and a
+part keeps its box for whatever steps of the type it holds. On a single-type
+order it reads "Single-type" and one static pill in the selected style, with
+nothing to press. The pick lasts for the page view only and resets when
+another order opens. The guide is
 drawn `colourCoded`: each step's own list status sits at the far right of the
 row for a viewer holding `self.list` (none for a guest, none for a step not
 on the list), tinted by status, and the importance chips are tinted too —
@@ -1710,7 +1719,9 @@ the scoped exception to colour rule 5 in
 [design-system.md](design-system.md#rules).
 
 The hub tab uses `components/tracker/OrderSection.jsx`: lists for the
-scope, chips for 2–6 lists (select above 6), inline guide capped at 10 steps
+scope, chips for 2–6 lists (select above 6) drawn on two rows, **Custom**
+above **Built-in**, each under its own label and dropped when it would be
+empty, inline guide capped at 10 steps
 with a "see full" link, its status and importance chips in ink, and an admin-only **Add built-in order** button
 (`POST /api/order/lists/release?…`, hidden once a release order exists).
 Editing happens only on the admin `/orders` page.

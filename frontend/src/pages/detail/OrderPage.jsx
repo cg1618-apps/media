@@ -11,7 +11,7 @@ import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowOrderButton from "../../components/tracker/FollowOrderButton";
 import OrderGuide, {
-  MediaScopeLine,
+  MediaTypeFilter,
 } from "../../components/tracker/OrderGuide";
 import { getDisplayName } from "../../utils/media";
 import { Chip, Slip } from "../../components/ui/primitives";
@@ -29,12 +29,16 @@ export default function OrderPage() {
   const [siblings, setSiblings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // The media type the guide is narrowed to, or null for every step. Per page
+  // view: it is not kept anywhere, and opening another order starts at All.
+  const [typeFilter, setTypeFilter] = useState(null);
 
   useCanonicalPath("order", list);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setTypeFilter(null);
 
     fetch(endpoints.order.list(publicId), { credentials: "include" })
       .then((res) =>
@@ -154,9 +158,15 @@ export default function OrderPage() {
         {/*
           Scope leads: it sits on its own line above the title, so what kind of
           order this is registers before the name. The remaining marks drop
-          below the title rather than competing with it.
+          below the title rather than competing with it. On a cross-type order
+          the scope is also the type filter for the guide below.
         */}
-        <MediaScopeLine mediaTypes={list.media_types} className="mb-3" />
+        <MediaTypeFilter
+          mediaTypes={list.media_types}
+          value={typeFilter}
+          onChange={setTypeFilter}
+          className="mb-3"
+        />
 
         <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-3">
           {listName}
@@ -173,7 +183,7 @@ export default function OrderPage() {
         </div>
       </header>
 
-      <OrderGuide list={list} roomy colourCoded />
+      <OrderGuide list={list} roomy colourCoded typeFilter={typeFilter} />
 
       {siblings.length > 0 && (
         <Slip

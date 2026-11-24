@@ -151,6 +151,66 @@ export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
   );
 }
 
+// One type pill. Drawn as the dashboard's type filter draws its pills, so a
+// type filter looks the same wherever the app offers one.
+const typePillClass = (active) =>
+  `px-2.5 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+    active
+      ? "border-brand text-brand"
+      : "border-border text-text-faint hover:text-text hover:border-border-strong"
+  }`;
+
+/**
+ * The scope line as a control: a cross-type order's types become toggle pills
+ * that narrow the guide to one type, with "All" undoing it. A single-type
+ * order has nothing to narrow, so its one type is drawn as a static pill in
+ * the selected style - the same component, with no control in it.
+ *
+ * `value` is the slug picked, or null for every step; clicking the picked
+ * type again returns to null, as the dashboard's pills do.
+ */
+export function MediaTypeFilter({ mediaTypes, value, onChange, className = "" }) {
+  const scope = mediaScope(mediaTypes);
+  if (!scope) return null;
+
+  if (!scope.cross) {
+    return (
+      <div
+        className={`flex flex-wrap items-center gap-2 ${className}`}
+        data-testid="order-type-scope"
+      >
+        <Eyebrow as="span" className="mr-1">Single-type</Eyebrow>
+        <span className={typePillClass(true)}>{scope.chips[0].label}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label="Filter steps by type"
+      className={`flex flex-wrap items-center gap-2 ${className}`}
+      data-testid="order-type-scope"
+    >
+      <Eyebrow as="span" className="mr-1">Cross-type</Eyebrow>
+      {[{ slug: null, label: "All" }, ...scope.chips].map((c) => {
+        const active = value === c.slug;
+        return (
+          <button
+            key={c.slug ?? "all"}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(active || c.slug === null ? null : c.slug)}
+            className={`${typePillClass(active)} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand`}
+          >
+            {c.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * "Ep. Special 0", "Ep. Special 17.5A" — the episode a special sits at, a
  * label shown as written, not a count. It arrives as text; this tests for null
@@ -180,8 +240,16 @@ export function specialLabel(item) {
  * own `position` in the same stream as the items. The editor needs those (you
  * have to be able to drop the first step into a new part); the guide does not,
  * since an empty part has nothing to wrap.
+ *
+ * `numberOf` overrides the 1..N count with a number of the caller's choosing -
+ * the guide passes each step's place in the whole order when a type filter
+ * narrows it, so a filtered step keeps the number it has unfiltered.
  */
-export function buildBlocks(items, sections, { includeEmpty = false } = {}) {
+export function buildBlocks(
+  items,
+  sections,
+  { includeEmpty = false, numberOf } = {}
+) {
   const byId = new Map((sections || []).map((s) => [s.system_id, s]));
   const rows = items || [];
 
@@ -221,7 +289,8 @@ export function buildBlocks(items, sections, { includeEmpty = false } = {}) {
 
     const section = item.section_id ? byId.get(item.section_id) : null;
     const last = blocks[blocks.length - 1];
-    const row = { item, number: ++number };
+    number += 1;
+    const row = { item, number: numberOf ? numberOf(item) : number };
 
     if (section) {
       if (last?.kind === "part" && last.section.system_id === section.system_id) {
@@ -397,6 +466,12 @@ const FILTERS = [
  * long cross-franchise order does not run the page off the screen, and point
  * `fullHref` at the order's own page for the rest. The full page itself passes
  * neither and draws every step.
+ *
+ * `typeFilter` narrows the guide to one media type's steps (the standalone
+ * page's MediaTypeFilter sets it). Unlike the importance filters, which
+ * renumber what they leave 1..N, a type filter keeps every step's number from
+ * the whole order: the anime steps of an order are read against the full
+ * order, so step 7 stays step 7.
  */
 export default function OrderGuide({
   list,
@@ -404,6 +479,7 @@ export default function OrderGuide({
   limit,
   fullHref,
   colourCoded = false,
+  typeFilter = null,
 }) {
   const [filter, setFilter] = useState("all");
   const { ownData } = useViewScope();
@@ -414,15 +490,24 @@ export default function OrderGuide({
     (i) => i.importance === "Essential"
   ).length;
 
+  // Each step's place in the whole order, read when a type filter is on.
+  const placeOf = useMemo(
+    () => new Map(items.map((item, i) => [item, i + 1])),
+    [items]
+  );
+
   const visible = useMemo(() => {
+    const ofType = typeFilter
+      ? items.filter((i) => i.media_type === typeFilter)
+      : items;
     if (filter === "essentials") {
-      return items.filter((i) => i.importance === "Essential");
+      return ofType.filter((i) => i.importance === "Essential");
     }
     if (filter === "no-optional") {
-      return items.filter((i) => i.importance !== "Optional");
+      return ofType.filter((i) => i.importance !== "Optional");
     }
-    return items;
-  }, [items, filter]);
+    return ofType;
+  }, [items, filter, typeFilter]);
 
   // The cap applies to what the active filter leaves, so "Essentials only" on
   // a long order can still fit inline without truncation.
@@ -433,8 +518,11 @@ export default function OrderGuide({
   // whole order: a part whose every step is Optional disappears with them
   // rather than leaving a titled empty box behind.
   const blocks = useMemo(
-    () => buildBlocks(shown, list?.sections),
-    [shown, list?.sections]
+    () =>
+      buildBlocks(shown, list?.sections, {
+        numberOf: typeFilter ? (item) => placeOf.get(item) : undefined,
+      }),
+    [shown, list?.sections, typeFilter, placeOf]
   );
 
   if (!list) return null;
@@ -516,7 +604,8 @@ export default function OrderGuide({
 
       {/*
         Numbering follows the visible rows, so hiding optional steps renumbers
-        1..N instead of leaving gaps the reader has to mentally close — and it
+        1..N instead of leaving gaps the reader has to mentally close (a type
+        filter is the exception: it keeps the whole order's numbers) — and it
         runs straight through the parts rather than restarting inside each one,
         because the reader counts steps, not steps-within-a-part.
       */}
