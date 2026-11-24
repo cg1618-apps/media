@@ -8,6 +8,7 @@
 // screen - reading down each column, newest first.
 import { useEffect, useRef } from "react";
 
+import { sectionTitleCls } from "../../components/ui/primitives";
 export default function SeasonCountsModal({ seasons, onClose }) {
   const pressedBackdrop = useRef(false);
 
@@ -38,7 +39,7 @@ export default function SeasonCountsModal({ seasons, onClose }) {
         <div className="px-6 py-3 border-b border-border flex justify-between items-center">
           <h3
             id="season-counts-title"
-            className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted"
+            className={sectionTitleCls}
           >
             Anime by season · {seasons.length} seasons
           </h3>

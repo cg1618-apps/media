@@ -90,7 +90,7 @@ function NewOrderForm({ owner, onCreate, onCancel, busy }) {
       onSubmit={submit}
       className="flex flex-col gap-2 p-3 rounded-xl border border-border bg-surface-2"
     >
-      <p className="text-[10px] font-black text-text-faint uppercase tracking-wider">
+      <p className="text-[10px] font-black text-text-faint">
         New order in {owner.name}
       </p>
 
@@ -727,7 +727,7 @@ export default function Orders() {
             /* Owners and orders together: browsing with an empty box, search
                results once something is typed. Same sections either way. */
             <div className="flex flex-col gap-3">
-              <p className="text-[10px] font-black text-text-faint uppercase tracking-wider">
+              <p className="text-[10px] font-black text-text-faint">
                 {searching
                   ? "Matching"
                   : searchScope === "order"
@@ -780,7 +780,7 @@ export default function Orders() {
                           name are only telling apart by who owns them. */}
                       {results.orderGroups.map(([key, rows]) => (
                         <div key={key}>
-                          <p className="text-[10px] font-black text-text-faint uppercase tracking-wider mb-1.5">
+                          <p className="text-[10px] font-black text-text-faint mb-1.5">
                             {ownerLabel(key)}
                           </p>
                           <div className="flex flex-col gap-1">

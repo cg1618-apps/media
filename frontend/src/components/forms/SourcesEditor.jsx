@@ -141,7 +141,7 @@ function FreeTextRows({
   const missing = missingSuggestions(value, indices, prefill);
   return (
     <div>
-      <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+      <label className="block text-[10px] font-bold text-text-faint mb-1">
         {label}
       </label>
       <div className="space-y-2">
@@ -261,7 +261,7 @@ export default function SourcesEditor({
     <div className="space-y-4">
       {showAccess && (
         <div>
-          <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+          <label className="block text-[10px] font-bold text-text-faint mb-1">
             Main Sources
           </label>
           <VocabRows
@@ -281,7 +281,7 @@ export default function SourcesEditor({
         </div>
       )}
       <div>
-        <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+        <label className="block text-[10px] font-bold text-text-faint mb-1">
           Reference Sources
         </label>
         <VocabRows

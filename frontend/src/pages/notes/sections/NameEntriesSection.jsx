@@ -143,7 +143,7 @@ function EntriesEditor({ entries, onChange }) {
       <button
         type="button"
         onClick={() => onChange([...list, emptyItem()])}
-        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
+        className="font-mono text-[11px] text-text-muted hover:text-brand transition"
       >
         + Add entry
       </button>

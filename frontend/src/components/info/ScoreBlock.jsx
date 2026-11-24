@@ -6,7 +6,7 @@ function Figure({ label, value }) {
   const empty = value == null || value === "";
   return (
     <div className="pr-6 mr-6 border-r border-border last:border-r-0 last:mr-0 last:pr-0">
-      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
+      <div className="font-mono text-[10px] text-text-faint mb-1">
         {label}
       </div>
       <div

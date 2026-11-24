@@ -102,7 +102,7 @@ import {
   treeIds,
 } from "./groupedRows";
 
-import { Button } from "../../../components/ui/primitives";
+import { Button, eyebrowCls } from "../../../components/ui/primitives";
 import {
   EmptyHint,
   GroupName,
@@ -331,7 +331,7 @@ function ListEditor({ field, rows, onChange }) {
 
   return (
     <div className="space-y-1.5">
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+      <p className={eyebrowCls}>
         {field.label}
       </p>
       <SortableList ids={ids} onMove={move}>
@@ -376,7 +376,7 @@ function ListEditor({ field, rows, onChange }) {
       <button
         type="button"
         onClick={() => update([...list, blank], [...ids, mintListKey()])}
-        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
+        className="font-mono text-[11px] text-text-muted hover:text-brand transition"
       >
         + Add {field.label.toLowerCase()}
       </button>
@@ -565,7 +565,7 @@ function ListView({ field, rows }) {
   if (!used.length) return null;
   return (
     <div className="mt-1">
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint mb-0.5">
+      <p className="font-mono text-[10px] text-text-faint mb-0.5">
         {field.label}
       </p>
       <table className="w-full text-xs">
@@ -574,7 +574,7 @@ function ListView({ field, rows }) {
             {used.map((item) => (
               <th
                 key={item.key}
-                className="text-left font-mono text-[10px] uppercase tracking-[0.1em] font-normal pb-0.5"
+                className="text-left font-mono text-[10px] font-normal pb-0.5"
               >
                 {item.label}
               </th>
@@ -646,7 +646,7 @@ function InlineText({ field, value, editable, onSave, bare = false }) {
   if (bare) return input;
   return (
     <label className="inline-flex items-center gap-1">
-      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+      <span className={eyebrowCls}>
         {field.label}
       </span>
       {input}
@@ -692,7 +692,7 @@ function AmountPair({ collected, total, note, canMark, onMark }) {
 }
 
 const markSelectCls =
-  "border border-border-strong bg-surface text-text px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-brand";
+  "border border-border-strong bg-surface text-text px-1.5 py-0.5 font-mono text-[10px] focus:outline-none focus:ring-2 focus:ring-brand";
 
 // One personal value on a saved row - the viewer's own, read from the row
 // (the server puts the viewer's mark, or the default, where the field lives).
@@ -747,7 +747,7 @@ function NgResetButton({ onNgReset }) {
   }
   return (
     <span className="inline-flex items-center gap-2">
-      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-muted">
+      <span className="font-mono text-[10px] text-text-muted">
         Clear my collected and beaten for this game?
       </span>
       <Button
@@ -783,7 +783,7 @@ function NamesView({ field, note, omit }) {
   if (!names.length) return null;
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
-      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+      <span className={eyebrowCls}>
         {field.label}
       </span>
       {names.map((name) => (

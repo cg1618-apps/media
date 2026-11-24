@@ -5,7 +5,7 @@ import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { getDisplayName } from "../../lib/naming";
 import { formatReleaseDate, primaryReleaseValue } from "../../lib/releaseDate";
 import { formatSeason, selectComingNext } from "../../lib/comingNext";
-import { Chip, Slip } from "../ui/primitives";
+import { Chip, Slip, sectionTitleCls } from "../ui/primitives";
 
 const SUBSECTIONS = [
   { key: "airs", title: "Watch when airs / released" },
@@ -22,7 +22,7 @@ function ComingEntry({ item, type }) {
         title={`${date} · ${name}`}
         className="block py-1.5 border-b border-border text-sm text-text leading-tight hover:text-brand transition-colors"
       >
-        <span className="block font-mono text-[10px] tracking-[0.14em] text-text-faint tabular-nums">
+        <span className="block font-mono text-[10px] text-text-faint tabular-nums">
           {date}
         </span>
         <span className="block">{name}</span>
@@ -38,7 +38,7 @@ function SubSection({ title, groups, empty }) {
   return (
     <div>
       <div className="flex items-baseline justify-between px-4 py-2 border-b border-border">
-        <h5 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+        <h5 className={sectionTitleCls}>
           {title}
         </h5>
         <span className="font-mono text-[10px] text-text-faint">{count}</span>
@@ -55,7 +55,7 @@ function SubSection({ title, groups, empty }) {
               className="w-64 shrink-0 p-3 border-r border-border last:border-r-0"
             >
               <div className="flex items-baseline justify-between mb-2 pb-2 border-b border-border">
-                <h6 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                <h6 className={sectionTitleCls}>
                   {label}
                 </h6>
                 <span className="font-mono text-[10px] text-text-faint">
@@ -81,7 +81,7 @@ function SeasonPart({ title, sections, empty }) {
   return (
     <section aria-label={title}>
       <div className="flex items-baseline justify-between px-4 py-2 border-b border-border bg-surface-2">
-        <h4 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text">
+        <h4 className="font-mono text-[11px] text-text">
           {title}
         </h4>
         <span className="font-mono text-[10px] text-text-faint">{count}</span>
@@ -131,7 +131,7 @@ export default function ComingNext({ id, lists, currentSeason, season, today }) 
 
   const actions = (
     <>
-      <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+      <span className="hidden sm:inline font-mono text-[10px] text-text-faint">
         {formatSeason(currentSeason)} · {formatSeason(season)}
       </span>
       <Chip tone="ink">{total}</Chip>

@@ -30,7 +30,7 @@ export default function GroupNotes({ section, groups, Component, optionValues })
         className="border-t border-dashed border-border-strong pt-2 space-y-2"
       >
         <p className="flex items-baseline gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint shrink-0">
+          <span className="font-mono text-[10px] text-text-faint shrink-0">
             From {OWNER_WORD[ownerType]}
           </span>
           {path ? (

@@ -25,10 +25,10 @@ import { useConstants } from "../../config/useConstants";
 import { useToast } from "../../hooks/useToast";
 import { requestKindLabel } from "../../lib/requests";
 import { inputCls, selectCls } from "../forms/FormField";
-import { Button } from "../ui/primitives";
+import { Button, sectionTitleCls } from "../ui/primitives";
 
 const LABEL_CLS =
-  "block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1";
+  "block text-[10px] font-bold text-text-faint mb-1";
 
 export default function RequestModal({
   request = null,
@@ -109,7 +109,7 @@ export default function RequestModal({
         <div className="px-6 py-3 border-b border-border">
           <h3
             id={`${id}-title`}
-            className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted"
+            className={sectionTitleCls}
           >
             {editing ? "Edit request" : target ? "Report a problem" : "New request"}
           </h3>

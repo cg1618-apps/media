@@ -69,7 +69,7 @@ export default function Layout() {
       </main>
       <footer className="bg-surface border-t border-border mt-auto shrink-0">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <p className="text-center font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+          <p className="text-center font-mono text-[11px] text-text-faint">
             © 2026 CG1618 tracker. All rights reserved.
           </p>
         </div>

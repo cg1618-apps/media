@@ -3,7 +3,7 @@
 // The three choices are plain outlined buttons: colour would otherwise be
 // naming a watching status, which the design system forbids. The first one
 // is the suggested answer, so it takes the brand fill.
-import { Button } from "../ui/primitives";
+import { Button, sectionTitleCls } from "../ui/primitives";
 
 const CHOICES = [
   { value: "Active Watching", label: "Active watching", kind: "primary" },
@@ -33,7 +33,7 @@ export default function MarkAiringModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-3 border-b border-border">
-          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+          <h3 className={sectionTitleCls}>
             Mark as {airingStatus}
           </h3>
         </div>

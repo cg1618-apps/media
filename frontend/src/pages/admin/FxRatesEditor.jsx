@@ -90,7 +90,7 @@ export default function FxRatesEditor({ showToast }) {
 
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
-      <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
+      <h2 className="text-lg font-black text-text mb-4 flex items-center border-b border-border pb-2">
         Exchange Rates
       </h2>
       <p className="text-xs text-text-muted mb-4">
@@ -102,7 +102,7 @@ export default function FxRatesEditor({ showToast }) {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-text-faint">
             Base
           </span>
           <select
@@ -119,7 +119,7 @@ export default function FxRatesEditor({ showToast }) {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
+          <span className="text-[10px] font-bold text-text-faint">
             As of
           </span>
           <input
@@ -132,7 +132,7 @@ export default function FxRatesEditor({ showToast }) {
 
         {editable.map((code) => (
           <label key={code} className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider">
+            <span className="text-[10px] font-bold text-text-faint">
               {code} per {base}
             </span>
             <input

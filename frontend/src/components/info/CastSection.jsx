@@ -6,7 +6,7 @@ import { sortCast } from "../../lib/castOrder";
 import { useEntityHref } from "../../lib/entityPath";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
-import { Button, Chip, Slip } from "../ui/primitives";
+import { Button, Chip, Slip, sectionTitleCls } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
 const castLinkCls =
@@ -199,7 +199,7 @@ function FullCastModal({ cast, onClose, identityToggle }) {
         className="bg-surface border border-border shadow-xl w-full max-w-2xl overflow-hidden m-4"
       >
         <div className="px-6 py-3 border-b border-border flex justify-between items-center">
-          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+          <h3 className={sectionTitleCls}>
             Full cast · {cast.length}
           </h3>
           <button

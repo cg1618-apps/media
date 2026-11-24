@@ -13,7 +13,7 @@ import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../hooks/queryUtils";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
-import { Button, Eyebrow, Slip } from "../../components/ui/primitives";
+import { Button, Eyebrow, Slip, eyebrowCls } from "../../components/ui/primitives";
 import RatingDistributionCard from "./RatingDistributionCard";
 import SeasonCountsModal from "./SeasonCountsModal";
 import StatsSectionHeader from "./StatsSectionHeader";
@@ -25,7 +25,7 @@ import {
 } from "./catalogueStats";
 
 const TH =
-  "px-4 py-2 font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em]";
+  "px-4 py-2 font-mono text-[10px] font-normal text-text-faint";
 const TD_NUM = "px-4 py-2 text-right font-mono tabular-nums text-text";
 const SELECT =
   "border border-border-strong bg-surface px-2 py-1 font-mono text-xs text-text focus:outline-none focus:ring-2 focus:ring-brand";
@@ -106,7 +106,7 @@ function ScoreCard({ title, scaleKey, rows }) {
   return (
     <div className="space-y-3">
       <label className="flex items-center gap-3 text-sm text-text-muted">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+        <span className={eyebrowCls}>
           Type
         </span>
         <select

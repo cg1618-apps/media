@@ -125,7 +125,7 @@ function MangaTrackerBlock({
               <span className="text-text-faint text-sm leading-none">
                 {formatProgress(chTotal) ?? "?"}
               </span>
-              <span className="text-[9px] text-text-faint ml-1.5 uppercase">
+              <span className="text-[9px] text-text-faint ml-1.5">
                 ch
               </span>
             </div>
@@ -166,7 +166,7 @@ function MangaTrackerBlock({
                 <span className="text-text-faint text-sm leading-none">
                   {formatProgress(volTotal) ?? "?"}
                 </span>
-                <span className="text-[9px] text-text-faint ml-1.5 uppercase">
+                <span className="text-[9px] text-text-faint ml-1.5">
                   vol
                 </span>
               </div>
@@ -416,7 +416,7 @@ export default function Manga() {
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
           <Link to="/library/manga" className="hover:text-brand transition">
@@ -440,7 +440,7 @@ export default function Manga() {
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
         <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">
+          <Eyebrow className="text-[11px] text-text-muted">
             Admin
           </Eyebrow>
           <div className="flex flex-wrap gap-2">
@@ -500,7 +500,7 @@ export default function Manga() {
               </div>
               {/* Progress rule along the bottom edge of the cover */}
               <ProgressRule value={progress} />
-              <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+              <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] text-text-faint">
                 <span>Chapters</span>
                 <span className="text-text">
                   {chFin} / {chTotal ?? "?"}
@@ -527,7 +527,7 @@ export default function Manga() {
         <div className="lg:col-span-3 space-y-10">
           {/* Header */}
           <header>
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+            <div className="font-mono text-[11px] text-text-muted mb-3">
               {eyebrow}
             </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">

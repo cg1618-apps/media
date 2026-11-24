@@ -55,7 +55,7 @@ function splitBlocks(sections) {
 const Spinner = () => (
   <div className="bg-surface border border-border">
     <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border">
-      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted shrink-0">
+      <h3 className="font-mono text-[11px] text-text-muted shrink-0">
         Notes
       </h3>
       <span className="flex-1 border-t border-dotted border-border-strong/60" />
@@ -63,7 +63,7 @@ const Spinner = () => (
     <div className="p-4">
       <div className="py-10 text-center text-text-faint">
         <i className="fas fa-circle-notch fa-spin text-xl"></i>
-        <p className="font-mono text-[11px] uppercase tracking-[0.14em] mt-2">
+        <p className="font-mono text-[11px] mt-2">
           Loading notes…
         </p>
       </div>

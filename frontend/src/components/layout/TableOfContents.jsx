@@ -59,7 +59,7 @@ export default function TableOfContents({ items, activeId, offsetFor = navOffset
             aria-current={isActive ? "location" : undefined}
             className={`w-full text-left flex items-center gap-2 border-l-2 transition-colors py-1 ${
               level === 2
-                ? "pl-5 pr-2 font-mono text-[11px] uppercase tracking-[0.12em]"
+                ? "pl-5 pr-2 font-mono text-[11px]"
                 : "pl-3 pr-2 font-display text-sm"
             } ${
               isActive

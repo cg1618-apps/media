@@ -183,7 +183,7 @@ export default function NeedsWork() {
         >
           <label
             htmlFor="needs-work-note"
-            className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1"
+            className="block text-[10px] font-bold text-text-faint mb-1"
           >
             Note (optional)
           </label>

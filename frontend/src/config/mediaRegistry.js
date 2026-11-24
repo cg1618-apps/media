@@ -42,3 +42,20 @@ export const MEDIA_TYPE_LABELS = {
 export function mediaTypeLabel(type) {
   return MEDIA_TYPE_LABELS[type] ?? type;
 }
+
+/**
+ * The label of any owner type key an admin page handles - a media type, a
+ * grouping tier, "options" - in the casing it is read in: the media type's
+ * own label, otherwise the key's words capitalised ("collection" ->
+ * "Collection").
+ */
+export function ownerTypeLabel(type) {
+  return (
+    MEDIA_TYPE_LABELS[type] ??
+    type
+      .split(/[-_]/)
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ")
+  );
+}
