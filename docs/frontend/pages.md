@@ -1423,7 +1423,8 @@ Top to bottom:
 
    **A film's release.** Movie and Anime Movie show **Release Status**
    (`Not Released` / `Released` / `Canceled`) where the airing types show
-   Airing Status, in the eyebrow line and the Information card, and their
+   Airing Status, in the Information card - neither page draws an eyebrow
+   line above the title - and their
    status picker offers **Watch When Released** where the airing types offer
    Watch When Airs. Anime Movie also shows **Release Type** (Cinema / ONA).
    An ONA has one release date: its Information card shows one **Release
@@ -1549,7 +1550,7 @@ status select, which goes through `/api/me/list`.
 |---|---|---|---|
 | Anime | in rows: 本傳/外傳, Original / Remake, Season Part, Special Episodes; Airing Type/Status, Total Episodes (with cumulative), Runtime (min); Release Season, Release Date JP/TW; then Genre main, Genre sub and 標籤 Label a row each | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
 | AnimeMovie | Airing Status, Runtime, Release Date JP/TW, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder |
-| Movie | 本傳/外傳, Airing Status, Runtime, Director, Release Date TW/USA | — | **Genres** card (`GenresCard`); inline IMDb score block |
+| Movie | 本傳/外傳 and Movie Type; Director and Runtime; Release Status, Release Date TW and USA - three rows | — | **Genres** card (`GenresCard`); inline IMDb score block; no eyebrow line above the title |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Type/Status, Release Date, Runtime (min) | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
 | Cartoon | + Airing Type, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版社 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |

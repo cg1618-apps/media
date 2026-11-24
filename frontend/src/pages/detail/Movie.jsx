@@ -161,15 +161,6 @@ export default function Movie() {
       franchise.franchise_name_roman
     : null;
 
-  const eyebrow = [
-    "Movie",
-    movie.movie_type,
-    movie.release_status,
-    formatLength(movie.length_min),
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
-
   const imdbScore =
     movie.imdb_rating && movie.imdb_rating !== "N/A" ? movie.imdb_rating : "—";
 
@@ -278,11 +269,10 @@ export default function Movie() {
 
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
-          {/* Header & Titles */}
+          {/* Header & Titles. No eyebrow above the title: type, status and
+              runtime are each on the Information card, and the breadcrumb
+              names the type. */}
           <header>
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
-              {eyebrow}
-            </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
@@ -389,14 +379,17 @@ export default function Movie() {
                 fields={[
                   [
                     { label: "本傳 / 外傳", value: movie.is_main },
-                    { label: "Release Status", value: movie.release_status },
+                    { label: "Movie Type", value: movie.movie_type },
+                  ],
+                  [
+                    {
+                      label: "Director",
+                      value: creditValue(movie, "director", movie.director),
+                    },
                     { label: "Runtime", value: formatLength(movie.length_min) },
                   ],
-                  {
-                    label: "Director",
-                    value: creditValue(movie, "director", movie.director),
-                  },
                   [
+                    { label: "Release Status", value: movie.release_status },
                     { label: "Release Date TW", value: movie.release_date_tw },
                     { label: "Release Date USA", value: movie.release_date_usa },
                   ],
