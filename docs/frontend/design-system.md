@@ -319,8 +319,12 @@ filter chips, `brand` on the current one, scrolling sideways inside itself;
 pinned under the nav on a detail page, unpinned on the dashboard, whose own
 sticky headers already hold that strip.
 
+The anime movie page draws no eyebrow line: its type, release status, runtime
+and date are each on the Information card, and the breadcrumb names the type.
+
 A detail page's cover carries **no spine strip** - neither the type, which the
-breadcrumb and the eyebrow line already name, nor the entry's id. That holds
+breadcrumb (and the eyebrow line, where there is one) already names, nor the
+entry's id. That holds
 for every detail page: the twelve media types, the collection, franchise and
 series hubs (`HeroCover`), and the person, studio, publisher, character and
 identity pages.

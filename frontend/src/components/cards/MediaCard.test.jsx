@@ -325,27 +325,8 @@ describe("MediaCard - which outside score the card shows", () => {
   });
 });
 
-// A TV show's library line is the release date and the airing status, as a
-// cartoon's leads with its date. The season is not on the card.
-describe("MediaCard — TV show library line", () => {
-  it("shows the release date beside the airing status, not the season", async () => {
-    mockAuthFetch();
-    const { container } = mount(
-      {
-        system_id: "t1",
-        tv_name_cn: "七王國的騎士",
-        season_part: "Season 1",
-        release_date: "2026-01-18",
-        airing_status: "Finished Airing",
-      },
-      "tv-show",
-    );
-    await screen.findByText("七王國的騎士");
-    expect(screen.getByText("2026-01-18")).toBeInTheDocument();
-    expect(screen.getByText("Finished Airing")).toBeInTheDocument();
-    expect(container.textContent).not.toContain("Season 1");
-  });
-
+// A TV show's meta line leads with its release date, TBD when it has none.
+describe("MediaCard — TV show date", () => {
   it("shows TBD when the show has no release date", async () => {
     mockAuthFetch();
     mount(
@@ -564,10 +545,10 @@ describe("MediaCard spine", () => {
   });
 });
 
-// The hub variant: the franchise and series hubs' tabs. Every case mounts the
-// same entry in the library variant too, so a pass shows the hub variant did
-// the moving and the library card is untouched.
-describe("MediaCard - the hub variant", () => {
+// The one card look the libraries and a franchise's or series' entry tabs
+// share: the outside score on the meta line, the TV show's region and the
+// game's type at the cover's top left, no region on a manga, book or h-comic.
+describe("MediaCard - the library and franchise card layout", () => {
   const atTopLeft = (el) =>
     el.className.includes("top-1") && el.className.includes("left-1");
 
@@ -581,18 +562,12 @@ describe("MediaCard - the hub variant", () => {
       release_date_tw: "2024-03-01",
       release_date_usa: "2024-02-20",
     };
-    mount(movie, "movie", false, "hub");
+    mount(movie, "movie", false);
     const score = await screen.findByTitle("IMDb score");
     expect(score).toHaveTextContent("7.4");
     expect(atTopLeft(score)).toBe(false);
     expect(screen.getByText("2024-03-01")).toBeInTheDocument();
     expect(screen.getByText("2hr 5min")).toBeInTheDocument();
-  });
-
-  it("leaves the library movie card's IMDb stamp on the cover", async () => {
-    mockAuthFetch();
-    mount({ system_id: "mv1", movie_name_en: "Film", imdb_rating: "7.4" }, "movie");
-    expect(atTopLeft(await screen.findByTitle("IMDb score"))).toBe(true);
   });
 
   it("shows an anime movie's JP date first, its MAL score and its runtime", async () => {
@@ -608,7 +583,6 @@ describe("MediaCard - the hub variant", () => {
       },
       "anime-movie",
       false,
-      "hub",
     );
     const score = await screen.findByTitle("MAL score");
     expect(score).toHaveTextContent("8.2");
@@ -631,7 +605,6 @@ describe("MediaCard - the hub variant", () => {
       },
       "tv-show",
       false,
-      "hub",
     );
     expect(atTopLeft(await screen.findByText("US"))).toBe(true);
     expect(atTopLeft(screen.getByTitle("IMDb score"))).toBe(false);
@@ -645,15 +618,9 @@ describe("MediaCard - the hub variant", () => {
     ["book", { book_name_en: "Novel", region: "日漫" }],
   ])("draws no region on a %s cover", async (type, fields) => {
     mockAuthFetch();
-    mount({ system_id: "x1", ...fields }, type, false, "hub");
+    mount({ system_id: "x1", ...fields }, type, false);
     await screen.findByRole("link");
     expect(screen.queryByText("日漫")).toBeNull();
-  });
-
-  it("still draws the region on a library manga cover", async () => {
-    mockAuthFetch();
-    mount({ system_id: "x1", manga_name_en: "Comic", region: "日漫" }, "manga");
-    expect(await screen.findByText("日漫")).toBeInTheDocument();
   });
 
   it("puts a game's type top left, its date over the hours, and both Metacritic figures", async () => {
@@ -670,7 +637,6 @@ describe("MediaCard - the hub variant", () => {
       },
       "game",
       false,
-      "hub",
     );
     expect(atTopLeft(await screen.findByText("DLC"))).toBe(true);
     const date = screen.getByText("2024-06-21");
@@ -684,12 +650,5 @@ describe("MediaCard - the hub variant", () => {
     // The date line sits above the hours row.
     const hours = screen.getByText(/^h$/i);
     expect(date.compareDocumentPosition(hours) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-
-  it("draws no game type on a library game cover", async () => {
-    mockAuthFetch();
-    mount({ system_id: "g1", game_name_en: "Game", game_type: "DLC" }, "game");
-    await screen.findByText("Game");
-    expect(screen.queryByText("DLC")).toBeNull();
   });
 });

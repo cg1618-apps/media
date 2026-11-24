@@ -1,18 +1,19 @@
-// Ordered name fields per media type (for naming displays).
+// Ordered name fields per media type (for naming displays). Japanese sits
+// above Romaji: the romanisation reads as a gloss on the native name.
 
 export const NAMING_CONFIGS = {
   anime: [
     "anime_name_cn",
     "anime_name_en",
-    "anime_name_roman",
     "anime_name_jp",
+    "anime_name_roman",
     "anime_name_alt",
   ],
   "anime-movie": [
     "anime_movie_name_cn",
     "anime_movie_name_en",
-    "anime_movie_name_roman",
     "anime_movie_name_jp",
+    "anime_movie_name_roman",
     "anime_movie_name_alt",
   ],
   movie: ["movie_name_cn", "movie_name_en", "movie_name_alt"],
@@ -21,15 +22,15 @@ export const NAMING_CONFIGS = {
   manga: [
     "manga_name_cn",
     "manga_name_en",
-    "manga_name_roman",
     "manga_name_jp",
+    "manga_name_roman",
     "manga_name_alt",
   ],
   book: [
     "book_name_cn",
     "book_name_en",
-    "book_name_roman",
     "book_name_jp",
+    "book_name_roman",
     "book_name_alt",
   ],
   // CN first on the naming card, like every other type. The display and
@@ -40,8 +41,8 @@ export const NAMING_CONFIGS = {
   game: [
     "game_name_cn",
     "game_name_en",
-    "game_name_roman",
     "game_name_jp",
+    "game_name_roman",
     "game_name_alt",
   ],
   // CN first like every AniManga type. The fourth name is the region's own: JP
@@ -57,23 +58,23 @@ export const NAMING_CONFIGS = {
   "h-game": [
     "h_game_name_cn",
     "h_game_name_en",
-    "h_game_name_roman",
     "h_game_name_jp",
+    "h_game_name_roman",
     "h_game_name_alt",
   ],
   // anime's five, in anime's order.
   hentai: [
     "hentai_name_cn",
     "hentai_name_en",
-    "hentai_name_roman",
     "hentai_name_jp",
+    "hentai_name_roman",
     "hentai_name_alt",
   ],
   collection: [
     "collection_name_cn",
     "collection_name_en",
-    "collection_name_roman",
     "collection_name_jp",
+    "collection_name_roman",
     "collection_name_alt",
   ],
   franchise: [

@@ -224,6 +224,21 @@ caller gets parent chips with no extra wiring. A parent with no children is
 not drawn. The character, person and studio libraries use it for
 **Restricted** over the gated media types.
 
+A set-type def may carry `optionHint(value)`: the chip's hover `title`. The
+watch libraries' Watch Status uses it to list the stored statuses each chip
+includes (`watchStatusFilter` in `lib/libraryFilterDefs.js`).
+
+A def flagged `advanced: true` is drawn in the **advanced section** instead,
+after every ordinary def, behind an **Advanced filters** toggle
+(`aria-expanded`) that opens collapsed each time the panel mounts — so every
+visit to a library opens on the ordinary filters. While collapsed, the
+toggle counts the chips switched on inside it, so a narrowing the viewer
+cannot see is never a silent one; Clear all empties those too. An advanced
+`set-dynamic` def with no chips is left out, and with none left there is no
+toggle. Every media-type library puts its tag filters there (pages.md,
+"Library"); the random picker drops advanced defs, and the entity libraries
+have none.
+
 ## The `personal` flag
 
 A FilterDef, SortDef or table column in a library config
@@ -270,7 +285,11 @@ columns.
   `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
   themselves, see [The `personal` flag](#the-personal-flag)),
   `GroupedEntryPage`, `CollapsibleCardGrid`,
-  `AdminTabBar`, `FittedName`, `TierBadge`, and the in-page contents:
+  `AdminTabBar`, `AdminActions` (the media-type detail pages' admin strip:
+  a `start` group at the left end and an `end` group at the right end,
+  which wraps to its own line on a narrow screen and stays right-aligned;
+  no caption - see [pages.md](pages.md#detail-pages--typesystem_id)),
+  `FittedName`, `TierBadge`, and the in-page contents:
   `TableOfContents`, `ContentsBar` and `DetailContents` (see
   [In-page table of contents](#in-page-table-of-contents)).
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs` (an
@@ -288,12 +307,12 @@ columns.
   recorded), rendered only when at least one of the two exists; for an h-comic it is
   `progressFor(entry)` - pages on JP, chapters on KR, nothing without a
   region; for an h-game, which records no playtime, it is achievements
-  earned against the total, drawn only when there is a total, and its meta
-  line is the play style and language; a hentai, one entry being one
+  earned against the total, drawn only when there is a total; a hentai, one entry being one
   episode, has no progress line, and its meta line is the release year and
-  airing status; a TV show's meta line is its release date (`TBD` without
-  one) and airing status - the season is not on the card. `variant="hub"` is the
-  franchise and series hubs' card, whose per-type differences are tabled in
+  airing status. Every card but `variant="future"` has one look, shared by
+  the libraries and the franchise and series hubs' entry tabs: the films, the
+  TV show and the games read `CardMeta` and every other type `LibraryMeta`,
+  and each type's layout is tabled in
   [pages.md](pages.md#hubs--franchiseid-seriesid-collectionid). On `variant="future"` the status
   select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
   bolt from `BOLT_RELEASE`, which names the column that says a title is still
@@ -301,8 +320,8 @@ columns.
   movie, an anime movie or a game. A film's select offers Watch When Released
   where the airing types offer Watch When Airs, and its bolt writes
   `release_status: "Released"` and moves the viewer's own `Watch When
-  Released` to `Active Watching`, any other status left alone. Its outside-score slot — the meta-line figure on anime, manga and
-  book, the cover stamp on an anime movie — reads whichever column
+  Released` to `Active Watching`, any other status left alone. Its outside-score slot — the meta-line figure on anime, manga,
+  book and anime movie — reads whichever column
   `scoreField` names, defaulting to `mal_rating`, so a library sorted by an
   AniList figure can point every card at `anilist_rating` instead),
   `PlatformIcons` (an entry's available `main` access platforms — 動畫瘋,
@@ -361,7 +380,7 @@ columns.
   `Chip` otherwise. An axis marked `{ personal: true }` - usefulness, a list
   field - follows `canTrack` instead: a select written through `onOwnChange`
   (`/api/me`) for a holder of `self.list`, absent for anyone else),
-  `MarkReleaseButton` (the editor toolbar's release step; with `canTrack`
+  `MarkReleaseButton` (the admin actions' release step; with `canTrack`
   false it carries none of the viewer's own fields - see
   `RELEASE_PERSONAL_FIELDS` in `lib/releaseAction.js`), `WeeklySchedule`,
   `ComingNext` (the dashboard's next-season block; its selection is the pure
@@ -490,7 +509,11 @@ columns.
   for a `steamLink` alone, so a game whose only place to play is its Steam
   page still gets one; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
   beside it the same way, as "DLsite (JP)" / "DLsite (TW)" — and the tag-field props (`originalSource`,
-  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — one
+  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — except
+  an `exclusiveSource` that names one of the `main` access rows, which moves that
+  row to the head of its section as "Netflix (Exclusive)" (the icon still looked
+  up by the bare name) and is not drawn as a chip too; one no row matches keeps
+  its chip — one
   component composing from both the `media_source` table and the surviving
   columns/tag fields, per the guiding rule in
   [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).

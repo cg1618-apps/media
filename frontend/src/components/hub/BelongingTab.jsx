@@ -92,7 +92,6 @@ export default function BelongingTab({
     <MediaCard
       key={e.system_id}
       type={type}
-      variant="hub"
       data={e}
       onUpdated={onUpdated}
     />

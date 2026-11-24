@@ -7,6 +7,15 @@ import {
   H_GAME_H_PRESENTATIONS,
   H_GAME_PLATFORMS,
 } from "../config/fieldOptions";
+import { exclusiveSourceValue } from "./exclusiveSource";
+
+// The exclusive source rides with the sources in the entry write, so the
+// server checks the rule tying them on the state that one write leaves. Left
+// out while the form has not loaded it, so an early save cannot clear it.
+function exclusiveSourceField(form) {
+  const value = exclusiveSourceValue(form);
+  return value === undefined ? {} : { exclusive_source: value || null };
+}
 
 // Which form fields feed the credits endpoint for each media type, and what
 // credit role / tag field key they map to there. Mirrors
@@ -284,6 +293,7 @@ export function buildAnimeMoviePayload(amf, { franchiseId } = {}) {
     mal_id: amf.mal_id !== "" ? parseInt(amf.mal_id) : null,
     mal_link: amf.mal_link || null,
     sources: sourcesPayload(amf.sources),
+    ...exclusiveSourceField(amf),
     is_pinged: !!amf.is_pinged,
     watch_next: amf.watch_next ?? null,
     to_rewatch: amf.to_rewatch ?? false,
@@ -341,6 +351,7 @@ export function buildAnimePayload(af, { franchiseId, seriesId } = {}) {
     mal_id: af.mal_id !== "" ? parseInt(af.mal_id) : null,
     mal_link: af.mal_link || null,
     sources: sourcesPayload(af.sources),
+    ...exclusiveSourceField(af),
     is_pinged: !!af.is_pinged,
     watch_next: af.watch_next ?? null,
     cover_image_file: af.cover_image_file || null,

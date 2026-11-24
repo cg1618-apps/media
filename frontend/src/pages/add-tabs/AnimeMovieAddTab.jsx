@@ -35,6 +35,7 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
+import ExclusiveSourceHint from "../../components/forms/ExclusiveSourceHint";
 
 export { defaultAnimeMovie } from "../../config/formFactories";
 
@@ -269,6 +270,7 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
           { limit: null, max: 1 },
         )}
       </div>
+      <ExclusiveSourceHint form={f} />
       <SourcesEditor
         value={f.sources}
         onChange={(rows) => u("sources", rows)}

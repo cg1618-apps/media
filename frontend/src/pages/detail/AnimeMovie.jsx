@@ -5,6 +5,7 @@ import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import AdminActions from "../../components/layout/AdminActions";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
@@ -164,15 +165,6 @@ export default function AnimeMovie() {
   const isOna = movie.release_type === "ONA";
   const onaDate = movie.release_date_jp || movie.release_date_tw;
 
-  const eyebrow = [
-    "Anime movie",
-    movie.release_status,
-    formatLength(movie.length_min),
-    isOna ? onaDate : movie.release_date_jp,
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
-
   return (
     <DetailContents>
       {/* Breadcrumb: a catalogue path, set in mono */}
@@ -201,39 +193,42 @@ export default function AnimeMovie() {
 
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
-        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <Eyebrow className="text-[11px] text-text-muted">
-            Admin
-          </Eyebrow>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/modify?id=${system_id}`)}>
-              Edit
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!isAdmin) return;
-                try {
-                  const res = await fetch(endpoints.resource("anime-movie").complete(system_id), {
-                    method: "POST",
-                    credentials: "include",
-                  });
-                  if (!res.ok) throw new Error("Request failed");
-                  showToast("success", "Marked as Completed!");
-                  await invalidateMedia();
-                  await fetchMediaItem();
-                } catch {
-                  showToast("error", "Update failed");
-                }
-              }}
-            >
-              Mark completed
-            </Button>
-            <MarkReleaseButton type="anime-movie" entry={movie} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
-              {autofilling ? "Autofilling…" : "Autofill & update"}
-            </Button>
-          </div>
-        </div>
+        <AdminActions
+          start={
+            <>
+              <Button onClick={() => navigate(`/modify?id=${system_id}`)}>
+                Edit
+              </Button>
+              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                {autofilling ? "Autofilling…" : "Autofill & update"}
+              </Button>
+            </>
+          }
+          end={
+            <>
+              <MarkReleaseButton type="anime-movie" entry={movie} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+              <Button
+                onClick={async () => {
+                  if (!isAdmin) return;
+                  try {
+                    const res = await fetch(endpoints.resource("anime-movie").complete(system_id), {
+                      method: "POST",
+                      credentials: "include",
+                    });
+                    if (!res.ok) throw new Error("Request failed");
+                    showToast("success", "Marked as Completed!");
+                    await invalidateMedia();
+                    await fetchMediaItem();
+                  } catch {
+                    showToast("error", "Update failed");
+                  }
+                }}
+              >
+                Mark completed
+              </Button>
+            </>
+          }
+        />
       )}
 
       {/* Main Grid: 4 columns */}
@@ -279,10 +274,10 @@ export default function AnimeMovie() {
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
           {/* Header & Titles */}
+          {/* No eyebrow above the title: type, status, runtime and date are
+              each on the Information card, and the breadcrumb names the
+              type. */}
           <header>
-            <div className="font-mono text-[11px] text-text-muted mb-3">
-              {eyebrow}
-            </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
@@ -363,19 +358,15 @@ export default function AnimeMovie() {
               <InfoCard
                 title="Information"
                 fields={[
+                  // Runtime sits right of Release Type on every release.
                   [
                     { label: "Release Status", value: movie.release_status },
                     { label: "Release Type", value: movie.release_type },
+                    { label: "Runtime", value: formatLength(movie.length_min) },
                   ],
                   ...(isOna
-                    ? [
-                        [
-                          { label: "Release Date", value: onaDate },
-                          { label: "Runtime", value: formatLength(movie.length_min) },
-                        ],
-                      ]
+                    ? [{ label: "Release Date", value: onaDate }]
                     : [
-                        { label: "Runtime", value: formatLength(movie.length_min) },
                         [
                           { label: "Release Date JP", value: movie.release_date_jp },
                           { label: "Release Date TW", value: movie.release_date_tw },

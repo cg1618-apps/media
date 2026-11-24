@@ -610,7 +610,10 @@ on its default, which is what the eight types with no AniList figure do.
 
 Filter types: `set` (static `options`), `set-dynamic` (options derived from
 the data), `set-grouped` (group labels mapped through `WATCHING_STATUS_GROUP`
-/ `READING_STATUS_GROUP`), `boolean` (checkbox). Top bar: search, "Sort:"
+/ `READING_STATUS_GROUP`), `boolean` (checkbox; no library config has one,
+the machinery stays for the FilterDef shape). A set-type def may carry
+`optionHint(value)`, the chip's hover title, and any def `advanced: true`,
+which puts it in the collapsed advanced section. Top bar: search, "Sort:"
 select, Filters button with an active-count badge, grid/table toggle, result
 count. Table rows link to `${config.navPath}/${id}`; table cells receive
 `{ franchiseDict, seriesDict, canTrack, handleStatusToggle }`, and
@@ -659,8 +662,8 @@ viewer. In the table below the personal defs are marked *(p)*.
 
 | Type | Series? | Filters (key: type) | Sorts | Table columns |
 |---|---|---|---|---|
-| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped *(p)* · bahaOnly: boolean | title (franchise→series→entry), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`) *(p)*, my *(p)*, mal, studio, baha, watch *(p)* |
-| anime-movie | no | airingStatus · watchingStatus *(p)* · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my *(p)*, mal, studio, director, baha, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| anime | yes | airingType: set (TV/Movie/ONA/OVA/OAD/Special) · airingStatus: set (Not Yet Aired/Airing/Finished Airing/Canceled) · watchingStatus *(p)* | title (franchise→series→entry), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`) *(p)*, my *(p)*, mal, studio, baha, watch *(p)* |
+| anime-movie | no | releaseStatus: set (`FILM_RELEASE_STATUSES`) · releaseType: set (`ANIME_MOVIE_RELEASE_TYPES`: Cinema/ONA; the column is never empty, so no Not set chip) · watchingStatus *(p)* | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my *(p)*, mal, studio, director, baha, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus *(p)* | title, release_date (year of `release_date_usa` only), my_rating *(p)*, imdb_rating | franchise, title, status, my *(p)*, imdb, director, release, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | tv-show | no | airingStatus · watchingStatus *(p)* · region: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
@@ -668,6 +671,42 @@ viewer. In the table below the personal defs are marked *(p)*.
 | book | yes | serializationStatus · readingStatus *(p)* · region · type: set-dynamic | title, release_date (jp→tw), end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getBookProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | comic | yes | comicType: set-dynamic · readingStatus *(p)* · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
 | game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) *(p)* · ownership: set-dynamic *(p)* · releaseStatus: set-dynamic | title (EN-first, `getSortName`), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating *(p)* | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
+
+Every library's filters end in an **advanced section** — tag filters, drawn
+by `FilterPanel` behind a collapsed **Advanced filters** toggle (see
+`components.md`, "FilterPanel"). They are catalogue filters, built by
+`tagFilter` in `lib/libraryFilterDefs.js`: `set-dynamic` over a `", "`-joined
+tag link field, chips the values the library holds, an entry matching when
+it carries any chosen value. Exclusive Source comes first where a type has
+it:
+
+| Type | Advanced filters (response attribute) |
+|---|---|
+| anime, anime-movie | Exclusive Source (`exclusive_source`) · Genre Main (`genre_main`) · Genre Sub (`genre_sub`) · 標籤 Label (`label`) |
+| movie | Exclusive Source (`original_source`, the field a movie labels Exclusive Source) · Genre Main · Genre Sub · 標籤 Label |
+| tv-show, cartoon, manga, book, comic | Genre Main · Genre Sub · 標籤 Label |
+| game | Genre (`game_genre`) · Theme (`game_theme`) · 標籤 Label (`label`) |
+| h-game | Genre (`game_genre`) · Theme (`game_theme`) · Genre Plot (`h_genre_plot`) · Genre Appearance (`h_genre_appearance`) · Genre Relation (`h_genre_relation`) |
+| h-comic, hentai | Genre Plot · Genre Appearance · Genre Relation |
+
+TV Show's and Cartoon's `original_source` is an Original Source, not an
+exclusive one, so neither has an Exclusive Source filter; Cartoon keeps it
+in its ordinary section as officialSource.
+
+**Watch Status is one def on all six watch libraries** — anime, anime
+movie, movie, TV show, cartoon and hentai — `watchStatusFilter(type)` in
+`lib/libraryFilterDefs.js`. Its chips run Might Watch, Planned, Watching,
+Completed, Dropped, each a group of stored statuses through
+`WATCHING_STATUS_GROUP`, and each chip's hover title (`optionHint`) lists the
+statuses it includes in that type's vocabulary (`watchingStatusesFor`):
+
+| Chip | Includes |
+|---|---|
+| Might Watch | Might Watch, and a row with no status |
+| Planned | Plan to Watch, Watch When Airs (airing types) or Watch When Released (movie, anime movie) |
+| Watching | Active Watching, Passive Watching, Paused |
+| Completed | Completed, Completed (解說) |
+| Dropped | Temp Dropped, Dropped, Won't Watch |
 
 **My Rating breaks a tie on the type's public score, then on the title**
 (`myRatingSort({ publicScore, title })` in `libraryColumns.jsx`): MAL for
@@ -1272,7 +1311,7 @@ row, the counts and the totals from one list of
 group-by-series default; `applyView`, `defaultView`, `isFiltered`) and
 `hooks/useHubTabViews.js`, which keeps each tab's view at page level so a
 tab's filters survive switching away and back. Cards are
-`MediaCard variant="hub"`. Every sort falls back to the type's title order,
+`MediaCard`, the same card the libraries draw. Every sort falls back to the type's title order,
 and "Sort: my rating" is offered only with `self.list`. Each strip ends with
 "Clear all", which resets that tab's filters (not its sort or grouping).
 
@@ -1280,18 +1319,18 @@ Every tab but Game and H-Game has a **Completed** All / Yes / No control
 (`components/hub/TriStateFilter.jsx`, default All; Yes is a status in
 `COMPLETED_STATUSES`) in place of status pills. Per type:
 
-| Tab | Sorts (default first) | Filters besides Completed | Card |
+| Tab | Sorts (default first) | Filters besides Completed | Card (here and in the library) |
 |---|---|---|---|
-| Anime | release date, title, my rating, MAL | airing type (TV, Movie, ONA, OVA, Special) | as the library |
-| Hentai | release date, title, my rating | none (no `airing_type` column) | as the library |
+| Anime | release date, title, my rating, MAL | airing type (TV, Movie, ONA, OVA, Special) | no type-specific layout |
+| Hentai | release date, title, my rating | none (no `airing_type` column) | no type-specific layout |
 | Anime Movie | release date, title, my rating, MAL | none | JP date first, MAL score to its right, runtime (`length_min`) below; no cover stamp |
 | Movie | release date, title, my rating, IMDb | none | TW date first, IMDb score to its right, runtime below; no cover stamp |
 | Manga | release date, title, my rating, MAL, end date | serialization, region | no region tag on the cover |
 | H-Comic | release date, title, my rating | none | no region tag on the cover |
 | Book | title, my rating, MAL, release date, end date | **小說** All / Yes / No (Yes = `type` 輕小說, 小說 or 網路小說; No = anything else, untyped included) | no region tag on the cover |
-| Comic | franchise hub: release date, title, my rating; series hub: title, my rating, release date, end date | franchise hub: comic type, era; series hub: serialization | as the library |
+| Comic | franchise hub: release date, title, my rating; series hub: title, my rating, release date, end date | franchise hub: comic type, era; series hub: serialization | no type-specific layout |
 | TV Show | release date, title, my rating, IMDb | none | region top-left, IMDb right of the release date, no airing status |
-| Cartoon | release date, title, my rating, IMDb | airing type | as the library |
+| Cartoon | release date, title, my rating, IMDb | airing type | no type-specific layout |
 | Game | release date, title, my rating, Metacritic, Metacritic user, hours played | completion level — Main Story, Main + Extras, Completionist, Post-game, Not completed (`completion_level` empty) — **instead of** Completed; game type chips from the types the list holds, in vocabulary order | game type top-left on the cover, release date above the play-hours row, Metacritic and Metacritic user stacked on the right |
 | H-Game | release date, title, my rating | as Game | game type top-left, release date in place of the play-style line; no Metacritic (no such columns) |
 
@@ -1382,9 +1421,16 @@ Top to bottom:
    with its note while the entry is marked Needs Work, dashed **+ 待補充**
    while it is not - which opens the mark-and-note control
    ([admin-pages.md](admin-pages.md#needs-work-needsworkjsx)).
-2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
-   **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
-   the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
+2. **Admin actions** (`isAdmin`), the dashed strip
+   `components/layout/AdminActions.jsx` draws, with no caption. It has two
+   groups: at the left end the editing actions, **Edit** then **Autofill &
+   update**; at the right end the status steps, the release button then
+   **Mark completed**, which is always last. On a narrow screen the right
+   group wraps to a line of its own and stays right-aligned. Every page
+   passes its own buttons and handlers; the strip owns only the layout.
+   **Edit** → `/modify?id={id}`; **Autofill & update** runs the type's
+   single-entry fill; **Mark completed** → `POST {apiEndpoint}/{id}/complete`
+   then refetch; the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
    in `lib/releaseAction.js`) moves the entry one step along its release
    axis, and is absent when there is no next step. It is the one control
    that edits the work and the viewer's row together, so `saveRelease` (from
@@ -1428,7 +1474,7 @@ Top to bottom:
    Airing Status, in the Information card - neither page draws an eyebrow
    line above the title - and their
    status picker offers **Watch When Released** where the airing types offer
-   Watch When Airs. Anime Movie also shows **Release Type** (Cinema / ONA).
+   Watch When Airs. Anime Movie also shows **Release Type** (Cinema / ONA), directly below Watch Status.
    An ONA has one release date: its Information card shows one **Release
    Date** row (`release_date_jp`, falling back to `release_date_tw`) in
    place of the JP and TW rows, and the release dialog asks for that one
@@ -1541,7 +1587,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 `is_pinged`, `read_next`, `to_reread`); Book uses `components/tracker/BookTrackerBlock`
 (`ch_fin/vol_fin/arc_fin` by `progress_display`, and the Pinged checkbox); H-Comic and Hentai use the
 local blocks described below. All take `canTrack` and draw nothing without
-it. **Mark completed** stays in the editor's toolbar: `POST /{id}/complete`
+it. **Mark completed** stays in the admin actions: `POST /{id}/complete`
 asks `manage.catalog` and also writes the work's airing status. A list
 holder who is not an editor finishes an entry by choosing Completed in the
 status select, which goes through `/api/me/list`.
@@ -1550,8 +1596,8 @@ status select, which goes through `/api/me/list`.
 
 | Page | Information card | Production card | Extras |
 |---|---|---|---|
-| Anime | in rows: 本傳/外傳, Original / Remake, Season Part, Special Episodes; Airing Type/Status, Total Episodes (with cumulative), Runtime (min); Release Season, Release Date JP/TW; then Genre main, Genre sub and 標籤 Label a row each | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder |
-| AnimeMovie | Airing Status, Runtime, Release Date JP/TW, Genre main/sub, 標籤 Label | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder |
+| Anime | in rows: 本傳/外傳, Airing Type, Season Part, and Original / Remake for a remake alone (an original says nothing); Airing Status, Total Episodes (with cumulative), Runtime (min); Release Season, Release Date JP/TW; then Genre main, Genre sub and Label a row each. Season Part carries a special's episode after it - `Season 2 第13集` from `season_part` and `ep_special`, `第13集` alone when there is no season part - and there is no Special Episodes row | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
+| AnimeMovie | in rows: Release Status, Release Type, Runtime; Release Date (an ONA) or Release Date JP/TW; then Genre main, Genre sub and 標籤 Label a row each | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder; no eyebrow line above the title; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
 | Movie | 本傳/外傳 and Movie Type; Director and Runtime; Release Status, Release Date TW and USA - three rows | — | **Genres** card (`GenresCard`); inline IMDb score block; no eyebrow line above the title |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Type/Status, Release Date, Runtime (min) | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
 | Cartoon | + Airing Type, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
@@ -1583,8 +1629,8 @@ tag, and the MAL link and the E-Hentai gallery (`ehentaiLink`, tag "EH")
 under "Where to Look Up"; `RelationsSection`; a **Cast** slip, the shared
 `CastSection` (characters only - an h-comic casting never carries a seiyuu);
 the series number beside the
-series link on JP. The admin toolbar has Edit, Mark completed and
-**Autofill & update**, which runs `POST /replace/h-comic/{id}` - Tenrai's
+series link on JP. **Autofill & update** in the admin actions runs
+`POST /replace/h-comic/{id}` - Tenrai's
 manga record, then the E-Hentai gallery's cover and illustrator where still
 blank, all fill-only.
 
@@ -1651,9 +1697,8 @@ Material, Originality, Airing Status, Release Date, Episodes), **Credits** (Stud
 Credits and Genres - the shared `CastSection`, characters with "voiced by"
 every seiyuu, from `useCasting("hentai", …)`, drawn only when the entry has a
 cast. The series number sits beside the series link. The left
-column carries `SourcesCard` with `malLink` and `anidbLink` and `RelationsSection`. The admin
-toolbar has Edit, Mark completed and **Autofill & update**, the
-single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing
+column carries `SourcesCard` with `malLink` and `anidbLink` and `RelationsSection`. **Autofill & update**
+in the admin actions is the single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing
 status, release date, episode count, cover and the Official site / Twitter
 reference rows,
 each only where blank, AniDB only for what MAL left blank).
@@ -2086,7 +2131,10 @@ mode starts over from that mode's defaults, with no pick.
   newest first, Unknown last). A gated type the session may see is in the
   pool like any other; untick it with the media-type chips.
 - **One type** (`/random/<type>`) fetches only that type and offers its
-  library page's own `filterDefs`, then my rating and release decade.
+  library page's own `filterDefs` without the advanced section (the
+  picker's own Genre covers the genre), then my rating and release decade.
+  A stored default naming a filter the library no longer has (the retired
+  `bahaOnly` 動畫瘋 toggle) is dropped on read by `resolveDefaultFilters`.
 - **Franchise** (`/random/franchise`) draws a franchise, not an entry. It
   fetches every franchise and every visible type's list; the lists give each
   franchise its cover (the franchise library's `getFranchiseCover`) and say

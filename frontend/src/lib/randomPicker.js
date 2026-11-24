@@ -284,10 +284,13 @@ function forEntries(fd) {
 
 /**
  * One type's defs: its library filters, then my rating, release decade and,
- * where the type has them, genre and external score.
+ * where the type has them, genre and external score. The library's advanced
+ * section (exclusive source, the genre and label tags) is left out: the
+ * picker's own Genre covers the genre, and its panel stays the short one it
+ * has always been.
  */
 export function typeFilterDefs(type) {
-  const libraryDefs = LIBRARY_CONFIGS[type]?.filterDefs ?? [];
+  const libraryDefs = (LIBRARY_CONFIGS[type]?.filterDefs ?? []).filter((fd) => !fd.advanced);
   return [
     ...libraryDefs.map(forEntries),
     ratingDef,

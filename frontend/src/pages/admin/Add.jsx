@@ -76,6 +76,7 @@ import {
 import { genreLabelSourceFields } from "../../lib/genreLabelFields";
 import { useReplaceCasting } from "../../hooks/useCasting";
 import { castIdentityProblem } from "../../lib/castOrder";
+import { exclusiveSourceProblem } from "../../lib/exclusiveSource";
 import MangaAddTab, { defaultManga } from "../add-tabs/MangaAddTab";
 import BookAddTab, { defaultBook } from "../add-tabs/BookAddTab";
 import ComicAddTab, { defaultComic } from "../add-tabs/ComicAddTab";
@@ -639,6 +640,15 @@ export default function Add() {
     const castProblem = castForm && castIdentityProblem(castForm.cast);
     if (castProblem) {
       showToast("warning", castProblem);
+      return;
+    }
+    // The exclusive source needs its platform among the Main Sources,
+    // marked Available - the server refuses the save otherwise.
+    const exclusiveForm = { anime: af, "anime-movie": amf }[activeTab];
+    const exclusiveProblem =
+      exclusiveForm && exclusiveSourceProblem(exclusiveForm);
+    if (exclusiveProblem) {
+      showToast("warning", exclusiveProblem);
       return;
     }
     setSubmitting(true);

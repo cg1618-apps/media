@@ -136,8 +136,16 @@ export function accessHeading(mediaType) {
 // so the browser draws it from cache and nothing is stored twice. An entry
 // with no cover leaves the slot empty rather than shrinking the "No Image"
 // placeholder into it.
-function SourceEntry({ row, coverUrl }) {
-  const name = <span data-testid="source-name">{row.name}</span>;
+//
+// `exclusive` marks the row the entry's exclusive source names. The mark is
+// appended to the shown name only, so the icon is still looked up by the
+// vocabulary value.
+function SourceEntry({ row, coverUrl, exclusive = false }) {
+  const name = (
+    <span data-testid="source-name">
+      {exclusive ? `${row.name} (Exclusive)` : row.name}
+    </span>
+  );
   const isMain = row.bucket === "main";
   const cover =
     isMain &&
@@ -204,11 +212,28 @@ export default function SourcesCard({
 }) {
   // Never re-sort - the server already ordered these by `position`
   // (vocabulary sort_order for `main` rows, insertion order for `other`/
-  // `restricted` rows).
-  const accessRows = sources.filter((row) => row.kind === "access");
+  // `restricted` rows). The one exception is the main access row the
+  // exclusive source names, which leads its section.
+  const allAccessRows = sources.filter((row) => row.kind === "access");
   const referenceRows = sources.filter((row) => row.kind === "reference");
 
-  const tags = tagValues(originalSource, exclusiveSource, serializationPlatform);
+  const exclusiveName = (exclusiveSource || "").trim();
+  const exclusiveRow = exclusiveName
+    ? allAccessRows.find(
+        (row) => row.bucket === "main" && row.name === exclusiveName,
+      ) || null
+    : null;
+  const accessRows = exclusiveRow
+    ? [exclusiveRow, ...allAccessRows.filter((row) => row !== exclusiveRow)]
+    : allAccessRows;
+
+  // A matched exclusive source is said by its row, so it is not a tag too.
+  // One with no row - stored before the rule required one - stays a tag.
+  const tags = tagValues(
+    originalSource,
+    exclusiveRow ? null : exclusiveSource,
+    serializationPlatform,
+  );
 
   // The storefront links are column-backed rather than source rows: Steam on
   // games and h-games, and an h-game's two DLsite pages.
@@ -252,7 +277,12 @@ export default function SourcesCard({
             {accessHeading(mediaType)}
           </div>
           {accessRows.map((row) => (
-            <SourceEntry key={row.system_id} row={row} coverUrl={coverUrl} />
+            <SourceEntry
+              key={row.system_id}
+              row={row}
+              coverUrl={coverUrl}
+              exclusive={row === exclusiveRow}
+            />
           ))}
           {/* A storefront, not a reference database - so it sits with the
               access rows rather than beside IGDB. It is column-backed

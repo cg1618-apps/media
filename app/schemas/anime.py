@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 from app.schemas.image_focus import ImageFocus
 from app.schemas.link_fields import AnimeLinkFields
 from app.schemas.release_date_field import release_date_validator
-from app.schemas.sources import SourceWriteFields
+from app.schemas.sources import ExclusiveSourceWriteFields, SourceWriteFields
 from app.utils.constants import ANIME_ORIGINAL_OR_REMAKE
 from app.utils.ep_special import normalize_ep_special
 
@@ -101,11 +101,11 @@ class AnimeWriteChecks(BaseModel):
         return normalize_ep_special(v)
 
 
-class AnimeCreate(AnimeWriteChecks, AnimeBase, SourceWriteFields):
+class AnimeCreate(AnimeWriteChecks, AnimeBase, SourceWriteFields, ExclusiveSourceWriteFields):
     pass
 
 
-class AnimeUpdate(AnimeWriteChecks, AnimeBase, SourceWriteFields):
+class AnimeUpdate(AnimeWriteChecks, AnimeBase, SourceWriteFields, ExclusiveSourceWriteFields):
     pass
 
 

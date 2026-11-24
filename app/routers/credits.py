@@ -23,6 +23,11 @@ from sqlalchemy.orm import Session
 from app.dependencies import get_db
 from app.services.domain import credits as credits_service
 from app.services.domain.label_tags import LABEL_FIELD, apply_tag_write
+from app.services.domain.sources import (
+    EXCLUSIVE_SOURCE_FIELD,
+    EXCLUSIVE_SOURCE_TYPES,
+    exclusive_source_problem,
+)
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.credit_roles import CREDIT_ROLES, credit_roles_for, tag_fields_for
@@ -187,6 +192,16 @@ def replace_credits(
             credits_service.replace_credits(db, media_type, entry_id, role, names)
     for field, values in tags.items():
         credits_service.replace_tags(db, entry_id, field, values)
+
+    # The exclusive source is checked against the sources already stored: the
+    # forms save the entry, and its sources, before they PUT the tags. Only a
+    # PUT that names the field is checked, so a row stored before the rule
+    # does not block an edit of its genres.
+    if media_type in EXCLUSIVE_SOURCE_TYPES and EXCLUSIVE_SOURCE_FIELD in tags:
+        problem = exclusive_source_problem(db, entry_id)
+        if problem:
+            db.rollback()
+            raise HTTPException(status_code=422, detail=problem)
 
     db.commit()
     return {"status": "success"}
