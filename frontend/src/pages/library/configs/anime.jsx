@@ -105,7 +105,7 @@ const ANIME_LIBRARY_CONFIG = {
   sortDefs: [
     { key: "title",        label: "Title",        compare: titleCompare },
     { key: "release_date", label: "Release Date",  compare: (a, b) => getReleaseSortScore(b) - getReleaseSortScore(a) },
-    myRatingSort,
+    myRatingSort({ publicScore: malRatingSort, title: titleCompare }),
     malRatingSort,
     anilistRatingSort,
     anilistPopularitySort,

@@ -18,6 +18,10 @@ function getTitle(c) {
 // ---------------------------------------------------------------------------
 // Comic library config
 // ---------------------------------------------------------------------------
+// The library's title order: the Title sort, and the last tie-break of
+// My Rating.
+const compareTitle = (a, b) => compareTitles(getTitle(a), getTitle(b));
+
 const COMIC_LIBRARY_CONFIG = {
   usesSeries: true,
   navPath: "/comic",
@@ -80,15 +84,14 @@ const COMIC_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) =>
-        compareTitles(getTitle(a), getTitle(b)),
+      compare: compareTitle,
     },
     {
       key: "release_date",
       label: "Release Date",
       compare: (a, b) => releaseScore(b.release_date) - releaseScore(a.release_date),
     },
-    myRatingSort,
+    myRatingSort({ title: compareTitle }),
   ],
 
   tableColumns: [

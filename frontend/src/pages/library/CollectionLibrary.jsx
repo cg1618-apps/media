@@ -5,17 +5,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { useIncrementalList } from "../../hooks/useIncrementalList";
 import { useViewScope } from "../../hooks/useViewScope";
-import { getSortName, getRatingWeight, cleanString } from "../../utils/media";
+import { getSortName, cleanString } from "../../utils/media";
 import { compareTitles } from "../../lib/naming";
+import { compareGroups } from "../../lib/groupSort";
 import { getCollectionCover, withMediaType } from "../../lib/covers";
 import CollectionCard from "../../components/cards/CollectionCard";
 import { Eyebrow } from "../../components/ui/primitives";
-
-const EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 };
-
-function getExpectationWeight(exp) {
-  return EXPECTATION_WEIGHT[exp] ?? 4;
-}
 
 export default function CollectionLibrary() {
   const [allCollections, setAllCollections] = useState([]);
@@ -126,22 +121,7 @@ export default function CollectionLibrary() {
       ].some((n) => n && cleanString(n).includes(qClean));
     });
 
-    result.sort((a, b) => {
-      if (sort === "my_rating") {
-        const diff =
-          getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-        if (diff !== 0) return diff;
-      } else if (sort === "collection_expectation") {
-        const diff =
-          getExpectationWeight(a.collection_expectation) -
-          getExpectationWeight(b.collection_expectation);
-        if (diff !== 0) return diff;
-      }
-      return compareTitles(
-        getSortName(a, "collection"),
-        getSortName(b, "collection"),
-      );
-    });
+    result.sort((a, b) => compareGroups(a, b, sort, "collection"));
 
     return result;
   }, [allCollections, searchQuery, sort]);
@@ -222,7 +202,7 @@ export default function CollectionLibrary() {
                   {showPersonal && (
                     <>
                       <option value="my_rating">My rating</option>
-                      <option value="collection_expectation">Expectation</option>
+                      <option value="expectation">Expectation</option>
                     </>
                   )}
                 </select>

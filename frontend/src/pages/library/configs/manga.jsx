@@ -25,6 +25,10 @@ function getSortKey(m) {
 // ---------------------------------------------------------------------------
 // Manga library config
 // ---------------------------------------------------------------------------
+// The library's title order: the Title sort, and the last tie-break of
+// My Rating.
+const compareTitle = (a, b) => compareTitles(getSortKey(a), getSortKey(b));
+
 const MANGA_LIBRARY_CONFIG = {
   usesSeries: true,
   navPath: "/manga",
@@ -75,8 +79,7 @@ const MANGA_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) =>
-        compareTitles(getSortKey(a), getSortKey(b)),
+      compare: compareTitle,
     },
     {
       key: "release_date",
@@ -88,7 +91,7 @@ const MANGA_LIBRARY_CONFIG = {
       label: "Ending Date",
       compare: (a, b) => releaseScore(b.end_date) - releaseScore(a.end_date),
     },
-    myRatingSort,
+    myRatingSort({ publicScore: malRatingSort, title: compareTitle }),
     malRatingSort,
     anilistRatingSort,
     anilistPopularitySort,

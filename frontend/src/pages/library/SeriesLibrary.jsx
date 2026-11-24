@@ -7,7 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { getDisplayName, cleanString } from "../../utils/media";
 import { getSeriesCover, withMediaType } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
-import { compareGroups } from "../../lib/groupSort";
+import { compareGroups, expectationTone } from "../../lib/groupSort";
 import SeriesCard from "../../components/cards/SeriesCard";
 import { Chip, Eyebrow } from "../../components/ui/primitives";
 import { useAuth } from "../../contexts/AuthContext";
@@ -115,7 +115,11 @@ const TABLE_COLUMNS = [
     thClass: HIDDEN.lg,
     tdClass: `text-center ${HIDDEN.lg}`,
     render: (s) =>
-      s.series_expectation ? <Chip className="text-[9px]">{s.series_expectation}</Chip> : "-",
+      s.series_expectation ? (
+        <Chip tone={expectationTone(s.series_expectation)} className="text-[9px]">
+          {s.series_expectation}
+        </Chip>
+      ) : "-",
   },
   {
     key: "my",

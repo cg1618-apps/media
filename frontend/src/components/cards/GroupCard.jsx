@@ -8,6 +8,7 @@ import { useViewScope } from "../../hooks/useViewScope";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 import { FALLBACK_SVG, getDisplayName } from "../../utils/media";
 import { EXPECTATION_FIELD } from "../../api/mutations/useMyRatingMutations";
+import { expectationTone } from "../../lib/groupSort";
 import { Chip, RatingStamp } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
@@ -64,7 +65,11 @@ export default function GroupCard({ kind, row, cover, badge = null, children = n
           {name}
         </h3>
         {children}
-        {showPersonal && expectation && <Chip className="self-start">{expectation}</Chip>}
+        {showPersonal && expectation && (
+          <Chip tone={expectationTone(expectation)} className="self-start">
+            {expectation}
+          </Chip>
+        )}
       </div>
     </Wrapper>
   );
