@@ -1270,7 +1270,7 @@ row, the counts and the totals from one list of
 group-by-series default; `applyView`, `defaultView`, `isFiltered`) and
 `hooks/useHubTabViews.js`, which keeps each tab's view at page level so a
 tab's filters survive switching away and back. Cards are
-`MediaCard variant="hub"`. Every sort falls back to the type's title order,
+`MediaCard`, the same card the libraries draw. Every sort falls back to the type's title order,
 and "Sort: my rating" is offered only with `self.list`. Each strip ends with
 "Clear all", which resets that tab's filters (not its sort or grouping).
 
@@ -1278,18 +1278,18 @@ Every tab but Game and H-Game has a **Completed** All / Yes / No control
 (`components/hub/TriStateFilter.jsx`, default All; Yes is a status in
 `COMPLETED_STATUSES`) in place of status pills. Per type:
 
-| Tab | Sorts (default first) | Filters besides Completed | Card |
+| Tab | Sorts (default first) | Filters besides Completed | Card (here and in the library) |
 |---|---|---|---|
-| Anime | release date, title, my rating, MAL | airing type (TV, Movie, ONA, OVA, Special) | as the library |
-| Hentai | release date, title, my rating | none (no `airing_type` column) | as the library |
+| Anime | release date, title, my rating, MAL | airing type (TV, Movie, ONA, OVA, Special) | no type-specific layout |
+| Hentai | release date, title, my rating | none (no `airing_type` column) | no type-specific layout |
 | Anime Movie | release date, title, my rating, MAL | none | JP date first, MAL score to its right, runtime (`length_min`) below; no cover stamp |
 | Movie | release date, title, my rating, IMDb | none | TW date first, IMDb score to its right, runtime below; no cover stamp |
 | Manga | release date, title, my rating, MAL, end date | serialization, region | no region tag on the cover |
 | H-Comic | release date, title, my rating | none | no region tag on the cover |
 | Book | title, my rating, MAL, release date, end date | **小說** All / Yes / No (Yes = `type` 輕小說, 小說 or 網路小說; No = anything else, untyped included) | no region tag on the cover |
-| Comic | franchise hub: release date, title, my rating; series hub: title, my rating, release date, end date | franchise hub: comic type, era; series hub: serialization | as the library |
+| Comic | franchise hub: release date, title, my rating; series hub: title, my rating, release date, end date | franchise hub: comic type, era; series hub: serialization | no type-specific layout |
 | TV Show | release date, title, my rating, IMDb | none | region top-left, IMDb right of the release date, no airing status |
-| Cartoon | release date, title, my rating, IMDb | airing type | as the library |
+| Cartoon | release date, title, my rating, IMDb | airing type | no type-specific layout |
 | Game | release date, title, my rating, Metacritic, Metacritic user, hours played | completion level — Main Story, Main + Extras, Completionist, Post-game, Not completed (`completion_level` empty) — **instead of** Completed; game type chips from the types the list holds, in vocabulary order | game type top-left on the cover, release date above the play-hours row, Metacritic and Metacritic user stacked on the right |
 | H-Game | release date, title, my rating | as Game | game type top-left, release date in place of the play-style line; no Metacritic (no such columns) |
 

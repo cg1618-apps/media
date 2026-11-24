@@ -288,12 +288,12 @@ columns.
   recorded), rendered only when at least one of the two exists; for an h-comic it is
   `progressFor(entry)` - pages on JP, chapters on KR, nothing without a
   region; for an h-game, which records no playtime, it is achievements
-  earned against the total, drawn only when there is a total, and its meta
-  line is the play style and language; a hentai, one entry being one
+  earned against the total, drawn only when there is a total; a hentai, one entry being one
   episode, has no progress line, and its meta line is the release year and
-  airing status; a TV show's meta line is its release date (`TBD` without
-  one) and airing status - the season is not on the card. `variant="hub"` is the
-  franchise and series hubs' card, whose per-type differences are tabled in
+  airing status. Every card but `variant="future"` has one look, shared by
+  the libraries and the franchise and series hubs' entry tabs: the films, the
+  TV show and the games read `CardMeta` and every other type `LibraryMeta`,
+  and each type's layout is tabled in
   [pages.md](pages.md#hubs--franchiseid-seriesid-collectionid). On `variant="future"` the status
   select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
   bolt from `BOLT_RELEASE`, which names the column that says a title is still
@@ -301,8 +301,8 @@ columns.
   movie, an anime movie or a game. A film's select offers Watch When Released
   where the airing types offer Watch When Airs, and its bolt writes
   `release_status: "Released"` and moves the viewer's own `Watch When
-  Released` to `Active Watching`, any other status left alone. Its outside-score slot — the meta-line figure on anime, manga and
-  book, the cover stamp on an anime movie — reads whichever column
+  Released` to `Active Watching`, any other status left alone. Its outside-score slot — the meta-line figure on anime, manga,
+  book and anime movie — reads whichever column
   `scoreField` names, defaulting to `mal_rating`, so a library sorted by an
   AniList figure can point every card at `anilist_rating` instead),
   `PlatformIcons` (an entry's available `main` access platforms — 動畫瘋,

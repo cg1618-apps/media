@@ -104,7 +104,7 @@ function MetaLine({ children, className = "" }) {
 // The tile the platform icons sit on over cover art.
 const PLATFORM_BOX_CLS = "bg-surface/95 px-1 py-0.5 border border-border";
 
-function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
+function PosterBadges({ type, variant, data, franchiseDict }) {
   const franchise = franchiseDict?.[data.franchise_id];
   // The franchise's expectation is the viewer's own (self.list). The
   // entry's own rating stamp below is the viewer's own list rating, which a
@@ -137,11 +137,10 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
     );
   }
 
-  // The hub variant moves the outside score off the cover and onto the meta
-  // line, drops a region the tab's filter already says, and puts the TV
-  // show's region and the game's type where the score was.
-  const hub = variant === "hub";
-
+  // Every card but the future one: the outside score sits on the meta line,
+  // not the cover, and the TV show's region and the game's type take the
+  // cover's top-left corner. One look on the libraries and on a franchise's
+  // entries.
   return (
     <>
       <RatingStamp
@@ -154,39 +153,16 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           {data.airing_type}
         </div>
       )}
-      {!hub && type === "anime-movie" && data[scoreField] && (
-        <div
-          className={`absolute top-1 left-1 ${OVERLAY_CLS}`}
-          title={SCORE_LABEL[scoreField]}
-        >
-          {data[scoreField]}
-        </div>
-      )}
-      {!hub &&
-        (type === "movie" || type === "tv-show") &&
-        data.imdb_rating &&
-        data.imdb_rating !== "N/A" && (
-          <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`} title="IMDb score">
-            {data.imdb_rating}
-          </div>
-        )}
       {type === "tv-show" && data.region && (
         <div
-          className={`absolute ${hub ? "top-1 left-1" : "bottom-1 right-1"} ${OVERLAY_CLS}`}
+          className={`absolute top-1 left-1 ${OVERLAY_CLS}`}
         >
           {data.region}
         </div>
       )}
-      {hub && (type === "game" || type === "h-game") && data.game_type && (
+      {(type === "game" || type === "h-game") && data.game_type && (
         <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
           {data.game_type}
-        </div>
-      )}
-      {!hub &&
-        (type === "manga" || type === "book" || type === "h-comic") &&
-        data.region && (
-        <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
-          {data.region}
         </div>
       )}
       {type === "comic" && data.comic_type && (
@@ -221,60 +197,12 @@ function LibraryMeta({ type, data, scoreField }) {
     );
   }
 
-  if (type === "tv-show") {
-    return (
-      <MetaLine>
-        <span className="truncate pr-1">{data.release_date || "TBD"}</span>
-        {data.airing_status && (
-          <span className="shrink-0 truncate">{data.airing_status}</span>
-        )}
-      </MetaLine>
-    );
-  }
-
   if (type === "cartoon") {
     return (
       <MetaLine>
         <span className="truncate pr-1">{data.release_date || "TBD"}</span>
         {data.imdb_rating && data.imdb_rating !== "N/A" && (
           <Score value={data.imdb_rating} />
-        )}
-      </MetaLine>
-    );
-  }
-
-  if (type === "anime-movie") {
-    const length = formatLength(data.length_min);
-    const year = releaseYear(data.release_date_jp || data.release_date_tw);
-    return (
-      <MetaLine>
-        {length && <span className="shrink-0">{length}</span>}
-        {year ? <span className="truncate">{year}</span> : null}
-      </MetaLine>
-    );
-  }
-
-  if (type === "movie") {
-    const length = formatLength(data.length_min);
-    return (
-      <MetaLine>
-        {length && <span className="shrink-0">{length}</span>}
-        {(data.release_date_tw || data.release_date_usa) && (
-          <span className="truncate">
-            {data.release_date_tw || data.release_date_usa}
-          </span>
-        )}
-      </MetaLine>
-    );
-  }
-
-  // Play style and language: what an h-game library is browsed by.
-  if (type === "h-game") {
-    return (
-      <MetaLine className="mb-1">
-        <span className="truncate pr-1">{data.playstyle || "—"}</span>
-        {data.language_availability && (
-          <span className="shrink-0">{data.language_availability}</span>
         )}
       </MetaLine>
     );
@@ -381,9 +309,9 @@ function LibraryMeta({ type, data, scoreField }) {
   return null;
 }
 
-// The hub variant's meta for the types it lays out differently; every other
-// type reads as it does in its library.
-function HubMeta({ type, data, scoreField }) {
+// A card's meta line for the types laid out apart from the rest - the films,
+// the TV show and the games; every other type reads LibraryMeta.
+function CardMeta({ type, data, scoreField }) {
   // The films: the release date with the score beside it, as on an anime
   // card, and the runtime under the date. The date is the type's own first
   // pick - JP for an anime movie, TW for a movie.
@@ -808,7 +736,6 @@ export default function MediaCard({
             variant={variant}
             data={data}
             franchiseDict={franchiseDict}
-            scoreField={scoreField}
           />
           <LazyImage
             src={thumbUrl(imageUrl)}
@@ -880,11 +807,7 @@ export default function MediaCard({
           </>
         ) : (
           <>
-            {variant === "hub" ? (
-              <HubMeta type={type} data={data} scoreField={scoreField} />
-            ) : (
-              <LibraryMeta type={type} data={data} scoreField={scoreField} />
-            )}
+            <CardMeta type={type} data={data} scoreField={scoreField} />
             <div
               className="relative z-10 mt-auto flex items-center justify-between gap-1 border-t border-border pt-2.5"
             >
