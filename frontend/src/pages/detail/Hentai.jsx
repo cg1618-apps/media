@@ -19,6 +19,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import AdminActions from "../../components/layout/AdminActions";
 import { EpisodeStepper, PausedAtInput } from "../../components/tracker/MyTrackerCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
@@ -290,19 +291,24 @@ export default function Hentai() {
       </div>
 
       {isAdmin && (
-        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/modify?id=${system_id}&type=hentai`)}>
-              Edit
-            </Button>
-            <Button onClick={markCompleted}>Mark completed</Button>
-            <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
-              {autofilling ? "Autofilling…" : "Autofill & update"}
-            </Button>
-          </div>
-        </div>
+        <AdminActions
+          start={
+            <>
+              <Button onClick={() => navigate(`/modify?id=${system_id}&type=hentai`)}>
+                Edit
+              </Button>
+              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                {autofilling ? "Autofilling…" : "Autofill & update"}
+              </Button>
+            </>
+          }
+          end={
+            <>
+              <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+              <Button onClick={markCompleted}>Mark completed</Button>
+            </>
+          }
+        />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

@@ -13,6 +13,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import AdminActions from "../../components/layout/AdminActions";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
 import {
@@ -31,7 +32,7 @@ import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
-import { Button, RatingStamp, ProgressRule, Eyebrow } from "../../components/ui/primitives";
+import { Button, RatingStamp, ProgressRule } from "../../components/ui/primitives";
 import { AIRING_WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
@@ -221,37 +222,42 @@ export default function Anime() {
 
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
-        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/modify?id=${system_id}`)}>
-              Edit
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!isAdmin) return;
-                try {
-                  const res = await fetch(endpoints.resource("anime").complete(system_id), {
-                    method: "POST",
-                    credentials: "include",
-                  });
-                  if (!res.ok) throw new Error("Request failed");
-                  showToast("success", "Marked as Completed!");
-                  await invalidateMedia();
-                  await fetchMediaItem();
-                } catch {
-                  showToast("error", "Update failed");
-                }
-              }}
-            >
-              Mark completed
-            </Button>
-            <MarkReleaseButton type="anime" entry={anime} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
-              {autofilling ? "Autofilling…" : "Autofill & update"}
-            </Button>
-          </div>
-        </div>
+        <AdminActions
+          start={
+            <>
+              <Button onClick={() => navigate(`/modify?id=${system_id}`)}>
+                Edit
+              </Button>
+              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                {autofilling ? "Autofilling…" : "Autofill & update"}
+              </Button>
+            </>
+          }
+          end={
+            <>
+              <MarkReleaseButton type="anime" entry={anime} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+              <Button
+                onClick={async () => {
+                  if (!isAdmin) return;
+                  try {
+                    const res = await fetch(endpoints.resource("anime").complete(system_id), {
+                      method: "POST",
+                      credentials: "include",
+                    });
+                    if (!res.ok) throw new Error("Request failed");
+                    showToast("success", "Marked as Completed!");
+                    await invalidateMedia();
+                    await fetchMediaItem();
+                  } catch {
+                    showToast("error", "Update failed");
+                  }
+                }}
+              >
+                Mark completed
+              </Button>
+            </>
+          }
+        />
       )}
 
       {/* Main Grid: 4 columns */}

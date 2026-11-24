@@ -5,6 +5,7 @@ import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import AdminActions from "../../components/layout/AdminActions";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
@@ -199,42 +200,45 @@ export default function TV() {
 
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
-        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">
-            Admin
-          </Eyebrow>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/modify?id=${system_id}&type=tv-show`)}>
-              Edit
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!isAdmin) return;
-                try {
-                  const res = await fetch(
-                    endpoints.resource("tv-show").complete(system_id),
-                    {
-                      method: "POST",
-                      credentials: "include",
-                    },
-                  );
-                  if (!res.ok) throw new Error("Request failed");
-                  showToast("success", "Marked as Completed!");
-                  await invalidateMedia();
-                  await fetchMediaItem();
-                } catch {
-                  showToast("error", "Update failed");
-                }
-              }}
-            >
-              Mark completed
-            </Button>
-            <MarkReleaseButton type="tv-show" entry={show} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
-              {autofilling ? "Autofilling…" : "Autofill & update"}
-            </Button>
-          </div>
-        </div>
+        <AdminActions
+          start={
+            <>
+              <Button onClick={() => navigate(`/modify?id=${system_id}&type=tv-show`)}>
+                Edit
+              </Button>
+              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                {autofilling ? "Autofilling…" : "Autofill & update"}
+              </Button>
+            </>
+          }
+          end={
+            <>
+              <MarkReleaseButton type="tv-show" entry={show} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+              <Button
+                onClick={async () => {
+                  if (!isAdmin) return;
+                  try {
+                    const res = await fetch(
+                      endpoints.resource("tv-show").complete(system_id),
+                      {
+                        method: "POST",
+                        credentials: "include",
+                      },
+                    );
+                    if (!res.ok) throw new Error("Request failed");
+                    showToast("success", "Marked as Completed!");
+                    await invalidateMedia();
+                    await fetchMediaItem();
+                  } catch {
+                    showToast("error", "Update failed");
+                  }
+                }}
+              >
+                Mark completed
+              </Button>
+            </>
+          }
+        />
       )}
 
       {/* Main Grid */}
