@@ -130,8 +130,18 @@ describe("NAV_SECTIONS", () => {
       "Studio",
       "Publisher",
       "Person",
-      "Character",
       "Seiyuu",
+      "Character",
+    ]);
+  });
+
+  it("puts the Entities column at the right of the Library panel", () => {
+    const library = NAV_SECTIONS.find((s) => s.key === "library");
+    expect(library.columns.map((c) => c.heading)).toEqual([
+      "Groups",
+      "ACG",
+      "Reality",
+      "Entities",
     ]);
   });
 
@@ -169,13 +179,34 @@ describe("NAV_SECTIONS", () => {
     const note = NAV_SECTIONS.find((s) => s.key === "note");
     expect(sectionItems(note).map((i) => i.to)).toEqual([
       "/options",
-      "/aliases",
-      "/external-apis",
       "/content-labels",
       "/business-logic",
+      "/external-apis",
+      "/aliases",
     ]);
     expect(activeSectionKey("/external-apis")).toBe("note");
     expect(activeSectionKey("/business-logic")).toBe("note");
+  });
+
+  it("orders Explore as Statistics, Seasonal, Future Releases, Random Picker", () => {
+    const explore = NAV_SECTIONS.find((s) => s.key === "explore");
+    expect(sectionItems(explore).map((i) => i.to)).toEqual([
+      "/statistics",
+      "/seasonal",
+      "/future-releases",
+      "/random",
+    ]);
+  });
+
+  it("opens Extras with Relations and Orders, with no rule after them", () => {
+    const extras = NAV_SECTIONS.find((s) => s.key === "extras");
+    expect(sectionItems(extras).map((i) => i.to)).toEqual([
+      "/relations",
+      "/orders",
+      "/quote",
+      "/meme",
+      "/resources",
+    ]);
   });
 
   it("reads Relations and Orders as Extras, gated on manage.catalog", () => {
@@ -230,8 +261,9 @@ describe("NAV_SECTIONS", () => {
       "/data-history",
       "/review-queue",
       "/clean-orphans",
-      "/request-inbox",
+      undefined,
       "/needs-work",
+      "/request-inbox",
     ]);
     expect(sectionRequirement(system)).toBe("manage.pipelines");
 
@@ -724,31 +756,38 @@ describe("the header's tab grouping", () => {
     const sections = visibleSections(NAV_SECTIONS, (p) => held.has(p));
     expect(labelsIn(sections, "track")).toEqual(["Plan", "Completions"]);
     expect(labelsIn(sections, "explore")).toEqual([
+      "Statistics",
       "Seasonal",
       "Future Releases",
       "Random Picker",
-      "Statistics",
     ]);
     // No quotes_memes switch here, so Quotes and Memes stay hidden; Resources
     // and the two catalogue rows remain.
     expect(labelsIn(sections, "extras")).toEqual([
-      "Resources",
       "Relations",
       "Orders",
+      "Resources",
     ]);
   });
 
-  it("lists Quotes, Memes, Resources, the divider, then the catalogue rows in Extras", () => {
-    const items = sectionItems(NAV_SECTIONS.find((s) => s.key === "extras"));
+  it("rules Needs Work and the inbox off from the pipeline pages", () => {
+    const items = sectionItems(NAV_SECTIONS.find((s) => s.key === "system"));
     expect(items.map((i) => (i.divider ? "---" : i.label))).toEqual([
-      "Quotes",
-      "Memes",
-      "Resources",
+      "Control Center",
+      "Data History",
+      "Review Queue",
+      "Clean Orphans",
       "---",
-      "Relations",
-      "Orders",
+      "待補充 Needs Work",
+      "Inbox",
     ]);
-    expect(items.find((i) => i.divider).requires).toBe("manage.catalog");
+    // The rule asks the rows' key, so a viewer without it sees no stray rule.
+    expect(items.find((i) => i.divider).requires).toBe("manage.requests");
+    const holdsPipelines = (p) => p === "manage.pipelines";
+    const system = visibleSections(NAV_SECTIONS, holdsPipelines).find(
+      (s) => s.key === "system",
+    );
+    expect(sectionItems(system).some((i) => i.divider)).toBe(false);
   });
 
   it("labels the pipelines tab System, drawn for manage.pipelines", () => {
