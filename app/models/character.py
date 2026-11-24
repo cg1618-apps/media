@@ -322,8 +322,7 @@ class CharacterCasting(Base):
     (a child and an adult voice, a recast mid-season), and one seiyuu may
     voice several characters, which is simply one person on several castings.
 
-    The entry endpoint is a FK-less (media_type, entry_id) pair, the same
-    contract media_credit and media_relation use.
+    The entry endpoint is a FK-less (media_type, entry_id) pair.
     """
 
     __tablename__ = "character_casting"

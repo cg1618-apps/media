@@ -837,8 +837,10 @@ returns the kind's `inverse_label` and viewing `to` returns its `label`: if A is
 the Sequel of B, A's page shows B as "Prequel" and B's shows A as "Sequel".
 `direction` is `"forward"` when the viewed entry is `from`.
 
-A far endpoint whose row no longer exists comes back with `missing: true` rather
-than being dropped, since endpoints are FK-less.
+Both endpoints are foreign keys onto `media`, ON DELETE CASCADE, so deleting
+an entry deletes its relations and a far endpoint always exists. The `missing`
+field stays in the response, from the resolver it shares with orders, and is
+always false here.
 
 **Transitive kinds.** `/for-entry` also returns rows no `media_relation` row
 names directly. `alternative` and `corresponding` are transitive, so with
@@ -853,8 +855,8 @@ what keeps the canvas from drawing a mesh.
 
 **Graph response.** `nodes` covers every entry in the scope, including ones
 with no relations, plus a "ghost" node for each relation endpoint outside the
-scope (`in_scope: false`); a ghost whose row no longer exists also carries
-`missing: true`. Each node is keyed `"{media_type}:{entry_id}"` and carries
+scope (`in_scope: false`). `missing` is always false: a relation's endpoints
+are foreign keys onto `media`, so no stored row names a deleted entry. Each node is keyed `"{media_type}:{entry_id}"` and carries
 the entry's `cover_image_file` and `cover_image_focus`. `edges` mirror
 the stored `media_relation` rows, with `from`/`to` as the same node keys and
 both `label` and `inverse_label` carried along so the canvas can label an edge

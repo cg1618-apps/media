@@ -74,8 +74,10 @@ class MediaRelationResponse(BaseModel):
 class RelationOtherEndpoint(BaseModel):
     """The entry at the far end, resolved for display.
 
-    `missing` is True when the id no longer exists — endpoints are FK-less, so
-    a dangling link stays visible rather than disappearing.
+    `missing` is True when the id resolves to no row. A stored relation never
+    reads that way - both ends are foreign keys onto media, ON DELETE CASCADE,
+    so deleting an entry deletes its relations - but the resolver is shared
+    and keeps the flag.
     """
 
     media_type: Optional[str] = None

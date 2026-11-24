@@ -447,13 +447,15 @@ def _plan_movie(db):
 
 
 def test_relation_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
-    from_id, to_id = uuid.uuid4(), uuid.uuid4()
+    # Real entries: both ends are foreign keys onto media.
+    from_id = _plan_movie(db_session).system_id
+    to_id = _plan_movie(db_session).system_id
     local = models.MediaRelation(
         system_id=uuid.uuid4(),
-        from_type="tv-show",
+        from_type="movie",
         from_id=from_id,
         relation_type="sequel",
-        to_type="tv-show",
+        to_type="movie",
         to_id=to_id,
     )
     db_session.add(local)
@@ -465,8 +467,8 @@ def test_relation_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
             "Media Relation": [
                 RELATION_HEADERS,
                 [
-                    str(uuid.uuid4()), "tv-show", str(from_id), "sequel",
-                    "tv-show", str(to_id), "covers ep 1-12",
+                    str(uuid.uuid4()), "movie", str(from_id), "sequel",
+                    "movie", str(to_id), "covers ep 1-12",
                 ],
             ]
         }
@@ -479,6 +481,48 @@ def test_relation_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):
     assert len(rows) == 1
     assert rows[0].system_id == local_id
     assert rows[0].remark == "covers ep 1-12"
+
+
+def test_relation_naming_an_unknown_entry_is_skipped_not_fatal(db_session, sheets):
+    """
+    A sheet row whose end is not an entry here would violate the foreign key
+    and roll back the whole tab at commit. It is skipped and reported, and
+    the good row beside it - which makes this test bite - still lands.
+    """
+    from_id = _plan_movie(db_session).system_id
+    to_id = _plan_movie(db_session).system_id
+    gone = uuid.uuid4()
+
+    sheets(
+        {
+            "Media Relation": [
+                RELATION_HEADERS,
+                [
+                    str(uuid.uuid4()), "movie", str(from_id), "sequel",
+                    "movie", str(to_id), "",
+                ],
+                [
+                    str(uuid.uuid4()), "movie", str(from_id), "adaptation",
+                    "manga", str(gone), "",
+                ],
+                # A real id filed under a type that is not its own.
+                [
+                    str(uuid.uuid4()), "anime", str(to_id), "related",
+                    "movie", str(from_id), "",
+                ],
+            ]
+        }
+    )
+
+    result = pull.execute_pull_specific(db_session, "Media Relation", log_action=False)
+
+    assert result["status"] == "success"
+    rows = db_session.query(models.MediaRelation).all()
+    assert [(r.from_id, r.relation_type, r.to_id) for r in rows] == [
+        (from_id, "sequel", to_id)
+    ]
+    assert result["rows_skipped"] == 2
+    assert any(str(gone) in ref for ref in result["unresolved_refs"])
 
 
 def test_plan_next_with_a_foreign_uuid_updates_the_local_row(db_session, sheets):

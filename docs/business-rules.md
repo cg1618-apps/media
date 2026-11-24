@@ -1126,6 +1126,13 @@ parent franchise from the series' own names.
 Relations are rows in `media_relation` — `from (type, id) —kind→ to (type, id)`
 — read as "`from` is the {label} of `to`".
 
+**Deleting an entry deletes its relations**, both the rows it is the `from` of
+and the rows it is the `to` of. Each end is a foreign key onto
+`media(system_id, media_type)` ON DELETE CASCADE, so this holds for every path
+that deletes an entry, and no relation is ever left pointing at an entry that
+is gone. A Pull that meets a sheet row naming an entry this database does not
+hold skips and reports that row rather than failing the tab.
+
 ### Stored kinds
 
 | Key             | Label (on `from`) | Inverse label (on `to`) | Family      | Symmetric | Transitive |
