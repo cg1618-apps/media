@@ -221,7 +221,7 @@ export default function RequestInbox() {
         >
           <label
             htmlFor="request-response"
-            className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1"
+            className="block text-[10px] font-bold text-text-faint mb-1"
           >
             Response (optional)
           </label>

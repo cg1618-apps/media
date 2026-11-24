@@ -251,7 +251,7 @@ function LibraryBody({
           </button>
         </div>
 
-        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+        <span className="font-mono text-[11px] text-text-faint">
           {filteredAndSorted.length} results
         </span>
       </div>
@@ -301,7 +301,7 @@ function LibraryBody({
                 {config.tableColumns.map((col, i) => (
                   <th
                     key={col.key}
-                    className={`px-4 py-2.5 font-mono text-[10px] font-normal text-text-faint uppercase tracking-[0.14em] text-center ${
+                    className={`px-4 py-2.5 font-mono text-[10px] font-normal text-text-faint text-center ${
                       i < config.tableColumns.length - 1
                         ? "border-r border-border"
                         : ""

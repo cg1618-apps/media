@@ -6,7 +6,7 @@
 import { Link } from "react-router-dom";
 
 import { entityPath } from "../../lib/entityPath";
-import { Chip } from "../ui/primitives";
+import { Chip, eyebrowCls } from "../ui/primitives";
 import { rangeLabel } from "./OrderGuide";
 
 /**
@@ -33,7 +33,7 @@ export default function FollowedStep({ step, label, showNote = true }) {
     <div className="min-w-0">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         {label && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint w-10 shrink-0">
+          <span className="font-mono text-[10px] text-text-faint w-10 shrink-0">
             {label}
           </span>
         )}
@@ -55,7 +55,7 @@ export default function FollowedStep({ step, label, showNote = true }) {
         )}
         <ImportanceChip importance={step.importance} />
         {step.section_name && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+          <span className={eyebrowCls}>
             {step.section_name}
           </span>
         )}

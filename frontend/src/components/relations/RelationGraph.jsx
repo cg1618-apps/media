@@ -897,7 +897,7 @@ function GraphCanvas({
             // scope switch, so the row being reversed is not always one the
             // current canvas shows.
             title={describeEntry(lastEntry)}
-            className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-text-muted transition-opacity hover:bg-surface-2 disabled:opacity-30 disabled:hover:bg-transparent"
+            className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[10px] font-black text-text-muted transition-opacity hover:bg-surface-2 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <i className="fas fa-rotate-left"></i>
             Undo
@@ -915,7 +915,7 @@ function GraphCanvas({
             onClick={tidy}
             disabled={writing || loading || nodes.length === 0}
             title="Drop every hand-placed position and re-run the automatic layout"
-            className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-text-muted transition-opacity hover:bg-surface-2 disabled:opacity-30 disabled:hover:bg-transparent"
+            className="flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[10px] font-black text-text-muted transition-opacity hover:bg-surface-2 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <i className="fas fa-wand-magic-sparkles"></i>
             Tidy
@@ -928,7 +928,7 @@ function GraphCanvas({
             onClick={resetScope}
             disabled={writing || loading || graphEdges.length === 0}
             title={`Remove every relation in this ${scopeType}. The entries are not touched, and this cannot be undone`}
-            className="flex items-center gap-1.5 rounded-full border border-danger/40 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-danger transition-opacity hover:bg-danger/10 disabled:opacity-30 disabled:hover:bg-transparent"
+            className="flex items-center gap-1.5 rounded-full border border-danger/40 px-2.5 py-1 text-[10px] font-black text-danger transition-opacity hover:bg-danger/10 disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <i className="fas fa-trash"></i>
             Reset
@@ -944,7 +944,7 @@ function GraphCanvas({
               aria-pressed={on}
               onClick={() => toggleType(type)}
               title={`${on ? "Dim" : "Restore"} every ${label} on the canvas`}
-              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition-opacity ${
+              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black transition-opacity ${
                 on ? "border-border text-text-muted" : "border-border text-text-faint/60"
               }`}
             >
@@ -970,7 +970,7 @@ function GraphCanvas({
               ? "Return the graph to the page (Escape)"
               : "Fill the window with the graph"
           }
-          className="ml-auto flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-text-muted transition-opacity hover:bg-surface-2"
+          className="ml-auto flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-[10px] font-black text-text-muted transition-opacity hover:bg-surface-2"
         >
           <i className={`fas ${expanded ? "fa-compress" : "fa-expand"}`}></i>
           {expanded ? "Collapse" : "Expand"}
@@ -1030,7 +1030,7 @@ function GraphCanvas({
               <button
                 type="button"
                 onClick={() => refetch()}
-                className="mt-3 rounded-lg border border-border px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-text-muted hover:bg-surface-2"
+                className="mt-3 rounded-lg border border-border px-3 py-1.5 text-[11px] font-black text-text-muted hover:bg-surface-2"
               >
                 Try again
               </button>

@@ -11,6 +11,7 @@ import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/cover
 import { useEntityHref } from "../../lib/entityPath";
 import LazyImage from "../ui/LazyImage";
 
+import { eyebrowCls } from "../ui/primitives";
 export default function IdentityCard({ identity, to, label }) {
   // Every other non-empty name, so an identity known by several is not
   // reduced to the one that happens to be displayed.
@@ -46,7 +47,7 @@ export default function IdentityCard({ identity, to, label }) {
       </div>
       <div className="p-2.5 flex flex-col gap-1 border-t border-border">
         {label && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+          <span className={eyebrowCls}>
             {label}
           </span>
         )}
@@ -59,7 +60,7 @@ export default function IdentityCard({ identity, to, label }) {
           </span>
         ))}
         {identity.display_gender && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+          <span className={eyebrowCls}>
             {identity.display_gender}
           </span>
         )}

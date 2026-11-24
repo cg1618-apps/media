@@ -15,7 +15,7 @@ function SpendColumn({ column }) {
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3 mb-3">
-        <h4 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text">
+        <h4 className="font-mono text-[11px] text-text">
           {label}
         </h4>
         <span className="font-mono text-[11px] text-text-faint">
@@ -179,7 +179,7 @@ function ValueCard({ value }) {
       actions={<Eyebrow>Rates as of {value.asOf}</Eyebrow>}
     >
       <div className="mb-4">
-        <div className="text-[10px] font-mono uppercase tracking-wider text-text-faint mb-1">
+        <div className="text-[10px] font-mono text-text-faint mb-1">
           Overall
         </div>
         <PerHour perHour={value.overall} className="text-lg" />
@@ -195,7 +195,7 @@ function ValueCard({ value }) {
           { label: "Worst value", titles: value.worst },
         ].map(({ label, titles }) => (
           <div key={label}>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-text-faint mb-1.5">
+            <div className="text-[10px] font-mono text-text-faint mb-1.5">
               {label}
             </div>
             <div className="space-y-1">

@@ -106,7 +106,7 @@ export default function DefaultsTab({
                       !allOn
                     )
                   }
-                  className="ml-4 mt-2 text-[10px] font-bold text-text-faint hover:text-brand whitespace-nowrap uppercase tracking-wider"
+                  className="ml-4 mt-2 text-[10px] font-bold text-text-faint hover:text-brand whitespace-nowrap"
                 >
                   {allOn ? "Auto-fill: none" : "Auto-fill: all"}
                 </button>
@@ -161,7 +161,7 @@ export default function DefaultsTab({
                           {field.autofillable === false ? (
                             <span className="text-[10px] text-text-faint/60">—</span>
                           ) : (
-                            <label className="flex items-center gap-1.5 text-[10px] font-bold text-text-faint uppercase tracking-wider cursor-pointer">
+                            <label className="flex items-center gap-1.5 text-[10px] font-bold text-text-faint cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={autofill.includes(field.key)}

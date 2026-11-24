@@ -65,7 +65,7 @@ const GRID_CLS =
   "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3";
 
 const PILL_OFF = "bg-surface text-text-muted border-border-strong hover:border-text";
-const PILL_CLS = "shrink-0 px-3 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors";
+const PILL_CLS = "shrink-0 px-3 py-1 border font-mono text-[11px] transition-colors";
 
 function getFranchiseTitles(f) {
   const raw = [
@@ -564,7 +564,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Anime
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedAnime.length} results
               </span>
             </div>
@@ -610,7 +610,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Anime movies
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedAnimeMovies.length} results
               </span>
             </div>
@@ -637,7 +637,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Movies
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedMovies.length} results
               </span>
             </div>
@@ -664,7 +664,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 TV shows
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedTvShows.length} results
               </span>
             </div>
@@ -691,7 +691,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Cartoons
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedCartoons.length} results
               </span>
             </div>
@@ -718,7 +718,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Manga
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedMangas.length} results
               </span>
             </div>
@@ -746,7 +746,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Book
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedBooks.length} results
               </span>
             </div>
@@ -773,7 +773,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Comic
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedComics.length} results
               </span>
             </div>
@@ -800,7 +800,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Game
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedGames.length} results
               </span>
             </div>
@@ -827,7 +827,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 H-Comic
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedHComics.length} results
               </span>
             </div>
@@ -854,7 +854,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 H-Game
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedHGames.length} results
               </span>
             </div>
@@ -881,7 +881,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Hentai
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedHentai.length} results
               </span>
             </div>
@@ -908,7 +908,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 People
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedPeople.length} results
               </span>
             </div>
@@ -929,7 +929,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Studios
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedStudios.length} results
               </span>
             </div>
@@ -950,7 +950,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Publishers
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedPublishers.length} results
               </span>
             </div>
@@ -974,7 +974,7 @@ export default function Search() {
               <h2 className="font-display text-2xl font-semibold text-text leading-none">
                 Characters
               </h2>
-              <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+              <span className="font-mono text-[11px] text-text-faint">
                 {matchedCharacters.length} results
               </span>
             </div>

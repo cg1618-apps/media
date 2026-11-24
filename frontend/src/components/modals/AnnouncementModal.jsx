@@ -1,6 +1,6 @@
 // Frontend: modal component file for AnnouncementModal.
 import { useEffect } from "react";
-import { Button } from "../ui/primitives";
+import { Button, eyebrowCls } from "../ui/primitives";
 
 export default function AnnouncementModal({ announcement, onClose }) {
   // Close on Escape so the fullscreen view never traps the reader.
@@ -26,7 +26,7 @@ export default function AnnouncementModal({ announcement, onClose }) {
       >
         <div className="px-6 py-3 border-b border-border flex justify-between items-center gap-3 shrink-0">
           <div className="min-w-0">
-            <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+            <div className={eyebrowCls}>
               Announcement
             </div>
             <h3

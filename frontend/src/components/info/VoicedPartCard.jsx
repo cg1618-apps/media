@@ -14,7 +14,7 @@ import { Link } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { useEntityHref } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
-import { Chip } from "../ui/primitives";
+import { Chip, eyebrowCls } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
 export default function VoicedPartCard({ entry, navPath }) {
@@ -78,7 +78,7 @@ export default function VoicedPartCard({ entry, navPath }) {
         >
           {title}
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+        <span className={eyebrowCls}>
           {year || "Undated"}
         </span>
       </span>

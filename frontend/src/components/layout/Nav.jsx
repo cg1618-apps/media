@@ -67,7 +67,7 @@ function SectionPanel({ section, currentItem, onNavigate }) {
       <div className="flex gap-6 p-3">
         {section.columns.map((col) => (
           <div key={col.heading} className="min-w-[9.5rem]">
-            <div className="px-2.5 pb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+            <div className="px-2.5 pb-1.5 font-mono text-[10px] text-text-faint">
               {col.heading}
             </div>
             <div className="space-y-0.5">
@@ -113,7 +113,7 @@ function DrawerSection({ section, currentItem, onNavigate }) {
   if (section.columns) {
     return section.columns.map((col) => (
       <div key={col.heading} className="pb-1">
-        <div className="px-2.5 pt-2 pb-1 font-mono text-[10px] uppercase tracking-[0.1em] text-text-faint">
+        <div className="px-2.5 pt-2 pb-1 font-mono text-[10px] text-text-faint">
           {col.heading}
         </div>
         <div className="grid grid-cols-2 gap-x-2">
@@ -330,7 +330,7 @@ export default function Nav() {
                 </span>
               )}
               {/* A username is a VALUE, so it keeps the body face and its own
-                  casing - the mono uppercase treatment belongs to labels. */}
+                  casing - the mono treatment belongs to labels. */}
               <span
                 className="hidden sm:inline-flex items-center text-xs text-ink-text/80 max-w-[10rem] truncate"
                 title={username ? `Signed in as ${username}` : "Not signed in"}
@@ -469,7 +469,7 @@ export default function Nav() {
                     }
                     aria-expanded={isOpen}
                     aria-current={isCurrent ? "page" : undefined}
-                    className={`relative -mb-px flex h-10 items-center border px-4 font-mono text-[11px] uppercase tracking-[0.08em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${
+                    className={`relative -mb-px flex h-10 items-center border px-4 font-mono text-[11px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${
                       isCurrent
                         ? "border-border border-b-canvas bg-canvas text-text"
                         : isOpen
@@ -521,7 +521,7 @@ export default function Nav() {
                     type="button"
                     onClick={() => toggleSection(section.key)}
                     aria-expanded={isOpen}
-                    className={`flex w-full items-center justify-between px-2.5 py-3 font-mono text-[11px] uppercase tracking-[0.12em] transition ${
+                    className={`flex w-full items-center justify-between px-2.5 py-3 font-mono text-[11px] transition ${
                       isCurrent ? "text-brand" : "text-text-muted hover:text-text"
                     }`}
                   >

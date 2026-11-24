@@ -85,7 +85,7 @@ const invalid = (val) =>
     !val.content.trim());
 
 const statusSelectCls =
-  "border border-border-strong bg-surface text-text px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] focus:outline-none focus:ring-2 focus:ring-brand";
+  "border border-border-strong bg-surface text-text px-1.5 py-0.5 font-mono text-[10px] focus:outline-none focus:ring-2 focus:ring-brand";
 
 // The list's own status, in the card header. A viewer who may mark gets a
 // compact select over the closed vocabulary, marking the list's status row;

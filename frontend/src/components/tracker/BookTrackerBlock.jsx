@@ -27,7 +27,7 @@ import { stepDown, stepUp } from "../../lib/progressStep";
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
 
 const UNIT_CLS =
-  "font-mono text-[9px] uppercase tracking-[0.12em] text-text-faint ml-1.5";
+  "font-mono text-[9px] text-text-faint ml-1.5";
 
 function StepButton({ onClick, label, children }) {
   return (

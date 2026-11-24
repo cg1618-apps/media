@@ -68,7 +68,7 @@ export default function ContentLabels() {
         <p className="text-sm text-text-faint italic">No labels defined.</p>
       ) : (
         <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
-          <thead className="bg-surface-2 text-xs uppercase text-text-faint">
+          <thead className="bg-surface-2 text-xs text-text-faint">
             <tr>
               <th className="text-left px-4 py-2">Label</th>
               <th className="text-left px-4 py-2">Description</th>

@@ -5,12 +5,21 @@
 // card/badge/label markup, so the look stays consistent and a change here
 // changes it everywhere. See docs/frontend/design-system.md.
 
-// A small mono caption in uppercase - the label above a value, a section
-// title, a breadcrumb. `as` lets it be a heading when it titles a section.
+// The caption face: small mono, faint, in the casing the text is written in
+// and at the face's own letter-spacing. Nothing is set in capitals for
+// style - see docs/frontend/design-system.md, rule 2. A label that is not an
+// Eyebrow element uses the class string itself.
+export const eyebrowCls = "font-mono text-[10px] text-text-faint";
+
+// A slip's title, and any section title drawn outside a Slip.
+export const sectionTitleCls = "font-mono text-[11px] text-text-muted";
+
+// A small mono caption - the label above a value, a section title, a
+// breadcrumb. `as` lets it be a heading when it titles a section.
 export function Eyebrow({ as: Tag = "div", className = "", children, ...rest }) {
   return (
     <Tag
-      className={`font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint ${className}`}
+      className={`${eyebrowCls} ${className}`}
       {...rest}
     >
       {children}
@@ -35,7 +44,7 @@ export function Slip({
       {(title || actions) && (
         <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border">
           {title && (
-            <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted shrink-0">
+            <h3 className={`${sectionTitleCls} shrink-0`}>
               {title}
             </h3>
           )}
@@ -94,7 +103,7 @@ export function Chip({ tone = "ink", dashed = false, hue = null, className = "",
   const look = dashed ? CHIP_DASHED : hue || CHIP_TONES[tone] || CHIP_TONES.ink;
   return (
     <span
-      className={`inline-flex items-center gap-1 border rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none whitespace-nowrap ${look} ${className}`}
+      className={`inline-flex items-center gap-1 border rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] leading-none whitespace-nowrap ${look} ${className}`}
       {...rest}
     >
       {children}
@@ -153,7 +162,7 @@ export function ClearAllButton({ active, onClick, className = "" }) {
     <button
       type="button"
       onClick={onClick}
-      className={`font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint hover:text-danger transition ${className}`}
+      className={`font-mono text-[10px] text-text-faint hover:text-danger transition ${className}`}
     >
       Clear all
     </button>

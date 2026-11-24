@@ -23,7 +23,7 @@ const OTHER = "Other";
 // Shared with TextLinksSection's Public and Personal headings, which are
 // in-card group headings too.
 export const groupHeadingCls =
-  "font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint";
+  "font-mono text-[10px] text-text-faint";
 
 /**
  * The grouped reading of `notes`. `rows` is every row in drawing order;

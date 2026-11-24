@@ -6,7 +6,7 @@
 // change plus whatever was filled in, and a blank field is left as it was.
 // Laid out like MarkAiringModal so the two read as one family.
 import { useState } from "react";
-import { Button } from "../ui/primitives";
+import { Button, sectionTitleCls } from "../ui/primitives";
 import { Field, selectCls } from "../forms/FormField";
 import ReleaseDateInput from "../forms/ReleaseDateInput";
 import { WEEKDAYS } from "../../config/weekdays";
@@ -73,7 +73,7 @@ export default function ReleaseDetailsModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 py-3 border-b border-border">
-          <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+          <h3 className={sectionTitleCls}>
             {heading}
           </h3>
         </div>

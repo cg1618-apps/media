@@ -101,14 +101,14 @@ export function HGameProgress({ hGame }) {
   return (
     <div className="space-y-3">
       {estimate && (
-        <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+        <div className="flex items-baseline justify-between font-mono text-[11px] text-text-faint">
           <span>Main story</span>
           <span className="text-text normal-case tracking-normal">{estimate}</span>
         </div>
       )}
       {ach && (
         <div>
-          <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-1.5">
+          <div className="flex items-baseline justify-between font-mono text-[11px] text-text-faint mb-1.5">
             <span>Achievements</span>
             <span className="text-text normal-case tracking-normal">
               {ach.earned} / {ach.total}
@@ -289,7 +289,7 @@ export default function HGame() {
       <DetailContents>
         <div className="mb-8 flex items-center justify-between gap-3">
           <nav
-            className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+            className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
             aria-label="Breadcrumb"
           >
             <Link to="/library/h-game" className="hover:text-brand transition">
@@ -323,7 +323,7 @@ export default function HGame() {
 
         {isAdmin && (
           <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-            <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
+            <Eyebrow className="text-[11px] text-text-muted">Admin</Eyebrow>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => navigate(`/modify?id=${system_id}&type=h-game`)}>
                 Edit
@@ -361,7 +361,7 @@ export default function HGame() {
                 </div>
                 <ProgressRule value={ach ? ach.pct / 100 : 0} />
                 {ach && (
-                  <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                  <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] text-text-faint">
                     <span>Achievements</span>
                     <span className="text-text">
                       {ach.earned} / {ach.total} · {ach.pct}%
@@ -385,7 +385,7 @@ export default function HGame() {
           {/* ========== RIGHT COLUMN ========== */}
           <div className="lg:col-span-3 space-y-10">
             <header>
-              <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              <div className="font-mono text-[11px] text-text-muted mb-3">
                 {eyebrow}
               </div>
               <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">

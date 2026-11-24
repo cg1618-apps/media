@@ -107,7 +107,7 @@ export function PersonRoleMatrix({ roles, setRoles, legalScopes }) {
 
   return (
     <div className="space-y-2">
-      <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider">
+      <label className="block text-[10px] font-bold text-text-faint">
         Types and Scopes
       </label>
       <p className="text-[11px] text-text-faint">

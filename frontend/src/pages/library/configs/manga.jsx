@@ -126,7 +126,7 @@ const MANGA_LIBRARY_CONFIG = {
     },
     {
       key: "ch",
-      header: "CH",
+      header: "Ch",
       personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
@@ -134,7 +134,7 @@ const MANGA_LIBRARY_CONFIG = {
     },
     {
       key: "vol",
-      header: "VOL",
+      header: "Vol",
       personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",

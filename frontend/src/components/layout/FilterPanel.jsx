@@ -20,7 +20,7 @@ function Chip({ active, onClick, title, children }) {
       onClick={onClick}
       aria-pressed={active}
       title={title}
-      className={`px-2 py-0.5 border font-mono text-[10px] uppercase tracking-[0.12em] transition-colors ${
+      className={`px-2 py-0.5 border font-mono text-[10px] transition-colors ${
         active
           ? "bg-brand text-on-brand border-brand"
           : "bg-surface text-text-muted border-border-strong hover:border-text hover:text-text"
@@ -223,7 +223,7 @@ export default function FilterPanel({
           {resetFilters && (
             <button
               onClick={resetFilters}
-              className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint hover:text-brand transition"
+              className="font-mono text-[10px] text-text-faint hover:text-brand transition"
             >
               Reset
             </button>

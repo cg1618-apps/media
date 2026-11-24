@@ -415,7 +415,7 @@ function GridEditor({
 
         {/* Right: ranked drag list */}
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black text-text-faint uppercase tracking-widest mb-2">
+          <p className="text-[10px] font-black text-text-faint mb-2">
             Drag to reorder
           </p>
           <DndContext

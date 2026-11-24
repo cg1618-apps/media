@@ -47,7 +47,7 @@ export default function AdminTabBar({
               type="button"
               onClick={() => setActiveGroup(g.key)}
               aria-pressed={activeGroup === g.key}
-              className={`font-mono text-[10px] uppercase tracking-[0.14em] py-1 transition ${
+              className={`font-mono text-[10px] py-1 transition ${
                 activeGroup === g.key
                   ? "text-brand"
                   : "text-text-faint hover:text-text-muted"
@@ -67,7 +67,7 @@ export default function AdminTabBar({
             type="button"
             onClick={() => onSelect(t.key)}
             aria-current={activeTab === t.key ? "page" : undefined}
-            className={`-mb-px flex items-center gap-1.5 px-3 py-2 border-b-2 font-mono text-[11px] uppercase tracking-[0.08em] whitespace-nowrap transition ${
+            className={`-mb-px flex items-center gap-1.5 px-3 py-2 border-b-2 font-mono text-[11px] whitespace-nowrap transition ${
               activeTab === t.key
                 ? "border-brand text-text"
                 : "border-transparent text-text-muted hover:text-text"

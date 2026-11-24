@@ -5,7 +5,7 @@
 export function InfoRow({ label, value }) {
   return (
     <div className="min-w-0">
-      <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mb-1">
+      <div className="font-mono text-[10px] text-text-faint mb-1">
         {label}
       </div>
       <div className="text-sm text-text break-words">
@@ -18,7 +18,7 @@ export function InfoRow({ label, value }) {
 export default function InfoCard({ title, fields }) {
   return (
     <section className="bg-surface border border-border">
-      <h3 className="flex items-center gap-3 px-4 py-2.5 border-b border-border font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+      <h3 className="flex items-center gap-3 px-4 py-2.5 border-b border-border font-mono text-[11px] text-text-muted">
         {title}
         <span className="flex-1 border-t border-dotted border-border-strong/60" />
       </h3>

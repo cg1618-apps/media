@@ -98,7 +98,7 @@ export default function DashboardCard({
   }
 
   const unitSuffix = isReading ? (
-    <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint ml-1">
+    <span className="font-mono text-[10px] text-text-faint ml-1">
       ch
     </span>
   ) : !isReading && prevEps > 0 ? (
@@ -155,7 +155,7 @@ export default function DashboardCard({
         <div className="flex shrink-0 h-28 border border-border">
           <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
             <span
-              className="font-mono text-[9px] uppercase tracking-[0.2em] whitespace-nowrap"
+              className="font-mono text-[9px] whitespace-nowrap"
               style={{ writingMode: "vertical-rl" }}
             >
               {spineLabel}
@@ -198,7 +198,7 @@ export default function DashboardCard({
               title
             )}
           </h3>
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mb-2">
+          <p className="font-mono text-[10px] text-text-faint truncate mb-2">
             {subTitle}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
@@ -212,7 +212,7 @@ export default function DashboardCard({
       </div>
 
       {isFilm ? (
-        <div className="relative z-10 p-3 border-t border-border mt-auto space-y-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+        <div className="relative z-10 p-3 border-t border-border mt-auto space-y-1.5 font-mono text-[10px] text-text-faint">
           <div className="flex justify-between items-baseline">
             <span>Paused at</span>
             <span
@@ -233,7 +233,7 @@ export default function DashboardCard({
         </div>
       ) : (
         <div className="relative z-10 p-3 border-t border-border mt-auto">
-          <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+          <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] text-text-faint">
             <span>Progress</span>
             <span className="text-text">
               {localTotal !== "?" ? `${progressPercent}%` : ""}

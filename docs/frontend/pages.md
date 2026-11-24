@@ -195,9 +195,11 @@ mobile drawer and the phone search. Session controls: a session indicator, the
 access-mode switcher, and a theme toggle (moon/sun, `useTheme().toggle`,
 `aria-pressed`). The indicator always renders: the
 account's `username` when signed in, **Guest** when not. It is a value, so it
-keeps the body face and its own casing - the mono uppercase treatment belongs
-to labels. The **Admin** chip beside it is a capability and stays gated on
-`isAdmin`, as does **Back up** (also behind `has("manage.pipelines")`). It
+keeps the body face and its own casing - the mono treatment belongs to
+labels. The **role chip** beside it prints the account's role (`SUPER`,
+`ADMIN`) and is, with the CG1618 mark, the one label still set in capitals for style
+([design system](design-system.md), rule 2). It is a capability and stays
+gated on `isAdmin` or `admin.authz`, as is **Back up** (also behind `has("manage.pipelines")`). It
 runs `runBackup` from `api/sheets.js`, which reads the endpoint's event
 stream: the button counts tabs ("Backing up 12/47…"), and the toast is
 success, an error with the server's message, or a **warning** - never a
@@ -1754,7 +1756,8 @@ for its header to the notes (through the `*Notes.jsx` wrapper, or straight to
 it has none). Each section the entry has then also lists, after its own rows,
 the rows the series and then the franchise hold in that section, each under a
 mono "From series" / "From franchise" heading linking to the group's page,
-read-only. The Modify tabs and the Add page's notes panel pass neither, so
+read-only. 梗/迷因 Memes does the same with the series' and franchise's memes,
+read from `/api/meme` since memes are not notes. The Modify tabs and the Add page's notes panel pass neither, so
 they show the entry's own rows alone. The rules are in
 [systems/notes.md](../systems/notes.md#series-and-franchise-notes-on-an-entry).
 

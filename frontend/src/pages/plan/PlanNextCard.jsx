@@ -64,7 +64,7 @@ export default function PlanNextCard({ row }) {
           style={focusStyle(cover.focus)}
         />
         {badge && (
-          <span className="absolute top-2 left-2 bg-black/60 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white">
+          <span className="absolute top-2 left-2 bg-black/60 px-1.5 py-0.5 font-mono text-[10px] text-white">
             {badge}
           </span>
         )}
