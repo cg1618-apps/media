@@ -3,7 +3,7 @@ Shared resolution for tables that reference a row across several tables by a
 (type, id) pair rather than a foreign key.
 
 Three maps are exported. MEDIA_TABLES covers the media entry tables and is
-what `quote` and `watch_order_item` resolve against. OWNER_TABLES adds the
+what `quote` and `order_item` resolve against. OWNER_TABLES adds the
 three grouping tiers (series, franchise, collection) and is what `meme`
 resolves against, since a meme can belong to a franchise rather than to one
 entry. REQUEST_TARGET_TABLES adds the five entity tables (studio, publisher,
@@ -46,7 +46,7 @@ class MediaRef:
 
 
 # Keys use the hyphenated spelling already established by
-# app/services/domain/watch_order.py's MEDIA_TYPE_MODELS, so both tables that
+# app/services/domain/order.py's MEDIA_TYPE_MODELS, so both tables that
 # store a media_type discriminator agree on its values. Note this differs from
 # MEDIA_REGISTRY's underscore keys, which name router configs, not column data.
 MEDIA_TABLES: dict[str, MediaRef] = {

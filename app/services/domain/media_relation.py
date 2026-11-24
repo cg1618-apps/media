@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.models import Anime, Franchise, Media, MediaRelation
 from app.services.domain.derivation import season_part_sort_key
 from app.services.domain.hierarchy import franchise_type_tokens
-from app.services.domain.watch_order import (
+from app.services.domain.order import (
     entry_exists,  # noqa: F401 (re-export)
     list_candidate_entries,
 )

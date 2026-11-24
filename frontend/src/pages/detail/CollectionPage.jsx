@@ -48,7 +48,7 @@ import {
 import FranchiseCard from "../../components/cards/FranchiseCard";
 import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
-import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import OrderSection from "../../components/tracker/OrderSection";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import CollectionNotes from "./CollectionNotes";
 import { usePageTitle } from "../../contexts/PageTitleContext";
@@ -342,7 +342,7 @@ export default function CollectionPage() {
       <HubTabs
         groups={[
           { label: "Members", tabs: ["Franchises"], counted: true },
-          { label: "Extras", tabs: ["Watch Order", "Relations", "Notes"] },
+          { label: "Extras", tabs: ["Order", "Relations", "Notes"] },
         ]}
         activeTab={activeTab}
         onSelect={setActiveTab}
@@ -383,12 +383,12 @@ export default function CollectionPage() {
         </Section>
       )}
 
-      {activeTab === "Watch Order" && (
+      {activeTab === "Order" && (
         <Section
-          title="Watch order"
+          title="Order"
           subtitle="Cross-franchise orders covering this collection"
         >
-          <WatchOrderSection collectionId={system_id} />
+          <OrderSection collectionId={system_id} />
         </Section>
       )}
 

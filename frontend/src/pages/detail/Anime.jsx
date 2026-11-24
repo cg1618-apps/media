@@ -368,8 +368,8 @@ export default function Anime() {
             />
           </header>
 
-          {/* Where this entry sits in the watch orders the viewer follows. */}
-          <TocSection id="watch-orders" label="Watch orders">
+          {/* Where this entry sits in the orders the viewer follows. */}
+          <TocSection id="orders" label="Orders">
             <FollowedOrderPanel entryId={anime.system_id} />
           </TocSection>
 

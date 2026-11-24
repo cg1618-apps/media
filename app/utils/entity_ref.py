@@ -42,7 +42,7 @@ def media_entity_ref_filter(model, ref: str):
 
     The nine media types keep their public_id on `media`, so a public_id
     reference resolves through a subquery against it. The eight non-media
-    entities (person, studio, publisher, character, watch_order_list and the
+    entities (person, studio, publisher, character, order_list and the
     three grouping tiers) still hold their own public_id and keep using
     entity_ref_filter unchanged.
 

@@ -87,7 +87,7 @@ describe("Relations scope from the URL", () => {
     expect(screen.getByTestId("graph-scope").textContent).toBe("franchise:FR001");
     await waitFor(() =>
       expect(fetchedUrls()).toContain(
-        "/api/watch-order/candidates?franchise_id=FR001",
+        "/api/order/candidates?franchise_id=FR001",
       ),
     );
   });
@@ -99,7 +99,7 @@ describe("Relations scope from the URL", () => {
     expect(screen.getByTestId("graph-scope").textContent).toBe("collection:CO001");
     await waitFor(() =>
       expect(fetchedUrls()).toContain(
-        "/api/watch-order/candidates?collection_id=CO001",
+        "/api/order/candidates?collection_id=CO001",
       ),
     );
   });

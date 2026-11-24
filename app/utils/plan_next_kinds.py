@@ -11,7 +11,7 @@ purpose.
 
 Media type keys are the hyphenated ones from MEDIA_TABLES in
 app/utils/media_resolver.py, so plan_next agrees with media_relation and
-watch_order_item on what a media_type value looks like.
+order_item on what a media_type value looks like.
 
 This module is the single source of truth for the API validator, the Calculate
 derivation, the admin dropdowns and the docs tables. GET /api/plan-next/kinds

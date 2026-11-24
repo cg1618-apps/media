@@ -594,8 +594,8 @@ def run_post_processing(db: Session) -> dict:
 def run_derive_ep_previous(db: Session) -> dict:
     """Anime only: it is the one type with a franchise-wide derived field left.
 
-    TV shows and cartoons had a step here too, but watch order was all it
-    assigned, and that moved to watch_order_list where it is curated by hand.
+    TV shows and cartoons had a step here too, but order was all it
+    assigned, and that moved to order_list where it is curated by hand.
     """
     derive_ep_previous_all_anime(db)
     return {

@@ -46,7 +46,7 @@ import {
 import MediaCard from "../../components/cards/MediaCard";
 import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
-import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import OrderSection from "../../components/tracker/OrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import SeriesNotes from "./SeriesNotes";
@@ -458,7 +458,7 @@ export default function SeriesPage() {
       series
         ? [
             ...(showCharacters ? ["Characters"] : []),
-            "Watch Order",
+            "Order",
             "Relations",
             "Notes",
           ]
@@ -1953,13 +1953,13 @@ export default function SeriesPage() {
         </Section>
       )}
 
-      {/* ── Watch Order tab content ──────────────────────────────────────── */}
-      {activeTab === "Watch Order" && (
+      {/* ── Order tab content ──────────────────────────────────────── */}
+      {activeTab === "Order" && (
         <Section
-          title="Watch Order"
+          title="Order"
           subtitle="Ordered viewing guide across every media type"
         >
-          <WatchOrderSection seriesId={system_id} />
+          <OrderSection seriesId={system_id} />
         </Section>
       )}
 

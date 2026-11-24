@@ -320,7 +320,7 @@ describe("Nav admin gating", () => {
     expect(tab("admin")).toBeInTheDocument();
   });
 
-  it("keeps Watch Orders out of every non-admin panel", async () => {
+  it("keeps Orders out of every non-admin panel", async () => {
     const user = userEvent.setup();
     renderNav("/");
 
@@ -329,7 +329,7 @@ describe("Nav admin gating", () => {
     for (const label of ["library", "track", "explore"]) {
       await user.click(tab(label));
       expect(
-        screen.queryByRole("link", { name: /watch orders/i }),
+        screen.queryByRole("link", { name: /orders/i }),
       ).not.toBeInTheDocument();
       await user.click(tab(label));
     }

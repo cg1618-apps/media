@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -982,7 +982,7 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 | Note Mark tab | Each account's marks travel on their own tab, after Note: `note_mark`'s columns with `user_id` dropped for `username`, `values` as JSON text. Pull resolves the name (unknown → the row is skipped and reported; no header → the installation owner), matches an existing mark by `(user, note)`, and translates a `note_id` this database does not hold through the Note tab — a `music_status` row by owner and list, any other by its twin — so a mark follows a row each database minted under its own id. A cell holding no value is not restored. |
 | Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is one of `MUSIC_STATUSES`. Links that arrive as URL strings - any section, from a backup taken before every link was titled - are read as links with no title (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
 | Old-shape note rows | A sheet backed up before 操作 Controls, 職業 Classes, 地理 Geography and 各集評論 lost their links, 主線劇情 and 支線劇情 their description, 角色劇情 became titled links and 小知識 became structured is reshaped on Pull exactly as revision `n1l2inkpairs3` reshaped the local rows (`_reshape_pulled_note` in `app/utils/formatter.py`), so no pulled row keeps a value in a column its section no longer draws: links become lines of the description; a plot row's description becomes its chapter and the old chapter its first link's title (otherwise the description is appended to the chapter after " — "); an arc's text becomes its first link's title, or moves to 其他 Other prefixed "【角色劇情】 " when it has no link; a trivia row's stray locator becomes its title. Each step is a no-op on a row already in the new shape, so a newer sheet pulls unchanged. |
-| Round-trip | The owner tables have no `remark` column, so **remarks round-trip only via the Note tab**. The `remark` still parsed on Watch Order tabs is those tables' own column, unrelated. |
+| Round-trip | The owner tables have no `remark` column, so **remarks round-trip only via the Note tab**. The `remark` still parsed on Order tabs is those tables' own column, unrelated. |
 
 ## Related
 

@@ -160,6 +160,16 @@ from app.services.domain.hierarchy import (
 from app.services.domain.options_extraction import (
     extract_system_options,
 )
+from app.services.domain.order import (
+    MEDIA_TYPE_MODELS,
+    VALID_ORDER_MEDIA_TYPES,
+    entry_exists,
+    first_section_break,
+    get_entry_franchise_id,
+    list_candidate_entries,
+    resolve_items,
+    sort_items_by_reading_order,
+)
 from app.services.domain.post_processing import (
     anime_movie_post_processing,
     anime_post_processing,
@@ -201,16 +211,6 @@ from app.services.domain.user_list import (
     list_row,
     no_owner_message,
     split_list_payload,
-)
-from app.services.domain.watch_order import (
-    MEDIA_TYPE_MODELS,
-    VALID_WATCH_ORDER_MEDIA_TYPES,
-    entry_exists,
-    first_section_break,
-    get_entry_franchise_id,
-    list_candidate_entries,
-    resolve_items,
-    sort_items_by_reading_order,
 )
 
 __all__ = [
@@ -309,7 +309,7 @@ __all__ = [
     "apply_extract_steam_appid",
     "apply_calculate_seasonal_from_month",
     "MEDIA_TYPE_MODELS",
-    "VALID_WATCH_ORDER_MEDIA_TYPES",
+    "VALID_ORDER_MEDIA_TYPES",
     "resolve_items",
     "first_section_break",
     "sort_items_by_reading_order",

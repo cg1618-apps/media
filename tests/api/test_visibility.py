@@ -3,7 +3,7 @@ A labelled entry must not reach a viewer who lacks the label's permission.
 
 Assertions run against response.text, not parsed fields, because an entry can
 leak through a payload this test never models - a resolved display name inside
-a quote, a watch-order step, a relation graph node. A substring check on the
+a quote, an order step, a relation graph node. A substring check on the
 whole body catches those; checking `[e["system_id"] for e in body]` does not.
 """
 

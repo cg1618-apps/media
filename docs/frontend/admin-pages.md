@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -29,7 +29,7 @@ label reference and the RBAC pages — never the catalogue editors.
 | `/delete` | `pages/admin/Delete.jsx` | Delete with cascade / orphan handling | `manage.catalog` |
 | `/defaults` | `pages/admin/FormDefaults.jsx` + `pages/defaults-tabs/DefaultsTab.jsx` | Per-type form defaults | `manage.catalog` |
 | `/random-defaults` | `pages/admin/PickerDefaults.jsx` | Per-mode Random Picker default filters | `manage.catalog` |
-| `/watch-orders` | `pages/admin/WatchOrders.jsx` | Watch-order lists editor | `manage.catalog` |
+| `/orders` | `pages/admin/Orders.jsx` | Order lists editor | `manage.catalog` |
 | `/relations` | `pages/admin/Relations.jsx` | Relations canvas | `manage.catalog` |
 | `/options` | `pages/admin/SystemOptions.jsx` | Read-only view of the three option tiers | `manage.options` |
 | `/aliases` | `pages/admin/Aliases.jsx` | Read-only view of the external-source names, inverted by source | `manage.options` |
@@ -1344,7 +1344,7 @@ then a ticked orphan franchise - through each type's `DELETE` endpoint, and
 stops at the first one that fails, naming it in an error toast; whatever was
 deleted before it stays deleted, and the cards re-read what is left. Confirm
 Delete stays disabled while the members are loading or if they failed to load.
-The modal also says that the group's memes, notes and watch orders are
+The modal also says that the group's memes, notes and orders are
 deleted with it: each is `ON DELETE CASCADE` on the collection, franchise or
 series that owns it.
 
@@ -1506,21 +1506,21 @@ with only the chips that are on, and `weighted`) and **Reset to none**
 the picker opens on them at once. One mode is edited at a time: leaving a
 mode with unsaved changes asks first, and discards them on yes.
 
-## /watch-orders (`WatchOrders.jsx`)
+## /orders (`Orders.jsx`)
 
-Lists every watch-order list (`GET /api/watch-order/lists`, with the
+Lists every order list (`GET /api/order/lists`, with the
 `auto=exclude|only` filter for generated Release Orders), opens
-`WatchOrderEditor` for items, sections and reordering, and can duplicate or
+`OrderEditor` for items, sections and reordering, and can duplicate or
 delete lists. The scoped owner and the open order are `?owner=` and `?order=`
 in the URL, which is how a hub's or the full page's "Edit" opens one order.
-Details in [../systems/watch-orders.md](../systems/watch-orders.md).
+Details in [../systems/orders.md](../systems/orders.md).
 
 ## /relations (`Relations.jsx`)
 
 Picks a lens (franchise or collection) and renders `RelationGraph`
 (`GET /api/media-relation/graph`), with drag-to-connect, the edge inspector,
 undo and scope reset. The picked lens is `?owner=<tier>:<system_id>` in the
-URL - the key `/watch-orders` uses - so a reload or a hub's "Edit relations"
+URL - the key `/orders` uses - so a reload or a hub's "Edit relations"
 link opens on that scope. Details in [../systems/relations.md](../systems/relations.md).
 
 ## /options (`SystemOptions.jsx`)

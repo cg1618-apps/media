@@ -2,7 +2,7 @@
 
 import pytest
 
-from tests.api.conftest import WATCH_ORDER_LIST_BASE
+from tests.api.conftest import ORDER_LIST_BASE
 
 ENTITY_PATHS = [
     "/api/collection",
@@ -12,7 +12,7 @@ ENTITY_PATHS = [
     "/api/publisher",
     "/api/person",
     "/api/character",
-    WATCH_ORDER_LIST_BASE,
+    ORDER_LIST_BASE,
 ]
 
 

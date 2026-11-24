@@ -22,8 +22,8 @@ from app.models import (
     Note,
     TVShows,
 )
+from app.services.domain.order import release_display
 from app.services.domain.user_list import STATUS_FIELD, attach_list_fields
-from app.services.domain.watch_order import release_display
 
 logger = logging.getLogger(__name__)
 

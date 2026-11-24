@@ -25,16 +25,16 @@ SEVENTEEN = [
     (models.Studio, {"name_en": "PID Studio"}),
     (models.Publisher, {"name_en": "PID Publisher"}),
     (models.Character, {"name_en": "PID Character"}),
-    (models.WatchOrderList, {"list_name": "PID Order"}),
+    (models.OrderList, {"list_name": "PID Order"}),
 ]
 
 
 def _kwargs_with_owner(model, kwargs, db_session):
-    """WatchOrderList has a check constraint requiring exactly one of
+    """OrderList has a check constraint requiring exactly one of
     franchise_id/collection_id/series_id to be set; give it a real owner so
     the insert reaches the public_id assignment being tested here, rather
     than failing on an unrelated constraint."""
-    if model is models.WatchOrderList and "collection_id" not in kwargs:
+    if model is models.OrderList and "collection_id" not in kwargs:
         owner = models.Collection(collection_name_en="PID Order Owner")
         db_session.add(owner)
         db_session.flush()

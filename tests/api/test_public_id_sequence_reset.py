@@ -25,16 +25,16 @@ def test_insert_after_a_higher_restored_id_does_not_collide(db_session):
 
 def test_resync_is_safe_on_an_empty_table(db_session):
     """setval on max(NULL) would error; an empty table must be a no-op."""
-    db_session.query(models.WatchOrderList).delete()
+    db_session.query(models.OrderList).delete()
     db_session.flush()
-    resync_public_id_sequence(db_session, models.WatchOrderList)
+    resync_public_id_sequence(db_session, models.OrderList)
 
-    # ck_watch_order_list_single_owner wants exactly one owner set.
+    # ck_order_list_single_owner wants exactly one owner set.
     owner = models.Franchise(franchise_name_en="PID Owner")
     db_session.add(owner)
     db_session.flush()
 
-    row = models.WatchOrderList(list_name="PID First", franchise_id=owner.system_id)
+    row = models.OrderList(list_name="PID First", franchise_id=owner.system_id)
     db_session.add(row)
     db_session.flush()
     assert row.public_id > 0

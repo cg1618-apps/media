@@ -80,7 +80,7 @@ MANAGE_PERMISSION_LABELS: dict[str, tuple[str, str]] = {
     "catalog": (
         "Manage Catalogue",
         "Add, change and delete entries, groups, people, studios, publishers, "
-        "characters, credits, options, relations, watch orders and catalogue "
+        "characters, credits, options, relations, orders and catalogue "
         "notes.",
     ),
     "pipelines": (

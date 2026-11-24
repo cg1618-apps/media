@@ -68,7 +68,7 @@ class TestMediaTables:
         }
 
     def test_uses_hyphenated_spelling(self):
-        # The stored media_type must match watch_order_item's spelling, since
+        # The stored media_type must match order_item's spelling, since
         # both columns hold the same discriminator values.
         assert "anime_movie" not in MEDIA_TABLES
         assert "tv_show" not in MEDIA_TABLES

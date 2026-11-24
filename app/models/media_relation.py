@@ -21,7 +21,7 @@ class MediaRelation(Base):
     One typed link between two media entries, stored once and read both ways.
 
     Both endpoints are deliberately FK-less (media_type, entry_id) pairs, the
-    same contract `watch_order_item` uses: no single foreign key can span the
+    same contract `order_item` uses: no single foreign key can span the
     seven media tables. A deleted entry therefore leaves a dangling endpoint,
     which the read-time resolver flags as missing rather than silently dropping,
     so it stays visible and fixable in the admin page.
@@ -71,7 +71,7 @@ class MediaRelation(Base):
 
     # One of RELATION_KINDS in app/utils/relation_kinds.py. Not a DB enum: the
     # vocabulary is validated in the API layer, the same choice already made
-    # for watch_order_item.importance, so adding a kind needs no migration.
+    # for order_item.importance, so adding a kind needs no migration.
     relation_type = Column(String, nullable=False)
 
     to_type = Column(String, nullable=False)

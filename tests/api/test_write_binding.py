@@ -515,7 +515,7 @@ class TestNoteWrites:
         assert response.status_code == 200
 
 
-class TestRelationAndWatchOrderWrites:
+class TestRelationAndOrderWrites:
     def test_relating_to_a_hidden_entry_answers_as_a_missing_one(
         self, catalog_writer, hidden_anime, sample_anime, db_session
     ):
@@ -558,23 +558,23 @@ class TestRelationAndWatchOrderWrites:
         )
         assert response.status_code == 201
 
-    def test_adding_a_hidden_entry_to_a_watch_order_answers_as_missing(
+    def test_adding_a_hidden_entry_to_a_order_answers_as_missing(
         self, owner_client, catalog_writer, hidden_anime, sample_franchise, db_session
     ):
         """The order is created through the API as admin rather than by
         constructing the model, so this test does not encode
-        watch_order_list's column shape."""
+        order_list's column shape."""
         order = owner_client.post(
-            "/api/watch-order/lists",
+            "/api/order/lists",
             json={
                 "franchise_id": str(sample_franchise.system_id),
                 "list_name": "An order",
             },
         ).json()
-        before = db_session.query(models.WatchOrderItem).count()
+        before = db_session.query(models.OrderItem).count()
         client = catalog_writer()
         response = client.post(
-            f"/api/watch-order/lists/{order['system_id']}/items",
+            f"/api/order/lists/{order['system_id']}/items",
             json={
                 "media_type": "anime",
                 "entry_id": str(hidden_anime.system_id),
@@ -583,11 +583,11 @@ class TestRelationAndWatchOrderWrites:
         assert response.status_code == 400
         assert response.json()["detail"] == "Referenced entry does not exist."
         assert HIDDEN_NAME not in response.text
-        assert db_session.query(models.WatchOrderItem).count() == before
+        assert db_session.query(models.OrderItem).count() == before
 
     # ------------------------------------------------------------------
     # The guards beyond the two POST paths above: update_relation,
-    # reset_scope, delete_relation, and the watch-order item PUT/PATCH/
+    # reset_scope, delete_relation, and the order item PUT/PATCH/
     # DELETE. Each is set up by an admin (root role, so entry_visible
     # short-circuits True and the hidden-touching row can actually be
     # created), then exercised by catalog_writer, who cannot see the hidden
@@ -683,31 +683,31 @@ class TestRelationAndWatchOrderWrites:
             is not None
         )
 
-    def _hidden_watch_order_item(self, owner_client, hidden_anime, sample_franchise):
+    def _hidden_order_item(self, owner_client, hidden_anime, sample_franchise):
         order = owner_client.post(
-            "/api/watch-order/lists",
+            "/api/order/lists",
             json={
                 "franchise_id": str(sample_franchise.system_id),
                 "list_name": "An order",
             },
         ).json()
         return owner_client.post(
-            f"/api/watch-order/lists/{order['system_id']}/items",
+            f"/api/order/lists/{order['system_id']}/items",
             json={
                 "media_type": "anime",
                 "entry_id": str(hidden_anime.system_id),
             },
         ).json()
 
-    def test_putting_a_watch_order_item_touching_a_hidden_entry_answers_as_missing(
+    def test_putting_a_order_item_touching_a_hidden_entry_answers_as_missing(
         self, owner_client, catalog_writer, hidden_anime, sample_franchise, db_session
     ):
-        item = self._hidden_watch_order_item(
+        item = self._hidden_order_item(
             owner_client, hidden_anime, sample_franchise
         )
         client = catalog_writer()
         response = client.put(
-            f"/api/watch-order/items/{item['system_id']}",
+            f"/api/order/items/{item['system_id']}",
             json={"importance": "Essential"},
         )
         assert response.status_code == 400
@@ -723,21 +723,21 @@ class TestRelationAndWatchOrderWrites:
         # the row back.
         db_session.rollback()
         row = (
-            db_session.query(models.WatchOrderItem)
-            .filter(models.WatchOrderItem.system_id == item["system_id"])
+            db_session.query(models.OrderItem)
+            .filter(models.OrderItem.system_id == item["system_id"])
             .first()
         )
         assert row.importance != "Essential"
 
-    def test_patching_a_watch_order_item_touching_a_hidden_entry_answers_as_missing(
+    def test_patching_a_order_item_touching_a_hidden_entry_answers_as_missing(
         self, owner_client, catalog_writer, hidden_anime, sample_franchise, db_session
     ):
-        item = self._hidden_watch_order_item(
+        item = self._hidden_order_item(
             owner_client, hidden_anime, sample_franchise
         )
         client = catalog_writer()
         response = client.patch(
-            f"/api/watch-order/items/{item['system_id']}",
+            f"/api/order/items/{item['system_id']}",
             json={"importance": "Essential"},
         )
         assert response.status_code == 400
@@ -749,26 +749,26 @@ class TestRelationAndWatchOrderWrites:
         # session the way a real request's session.close() would.
         db_session.rollback()
         row = (
-            db_session.query(models.WatchOrderItem)
-            .filter(models.WatchOrderItem.system_id == item["system_id"])
+            db_session.query(models.OrderItem)
+            .filter(models.OrderItem.system_id == item["system_id"])
             .first()
         )
         assert row.importance != "Essential"
 
-    def test_deleting_a_watch_order_item_touching_a_hidden_entry_answers_as_missing(
+    def test_deleting_a_order_item_touching_a_hidden_entry_answers_as_missing(
         self, owner_client, catalog_writer, hidden_anime, sample_franchise, db_session
     ):
-        item = self._hidden_watch_order_item(
+        item = self._hidden_order_item(
             owner_client, hidden_anime, sample_franchise
         )
         client = catalog_writer()
-        response = client.delete(f"/api/watch-order/items/{item['system_id']}")
+        response = client.delete(f"/api/order/items/{item['system_id']}")
         assert response.status_code == 400
         assert response.json()["detail"] == "Referenced entry does not exist."
         assert HIDDEN_NAME not in response.text
         assert (
-            db_session.query(models.WatchOrderItem)
-            .filter(models.WatchOrderItem.system_id == item["system_id"])
+            db_session.query(models.OrderItem)
+            .filter(models.OrderItem.system_id == item["system_id"])
             .first()
             is not None
         )

@@ -48,6 +48,12 @@ from app.models.movie import Movies
 from app.models.needs_work import NeedsWork
 from app.models.note import Note
 from app.models.note_mark import NoteMark
+from app.models.order import (
+    OrderFollow,
+    OrderItem,
+    OrderList,
+    OrderSection,
+)
 from app.models.plan_next import PlanNext
 from app.models.quote import Quote
 from app.models.resource import ResourceNode
@@ -81,12 +87,6 @@ from app.models.user_highlight_group_order import UserHighlightGroupOrder
 from app.models.user_media_list import UserMediaList
 from app.models.user_rating import UserRating
 from app.models.user_request import UserRequest
-from app.models.watch_order import (
-    WatchOrderFollow,
-    WatchOrderItem,
-    WatchOrderList,
-    WatchOrderSection,
-)
 
 __all__ = [
     "Base",
@@ -126,10 +126,10 @@ __all__ = [
     "HGame",
     "Image",
     "ImageAttachment",
-    "WatchOrderList",
-    "WatchOrderItem",
-    "WatchOrderSection",
-    "WatchOrderFollow",
+    "OrderList",
+    "OrderItem",
+    "OrderSection",
+    "OrderFollow",
     "MediaRelation",
     "Person",
     "PersonRole",
@@ -256,7 +256,7 @@ for _entry in _MEDIA_TYPES:
 
 
 # ---------------------------------------------------------------------------
-# `quote` and `watch_order_item`, read side
+# `quote` and `order_item`, read side
 # ---------------------------------------------------------------------------
 # Both tables now store a single `media_id` - a real FK up to `media` - where
 # they used to carry a FK-less (media_type, entry_id) pair. The API keeps the
@@ -271,7 +271,7 @@ for _entry in _MEDIA_TYPES:
 # anime's entry_id and nothing would object.
 from sqlalchemy.orm import synonym  # noqa: E402
 
-for _model in (Quote, WatchOrderItem):
+for _model in (Quote, OrderItem):
     _model.entry_id = synonym("media_id")
     _model.media_type = column_property(
         select(Media.media_type)

@@ -45,7 +45,7 @@ import {
 import MediaCard from "../../components/cards/MediaCard";
 import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
-import WatchOrderSection from "../../components/tracker/WatchOrderSection";
+import OrderSection from "../../components/tracker/OrderSection";
 import HubCharacters from "../../components/hub/HubCharacters";
 import FranchiseNotes from "./FranchiseNotes";
 import RelationGraph from "../../components/relations/RelationGraph";
@@ -570,7 +570,7 @@ export default function FranchisePage() {
       franchise
         ? [
             ...(showCharacters ? ["Characters"] : []),
-            "Watch Order",
+            "Order",
             "Relations",
             "Notes",
           ]
@@ -2652,13 +2652,13 @@ export default function FranchisePage() {
         </Section>
       )}
 
-      {/* ── Watch Order tab content ──────────────────────────────────────── */}
-      {activeTab === "Watch Order" && (
+      {/* ── Order tab content ──────────────────────────────────────── */}
+      {activeTab === "Order" && (
         <Section
-          title="Watch Order"
+          title="Order"
           subtitle="Ordered viewing guide across every media type"
         >
-          <WatchOrderSection franchiseId={system_id} />
+          <OrderSection franchiseId={system_id} />
         </Section>
       )}
 

@@ -14,7 +14,7 @@ export const controlCls =
   "bg-surface border border-border-strong text-text text-xs px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand";
 
 // Media type values as stored in the media_type column (hyphenated, matching
-// watch_order_item and MEDIA_CONFIG).
+// order_item and MEDIA_CONFIG).
 // The grouping tiers have no cover, so their header shows a spine label
 // naming the tier instead. Kept under the old name so callers need not change.
 export const TIER_ICONS = {

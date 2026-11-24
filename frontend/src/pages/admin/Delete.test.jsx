@@ -311,7 +311,7 @@ describe("Delete page - collection tab", () => {
       name: /confirm delete/i,
     });
     expect(
-      screen.getByText(/memes, notes and watch orders are deleted with it/i),
+      screen.getByText(/memes, notes and orders are deleted with it/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/1 franchise\(s\) become uncollected/i)).toBeInTheDocument();
     expect(deletesOf(fetchMock)).toHaveLength(0);

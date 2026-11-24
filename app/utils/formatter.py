@@ -21,7 +21,7 @@ from app.services.domain.h_game import CHOICE_LISTS, SINGLE_CHOICES, lenient_cho
 
 # Imported rather than duplicated so the Sheets tab and the API agree on what
 # the three rungs are.
-from app.services.domain.watch_order import normalize_importance
+from app.services.domain.order import normalize_importance
 from app.utils import release_date
 
 # character.role, kept only when it is one of CHARACTER_ROLES.
@@ -294,9 +294,9 @@ def _public_id_from_sheet(raw: dict) -> dict:
     return {"public_id": value} if value is not None else {}
 
 
-def parse_watch_order_list_from_sheet(raw: dict) -> dict:
+def parse_order_list_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Watch Order List sheet into typed data
+    Parses a raw dictionary from the Order List sheet into typed data
     ready for the Database.
     """
     parsed = {
@@ -323,9 +323,9 @@ def parse_watch_order_list_from_sheet(raw: dict) -> dict:
     return parsed
 
 
-def parse_watch_order_section_from_sheet(raw: dict) -> dict:
+def parse_order_section_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Watch Order Section sheet into typed data
+    Parses a raw dictionary from the Order Section sheet into typed data
     ready for the Database.
     """
     return {
@@ -339,9 +339,9 @@ def parse_watch_order_section_from_sheet(raw: dict) -> dict:
     }
 
 
-def parse_watch_order_item_from_sheet(raw: dict) -> dict:
+def parse_order_item_from_sheet(raw: dict) -> dict:
     """
-    Parses a raw dictionary from the Watch Order Item sheet into typed data
+    Parses a raw dictionary from the Order Item sheet into typed data
     ready for the Database.
     """
     return {
@@ -367,9 +367,9 @@ def parse_watch_order_item_from_sheet(raw: dict) -> dict:
     }
 
 
-def parse_watch_order_follow_from_sheet(raw: dict) -> dict:
+def parse_order_follow_from_sheet(raw: dict) -> dict:
     """
-    One user's follow of one watch order. user_id is not in the sheet -
+    One user's follow of one order. user_id is not in the sheet -
     pull.py resolves the row's `username` - and every other id is a real FK
     whose uuid travels unchanged, so an unparseable cell becomes None and the
     database refuses the row rather than the tab.

@@ -1,6 +1,6 @@
 # Entry types and grouping tiers
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -89,7 +89,7 @@ Resolution rule (module docstring): a UUID passes through; a non-empty string is
 
 ## The twelve media types
 
-Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_resolver.py`); they are what `plan_next`, `media_relation`, `watch_order_item`, `note`, `quote` and `meme` store as a discriminator. Router/registry names use underscores (`anime_movie`, `tv_show`).
+Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_resolver.py`); they are what `plan_next`, `media_relation`, `order_item`, `note`, `quote` and `meme` store as a discriminator. Router/registry names use underscores (`anime_movie`, `tv_show`).
 
 | Key | Table | Model docstring / purpose |
 |---|---|---|
@@ -104,7 +104,7 @@ Media-type keys are the hyphenated values in `MEDIA_TABLES` (`app/utils/media_re
 | `game` | `games` | One **purchasable**, not one work: `game_type` is `"Base Game"`, `"DLC"`, `"Expansion"` or `"Bundle"`, and a DLC is a row in this same table with a `base_game_id`. `is_main` is `"Main"`, `"Remake"` or `"Remaster"` (`GAME_IS_MAIN`, not the other types' 本傳 / 外傳 list), a label independent of `game_type` and of the relation kinds. Ownership is not a column - it is derived from the `game_copy` rows. A game also owns a **choice graph** - the blocks (parts) of its branching story and the choices and conditions that lead from one to the next, with each player's own done marks and notes - in three tables of its own ([systems/game-choices.md](systems/game-choices.md)). |
 | `h-comic` | `h_comic` | Adult comics, seen in the `unrestricted` access mode only. One table, two variants keyed on `region` (`"JP"` or `"KR"`, required): the columns a region does not use are cleared on every write path (see "H-Comic regions" below). A **gated type** - every entry carries the `h-comic` content label ([authorization.md](authorization.md)). Its `animation_status` is derived from hentai adaptations when it has any (see "H-Comic animation status" below). |
 | `h-game` | `h_game` | Adult games, seen in the `unrestricted` access mode only: to `game` what `h-comic` is to `manga`. One purchasable per row as for game (`game_type`, `is_main`, a `base_game_id` self-FK for DLC), with Game's fill plus DLsite, purchase records (`game_copy`), the choice graph and note sections. Its own fields: `playstyle`, `all_cg`, `language_availability`, `dialogue_audio`, `sound_effect`, `h_presentation`, `h_art_style`, `platform`, `dlsite_link_jp` / `_tw` (see "H-Game fields" below). A **gated type** - every entry carries the `h-game` content label. |
-| `hentai` | `hentai` | Adult anime, seen in the `unrestricted` access mode only. Tracked like a cartoon - `ep_total` on the entry, `ep_fin` on the viewer's list row, no `ep_previous` or `ep_special` - and a `PATCH` that steps `ep_fin` up to `ep_total` finishes it; watch orders still treat an entry as whole. `source_material` is `"Original"`, `"Manga"`, `"Novel"` or `"Game"`; `originality` reuses h-comic's `原版` / `同人`; `airing_status` is anime's vocabulary. A **gated type** - every entry carries the `hentai` content label. Credits anime's studio and director and h-comic's author, so the writer of the h-comic a hentai adapts is one person on both. Cast like anime, seiyuu included. No notes section of its own. |
+| `hentai` | `hentai` | Adult anime, seen in the `unrestricted` access mode only. Tracked like a cartoon - `ep_total` on the entry, `ep_fin` on the viewer's list row, no `ep_previous` or `ep_special` - and a `PATCH` that steps `ep_fin` up to `ep_total` finishes it; orders still treat an entry as whole. `source_material` is `"Original"`, `"Manga"`, `"Novel"` or `"Game"`; `originality` reuses h-comic's `原版` / `同人`; `airing_status` is anime's vocabulary. A **gated type** - every entry carries the `hentai` content label. Credits anime's studio and director and h-comic's author, so the writer of the h-comic a hentai adapts is one person on both. Cast like anime, seiyuu included. No notes section of its own. |
 
 All twelve have their own router under `app/routers/` and a detail page in `frontend/src/App.jsx`. H-Comic's, H-Game's and Hentai's library and detail routes are gated: they, their nav rows and every other surface of each type in the SPA are drawn only for a session that can see that type ([frontend/components.md](frontend/components.md#gated-media-types)).
 
@@ -369,14 +369,14 @@ Why the two scope maps differ (module comment): "anime is queued one season at a
 
 Buckets are stored on franchise and series as two JSONB maps keyed by media type (`size_group_derived`, written by Calculate; `size_group_manual`, written by the admin and never touched by Calculate); manual wins. An entry's bucket is resolved at display time from its series, then its franchise — except comic, which buckets on its own `issue_total` (`app/services/domain/size_group.py`). Details and the Plan page: [systems/plan-next.md](systems/plan-next.md).
 
-### Watch-order range unit (`frontend/src/components/tracker/WatchOrderGuide.jsx`)
+### Order range unit (`frontend/src/components/tracker/OrderGuide.jsx`)
 
 | | `anime` | `anime-movie` | `movie` | `tv-show` | `cartoon` | `manga` | `book` | `comic` | `game` | `h-comic` | `h-game` | `hentai` |
 |---|---|---|---|---|---|---|---|---|---|---| --- |---|
 | From/to range offered (`supportsEpisodeRange`) | yes | no | no | yes | yes | no | no | yes | yes (by default — `game` is in neither set) | no - whole-only, like manga | no - whole-only, as the API treats it | no - whole-only: a step names the entry, never a range of its episodes |
 | Unit label (`RANGE_UNITS`, default `"Ep"`) | `Ep` | — | — | `Ep` | `Ep` | `Ch` | `Ch` | `#` | `Ep` (the fallback; no game unit declared) | — | — | — |
 
-`WHOLE_ONLY_TYPES = {"movie", "anime-movie", "manga", "book", "h-comic", "h-game", "hentai"}`: those steps always cover the work whole. On the backend a hentai step is whole too - `hentai` has no `_TOTAL_FIELDS` entry in `app/services/domain/watch_order.py`. An unknown or null `media_type` keeps the range inputs. (The test file is `frontend/src/components/tracker/watchOrderRange.test.js`; there is no `frontend/src/utils/watchOrderRange.js`.) See [systems/watch-orders.md](systems/watch-orders.md).
+`WHOLE_ONLY_TYPES = {"movie", "anime-movie", "manga", "book", "h-comic", "h-game", "hentai"}`: those steps always cover the work whole. On the backend a hentai step is whole too - `hentai` has no `_TOTAL_FIELDS` entry in `app/services/domain/order.py`. An unknown or null `media_type` keeps the range inputs. (The test file is `frontend/src/components/tracker/orderRange.test.js`; there is no `frontend/src/utils/orderRange.js`.) See [systems/orders.md](systems/orders.md).
 
 ### Fill / Replace pipelines (`app/services/pipelines/specs.py`)
 

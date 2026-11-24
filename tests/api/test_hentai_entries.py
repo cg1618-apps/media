@@ -496,7 +496,7 @@ def test_a_hentai_franchise_hides_from_a_guest(client, owner_client, db_session)
 
 
 # ---------------------------------------------------------------------------
-# Duplicates, plan-next, watch orders
+# Duplicates, plan-next, orders
 # ---------------------------------------------------------------------------
 
 
@@ -546,8 +546,8 @@ def test_plan_next_kinds_are_entry_only():
     assert "hentai" not in SIZE_THRESHOLDS
 
 
-def test_watch_orders_treat_it_as_whole():
-    from app.services.domain.watch_order import _TOTAL_FIELDS, MEDIA_TYPE_MODELS
+def test_orders_treat_it_as_whole():
+    from app.services.domain.order import _TOTAL_FIELDS, MEDIA_TYPE_MODELS
 
     assert MEDIA_TYPE_MODELS["hentai"] is models.Hentai
     assert "hentai" not in _TOTAL_FIELDS

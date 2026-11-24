@@ -92,8 +92,8 @@
 
   /* State text, theme-aware. The fixed hues above are fills, tinted with
      opacity; as 10px chip text they fall under WCAG AA on bone paper. These
-     are the text the watch order page's status chips are set in
-     (config/watchOrderColors.js), measured at 4.5:1 or better against the
+     are the text the order page's status chips are set in
+     (config/orderColors.js), measured at 4.5:1 or better against the
      hue's own /12 tint over --c-surface in every palette: floors 4.98
      light, 5.64 dark. */
   --color-state-success: var(--c-state-success);
