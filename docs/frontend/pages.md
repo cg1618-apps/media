@@ -1464,7 +1464,7 @@ Top to bottom:
    (`Not Released` / `Released` / `Canceled`) where the airing types show
    Airing Status, in the eyebrow line and the Information card, and their
    status picker offers **Watch When Released** where the airing types offer
-   Watch When Airs. Anime Movie also shows **Release Type** (Cinema / ONA).
+   Watch When Airs. Anime Movie also shows **Release Type** (Cinema / ONA), directly below Watch Status.
    An ONA has one release date: its Information card shows one **Release
    Date** row (`release_date_jp`, falling back to `release_date_tw`) in
    place of the JP and TW rows, and the release dialog asks for that one

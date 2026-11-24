@@ -84,7 +84,9 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
       options: FILM_RELEASE_STATUSES,
       match: (item, active) => active.has(item.release_status),
     },
-    // Never empty: the column is NOT NULL, Cinema by default, so no Not set chip.
+    watchStatusFilter("anime-movie"),
+    // Below Watch Status. Never empty: the column is NOT NULL, Cinema by
+    // default, so no Not set chip.
     {
       key: "releaseType",
       label: "Release Type",
@@ -92,7 +94,6 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
       options: ANIME_MOVIE_RELEASE_TYPES,
       match: (item, active) => active.has(item.release_type),
     },
-    watchStatusFilter("anime-movie"),
     // Advanced section (FilterPanel draws it collapsed).
     exclusiveSourceFilter(),
     ...genreFilters(),

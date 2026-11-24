@@ -154,6 +154,11 @@ describe("the anime movie release type filter", () => {
     expect(def.options).toEqual(["Cinema", "ONA"]);
   });
 
+  it("sits directly below Watch Status", () => {
+    const keys = defs.map((fd) => fd.key);
+    expect(keys.indexOf("releaseType")).toBe(keys.indexOf("watchingStatus") + 1);
+  });
+
   it("keeps only the chosen release type", () => {
     const items = [
       { system_id: "c", release_type: "Cinema" },
