@@ -355,8 +355,8 @@ out. What the three gated types keep is in
 | `adaptation` | text_links | 改編 Adaptation | anime, anime-movie, tv-show, cartoon, book, series, franchise | | description required on anime, anime-movie, book |
 | `mods_and_tools` | structured | 模組&工具 Mods & Tools | game, h-game | tools | type `Mod`/`Tool`, name, developer, description, status (personal, behind the `mod_status` feature); groupable by type |
 | `guide_resources` | structured | 攻略資源 Guide Resources | game, h-game | tools | group (free text, no suggestions), name, description, links; groupable by group |
-| `resources` | name_links | Resources | All | standalone; **tools** for game and h-game | optional free-text Group in `kind` (`kind_is_group`); last in the 資源&工具 card on a game |
-| `questions` | episode_text | Questions | All but h-comic, hentai | standalone | description required everywhere |
+| `resources` | name_links | 資源 Resources | All | standalone; **tools** for game and h-game | optional free-text Group in `kind` (`kind_is_group`); last in the 資源&工具 card on a game |
+| `questions` | episode_text | 問題 Questions | All but h-comic, hentai | standalone | description required everywhere |
 | `quotes` | external | 名言 Quotes | Entries but H | quotes_memes | |
 | `memes` | external | 梗/迷因 Memes | All but H | quotes_memes | |
 

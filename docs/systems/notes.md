@@ -175,7 +175,7 @@ rendered for either. 彩蛋/致敬/細節 Easter Eggs/References/Details follows
 the last subsection of a game's 評論 and 解析 the one before it. H-comic and
 hentai have no 解析 at all, and no gated type has 彩蛋.
 
-**Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情列表&任務 → 世界觀 → 待辦 → 音樂 → 名言&梗 → Resources → Questions.
+**Card order is registry position.** `splitBlocks` walks `NOTE_SECTIONS` and emits one card per group in first-appearance order, so where a group's *first* section sits is the only thing deciding where its card lands. Today that reads: Notes → 評論 → 解析 → 攻略 → 劇情列表&任務 → 世界觀 → 待辦 → 音樂 → 名言&梗 → 資源 Resources → 問題 Questions.
 
 ### 劇情列表&任務 Story & Quests, and nesting
 
@@ -329,8 +329,8 @@ is all the author's.
 | `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, book, series, franchise | — | — | — | no | no | anime, anime-movie, book |
 | `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | tools | game, h-game | — | — | — | no | no | no |
 | `guide_resources` | 攻略資源 Guide Resources | **structured** | tools | game, h-game | — | — | — | no | no | no |
-| `resources` | Resources | name_links | **standalone** (**tools** for game and h-game) | All | free-text Group (`kind_is_group`) | — | — | no | no | no |
-| `questions` | Questions | episode_text | **standalone** | All but h-comic, hentai | — | — | "Source, e.g. ep 3" | no | no | **every owner it has** |
+| `resources` | 資源 Resources | name_links | **standalone** (**tools** for game and h-game) | All | free-text Group (`kind_is_group`) | — | — | no | no | no |
+| `questions` | 問題 Questions | episode_text | **standalone** | All but h-comic, hentai | — | — | "Source, e.g. ep 3" | no | no | **every owner it has** |
 | `quotes` | 名言 Quotes | external | quotes_memes | Entries only, but not H | — | — | — | — | — | — |
 | `memes` | 梗/迷因 Memes | external | quotes_memes | All but H | — | — | — | — | — | — |
 
