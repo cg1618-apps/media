@@ -774,9 +774,6 @@ PERSONAL_KEYS = {
     # 個人筆記, the personal half of 備註: 備註 is the catalogue's list, and
     # this is where each viewer keeps their own.
     "personal_notes",
-    "advantages",
-    "disadvantages",
-    "double_edged",
     "episode_comments",
     "questions",
     "personal_reviews",
@@ -805,6 +802,10 @@ CATALOG_KEYS = {
     # 備註: the catalogue's one block of prose per owner.
     "remark",
     "introduction",
+    # The pros and cons: mixed, each row public or its writer's own.
+    "advantages",
+    "disadvantages",
+    "double_edged",
     "music_status",
     "op",
     "ed",
@@ -891,7 +892,7 @@ def test_external_sections_carry_no_scope():
         assert sec.scope is None
 
 
-def test_the_personal_sections_are_exactly_these_twenty():
+def test_the_personal_sections_are_exactly_these_sixteen():
     assert {s.key for s in ns.NOTE_SECTIONS if s.scope == ns.SCOPE_PERSONAL} == (
         PERSONAL_KEYS
     )
@@ -916,9 +917,6 @@ def test_sections_by_scope_returns_registry_order():
     keys = [s.key for s in ns.sections_by_scope(ns.SCOPE_PERSONAL)]
     assert keys == [
         "personal_notes",
-        "advantages",
-        "disadvantages",
-        "double_edged",
         "personal_reviews",
         "episode_comments",
         "highlights",
@@ -941,10 +939,13 @@ def test_sections_by_scope_returns_registry_order():
 
 # --- mixed sections ----------------------------------------------------------
 # A mixed section holds catalogue rows and each account's own personal rows
-# together. The ten are the list in docs/systems/notes.md, "Mixed
+# together. The thirteen are the list in docs/systems/notes.md, "Mixed
 # sections", by key.
 
 MIXED = {
+    "advantages",
+    "disadvantages",
+    "double_edged",
     "weapons_and_gear",
     "items",
     "collectibles",
@@ -958,7 +959,7 @@ MIXED = {
 }
 
 
-def test_the_mixed_sections_are_exactly_these_ten():
+def test_the_mixed_sections_are_exactly_these_thirteen():
     assert {s.key for s in ns.NOTE_SECTIONS if s.mixed} == MIXED
     assert ns.MIXED_SECTIONS == frozenset(MIXED)
 
@@ -1017,3 +1018,21 @@ def test_the_sections_listing_carries_mixed():
     assert out["items"].mixed is True
     assert out["skills"].mixed is False
     assert {s.key: s for s in sections_out("anime")}["resources"].mixed is True
+
+
+# --- kind choice -------------------------------------------------------------
+# A mixed section whose catalogue writer picks each row's kind.
+
+
+def test_only_the_three_pros_and_cons_sections_take_a_kind_choice():
+    assert {s.key for s in ns.NOTE_SECTIONS if s.kind_choice} == {
+        "advantages",
+        "disadvantages",
+        "double_edged",
+    }
+
+
+def test_a_kind_choice_is_refused_off_a_mixed_section():
+    section = dataclasses.replace(ns.section_by_key("remark"), kind_choice=True)
+    with pytest.raises(ValueError, match="kind choice but is not mixed"):
+        ns._check_mixed(section)

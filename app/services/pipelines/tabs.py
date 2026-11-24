@@ -454,7 +454,18 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         drop_columns=("user_id",),
         extra_columns=(("username", _row_username),),
     ),
-    SheetTab("Note", models.Note, f.parse_note_from_sheet, **AUTHOR_BY_USERNAME),
+    SheetTab(
+        "Note",
+        models.Note,
+        f.parse_note_from_sheet,
+        drop_columns=AUTHOR_BY_USERNAME["drop_columns"],
+        # `public` carries the kind of a row whose section lets its writer
+        # pick it, which an older sheet's `personal` cannot be trusted for.
+        extra_columns=(
+            *AUTHOR_BY_USERNAME["extra_columns"],
+            ("public", f.note_public_cell),
+        ),
+    ),
     # One account's personal values on one catalogue note row. After Users
     # and Note: user_id is dropped for `username`, the way every per-user tab
     # drops it, and note_id names the Note tab's row by its uuid - translated

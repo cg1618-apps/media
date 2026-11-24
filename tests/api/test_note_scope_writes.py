@@ -37,7 +37,7 @@ def test_a_plain_user_may_write_their_own_personal_note(
     db, user_client, sample_anime, plain_user
 ):
     r = user_client.post(
-        "/api/notes", json=_payload(sample_anime.system_id, "advantages", "我的優點")
+        "/api/notes", json=_payload(sample_anime.system_id, "personal_notes", "我的優點")
     )
     assert r.status_code == 201
     note = db.query(models.Note).filter_by(system_id=r.json()["system_id"]).one()
@@ -56,7 +56,7 @@ def test_a_plain_user_may_not_write_a_catalogue_note(user_client, sample_anime):
 
 def test_a_logged_out_visitor_may_not_write_anything(client, sample_anime):
     r = client.post(
-        "/api/notes", json=_payload(sample_anime.system_id, "advantages", "訪客")
+        "/api/notes", json=_payload(sample_anime.system_id, "personal_notes", "訪客")
     )
     assert r.status_code in (401, 403)
 
@@ -67,7 +67,7 @@ def test_a_user_may_not_edit_someone_elses_personal_note(
     note = models.Note(
         system_id=uuid.uuid4(),
         media_id=sample_anime.system_id,
-        section="advantages",
+        section="personal_notes",
         content="admin 的",
         author_id=owner_user.id,
     )
@@ -117,7 +117,7 @@ def test_another_accounts_personal_notes_never_reach_the_admin(
         models.Note(
             system_id=uuid.uuid4(),
             media_id=sample_anime.system_id,
-            section="advantages",
+            section="personal_notes",
             content="carol 的優點",
             author_id=carol.id,
         )

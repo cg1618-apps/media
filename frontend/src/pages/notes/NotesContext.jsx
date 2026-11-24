@@ -113,6 +113,16 @@ export function writePermissionFor(section) {
 // a catalogue row by manage.catalog; a reorder moves the rows of the kind
 // the viewer writes, and the server renumbers that kind alone; and a
 // catalogue row never goes under a personal parent.
+//
+// A mixed section flagged `kind_choice` (優點 Advantages, 缺點
+// Disadvantages, 優缺點) is the exception to "never both": there the
+// manage.catalog holder keeps rows of both kinds and picks each new row's
+// kind, personal unless it asks. So self.personal_notes writes, edits and
+// moves personal rows whoever holds it, manage.catalog does the same for
+// catalogue rows, and the two kinds are reordered apart. Two more props say
+// what Add offers: `choosesKind`, whether the viewer picks the kind (both
+// permissions held), and `defaultPersonal`, the kind a new row gets when it
+// does not - personal, except for a catalogue writer that keeps none.
 export function rowAccessFor(section, has) {
   const may = (permission) => Boolean(has?.(permission));
   if (!section.mixed) {
@@ -122,6 +132,17 @@ export function rowAccessFor(section, has) {
   }
   const catalogue = may("manage.catalog");
   const personal = may("self.personal_notes");
+  if (section.kind_choice) {
+    const byKind = (note) => (note.personal ? personal : catalogue);
+    return {
+      canWrite: catalogue || personal,
+      choosesKind: catalogue && personal,
+      defaultPersonal: personal,
+      canEditRow: byKind,
+      canMoveRow: byKind,
+      canAddUnder: byKind,
+    };
+  }
   const writesCatalogue = catalogue;
   const writesPersonal = !catalogue && personal;
   return {
@@ -467,6 +488,20 @@ export function NotesProvider({
           setError(String(e.message || e));
         }
       },
+      // A row of a `kind_choice` section switched between personal and
+      // public. `payload` is the content the same edit changed, if any,
+      // written first so the one reload that follows shows both - the switch
+      // moves the row to the end of its new kind, which only the server's
+      // order says.
+      onSwitchKind: async (id, personal, payload) => {
+        try {
+          if (payload) await api.updateNote(id, payload);
+          await api.switchNoteKind(id, personal);
+          await reloadNotes();
+        } catch (e) {
+          setError(String(e.message || e));
+        }
+      },
       // The viewer's own personal values on one catalogue row, through the
       // mark endpoint - never the catalogue PATCH, which ignores them.
       onMark: async (id, values) => {
@@ -521,13 +556,19 @@ export function NotesProvider({
       // call that slips through anyway is dropped here. The new order is
       // applied locally first, so the dropped row stays where it was put;
       // a failed save reloads the stored order and says why.
-      onReorder: async (section, orderedIds) => {
+      //
+      // `personal` names the kind being renumbered, in a `kind_choice`
+      // section, where the catalogue writer orders its two kinds apart; it is
+      // passed on only when given, so every other section's request is as it
+      // was.
+      onReorder: async (section, orderedIds, personal) => {
         if (reorderingRef.current.has(section)) return;
         reorderingRef.current.add(section);
         setReordering(new Set(reorderingRef.current));
         setNotes((prev) => withSectionOrder(prev, section, orderedIds));
+        const kind = personal === undefined ? [] : [personal];
         try {
-          await api.reorderNotes(ownerType, ownerId, section, orderedIds);
+          await api.reorderNotes(ownerType, ownerId, section, orderedIds, ...kind);
           await reloadNotes();
         } catch (e) {
           await reloadNotes();

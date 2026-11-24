@@ -59,9 +59,9 @@ that type, or a group (collection, franchise, series).
 | 備註 Remark | every type; every group | shared |
 | 個人筆記 Personal Notes | every type; every group | **yours** |
 | 介紹 Introduction | every type but H-Comic, Hentai; every group | shared |
-| 優點 Advantages | every type but H-Comic, Hentai; every group | **yours** |
-| 缺點 Disadvantages | every type but H-Comic, Hentai; every group | **yours** |
-| 優缺點 | every type but H-Comic, Hentai; every group | **yours** |
+| 優點 Advantages | every type but H-Comic, Hentai; every group | **both** — each row public or yours; a catalogue editor picks, yours by default |
+| 缺點 Disadvantages | every type but H-Comic, Hentai; every group | **both**, as 優點 |
+| 優缺點 | every type but H-Comic, Hentai; every group | **both**, as 優點 |
 | 大眾評價 Public Reviews | every type; every group | shared |
 | 我的評價 Personal Reviews | every type; every group | **yours** |
 | 各集評論 Episode Comments (Manga: 各話評論 Chapter Comments; Game: 各章評論 Part Reviews) | Anime, TV Show, Cartoon, Manga, Game | **yours** |

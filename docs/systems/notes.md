@@ -262,9 +262,9 @@ is all the author's.
 | `remark` | 備註 Remark | text_links | flat | All | — | — | — | no | no | no |
 | `personal_notes` | 個人筆記 Personal Notes | text_links | flat | All | — | — | — | no | no | no |
 | `introduction` | 介紹 Introduction | text_links | reviews (first) | All but h-comic, hentai | — | — | — | no | no | no |
-| `advantages` | 優點 Advantages | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
-| `disadvantages` | 缺點 Disadvantages | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
-| `double_edged` | 優缺點 | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
+| `advantages` | 優點 Advantages (mixed, kind choice) | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
+| `disadvantages` | 缺點 Disadvantages (mixed, kind choice) | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
+| `double_edged` | 優缺點 (mixed, kind choice) | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
 | `public_reviews` | 大眾評價 Public Reviews | text_links | reviews | All | — | — | — | no | no | no |
 | `personal_reviews` | 我的評價 Personal Reviews | text | reviews | All | — | — | — | no | no | no |
 | `episode_comments` | 各集評論 Episode Comments (manga: 各話評論 Chapter Comments; game: 各章評論 Part Reviews) | episode_text | reviews | anime, tv-show, cartoon, manga, game | — | — | "Episode, e.g. ep 1" (manga: "Chapter, e.g. ch 1"; game: "Chapter / Part, e.g. Ch 3") | **yes** | no | **every owner it has** |
@@ -571,8 +571,8 @@ Every section declares a **`scope`**, and the field has **no default** — a sec
 
 | Scope | Sections | Meaning |
 | --- | --- | --- |
-| `catalog` | 56 — `remark` among them | One shared set of rows, read by everyone unfiltered |
-| `personal` | 19 — `personal_notes`, `advantages`, `disadvantages`, `double_edged`, `personal_reviews`, `episode_comments`, the six highlight sections `highlights`, `highlight_episodes`, `highlight_passages`, `highlight_moments`, `h_comic_highlights`, `h_game_highlights`, 下周目目標 `ng_goals`, `questions`, the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe`, and `saves` | One set per user; a viewer sees their own rows and nobody else's |
+| `catalog` | 56 — `remark` among them, and the thirteen [mixed sections](#mixed-sections) | One shared set of rows, read by everyone unfiltered |
+| `personal` | 16 — `personal_notes`, `personal_reviews`, `episode_comments`, the six highlight sections `highlights`, `highlight_episodes`, `highlight_passages`, `highlight_moments`, `h_comic_highlights`, `h_game_highlights`, 下周目目標 `ng_goals`, `questions`, the four 待辦 buckets `todo_now`, `todo_next`, `todo_later`, `todo_maybe`, and `saves` | One set per user; a viewer sees their own rows and nobody else's |
 | `None` | `quotes`, `memes` | The two `external` sections, backed by their own tables. Quotes and memes are **universal** — shared, unfiltered, no per-user copies — so scope does not apply |
 
 The distinction lives in the registry rather than in the schema, so reclassifying a section is a registry edit plus a data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves `scope` on every entry (`NoteSectionOut.scope`), and the notes page decides from it who may write each section.
@@ -584,7 +584,7 @@ Who may write, and whose rows a read returns, follow from it — the router read
 | `catalog` | `manage.catalog` | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only: a row is edited and deleted by its author alone, whatever anyone else's role, and anyone else gets the 404 a missing note gets | `WHERE author_id = viewer`; a logged-out visitor has no id and sees none |
 
-A catalogue row may still carry **personal values** — see the next section — and ten catalogue sections also hold each account's own **personal rows** beside the catalogue's — see [Mixed sections](#mixed-sections).
+A catalogue row may still carry **personal values** — see the next section — and thirteen catalogue sections also hold each account's own **personal rows** beside the catalogue's — see [Mixed sections](#mixed-sections).
 
 Personal rows are private to their author. There is no way to read another account's, the admin's included: `GET /api/notes` takes no author parameter, and an `author` in the query string is ignored. The six highlight sections are personal like the rest, so every account reads its own highlights and a logged-out visitor none. The full rules live in [../authorization.md](../authorization.md#note-scope).
 
@@ -650,9 +650,11 @@ admin sees neither status - and it is the one place a switch is read from
 
 ### Mixed sections
 
-Ten catalogue sections are **`mixed`** (`NoteSection.mixed`,
+Thirteen catalogue sections are **`mixed`** (`NoteSection.mixed`,
 `MIXED_SECTIONS`): beside the catalogue rows they hold each account's own
-**personal rows**, in the same card and the same groups. They are 武器&裝備
+**personal rows**, in the same card and the same groups. They are 優點
+`advantages`, 缺點 `disadvantages` and 優缺點 `double_edged` (see [Picking
+the kind](#picking-the-kind)), 武器&裝備
 `weapons_and_gear`, 道具 `items`, 收集物 `collectibles`, 敵人 `enemies`, 角色
 `characters_guide`, 地理 `geography`, 配裝&流派 `builds_and_styles`, 隊伍組成
 `team_composition`, 攻略資源 `guide_resources`, and `resources`, which is on
@@ -695,6 +697,40 @@ a group after the catalogue's.
 collected and beaten are the author's marks like a catalogue row's, written
 through `PUT /{id}/mark` and cleared by the NG reset, which reaches the
 caller's personal rows as well as the catalogue's.
+
+#### Picking the kind
+
+優點, 缺點 and 優缺點 also set **`kind_choice`** (`NoteSection.kind_choice`,
+served as `NoteSectionOut.kind_choice`; an import-time check keeps it to mixed
+sections). In them the rules above change for a `manage.catalog` holder, which
+writes **both** kinds and picks each row's: **personal unless it asks for a
+public row**. Public is the catalogue kind, read by everyone.
+
+- `POST` reads `NoteCreate.personal`: a `manage.catalog` holder gets the kind
+  it names, personal when it names none. Any other writer gets a personal row,
+  and asking for a public one is **401**. A personal row still needs
+  `self.personal_notes`.
+- `PATCH /{id}/kind` (`{"personal": bool}`) switches a row between the two and
+  moves it to the end of its new kind. Only a `manage.catalog` holder may, and
+  only on a row it wrote: a public row somebody else wrote is never taken into
+  the caller's own list (**422**).
+- `PATCH /reorder` renumbers the kind `NoteReorder.personal` names, personal
+  when it names none.
+- **The page groups each card by kind, Public first**: a Public heading over
+  the public rows, then a Personal heading over the viewer's own. The add and
+  edit forms show a Personal / Public choice to a `manage.catalog` holder,
+  set to Personal on a new row; editing offers it on the editor's own rows -
+  every personal row it reads, and a public row whose `author_id` is its
+  `user_id` from `/api/auth/me`.
+- **On Sheets the kind travels in a `public` column**, not `personal`: Backup
+  writes TRUE on a public row of these sections and leaves it blank on every
+  other row, and Pull reads these sections' rows as public only when it says
+  TRUE. These sections were personal-scope until then, so an older sheet
+  carries every row of theirs with `personal` FALSE and no `public` column;
+  reading `personal` would publish every one.
+
+Every row these three sections held before the change is personal, its author
+unchanged (migration `p1r2oscons3`).
 
 ## Rules
 
@@ -767,7 +803,7 @@ Router: `app/routers/note.py`, prefix `/api/notes`. Thin fetch wrappers on the f
 
 The NG reset clears, from the caller's own marks only, every value the registry marks `ng_resets`: `collected` and `amount_collected` on the 物品 rows whose `ng_reset` is yes (a row without the key reads yes), and `beaten` on every enemy. Rows marked no, every other value and other accounts' marks stay.
 
-"By scope" means the section decides: a **catalogue** section needs `manage.catalog`, a **personal** one needs an account holding `self.personal_notes` and reaches only that account's own rows. Somebody else's personal note answers **404**, worded exactly as a missing one — there is no 403 anywhere in this router, because a 403 confirms the row exists as surely as a 200 does. A reorder over a personal section renumbers the caller's rows alone. A **mixed** section decides by `manage.catalog`: its holders write and reorder catalogue rows, every other account holding `self.personal_notes` writes and reorders its own personal rows, and a personal row is edited or deleted by its author alone — 404 to anyone else, the admin included. See [Scope](#scope) and [Mixed sections](#mixed-sections). There is no way to ask for another account's personal rows: an `author` query parameter is ignored.
+"By scope" means the section decides: a **catalogue** section needs `manage.catalog`, a **personal** one needs an account holding `self.personal_notes` and reaches only that account's own rows. Somebody else's personal note answers **404**, worded exactly as a missing one — there is no 403 anywhere in this router, because a 403 confirms the row exists as surely as a 200 does. A reorder over a personal section renumbers the caller's rows alone. A **mixed** section decides by `manage.catalog` (except where its writer picks the kind - see [Picking the kind](#picking-the-kind)): its holders write and reorder catalogue rows, every other account holding `self.personal_notes` writes and reorders its own personal rows, and a personal row is edited or deleted by its author alone — 404 to anyone else, the admin included. See [Scope](#scope) and [Mixed sections](#mixed-sections). There is no way to ask for another account's personal rows: an `author` query parameter is ignored.
 
 `/reorder` is declared before `/{note_id}` on purpose (FastAPI matches in order). The notes page calls it (`reorderNotes` in `frontend/src/pages/notes/api.js`) whenever a section's rows, or a `groupable_by` section's groups, are dragged into a new order — every list section, whatever its shape. The singleton `remark` has nothing to order, `music_status` is never drawn as a list, and quotes and memes live in their own tables and are not reordered.
 

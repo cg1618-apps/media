@@ -207,6 +207,10 @@ def get_me(request: Request, db: Session = Depends(get_db)):
         # admin.authz instead; see App.jsx.
         "is_admin": viewer.has(PERM_MANAGE_CATALOG),
         "username": viewer.username,
+        # The account's own id, null for a guest. The SPA compares it with a
+        # row's `author_id` where a control belongs to the row's author alone
+        # - switching the kind of a 優點/缺點 row the account wrote.
+        "user_id": str(viewer.user_id) if viewer.user_id else None,
         "role": viewer.role_name,
         # TWO AXES, ONE LIST, deliberately. The role half answers "what may
         # this account DO"; the field_group.* half answers "which fields of a

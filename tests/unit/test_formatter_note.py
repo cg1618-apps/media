@@ -2,8 +2,9 @@
 
 import json
 import uuid
+from types import SimpleNamespace
 
-from app.utils.formatter import parse_note_from_sheet
+from app.utils.formatter import note_public_cell, parse_note_from_sheet
 
 
 def test_parses_a_full_row():
@@ -196,3 +197,34 @@ def test_a_remark_list_row_pulls_as_personal_notes():
     assert parsed["section"] == "personal_notes"
     # The mirror: the shared remark keeps its key.
     assert parse_note_from_sheet({"section": "remark"})["section"] == "remark"
+
+
+# --- The kind of a pros-and-cons row ----------------------------------------
+# 優點 / 缺點 / 優缺點 were personal-scope, so an older sheet carries their rows
+# with `personal` FALSE and no `public` column. Reading `personal` there would
+# publish every one of them; the kind comes from `public` instead.
+
+
+def _pros_row(**cells):
+    return {"system_id": "", "section": "advantages", "content": "Tight combat", **cells}
+
+
+def test_an_old_sheets_pros_row_restores_personal():
+    assert parse_note_from_sheet(_pros_row(personal="FALSE"))["personal"] is True
+
+
+def test_a_pros_row_marked_public_restores_public():
+    assert parse_note_from_sheet(_pros_row(personal="FALSE", public="TRUE"))["personal"] is False
+
+
+def test_another_mixed_section_still_reads_personal():
+    # The mirror: 物品 Items has no kind choice, so `personal` decides.
+    row = {"system_id": "", "section": "items", "title": "Flask", "personal": "FALSE"}
+    assert parse_note_from_sheet(row)["personal"] is False
+    assert parse_note_from_sheet({**row, "personal": "TRUE"})["personal"] is True
+
+
+def test_backup_writes_public_only_on_a_public_pros_row():
+    assert note_public_cell(SimpleNamespace(section="advantages", personal=False), None) is True
+    assert note_public_cell(SimpleNamespace(section="advantages", personal=True), None) is None
+    assert note_public_cell(SimpleNamespace(section="items", personal=False), None) is None

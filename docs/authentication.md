@@ -1,6 +1,6 @@
 # Authentication
 
-Last verified: 2026-11-14
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -167,7 +167,7 @@ The one place the SPA learns who it is. It **never raises**: a missing, expired 
 }
 ```
 
-The full shape, with `visible_gated_types`, `features`, `mode` and `modes`, is [api.md](api.md#get-apiauthme-extended).
+The full shape, with `user_id`, `visible_gated_types`, `features`, `mode` and `modes`, is [api.md](api.md#get-apiauthme-extended).
 
 - `is_admin` is `viewer.has("manage.catalog")` - "may edit the catalogue". It is true for `super` and false for the admin account, which holds no `manage.catalog`.
 - `username` is `null` for an anonymous caller.

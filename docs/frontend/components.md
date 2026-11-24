@@ -903,6 +903,20 @@ columns.
   they held, so the other kind never moves on screen. A personal row
   carries a **Mine** chip (`MineChip` in `ui.jsx`, the ink `Chip`). The
   look is **provisional UI**, pending the owner's design.
+
+  A section flagged `kind_choice` (優點, 缺點, 優缺點) lets a holder of both
+  `manage.catalog` and `self.personal_notes` write and move rows of both
+  kinds (`choosesKind`). `TextLinksSection` draws it as a **Public** group
+  then a **Personal** group, each under the in-card group heading
+  (`groupHeadingCls` from `kindGroups.jsx`), a group with no rows left out,
+  and each with its own reorder, which sends `personal: false` or `true` to
+  `reorderNotes`. The add and edit forms carry `KindChoice` (`ui.jsx`, a
+  Personal / Public pair), Personal on a new row; on edit it is offered on
+  the viewer's own rows - every personal row, and a public row whose
+  `author_id` is `useAuth().userId` - and a changed kind saves through
+  `onSwitchKind`, which writes changed content first and then calls
+  `switchNoteKind` (`PATCH /api/notes/{id}/kind`). No Mine chip there: the
+  Personal heading says it.
   **Personal values on catalogue rows are marks, gated apart from the
   section.** A field the registry marks `personal` (an item's collected and
   collected amount, an enemy's beaten, an ending's completion, a stat's

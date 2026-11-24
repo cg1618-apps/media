@@ -1660,10 +1660,15 @@ data reassignment, never an `ALTER TABLE`. `/api/notes/sections` serves it.
 | `catalog` | `manage.catalog` | everyone, unfiltered |
 | `personal` | any signed-in account holding `self.personal_notes`, own rows only | `WHERE author_id = viewer`, and nothing else: there is no way to read another account's personal notes, the admin included, and a logged-out viewer gets none. An `author` query parameter is ignored |
 
-**Mixed sections.** Ten catalogue sections (`NoteSection.mixed`) also hold
-personal rows, `note.personal`, beside the catalogue's. Which kind a write
-makes is fixed by `manage.catalog`, never by the payload, and nobody writes
-both in one section:
+**Mixed sections.** Thirteen catalogue sections (`NoteSection.mixed`) also
+hold personal rows, `note.personal`, beside the catalogue's. Which kind a
+write makes is fixed by `manage.catalog`, never by the payload, and nobody
+writes both in one section - except in 優點, 缺點 and 優缺點
+(`kind_choice`), where a `manage.catalog` holder writes both and picks each
+row's kind, personal by default; there a non-editor asking for a public row
+is **401**, and switching a row's kind (`PATCH /api/notes/{id}/kind`) is the
+editor's, on rows it wrote (**422** otherwise). See
+[systems/notes.md](systems/notes.md#picking-the-kind):
 
 | Account | Writes in a mixed section | Reads |
 |---|---|---|
@@ -1677,7 +1682,8 @@ author alone, and is **404** to anyone else - a member, a catalogue editor,
 the `admin` account: `_authorize_edit` exempts no role. A
 catalogue row is edited under `manage.catalog` (**401** otherwise). A reorder
 renumbers one kind: the catalogue rows for a `manage.catalog` holder, the
-caller's own personal rows for anyone else. No write changes a row's kind.
+caller's own personal rows for anyone else. No write changes a row's kind,
+except the kind switch in a `kind_choice` section.
 
 **Two answers, and there is no 403 in this router.** `401` means *you may not
 do this kind of thing* — a capability failure, matching what

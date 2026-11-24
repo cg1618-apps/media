@@ -34,6 +34,8 @@ const MODE_RELOAD_FLOOR_MS = 5000;
 const ANONYMOUS = {
   isAdmin: false,
   username: null,
+  // The account's id, for a control that belongs to a row's author alone.
+  userId: null,
   role: "guest",
   permissions: [],
   // The gated media types this session may see (`visible_gated_types`).
@@ -67,6 +69,7 @@ export function AuthProvider({ children }) {
         setAuth({
           isAdmin: data.is_admin,
           username: data.username,
+          userId: data.user_id ?? null,
           role: data.role ?? "guest",
           permissions: data.permissions ?? [],
           visibleGatedTypes: data.visible_gated_types ?? [],

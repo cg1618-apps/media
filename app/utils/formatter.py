@@ -2496,6 +2496,26 @@ _RETIRED_NOTE_SECTIONS = {
 }
 
 
+def _pulled_note_personal(raw: dict) -> bool:
+    """The row's kind, as parse_note_from_sheet's comment explains."""
+    section = section_by_key(_pulled_note_section(raw.get("section")) or "")
+    if section is not None and section.kind_choice:
+        return parse_from_sheet(raw.get("public"), bool) is not True
+    return parse_from_sheet(raw.get("personal"), bool) is True
+
+
+def note_public_cell(row: Any, db: Any) -> Optional[bool]:
+    """
+    The Note tab's `public` column: TRUE on a public row of a section whose
+    writer picks the kind, blank on every other row. Pull reads those
+    sections' kind from here (_pulled_note_personal).
+    """
+    section = section_by_key(row.section or "")
+    if section is not None and section.kind_choice and not row.personal:
+        return True
+    return None
+
+
 def _pulled_note_section(value) -> str | None:
     section = parse_from_sheet(value, str)
     return _RETIRED_NOTE_SECTIONS.get(section, section)
@@ -2529,7 +2549,13 @@ def parse_note_from_sheet(raw: dict) -> dict:
         # as catalogue; a sheet backed up before the column existed has no
         # header, so Pull leaves the key out and the column's default - also
         # catalogue - applies, which is all such a sheet can hold.
-        "personal": parse_from_sheet(raw.get("personal"), bool) is True,
+        #
+        # A section whose writer picks the kind (`kind_choice`) reads it from
+        # `public` instead: public only when that cell says so. Those sections
+        # were personal-scope before, and an older sheet carries their rows
+        # with `personal` FALSE and no `public` column, so reading `personal`
+        # would publish every one of them.
+        "personal": _pulled_note_personal(raw),
         # The tree link for the hierarchical sections. A plain UUID column, so
         # it needs no JSON handling - but it does need to be here, or Pull
         # flattens every nested Story List entry to a root.

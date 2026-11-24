@@ -311,7 +311,9 @@ def _reject_second_singleton(
         )
 
 
-def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> bool:
+def _authorize_write(
+    viewer: Viewer, section_key: Optional[str], requested: Optional[bool] = None
+) -> bool:
     """
     Catalogue sections are admin-only; personal sections need
     self.personal_notes. Returns whether the row this viewer writes is a
@@ -323,6 +325,12 @@ def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> bool:
     self.personal_notes writes personal rows: whoever writes the catalogue
     keeps no personal rows beside it
     (docs/notes/decisions/2026-11-13-mixed-note-sections.md).
+
+    A section with `kind_choice` is the exception: there a manage.catalog
+    holder writes the kind it `requested`, personal when it names none, and
+    every other writer is held to personal - asking for a public row without
+    manage.catalog is refused rather than quietly made personal
+    (docs/notes/decisions/2026-11-24-pros-and-cons-pick-their-kind.md).
 
     Scope is read from the registry rather than from a list here, so a section
     reclassified in note_sections.py changes who may write it with no change to
@@ -337,6 +345,17 @@ def _authorize_write(viewer: Viewer, section_key: Optional[str]) -> bool:
         if viewer.user_id is None or not viewer.has(PERM_SELF_PERSONAL_NOTES):
             raise _capability_refused("You may not write personal notes.")
         return False
+    if section.kind_choice:
+        wants_personal = requested is not False
+        if not wants_personal and not viewer.has(PERM_MANAGE_CATALOG):
+            raise _capability_refused(
+                "Public notes require the manage.catalog permission."
+            )
+        if wants_personal and (
+            viewer.user_id is None or not viewer.has(PERM_SELF_PERSONAL_NOTES)
+        ):
+            raise _capability_refused("You may not write personal notes.")
+        return wants_personal
     if section.mixed and not viewer.has(PERM_MANAGE_CATALOG):
         if viewer.user_id is None or not viewer.has(PERM_SELF_PERSONAL_NOTES):
             raise _capability_refused("You may not write notes in this section.")
@@ -579,7 +598,7 @@ def create_note(
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    personal = _authorize_write(viewer, payload.section)
+    personal = _authorize_write(viewer, payload.section, payload.personal)
     _validate_or_422(payload)
     _require_visible_owner(db, viewer, payload.owner_id)
     _require_owner_where(db, payload)
@@ -590,6 +609,7 @@ def create_note(
     _validate_parent(db, payload, viewer=viewer, personal=personal)
 
     data = payload.model_dump(exclude_unset=True)
+    data.pop("personal", None)
     if data.get("sort_index") is None:
         data["sort_index"] = _next_sort_index(db, payload)
     # Never taken from the payload: the author is who is asking, not who says
@@ -600,8 +620,9 @@ def create_note(
     data.pop("owner_id", None)
     data.update(_owner_columns(payload.owner_type, payload.owner_id))
 
-    # The kind is the server's, like the author: NoteBase has no `personal`
-    # field either, so a payload naming one is ignored.
+    # The kind is the server's, like the author: _authorize_write decided it,
+    # reading the payload's `personal` only where the section lets the
+    # catalogue writer choose.
     db_note = models.Note(
         system_id=uuid.uuid4(), author_id=viewer.user_id, personal=personal, **data
     )
@@ -636,7 +657,7 @@ def reorder_notes(
         raise HTTPException(
             status_code=400, detail=f"Unknown note section '{payload.section}'."
         )
-    personal = _authorize_write(viewer, payload.section)
+    personal = _authorize_write(viewer, payload.section, payload.personal)
     _require_visible_owner(db, viewer, payload.owner_id)
 
     query = db.query(models.Note).filter(
@@ -806,6 +827,51 @@ def rename_group(
             )
     db.commit()
     return {"renamed": renamed}
+
+
+# Declared before the plain PATCH for readability; the paths differ, so the
+# order does not decide the match.
+@router.patch("/{note_id}/kind", response_model=schemas.NoteResponse)
+def switch_note_kind(
+    note_id: str,
+    payload: schemas.NoteKindUpdate,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """
+    Switch a row between personal and public, in a section with
+    `kind_choice`. The catalogue writer's own rows only: making a row public
+    is a catalogue write (manage.catalog), and making a public row personal
+    hands it to one account, so the row must already be the caller's - a
+    row somebody else wrote is never taken out of the catalogue into the
+    caller's own list. The row moves to the end of its new kind.
+    """
+    db_note = _get_or_404(db, note_id)
+    _authorize_edit(viewer, db_note)
+    section = section_by_key(db_note.section or "")
+    if section is None or not section.kind_choice:
+        raise HTTPException(
+            status_code=422, detail="This section's rows do not switch kind."
+        )
+    if not viewer.has(PERM_MANAGE_CATALOG):
+        raise _capability_refused(
+            "Public notes require the manage.catalog permission."
+        )
+    if db_note.author_id != viewer.user_id:
+        # 422, not 403: this router answers 401 or 404 for access
+        # (test_note_status_codes). The row is readable and the caller may
+        # write the catalogue; what it may not do is take this row.
+        raise HTTPException(
+            status_code=422, detail="Only the row's author may switch its kind."
+        )
+    _authorize_write(viewer, db_note.section, payload.personal)
+    if db_note.personal != payload.personal:
+        db_note.personal = payload.personal
+        db_note.sort_index = _next_sort_index(db, db_note)
+        db_note.updated_at = get_taipei_now()
+        db.commit()
+        db.refresh(db_note)
+    return _one_out(db, viewer, db_note)
 
 
 @router.patch("/{note_id}", response_model=schemas.NoteResponse)
