@@ -10,6 +10,9 @@ import { progressFor } from "../../../lib/hComicRegion";
 import { releaseScore } from "../../../lib/releaseDate";
 import { compareTitles, getDisplayName, getSortName } from "../../../lib/naming";
 import { READING_STATUS_GROUP } from "../../../utils/media";
+import {
+  hGenreFilters,
+} from "../../../lib/libraryFilterDefs";
 
 // CN leads, as everywhere but comic; lib/naming.js holds the one chain.
 const getTitle = (h) => getDisplayName(h, "h-comic");
@@ -85,6 +88,8 @@ const H_COMIC_LIBRARY_CONFIG = {
     setFilter("originality", "Originality", "originality"),
     setFilter("animationStatus", "Animation Status", "animation_status"),
     { ...setFilter("usefulness", "Usefulness", "usefulness"), personal: true },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...hGenreFilters(),
   ],
 
   sortDefs: [

@@ -608,7 +608,10 @@ on its default, which is what the eight types with no AniList figure do.
 
 Filter types: `set` (static `options`), `set-dynamic` (options derived from
 the data), `set-grouped` (group labels mapped through `WATCHING_STATUS_GROUP`
-/ `READING_STATUS_GROUP`), `boolean` (checkbox). Top bar: search, "Sort:"
+/ `READING_STATUS_GROUP`), `boolean` (checkbox; no library config has one,
+the machinery stays for the FilterDef shape). A set-type def may carry
+`optionHint(value)`, the chip's hover title, and any def `advanced: true`,
+which puts it in the collapsed advanced section. Top bar: search, "Sort:"
 select, Filters button with an active-count badge, grid/table toggle, result
 count. Table rows link to `${config.navPath}/${id}`; table cells receive
 `{ franchiseDict, seriesDict, canTrack, handleStatusToggle }`, and
@@ -657,8 +660,8 @@ viewer. In the table below the personal defs are marked *(p)*.
 
 | Type | Series? | Filters (key: type) | Sorts | Table columns |
 |---|---|---|---|---|
-| anime | yes | airingType: set (TV/Movie/ONA/OVA/Special) · airingStatus: set · watchingStatus: set-grouped *(p)* · bahaOnly: boolean | title (franchise→series→entry), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`) *(p)*, my *(p)*, mal, studio, baha, watch *(p)* |
-| anime-movie | no | airingStatus · watchingStatus *(p)* · bahaOnly | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my *(p)*, mal, studio, director, baha, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| anime | yes | airingType: set (TV/Movie/ONA/OVA/OAD/Special) · airingStatus: set (Not Yet Aired/Airing/Finished Airing/Canceled) · watchingStatus *(p)* | title (franchise→series→entry), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`) *(p)*, my *(p)*, mal, studio, baha, watch *(p)* |
+| anime-movie | no | releaseStatus: set (`FILM_RELEASE_STATUSES`) · releaseType: set (`ANIME_MOVIE_RELEASE_TYPES`: Cinema/ONA; the column is never empty, so no Not set chip) · watchingStatus *(p)* | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my *(p)*, mal, studio, director, baha, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus *(p)* | title, release_date (year of `release_date_usa` only), my_rating *(p)*, imdb_rating | franchise, title, status, my *(p)*, imdb, director, release, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | tv-show | no | airingStatus · watchingStatus *(p)* · region: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
@@ -666,6 +669,42 @@ viewer. In the table below the personal defs are marked *(p)*.
 | book | yes | serializationStatus · readingStatus *(p)* · region · type: set-dynamic | title, release_date (jp→tw), end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getBookProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | comic | yes | comicType: set-dynamic · readingStatus *(p)* · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
 | game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) *(p)* · ownership: set-dynamic *(p)* · releaseStatus: set-dynamic | title (EN-first, `getSortName`), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating *(p)* | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
+
+Every library's filters end in an **advanced section** — tag filters, drawn
+by `FilterPanel` behind a collapsed **Advanced filters** toggle (see
+`components.md`, "FilterPanel"). They are catalogue filters, built by
+`tagFilter` in `lib/libraryFilterDefs.js`: `set-dynamic` over a `", "`-joined
+tag link field, chips the values the library holds, an entry matching when
+it carries any chosen value. Exclusive Source comes first where a type has
+it:
+
+| Type | Advanced filters (response attribute) |
+|---|---|
+| anime, anime-movie | Exclusive Source (`exclusive_source`) · Genre Main (`genre_main`) · Genre Sub (`genre_sub`) · 標籤 Label (`label`) |
+| movie | Exclusive Source (`original_source`, the field a movie labels Exclusive Source) · Genre Main · Genre Sub · 標籤 Label |
+| tv-show, cartoon, manga, book, comic | Genre Main · Genre Sub · 標籤 Label |
+| game | Genre (`game_genre`) · Theme (`game_theme`) · 標籤 Label (`label`) |
+| h-game | Genre (`game_genre`) · Theme (`game_theme`) · Genre Plot (`h_genre_plot`) · Genre Appearance (`h_genre_appearance`) · Genre Relation (`h_genre_relation`) |
+| h-comic, hentai | Genre Plot · Genre Appearance · Genre Relation |
+
+TV Show's and Cartoon's `original_source` is an Original Source, not an
+exclusive one, so neither has an Exclusive Source filter; Cartoon keeps it
+in its ordinary section as officialSource.
+
+**Watch Status is one def on all six watch libraries** — anime, anime
+movie, movie, TV show, cartoon and hentai — `watchStatusFilter(type)` in
+`lib/libraryFilterDefs.js`. Its chips run Might Watch, Planned, Watching,
+Completed, Dropped, each a group of stored statuses through
+`WATCHING_STATUS_GROUP`, and each chip's hover title (`optionHint`) lists the
+statuses it includes in that type's vocabulary (`watchingStatusesFor`):
+
+| Chip | Includes |
+|---|---|
+| Might Watch | Might Watch, and a row with no status |
+| Planned | Plan to Watch, Watch When Airs (airing types) or Watch When Released (movie, anime movie) |
+| Watching | Active Watching, Passive Watching, Paused |
+| Completed | Completed, Completed (解說) |
+| Dropped | Temp Dropped, Dropped, Won't Watch |
 
 **My Rating breaks a tie on the type's public score, then on the title**
 (`myRatingSort({ publicScore, title })` in `libraryColumns.jsx`): MAL for
@@ -2082,7 +2121,10 @@ mode starts over from that mode's defaults, with no pick.
   newest first, Unknown last). A gated type the session may see is in the
   pool like any other; untick it with the media-type chips.
 - **One type** (`/random/<type>`) fetches only that type and offers its
-  library page's own `filterDefs`, then my rating and release decade.
+  library page's own `filterDefs` without the advanced section (the
+  picker's own Genre covers the genre), then my rating and release decade.
+  A stored default naming a filter the library no longer has (the retired
+  `bahaOnly` 動畫瘋 toggle) is dropped on read by `resolveDefaultFilters`.
 - **Franchise** (`/random/franchise`) draws a franchise, not an entry. It
   fetches every franchise and every visible type's list; the lists give each
   franchise its cover (the franchise library's `getFranchiseCover`) and say

@@ -89,7 +89,7 @@ describe("one-type mode", () => {
   it("runs the type's own library filters against the entry's item", () => {
     const defs = typeFilterDefs("anime");
     expect(defs.map((d) => d.key)).toEqual([
-      ...LIBRARY_CONFIGS.anime.filterDefs.map((d) => d.key),
+      ...LIBRARY_CONFIGS.anime.filterDefs.filter((d) => !d.advanced).map((d) => d.key),
       "myRating",
       "decade",
       "genre",
@@ -101,6 +101,12 @@ describe("one-type mode", () => {
     ]);
     const pool = applyFilterDefs(entries, defs, withActive(defs, "airingType", ["OVA"]));
     expect(pool.map(entryKey)).toEqual(["anime:ova"]);
+  });
+
+  it("leaves the library's advanced section out", () => {
+    // The library has advanced defs, so leaving them out is something done.
+    expect(LIBRARY_CONFIGS.anime.filterDefs.some((d) => d.advanced)).toBe(true);
+    expect(typeFilterDefs("anime").some((d) => d.advanced)).toBe(false);
   });
 
   it("derives a dynamic library filter's options from the items", () => {
@@ -115,12 +121,12 @@ describe("stored defaults", () => {
     const defs = typeFilterDefs("anime");
     const state = resolveDefaultFilters(defs, {
       airingType: ["TV", "Hologram"], // Hologram is not an anime airing type
-      bahaOnly: true,
+      bahaOnly: true, // the retired 動畫瘋-only toggle, still in an old row
       decade: ["2010s"], // dynamic: kept, its options come from the data
       retiredFilter: ["x"],
     });
     expect([...state.airingType]).toEqual(["TV"]);
-    expect(state.bahaOnly).toBe(true);
+    expect(state).not.toHaveProperty("bahaOnly");
     expect([...state.decade]).toEqual(["2010s"]);
     expect(state).not.toHaveProperty("retiredFilter");
     expect(state.myRating.size).toBe(0);
@@ -133,7 +139,7 @@ describe("stored defaults", () => {
 
   it("stores only what is on, and round-trips", () => {
     const defs = typeFilterDefs("anime");
-    const stored = { airingType: ["TV", "OVA"], bahaOnly: true };
+    const stored = { airingType: ["TV", "OVA"], airingStatus: ["Airing"] };
     const state = resolveDefaultFilters(defs, stored);
     expect(toStoredFilters(state)).toEqual(stored);
   });

@@ -224,6 +224,21 @@ caller gets parent chips with no extra wiring. A parent with no children is
 not drawn. The character, person and studio libraries use it for
 **Restricted** over the gated media types.
 
+A set-type def may carry `optionHint(value)`: the chip's hover `title`. The
+watch libraries' Watch Status uses it to list the stored statuses each chip
+includes (`watchStatusFilter` in `lib/libraryFilterDefs.js`).
+
+A def flagged `advanced: true` is drawn in the **advanced section** instead,
+after every ordinary def, behind an **Advanced filters** toggle
+(`aria-expanded`) that opens collapsed each time the panel mounts — so every
+visit to a library opens on the ordinary filters. While collapsed, the
+toggle counts the chips switched on inside it, so a narrowing the viewer
+cannot see is never a silent one; Clear all empties those too. An advanced
+`set-dynamic` def with no chips is left out, and with none left there is no
+toggle. Every media-type library puts its tag filters there (pages.md,
+"Library"); the random picker drops advanced defs, and the entity libraries
+have none.
+
 ## The `personal` flag
 
 A FilterDef, SortDef or table column in a library config

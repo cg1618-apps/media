@@ -8,6 +8,9 @@ import {
 import { releaseScore } from "../../../lib/releaseDate";
 import { READING_STATUS_GROUP, parseTypes } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
+import {
+  genreFilters,
+} from "../../../lib/libraryFilterDefs";
 
 // EN leads for comics, matching Comic.display_name on the backend and
 // getDisplayName (lib/naming.js). Every other library type leads with CN.
@@ -78,6 +81,8 @@ const COMIC_LIBRARY_CONFIG = {
       match: (item, active) =>
         parseTypes(item.events).some((ev) => active.has(ev)),
     },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...genreFilters(),
   ],
 
   sortDefs: [

@@ -9,7 +9,10 @@ import {
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
 import { compareTitles, getDisplayName, getSortName } from "../../../lib/naming";
-import { WATCHING_STATUS_GROUP } from "../../../utils/media";
+import {
+  hGenreFilters,
+  watchStatusFilter,
+} from "../../../lib/libraryFilterDefs";
 
 // CN leads, as everywhere but comic; lib/naming.js holds the one chain.
 const getTitle = (h) => getDisplayName(h, "hentai");
@@ -65,19 +68,13 @@ const HENTAI_LIBRARY_CONFIG = {
   },
 
   filterDefs: [
-    {
-      key: "watchingStatus",
-      label: "Watch Status",
-      personal: true,
-      type: "set-grouped",
-      groupOptions: ["Watching", "Planned", "Completed", "Dropped", "Might Watch"],
-      match: (item, active) =>
-        active.has(WATCHING_STATUS_GROUP[item.watching_status] ?? "Might Watch"),
-    },
+    watchStatusFilter("hentai"),
     setFilter("airingStatus", "Airing Status", "airing_status"),
     setFilter("sourceMaterial", "Source Material", "source_material"),
     setFilter("originality", "Originality", "originality"),
     { ...setFilter("usefulness", "Usefulness", "usefulness"), personal: true },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...hGenreFilters(),
   ],
 
   sortDefs: [

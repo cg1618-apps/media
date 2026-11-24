@@ -8,6 +8,10 @@ import {
 import { PLAYING_STATUS_GROUP } from "../../../config/statusGroups";
 import { releaseScore } from "../../../lib/releaseDate";
 import { compareTitles, getSortName } from "../../../lib/naming";
+import {
+  gameGenreFilters,
+  tagFilter,
+} from "../../../lib/libraryFilterDefs";
 
 // CN leads, as everywhere but comic.
 function getTitle(g) {
@@ -112,6 +116,9 @@ const GAME_LIBRARY_CONFIG = {
         [...new Set(data.map((d) => d.release_status).filter(Boolean))].sort(),
       match: (item, active) => active.has(item.release_status),
     },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...gameGenreFilters(),
+    tagFilter("label", "標籤 Label", "label"),
   ],
 
   sortDefs: [

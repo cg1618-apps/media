@@ -1,18 +1,25 @@
 // Frontend: the chip panel that renders a list of FilterDefs (the shape is
 // documented in hooks/useLibraryState.js). Used by LibraryLayout, the random
 // picker and the entity libraries (character, person, studio, publisher).
+import { useState } from "react";
+
 import { ClearAllButton, Eyebrow } from "../ui/primitives";
-import { isParentActive, toggleParentValues } from "../../lib/libraryFilters";
+import {
+  countActiveFilters,
+  isParentActive,
+  toggleParentValues,
+} from "../../lib/libraryFilters";
 
 // ---------------------------------------------------------------------------
 // FilterTag — chip-shaped button for toggling a set-type filter value
 // ---------------------------------------------------------------------------
-function Chip({ active, onClick, children }) {
+function Chip({ active, onClick, title, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
+      title={title}
       className={`px-2 py-0.5 border font-mono text-[10px] uppercase tracking-[0.12em] transition-colors ${
         active
           ? "bg-brand text-on-brand border-brand"
@@ -24,11 +31,11 @@ function Chip({ active, onClick, children }) {
   );
 }
 
-function FilterTag({ filters, toggleFilter, group, value, label }) {
+function FilterTag({ filters, toggleFilter, group, value, label, hint }) {
   const activeSet = filters[group];
   const active = activeSet instanceof Set && activeSet.has(value);
   return (
-    <Chip active={active} onClick={() => toggleFilter(group, value)}>
+    <Chip active={active} onClick={() => toggleFilter(group, value)} title={hint}>
       {label}
     </Chip>
   );
@@ -101,6 +108,90 @@ export function FilterToggleButton({ open, onToggle, activeFilterCount, classNam
 }
 
 // ---------------------------------------------------------------------------
+// FilterGroup — one def: a checkbox for a boolean, else a labelled chip row
+// ---------------------------------------------------------------------------
+function FilterGroup({ fd, filters, toggleFilter, dynamicFilterOptions }) {
+  if (fd.type === "boolean") {
+    return (
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={!!filters[fd.key]}
+          onChange={() => toggleFilter(fd.key, null)}
+          className="accent-brand"
+        />
+        <span className="text-xs text-text-muted">{fd.label}</span>
+      </label>
+    );
+  }
+
+  // Resolve options list
+  const options =
+    fd.type === "set-dynamic"
+      ? (dynamicFilterOptions[fd.key] ?? [])
+      : fd.type === "set-grouped"
+        ? fd.groupOptions
+        : fd.options;
+
+  // Hide dynamic filters that have no data yet
+  if (fd.type === "set-dynamic" && options.length === 0) return null;
+
+  return (
+    <div>
+      <Eyebrow className="mb-1.5">{fd.label}</Eyebrow>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((v) => (
+          <FilterTag
+            key={v}
+            filters={filters}
+            toggleFilter={toggleFilter}
+            group={fd.key}
+            value={v}
+            label={fd.optionLabel ? fd.optionLabel(v) : v}
+            hint={fd.optionHint ? fd.optionHint(v) : undefined}
+          />
+        ))}
+        {fd.parent && (
+          <ParentTag filters={filters} toggleFilter={toggleFilter} fd={fd} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AdvancedFilters — the defs flagged `advanced`, behind a toggle
+// ---------------------------------------------------------------------------
+// Collapsed whenever the panel mounts, so every visit opens on the ordinary
+// filters. The toggle counts the chips on inside, so a narrowing the viewer
+// cannot see while it is collapsed is never a silent one.
+function AdvancedFilters({ defs, filters, groupProps }) {
+  const [open, setOpen] = useState(false);
+  const activeCount = countActiveFilters(
+    Object.fromEntries(defs.map((fd) => [fd.key, filters[fd.key]])),
+  );
+  return (
+    <div className="space-y-3 border-t border-dashed border-border pt-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex items-center gap-2 font-mono text-[11px] text-text-muted hover:text-brand transition"
+      >
+        <i className={`fas ${open ? "fa-chevron-down" : "fa-chevron-right"} text-[9px]`} aria-hidden="true" />
+        Advanced filters
+        {activeCount > 0 && (
+          <span className="bg-brand text-on-brand font-mono text-[10px] px-1.5 py-0.5 leading-none">
+            {activeCount}
+          </span>
+        )}
+      </button>
+      {open && defs.map((fd) => <FilterGroup key={fd.key} fd={fd} {...groupProps} />)}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // FilterPanel — renders all FilterDef groups for the current config
 // ---------------------------------------------------------------------------
 // `resetFilters` is optional: a caller that opens on a default other than
@@ -116,6 +207,14 @@ export default function FilterPanel({
   activeFilterCount,
   dynamicFilterOptions,
 }) {
+  const groupProps = { filters, toggleFilter, dynamicFilterOptions };
+  // An advanced def with no chips to draw (a dynamic one over a library
+  // nobody has tagged) is left out, and with none left there is no toggle.
+  const advancedDefs = filterDefs.filter(
+    (fd) =>
+      fd.advanced &&
+      (fd.type !== "set-dynamic" || (dynamicFilterOptions[fd.key] ?? []).length > 0),
+  );
   return (
     <div className="border-y border-border py-4 mb-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -139,53 +238,17 @@ export default function FilterPanel({
         </div>
       </div>
 
-      {filterDefs.map((fd) => {
-        if (fd.type === "boolean") {
-          return (
-            <label key={fd.key} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!filters[fd.key]}
-                onChange={() => toggleFilter(fd.key, null)}
-                className="accent-brand"
-              />
-              <span className="text-xs text-text-muted">{fd.label}</span>
-            </label>
-          );
-        }
+      {filterDefs.filter((fd) => !fd.advanced).map((fd) => (
+        <FilterGroup key={fd.key} fd={fd} {...groupProps} />
+      ))}
 
-        // Resolve options list
-        const options =
-          fd.type === "set-dynamic"
-            ? (dynamicFilterOptions[fd.key] ?? [])
-            : fd.type === "set-grouped"
-              ? fd.groupOptions
-              : fd.options;
-
-        // Hide dynamic filters that have no data yet
-        if ((fd.type === "set-dynamic") && options.length === 0) return null;
-
-        return (
-          <div key={fd.key}>
-            <Eyebrow className="mb-1.5">{fd.label}</Eyebrow>
-            <div className="flex flex-wrap gap-1.5">
-              {options.map((v) => (
-                <FilterTag
-                  key={v}
-                  filters={filters}
-                  toggleFilter={toggleFilter}
-                  group={fd.key}
-                  value={v}
-                  label={fd.optionLabel ? fd.optionLabel(v) : v}
-                />
-              ))}
-              {fd.parent && (
-                <ParentTag filters={filters} toggleFilter={toggleFilter} fd={fd} />
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {advancedDefs.length > 0 && (
+        <AdvancedFilters
+          defs={advancedDefs}
+          filters={filters}
+          groupProps={groupProps}
+        />
+      )}
     </div>
   );
 }

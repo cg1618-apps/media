@@ -9,8 +9,11 @@ import {
   planFlagColumn,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import { WATCHING_STATUS_GROUP } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
+import {
+  genreFilters,
+  watchStatusFilter,
+} from "../../../lib/libraryFilterDefs";
 
 function getTitle(s)   { return s.tv_name_cn || s.tv_name_en || s.tv_name_alt || ""; }
 function getSortKey(s) { return s.tv_name_en || s.tv_name_alt || s.tv_name_cn || ""; }
@@ -45,15 +48,7 @@ const TV_LIBRARY_CONFIG = {
       options: ["Finished Airing", "Airing", "Not Yet Aired", "Canceled"],
       match: (item, active) => active.has(item.airing_status),
     },
-    {
-      key: "watchingStatus",
-      label: "Watch Status",
-      personal: true,
-      type: "set-grouped",
-      groupOptions: ["Watching", "Planned", "Completed", "Dropped", "Might Watch"],
-      match: (item, active) =>
-        active.has(WATCHING_STATUS_GROUP[item.watching_status] ?? "Might Watch"),
-    },
+    watchStatusFilter("tv-show"),
     {
       key: "region",
       label: "Region",
@@ -62,6 +57,8 @@ const TV_LIBRARY_CONFIG = {
         [...new Set(data.map((d) => d.region).filter(Boolean))].sort(),
       match: (item, active) => active.has(item.region),
     },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...genreFilters(),
   ],
 
   sortDefs: [
