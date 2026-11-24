@@ -13,6 +13,7 @@ import { Fragment, useMemo } from "react";
 import { NotesProvider, useNotes } from "./NotesContext";
 import { GroupCard } from "./sections/ui";
 import { TocSection } from "../../components/layout/DetailContents";
+import { chineseLabel } from "../../lib/noteLabels";
 
 // Split the flat registry into what the page renders: the Notes card holds
 // every ungrouped section, and each group becomes a card of its own BESIDE it -
@@ -55,7 +56,7 @@ function splitBlocks(sections) {
 const Spinner = () => (
   <div className="bg-surface border border-border">
     <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border">
-      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted shrink-0">
+      <h3 className="font-mono text-[11px] text-text-muted shrink-0">
         Notes
       </h3>
       <span className="flex-1 border-t border-dotted border-border-strong/60" />
@@ -63,7 +64,7 @@ const Spinner = () => (
     <div className="p-4">
       <div className="py-10 text-center text-text-faint">
         <i className="fas fa-circle-notch fa-spin text-xl"></i>
-        <p className="font-mono text-[11px] uppercase tracking-[0.14em] mt-2">
+        <p className="font-mono text-[11px] mt-2">
           Loading notes…
         </p>
       </div>
@@ -111,7 +112,9 @@ export function NotesGroup({ groupKey }) {
 export function NotesBlocks({ hideGroups = [], beforeGroup = {} }) {
   // Each top-level card is a TocSection, so a detail page's table of contents
   // lists the Notes card, every group card and every standalone section - and
-  // never a group's own sections, which sit inside its card.
+  // never a group's own sections, which sit inside its card. The contents
+  // list each by the Chinese part of its label (chineseLabel); the card itself
+  // keeps the whole label.
   const { sections, loading, error, renderSection, blockCount } = useNotes();
 
   // Callers pass fresh array literals on every render, so the join keeps this
@@ -158,7 +161,7 @@ export function NotesBlocks({ hideGroups = [], beforeGroup = {} }) {
         groups.map((group) => (
           <Fragment key={group.key}>
           {beforeGroup[group.key]}
-          <TocSection id={`notes-${group.key}`} label={group.label}>
+          <TocSection id={`notes-${group.key}`} label={chineseLabel(group.label)}>
             <GroupCard
               label={group.label}
               count={blockCount(group.sections)}
@@ -178,7 +181,11 @@ export function NotesBlocks({ hideGroups = [], beforeGroup = {} }) {
         ))}
       {!loading &&
         standalone.map((section) => (
-          <TocSection key={section.key} id={`notes-${section.key}`} label={section.label}>
+          <TocSection
+            key={section.key}
+            id={`notes-${section.key}`}
+            label={chineseLabel(section.label)}
+          >
             {renderSection(section)}
           </TocSection>
         ))}

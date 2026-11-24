@@ -136,6 +136,46 @@ describe("NotesTemplate groups", () => {
   });
 });
 
+describe("NotesTemplate contents labels", () => {
+  beforeEach(() => {
+    vi.mocked(api.fetchSections).mockResolvedValue([
+      { key: "overview", shape: "text", label: "Overview", kinds: [] },
+      {
+        key: "op",
+        shape: "text",
+        label: "OP",
+        kinds: [],
+        group: "music",
+        group_label: "音樂 Music",
+        group_icon: "fa-music",
+      },
+      {
+        key: "resources",
+        shape: "text",
+        label: "資源 Resources",
+        kinds: [],
+        standalone: true,
+      },
+    ]);
+    vi.mocked(api.fetchNotes).mockResolvedValue([
+      { system_id: "o1", section: "overview", content: "an overview" },
+    ]);
+  });
+
+  it("lists group and standalone cards by their Chinese name only", async () => {
+    const { container } = renderTemplate();
+    await waitFor(() =>
+      expect(screen.getByText("資源 Resources")).toBeInTheDocument(),
+    );
+    const labels = Array.from(container.querySelectorAll("[data-toc]")).map((el) =>
+      el.getAttribute("data-toc"),
+    );
+    expect(labels).toEqual(["Notes", "音樂", "資源"]);
+    // The card keeps its whole label; only the contents shorten it.
+    expect(screen.getByText("音樂 Music")).toBeInTheDocument();
+  });
+});
+
 // Standalone: a section that names no group but sets `standalone` renders as
 // its own top-level card. Resources and Questions each stand alone, so wrapping
 // either in a GroupCard would stack its label in two headers.

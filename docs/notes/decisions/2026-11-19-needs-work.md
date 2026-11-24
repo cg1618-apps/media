@@ -1,7 +1,7 @@
 # 待補充 Needs Work
 
 Every entry and group can be marked as not complete yet, with an optional note,
-and a page lists the marks grouped by note for the admin and super.
+and a page lists the marks for the admin and super, a section per common note.
 
 - **One table, `needs_work`, not columns on fifteen tables.** The owner is the
   `note` / `meme` shape: four nullable cascading foreign keys and a CHECK that
@@ -14,6 +14,14 @@ and a page lists the marks grouped by note for the admin and super.
 - **The note is free text and the grouping key**, stored trimmed with blank as
   NULL, suggested from the `Needs Work Note` common options only. A
   vocabulary that grows from what was typed would feed every typo back.
+- **Only a common note is a section of the page; every other note shares one
+  Other section, each row showing its note.** A custom note is usually a
+  one-off, and a section per distinct note turned the page into a run of
+  one-row tables. The unnoted marks keep their own No note section: no note
+  is not a custom note, and a row there has nothing to show in a note column.
+  The server still groups by exact note and the page folds the groups, since
+  the page already reads the common notes for the note field; making the API
+  return the page's sections would tie the read to the option category.
 - **The permission is `manage.requests`.** `manage.catalog` is locked off for the
   admin, which would then be refused; `manage.requests` is held by exactly super
   and the admin and already means "handle what is wrong or incomplete in the

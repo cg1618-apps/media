@@ -84,3 +84,71 @@ it("clears children with the rest on Clear all", async () => {
   await user.click(screen.getByRole("button", { name: "Clear all" }));
   expect(screen.getByRole("status")).toHaveTextContent(/^$/);
 });
+
+// ---------------------------------------------------------------------------
+// Option hints and the advanced section
+// ---------------------------------------------------------------------------
+const ADVANCED_DEFS = [
+  {
+    key: "status",
+    label: "Status",
+    type: "set-grouped",
+    groupOptions: ["Planned", "Done"],
+    optionHint: (v) => `Includes: ${v} things`,
+    match: () => true,
+  },
+  {
+    key: "genre",
+    label: "Genre",
+    type: "set",
+    options: ["奇幻", "日常"],
+    advanced: true,
+    match: () => true,
+  },
+];
+
+function AdvancedHarness() {
+  const state = useFilterState(ADVANCED_DEFS, []);
+  return (
+    <FilterPanel
+      filterDefs={ADVANCED_DEFS}
+      filters={state.filters}
+      toggleFilter={state.toggleFilter}
+      clearFilters={state.clearFilters}
+      activeFilterCount={state.activeFilterCount}
+      dynamicFilterOptions={{}}
+    />
+  );
+}
+
+it("gives a chip its def's hint as a hover title", () => {
+  render(<AdvancedHarness />);
+  expect(screen.getByRole("button", { name: "Planned" })).toHaveAttribute(
+    "title",
+    "Includes: Planned things",
+  );
+});
+
+it("keeps advanced filters collapsed until the button opens them", async () => {
+  const user = userEvent.setup();
+  render(<AdvancedHarness />);
+  const toggle = screen.getByRole("button", { name: /Advanced filters/ });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("button", { name: "奇幻" })).not.toBeInTheDocument();
+  // The ordinary filters are drawn while it is collapsed.
+  expect(screen.getByRole("button", { name: "Planned" })).toBeInTheDocument();
+
+  await user.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await user.click(screen.getByRole("button", { name: "奇幻" }));
+
+  // Collapsed again, the button still counts what is on inside.
+  await user.click(toggle);
+  expect(screen.queryByRole("button", { name: "奇幻" })).not.toBeInTheDocument();
+  expect(toggle).toHaveTextContent("1");
+});
+
+it("draws no advanced button for defs with nothing advanced", () => {
+  render(<Harness />);
+  expect(screen.queryByRole("button", { name: /Advanced filters/ })).not.toBeInTheDocument();
+});

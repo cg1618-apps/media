@@ -46,7 +46,7 @@ function ImageTile({ image, onDetach, onDelete, busy }) {
       <div className="relative aspect-square overflow-hidden rounded border border-border bg-surface-2">
         {image.missing ? (
           <div className="flex h-full flex-col items-center justify-center gap-1 px-2 text-center">
-            <span className="text-[10px] uppercase tracking-wide text-text-faint">
+            <span className="text-[10px] text-text-faint">
               Not on this machine
             </span>
           </div>
@@ -93,7 +93,7 @@ function ImageTile({ image, onDetach, onDelete, busy }) {
                 type="button"
                 onClick={() => onDetach(image, a)}
                 disabled={busy}
-                className="shrink-0 text-[10px] uppercase tracking-wide text-text-faint underline hover:text-text disabled:opacity-50"
+                className="shrink-0 text-[10px] text-text-faint underline hover:text-text disabled:opacity-50"
               >
                 Detach
               </button>

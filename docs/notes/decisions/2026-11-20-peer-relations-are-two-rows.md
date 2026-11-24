@@ -25,10 +25,10 @@ side's row, so writing it never touches the other side.
 - **One row per pair with a single shared remark.** The owner chose one
   remark per side: the words that describe B from A's side read wrongly on
   B's page.
-- **`media_relation`'s FK-less `(type, id)` endpoints.** That table relates
-  entries with typed kinds and derived inverse labels; a peer relation has no
-  kind and two real foreign keys, so cascading on delete is the database's
-  job rather than a sweep's.
+- **Folding them into `media_relation`.** That table relates entries with
+  typed kinds and derived inverse labels; a peer relation has no kind, and its
+  two ends are companies or franchises, held by two real foreign keys so that
+  cascading on delete is the database's job rather than a sweep's.
 - **One table for companies and franchises**, with an owner-type column. Two
   real foreign keys per kind are what make the cascade the database's; a
   polymorphic table would have to give them up. The rules are shared instead,

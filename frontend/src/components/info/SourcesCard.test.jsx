@@ -273,6 +273,40 @@ describe("SourcesCard", () => {
     expect(within(tag).getByTestId("source-tag-icon")).toBeInTheDocument();
   });
 
+  describe("the exclusive source", () => {
+    const watch = [
+      { system_id: "1", kind: "access", bucket: "main", name: "動畫瘋", url: "https://b.test", available: true },
+      { system_id: "2", kind: "access", bucket: "main", name: "Netflix", url: "https://n.test", available: true },
+      // Typed text that reads the same is not the platform.
+      { system_id: "3", kind: "access", bucket: "other", name: "Crunchyroll", url: null, available: null },
+    ];
+
+    it("leads the access rows, marked (Exclusive)", () => {
+      render(<SourcesCard sources={watch} mediaType="anime" exclusiveSource="Netflix" />);
+      const names = screen.getAllByTestId("source-name").map((n) => n.textContent);
+      expect(names).toEqual(["Netflix (Exclusive)", "動畫瘋", "Crunchyroll"]);
+      expect(screen.getByRole("link", { name: /netflix \(exclusive\)/i })).toHaveAttribute(
+        "href",
+        "https://n.test",
+      );
+      // The row says it, so the tag does not say it again.
+      expect(screen.queryByTestId("source-tag")).toBeNull();
+    });
+
+    it("keeps the server's order and no mark without one", () => {
+      render(<SourcesCard sources={watch} mediaType="anime" />);
+      const names = screen.getAllByTestId("source-name").map((n) => n.textContent);
+      expect(names).toEqual(["動畫瘋", "Netflix", "Crunchyroll"]);
+    });
+
+    it("stays a tag when no main access row matches it", () => {
+      render(<SourcesCard sources={watch} mediaType="anime" exclusiveSource="Crunchyroll" />);
+      const names = screen.getAllByTestId("source-name").map((n) => n.textContent);
+      expect(names).toEqual(["動畫瘋", "Netflix", "Crunchyroll"]);
+      expect(screen.getByTestId("source-tag")).toHaveTextContent("Crunchyroll");
+    });
+  });
+
   it("says so when there is nothing at all", () => {
     render(<SourcesCard sources={[]} mediaType="anime" />);
     expect(screen.getByText(/no sources recorded/i)).toBeInTheDocument();

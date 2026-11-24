@@ -402,6 +402,10 @@ List` is: Backup drops `system_id`, `user_id` and `media_id` and writes
 normalised as the write path does; a row naming an entry of another type, an
 unknown entry or an unknown user, or an order that is not a list of names, is
 skipped and named in `unresolved_refs`, and an empty order is skipped.
+**`Media Relation`** rows whose `from` or `to` end names no entry of that type
+here are skipped and named in `unresolved_refs`
+(`_missing_relation_endpoint`): both ends are foreign keys onto `media`, so
+writing one would roll back every relation in the tab at its commit.
 
 **The Note tab carries `personal`**, after `section`, and a `public` column
 at its end. In 優點, 缺點 and 優缺點, whose writer picks each row's kind

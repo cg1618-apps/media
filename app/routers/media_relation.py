@@ -514,12 +514,11 @@ def reset_scope(
         # Reaches both entries of every row being removed, same as a single
         # delete - a bulk reset must not become a bulk existence oracle.
         #
-        # Behaviour change shipped with Phase C: ONE unreachable endpoint now
-        # fails the WHOLE reset rather than skipping that row. That is
-        # deliberate and fail-closed - a partial reset would tell the caller,
-        # by what survived, exactly which entries it may not see - but it is
-        # not what this route did before, and a dangling endpoint (both are
-        # FK-less by design) fails it for an admin too.
+        # ONE unreachable endpoint fails the WHOLE reset rather than skipping
+        # that row. That is deliberate and fail-closed - a partial reset would
+        # tell the caller, by what survived, exactly which entries it may not
+        # see. A missing endpoint cannot occur: both ends are foreign keys
+        # onto media, ON DELETE CASCADE.
         _validate_endpoint(db, row.from_type, row.from_id, admin, visible)
         _validate_endpoint(db, row.to_type, row.to_id, admin, visible)
     for row in rows:

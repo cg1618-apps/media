@@ -13,6 +13,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import AdminActions from "../../components/layout/AdminActions";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
 import {
@@ -31,7 +32,7 @@ import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useMediaCacheUpdate } from "../../hooks/useMediaCacheUpdate";
 import { useMediaItem } from "../../hooks/useMediaItem";
 import { useMediaList } from "../../hooks/useMediaList";
-import { Button, RatingStamp, ProgressRule, Eyebrow } from "../../components/ui/primitives";
+import { Button, RatingStamp, ProgressRule, eyebrowCls } from "../../components/ui/primitives";
 import { AIRING_WATCHING_STATUSES } from "../../config/fieldOptions";
 import { useCasting } from "../../hooks/useCasting";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
@@ -169,6 +170,18 @@ export default function Anime() {
   const progressPct =
     epTotal !== "?" ? Math.round((epFin / Number(epTotal)) * 100) : 0;
 
+  // A special says where it sits after the season it belongs to: "Season 2
+  // 第13集". With no season part the episode stands alone.
+  const seasonPartDisplay =
+    [
+      anime.season_part,
+      anime.ep_special != null && anime.ep_special !== ""
+        ? `第${anime.ep_special}集`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || null;
+
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
@@ -198,7 +211,7 @@ export default function Anime() {
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
           <Link to="/library/anime" className="hover:text-brand transition">
@@ -221,37 +234,42 @@ export default function Anime() {
 
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
-        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/modify?id=${system_id}`)}>
-              Edit
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!isAdmin) return;
-                try {
-                  const res = await fetch(endpoints.resource("anime").complete(system_id), {
-                    method: "POST",
-                    credentials: "include",
-                  });
-                  if (!res.ok) throw new Error("Request failed");
-                  showToast("success", "Marked as Completed!");
-                  await invalidateMedia();
-                  await fetchMediaItem();
-                } catch {
-                  showToast("error", "Update failed");
-                }
-              }}
-            >
-              Mark completed
-            </Button>
-            <MarkReleaseButton type="anime" entry={anime} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
-              {autofilling ? "Autofilling…" : "Autofill & update"}
-            </Button>
-          </div>
-        </div>
+        <AdminActions
+          start={
+            <>
+              <Button onClick={() => navigate(`/modify?id=${system_id}`)}>
+                Edit
+              </Button>
+              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                {autofilling ? "Autofilling…" : "Autofill & update"}
+              </Button>
+            </>
+          }
+          end={
+            <>
+              <MarkReleaseButton type="anime" entry={anime} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+              <Button
+                onClick={async () => {
+                  if (!isAdmin) return;
+                  try {
+                    const res = await fetch(endpoints.resource("anime").complete(system_id), {
+                      method: "POST",
+                      credentials: "include",
+                    });
+                    if (!res.ok) throw new Error("Request failed");
+                    showToast("success", "Marked as Completed!");
+                    await invalidateMedia();
+                    await fetchMediaItem();
+                  } catch {
+                    showToast("error", "Update failed");
+                  }
+                }}
+              >
+                Mark completed
+              </Button>
+            </>
+          }
+        />
       )}
 
       {/* Main Grid: 4 columns */}
@@ -282,7 +300,7 @@ export default function Anime() {
               <ProgressRule
                 value={epTotal !== "?" ? progressPct / 100 : epFin > 0 ? 1 : 0}
               />
-              <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+              <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] text-text-faint">
                 <span>Progress</span>
                 <span className="text-text">
                   {epFin} / {epTotal}
@@ -308,7 +326,7 @@ export default function Anime() {
         <div className="lg:col-span-3 space-y-10">
           {/* Header & Titles */}
           <header>
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+            <div className="font-mono text-[11px] text-text-muted mb-3">
               {eyebrow}
             </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
@@ -328,7 +346,7 @@ export default function Anime() {
             {/* Franchise / Series lineage */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-6 text-sm mb-8 pt-3 border-t border-border">
               <div className="flex items-baseline gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                <span className={eyebrowCls}>
                   Franchise
                 </span>
                 {franchise ? (
@@ -343,7 +361,7 @@ export default function Anime() {
                 )}
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                <span className={eyebrowCls}>
                   Series
                 </span>
                 {series ? (
@@ -415,14 +433,17 @@ export default function Anime() {
               <InfoCard
                 title="Information"
                 fields={[
+                  // Original / Remake is shown for a remake alone: an
+                  // original is the default and says nothing.
                   [
                     { label: "本傳/外傳", value: anime.is_main },
-                    { label: "Original / Remake", value: anime.original_or_remake },
-                    { label: "Season Part", value: anime.season_part },
-                    { label: "Special Episodes", value: anime.ep_special },
+                    { label: "Airing Type", value: anime.airing_type },
+                    { label: "Season Part", value: seasonPartDisplay },
+                    ...(anime.original_or_remake === "Remake"
+                      ? [{ label: "Original / Remake", value: anime.original_or_remake }]
+                      : []),
                   ],
                   [
-                    { label: "Airing Type", value: anime.airing_type },
                     { label: "Airing Status", value: anime.airing_status },
                     { label: "Total Episodes", value: epTotalDisplay },
                     {
@@ -441,7 +462,7 @@ export default function Anime() {
                   ],
                   { label: "Genre (Main)", value: anime.genre_main },
                   { label: "Genre (Sub)", value: anime.genre_sub },
-                  { label: "標籤 Label", value: anime.label },
+                  { label: "Label", value: anime.label },
                 ]}
               />
             </TocSection>

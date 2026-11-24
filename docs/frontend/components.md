@@ -187,7 +187,7 @@ is Noto Sans TC / Roboto, `--font-mono` Fira Code.
 | File | Holds |
 |---|---|
 | `mediaRegistry.js` | `MEDIA_CONFIG`: per type `statusField`, `apiEndpoint`, `navPath`, `statusType` (incl. collection/franchise/series). `statusType` is the status axis — `watch`, `read` or, for `game` and `h-game`, `play` (`statusField: "playing_status"`). `h-comic` (`read` axis), `h-game` (`play` axis) and `hentai` (`watch` axis) are registered like any other type; where they are drawn is decided by the gate below. Source for `endpoints.resource`. `MEDIA_TYPE_LABELS` / `mediaTypeLabel(type)` name a bare type key for display (the character page's groups, the entity libraries' Entry type chips). |
-| `navigation.js` | `LIBRARY_MEDIA_TYPE_PERMISSIONS` (the nine ordinary `media_type.*` keys) and `NAV_SECTIONS` (Library mega-panel, `requires` any of that list; Restricted; Track — Plan and Completions, each `self.list`; Explore — Seasonal and Future Releases, each any of `LIBRARY_MEDIA_TYPE_PERMISSIONS`, Random Picker, `view.random_picker`, and Statistics, `view.statistics`; Extras; then Entry — any of `manage.catalog` / `manage.images` —, Note — any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` —, System — `manage.pipelines` — and Admin — `admin.authz`), `activeItem`, `meets(has, needed)` (one permission, or any of a list), `visibleSections(sections, has, canSeeType, hasFeature)` (filters rows as well as sections — Extras carries Quotes and Memes on `feature: "quotes_memes"`, Resources on `manage.resources` and two `requires: "manage.catalog"` rows, Entry's rows each ask their own key, Note's three inventories ask `manage.options` and its Content Labels row carries `requires: ["admin.authz", "manage.catalog"]`, and the Restricted section's H-Comic, H-Game and Hentai rows carry `gatedType: "h-comic"` / `"h-game"` / `"hentai"`, each dropped unless `canSeeType` says yes for its own type; left out, every gated row is dropped, and with them the Restricted tab, which holds nothing else). |
+| `navigation.js` | `LIBRARY_MEDIA_TYPE_PERMISSIONS` (the nine ordinary `media_type.*` keys) and `NAV_SECTIONS` (Library mega-panel, `requires` any of that list, its columns Groups, ACG, Reality and Entities - Studio, Publisher, Person, Seiyuu, Character - left to right; Restricted; Track — Plan and Completions, each `self.list`; Explore — Statistics, `view.statistics`, Seasonal and Future Releases, each any of `LIBRARY_MEDIA_TYPE_PERMISSIONS`, and Random Picker, `view.random_picker`; Extras — Relations and Orders, then Quotes, Memes and Resources; then Entry — any of `manage.catalog` / `manage.images` —, Note — any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines`; System Options, Content Labels, Business Logic, External APIs, Alias Conversion —, System — `manage.pipelines`; the four pipeline pages, then a rule and Needs Work and Inbox, all three on `manage.requests` — and Admin — `admin.authz`), `activeItem`, `meets(has, needed)` (one permission, or any of a list), `visibleSections(sections, has, canSeeType, hasFeature)` (filters rows as well as sections — Extras carries Quotes and Memes on `feature: "quotes_memes"`, Resources on `manage.resources` and two `requires: "manage.catalog"` rows, Entry's rows each ask their own key, Note's three inventories (System Options, External APIs, Alias Conversion) ask `manage.options` and its Content Labels row carries `requires: ["admin.authz", "manage.catalog"]`, and the Restricted section's H-Comic, H-Game and Hentai rows carry `gatedType: "h-comic"` / `"h-game"` / `"hentai"`, each dropped unless `canSeeType` says yes for its own type; left out, every gated row is dropped, and with them the Restricted tab, which holds nothing else). |
 | `statusGroups.js` | `WATCHING_STATUS_GROUP`, `READING_STATUS_GROUP`, `PLAYING_STATUS_GROUP`, `AIRING_STATUS_CLS`; plus the picker groups (`STATUS_PICKER_GROUP`, `groupStatusOptions()`) that `components/ui/StatusOptions.jsx` renders as `<optgroup>`s. Filter buckets and picker groups are separate splits of the same vocabulary — and one `STATUS_PICKER_GROUP` map covers all three status axes, because no value means something different between them (Paused is Paused whether you watch, read or play). |
 | `planNextGroups.js` | Size buckets and labels — a hand-kept copy of `app/utils/plan_next_kinds.py`; keep them in sync. `game` and `h-game` have **no** `SIZE_GROUPS` entry (as `anime-movie` has an empty one): there is no count a game groups by, so each Plan tab renders one ungrouped list. Their `ALLOWED_SCOPES` are entry/series/franchise for both `next` and `rewatch`. `h-comic` and `hentai` are absent from `SIZE_GROUPS` the same way, and are queued at entry scope only for both kinds. |
 | `fieldOptions.js` + `useConstants.js` | Fallback enum arrays, overwritten in place by `/api/constants` once on mount — but only the arrays listed in `CONSTANTS_FALLBACK`. All eleven game vocabularies are in that map: `PLAYING_STATUSES`, `GAME_TYPES`, `GAME_IS_MAIN` (key `game_is_main`, game and h-game's own `is_main` vocabulary - Main, Remake, Remaster - beside the shared `IS_MAIN`), `COMPLETION_LEVELS`, `GAME_COMPLETION_FLAGS` (`game_completion_flag`), `GAME_ACHIEVEMENT_FLAGS` (`game_achievement_flag`, all_achievements' own - Fully, Yes, No, Inapplicable), `GAME_RELEASE_STATUSES`, `GAME_STOREFRONTS`, `GAME_OWNERSHIP_KINDS`, `GAME_COPY_FORMATS` and `GAME_ACQUISITION_KINDS`. `GAME_ACHIEVEMENT_HINT` is frontend-only: the line the Game form shows under All Achievements to tell Fully from Yes. `PRICE_CURRENCIES` is frontend-only: `game_copy.price_currency` and `game_copy.sell_currency` are free strings on the backend, and both selects offer this list. The seven h-game vocabularies (`H_GAME_PLAYSTYLES`, `H_GAME_LANGUAGE_AVAILABILITY`, `H_GAME_AUDIO_AVAILABILITY`, `H_GAME_H_PRESENTATIONS`, `H_GAME_ART_STYLES`, `H_GAME_H_ART_STYLES`, `H_GAME_PLATFORMS`) **are** in the map, under the `h_game_*` keys `/api/constants` serves only to a session that can see the type, and so is hentai's own `HENTAI_SOURCE_MATERIALS`, under `hentai_source_material`; a hentai also reads h-comic's originality and usefulness lists and anime's `AIRING_STATUSES`. `GENDERS` (a character's gender, `/api/constants` key `gender`) and `PERSON_GENDERS` (a person's, 男 and 女, key `person_gender`) are in the map; `CHARACTER_ROLES` (Main, Core, Important Supporting, Supporting, Other; `/api/constants` key `character_role`) is in the map too, and serves both a casting's role and a character's own role; `castRoleRank(role)` is the cast-list sort every AniManga detail page uses (that order, no role last). `NEW_CAST_CHARACTER_GENDER` is the per-media-type gender `CastEditor` gives a character it mints (女 for h-comic and hentai, unset otherwise). |
@@ -223,6 +223,21 @@ toggles only itself, and the parent shows active only while every child is on
 caller gets parent chips with no extra wiring. A parent with no children is
 not drawn. The character, person and studio libraries use it for
 **Restricted** over the gated media types.
+
+A set-type def may carry `optionHint(value)`: the chip's hover `title`. The
+watch libraries' Watch Status uses it to list the stored statuses each chip
+includes (`watchStatusFilter` in `lib/libraryFilterDefs.js`).
+
+A def flagged `advanced: true` is drawn in the **advanced section** instead,
+after every ordinary def, behind an **Advanced filters** toggle
+(`aria-expanded`) that opens collapsed each time the panel mounts — so every
+visit to a library opens on the ordinary filters. While collapsed, the
+toggle counts the chips switched on inside it, so a narrowing the viewer
+cannot see is never a silent one; Clear all empties those too. An advanced
+`set-dynamic` def with no chips is left out, and with none left there is no
+toggle. Every media-type library puts its tag filters there (pages.md,
+"Library"); the random picker drops advanced defs, and the entity libraries
+have none.
 
 ## The `personal` flag
 
@@ -270,7 +285,11 @@ columns.
   `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
   themselves, see [The `personal` flag](#the-personal-flag)),
   `GroupedEntryPage`, `CollapsibleCardGrid`,
-  `AdminTabBar`, `FittedName`, `TierBadge`, and the in-page contents:
+  `AdminTabBar`, `AdminActions` (the media-type detail pages' admin strip:
+  a `start` group at the left end and an `end` group at the right end,
+  which wraps to its own line on a narrow screen and stays right-aligned;
+  no caption - see [pages.md](pages.md#detail-pages--typesystem_id)),
+  `FittedName`, `TierBadge`, and the in-page contents:
   `TableOfContents`, `ContentsBar` and `DetailContents` (see
   [In-page table of contents](#in-page-table-of-contents)).
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs` (an
@@ -288,12 +307,12 @@ columns.
   recorded), rendered only when at least one of the two exists; for an h-comic it is
   `progressFor(entry)` - pages on JP, chapters on KR, nothing without a
   region; for an h-game, which records no playtime, it is achievements
-  earned against the total, drawn only when there is a total, and its meta
-  line is the play style and language; a hentai, one entry being one
+  earned against the total, drawn only when there is a total; a hentai, one entry being one
   episode, has no progress line, and its meta line is the release year and
-  airing status; a TV show's meta line is its release date (`TBD` without
-  one) and airing status - the season is not on the card. `variant="hub"` is the
-  franchise and series hubs' card, whose per-type differences are tabled in
+  airing status. Every card but `variant="future"` has one look, shared by
+  the libraries and the franchise and series hubs' entry tabs: the films, the
+  TV show and the games read `CardMeta` and every other type `LibraryMeta`,
+  and each type's layout is tabled in
   [pages.md](pages.md#hubs--franchiseid-seriesid-collectionid). On `variant="future"` the status
   select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
   bolt from `BOLT_RELEASE`, which names the column that says a title is still
@@ -301,8 +320,8 @@ columns.
   movie, an anime movie or a game. A film's select offers Watch When Released
   where the airing types offer Watch When Airs, and its bolt writes
   `release_status: "Released"` and moves the viewer's own `Watch When
-  Released` to `Active Watching`, any other status left alone. Its outside-score slot — the meta-line figure on anime, manga and
-  book, the cover stamp on an anime movie — reads whichever column
+  Released` to `Active Watching`, any other status left alone. Its outside-score slot — the meta-line figure on anime, manga,
+  book and anime movie — reads whichever column
   `scoreField` names, defaulting to `mal_rating`, so a library sorted by an
   AniList figure can point every card at `anilist_rating` instead),
   `PlatformIcons` (an entry's available `main` access platforms — 動畫瘋,
@@ -361,7 +380,7 @@ columns.
   `Chip` otherwise. An axis marked `{ personal: true }` - usefulness, a list
   field - follows `canTrack` instead: a select written through `onOwnChange`
   (`/api/me`) for a holder of `self.list`, absent for anyone else),
-  `MarkReleaseButton` (the editor toolbar's release step; with `canTrack`
+  `MarkReleaseButton` (the admin actions' release step; with `canTrack`
   false it carries none of the viewer's own fields - see
   `RELEASE_PERSONAL_FIELDS` in `lib/releaseAction.js`), `WeeklySchedule`,
   `ComingNext` (the dashboard's next-season block; its selection is the pure
@@ -490,7 +509,11 @@ columns.
   for a `steamLink` alone, so a game whose only place to play is its Steam
   page still gets one; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
   beside it the same way, as "DLsite (JP)" / "DLsite (TW)" — and the tag-field props (`originalSource`,
-  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — one
+  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — except
+  an `exclusiveSource` that names one of the `main` access rows, which moves that
+  row to the head of its section as "Netflix (Exclusive)" (the icon still looked
+  up by the bare name) and is not drawn as a chip too; one no row matches keeps
+  its chip — one
   component composing from both the `media_source` table and the surviving
   columns/tag fields, per the guiding rule in
   [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).
@@ -885,7 +908,9 @@ columns.
   (per row in a mixed section, below).
   The admin holds neither key, so no section draws it a control, and a
   `user` writes its own personal sections and reads the catalogue ones. The series' and franchise's
-  rows shown on an entry (`GroupNotes`) are drawn with `canWrite` false.
+  rows shown on an entry (`GroupNotes`) are drawn with `canWrite` false, and
+  their memes by `GroupMemeRows`, which draws no write control and the
+  favourite star as a read-only mark.
   `NotesTemplate` and `NotesProvider` take no admin flag, and nor do the
   `*Notes.jsx` wrappers.
   **A `mixed` section gates each row by its kind** (`rowAccessFor`). The
@@ -1299,9 +1324,12 @@ under sticky division headers and the filter bar.
   tracker" without `self.list`, no "Cast" with nobody cast, no "Watch
   orders" for an entry in no followed order.
 - **Notes** list at card level only. `NotesBlocks` wraps the Notes card
-  (`#notes`), each group card (`#notes-<group key>`, labelled with the
-  group's label, e.g. "攻略 Guides") and each standalone section
-  (`#notes-<section key>`) in a `TocSection`; a group's own sections
+  (`#notes`), each group card (`#notes-<group key>`) and each standalone
+  section (`#notes-<section key>`) in a `TocSection`, labelled with only the
+  Chinese part of its label - "攻略" for "攻略 Guides", "資源" for
+  "資源 Resources" (`chineseLabel`, `lib/noteLabels.js`); a label with no
+  Chinese, such as "Notes", or none after it, is listed whole. The card
+  itself keeps the whole label. A group's own sections
   (Beginner, Controls) sit inside its card and are never rows. The hubs
   render `NotesBlocks` too and carry the same anchors, unread.
 - **Not listed**: the header (title, eyebrow, scores) and the left column

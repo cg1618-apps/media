@@ -12,6 +12,9 @@ import {
 import { releaseScore } from "../../../lib/releaseDate";
 import { READING_STATUS_GROUP, getBookProgress } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
+import {
+  genreFilters,
+} from "../../../lib/libraryFilterDefs";
 
 function getTitle(n)   {
   return n.book_name_cn || n.book_name_en || n.book_name_roman
@@ -87,6 +90,8 @@ const BOOK_LIBRARY_CONFIG = {
         [...new Set(data.map((d) => d.type).filter(Boolean))].sort(),
       match: (item, active) => active.has(item.type),
     },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...genreFilters(),
   ],
 
   sortDefs: [

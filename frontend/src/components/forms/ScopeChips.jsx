@@ -10,7 +10,7 @@ export default function ScopeChips({ choices, selected, onToggle }) {
   if (choices.length < 2) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-[10px] font-bold text-text-faint uppercase tracking-wider mr-1">
+      <span className="text-[10px] font-bold text-text-faint mr-1">
         Scope
       </span>
       {choices.map((scope) => (

@@ -22,7 +22,7 @@ label reference and the RBAC pages — never the catalogue editors.
 | `/data-history` | `pages/admin/DataHistory.jsx` | Data-control logs and deleted-record audit | `manage.pipelines` |
 | `/review-queue` | `pages/admin/ReviewQueue.jsx` | Checks that list something to look at: remarks, duplicates, music, single-entry groups | `manage.pipelines` |
 | `/request-inbox` | `pages/admin/RequestInbox.jsx` | Every account's requests and reports: mark done or declined, reopen, delete | `manage.requests` |
-| `/needs-work` | `pages/admin/NeedsWork.jsx` | 待補充 Needs Work: every entry and group marked as not complete yet, grouped by note; change a note, clear a mark | `manage.requests` |
+| `/needs-work` | `pages/admin/NeedsWork.jsx` | 待補充 Needs Work: every entry and group marked as not complete yet, a section per common note and one Other section for the rest; change a note, clear a mark | `manage.requests` |
 | `/add` | `pages/admin/Add.jsx` + `pages/add-tabs/*` | Create entries, groups, options, quotes, memes | `manage.catalog` |
 | `/images` | `pages/admin/Images.jsx` | Image library: upload, filter, detach, delete | `manage.images` |
 | `/modify` | `pages/admin/Modify.jsx` + `pages/modify-tabs/*` | Edit an existing row (deep link `?id=`) | `manage.catalog` |
@@ -223,14 +223,25 @@ its **待補充 Needs Work** row in the System tab. Server side:
   `["needs-work", "list"]`) from `api/mutations/useNeedsWork.js`. Every write
   invalidates the `["needs-work"]` prefix, so the page, the editor control
   and the detail-page badge refetch together.
-- **One section per note**, in the order the server sends: the noted groups
-  by note, then **No note**. Each section is a table of type (a `Chip`, brand
-  for a tier), name (a link to the owner's page - a series too, at
-  `/series/<uuid>`), and when it was marked.
+- **A section per common note, then Other, then No note**
+  (`needsWorkSections` in `lib/needsWork.js`, over the server's
+  one-group-per-note list and `useNeedsWorkCommonNotes()`). A note equal to
+  one of the `Needs Work Note` option values gets its own section, in the
+  option's sort order; a common note no mark carries has none. Every other
+  note - custom text - goes into one **Other** section, its rows in the
+  server's order (so marks sharing a custom note stay adjacent), and only
+  that section has a **Note** column showing each row's own note. The marks
+  with no note come last, in **No note**. The page waits for both reads; if
+  the common notes fail to load, every noted mark is listed under Other.
+- Each section is a table of type (a `Chip`, brand for a tier), name (a link
+  to the owner's page - a series too, at `/series/<uuid>`), the note in
+  Other, and when it was marked. A common note's heading is drawn in
+  `text-text`, Other's and No note's in `text-text-faint`.
 - **Edit note** opens `ConfirmModal` with the note field
   (`NeedsWorkNoteInput`, below), then
   `PUT /api/needs-work/{owner_type}/{owner_id}` with `{note}` - a
-  blank note is sent as null and lands the row in No note.
+  blank note is sent as null and lands the row in No note; a common note
+  moves it to that note's section, any other note to Other.
 - **Clear** asks in `ConfirmModal` (danger) before `DELETE
   /api/needs-work/{owner_type}/{owner_id}`.
 - Empty: "Nothing is marked", pointing at the badge on a record's page and at Add and Modify.

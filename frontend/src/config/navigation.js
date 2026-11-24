@@ -71,50 +71,6 @@ export const NAV_SECTIONS = [
         ],
       },
       {
-        heading: "Entities",
-        // The credited entities are a member's view of the catalogue: a guest
-        // browses the media and the groups, and reads entity names as plain
-        // text on those pages (useEntityHref in lib/entityPath.js). Each row
-        // asks its own kind's key, as App.jsx's entity routes do; Seiyuu is a
-        // person list and asks view.person.
-        items: [
-          {
-            label: "Studio",
-            icon: "fas fa-building",
-            to: "/library/studio",
-            matches: ["/studio"],
-            requires: "view.studio",
-          },
-          {
-            label: "Publisher",
-            icon: "fas fa-copyright",
-            to: "/library/publisher",
-            matches: ["/publisher"],
-            requires: "view.publisher",
-          },
-          {
-            label: "Person",
-            icon: "fas fa-user",
-            to: "/library/person",
-            matches: ["/person"],
-            requires: "view.person",
-          },
-          {
-            label: "Character",
-            icon: "fas fa-masks-theater",
-            to: "/library/character",
-            matches: ["/character", "/identity"],
-            requires: "view.character",
-          },
-          {
-            label: "Seiyuu",
-            icon: "fas fa-microphone",
-            to: "/library/seiyuu",
-            requires: "view.person",
-          },
-        ],
-      },
-      {
         heading: "ACG",
         items: [
           {
@@ -175,6 +131,50 @@ export const NAV_SECTIONS = [
             icon: "fas fa-book-open",
             to: "/library/comic",
             matches: ["/comic"],
+          },
+        ],
+      },
+      {
+        heading: "Entities",
+        // The credited entities are a member's view of the catalogue: a guest
+        // browses the media and the groups, and reads entity names as plain
+        // text on those pages (useEntityHref in lib/entityPath.js). Each row
+        // asks its own kind's key, as App.jsx's entity routes do; Seiyuu is a
+        // person list and asks view.person.
+        items: [
+          {
+            label: "Studio",
+            icon: "fas fa-building",
+            to: "/library/studio",
+            matches: ["/studio"],
+            requires: "view.studio",
+          },
+          {
+            label: "Publisher",
+            icon: "fas fa-copyright",
+            to: "/library/publisher",
+            matches: ["/publisher"],
+            requires: "view.publisher",
+          },
+          {
+            label: "Person",
+            icon: "fas fa-user",
+            to: "/library/person",
+            matches: ["/person"],
+            requires: "view.person",
+          },
+          {
+            label: "Seiyuu",
+            icon: "fas fa-microphone",
+            to: "/library/seiyuu",
+            requires: "view.person",
+          },
+          {
+            label: "Character",
+            icon: "fas fa-masks-theater",
+            to: "/library/character",
+            matches: ["/character", "/identity"],
+            requires: "view.character",
           },
         ],
       },
@@ -250,6 +250,12 @@ export const NAV_SECTIONS = [
       // App.jsx's routes ask.
       // /random/<type> lights the Random Picker row up too.
       {
+        label: "Statistics",
+        icon: "fas fa-chart-bar",
+        to: "/statistics",
+        requires: "view.statistics",
+      },
+      {
         label: "Seasonal",
         icon: "fas fa-leaf",
         to: "/seasonal",
@@ -267,20 +273,30 @@ export const NAV_SECTIONS = [
         to: "/random",
         requires: "view.random_picker",
       },
-      {
-        label: "Statistics",
-        icon: "fas fa-chart-bar",
-        to: "/statistics",
-        requires: "view.statistics",
-      },
     ],
   },
   {
     key: "extras",
     label: "Extras",
-    // Quotes, memes and resources, then the catalogue editors' relations and
-    // orders.
+    // The catalogue editors' relations and orders, then quotes, memes and
+    // resources.
     items: [
+      // Relations and Orders are ways of reading the collection, so they
+      // belong here rather than in Admin — but both pages write through
+      // catalogue endpoints (mediaRelation/order + resource CRUD), so the
+      // rows ask for manage.catalog, same as Entry.
+      {
+        label: "Relations",
+        icon: "fas fa-diagram-project",
+        to: "/relations",
+        requires: "manage.catalog",
+      },
+      {
+        label: "Orders",
+        icon: "fas fa-list-ol",
+        to: "/orders",
+        requires: "manage.catalog",
+      },
       // Quotes and Memes follow the account's quotes_memes feature switch,
       // the one App.jsx's routes ask. Both are read-only for a member; their
       // edit controls ask manage.catalog inside the page. Resources is the
@@ -293,23 +309,6 @@ export const NAV_SECTIONS = [
         icon: "fas fa-bookmark",
         to: "/resources",
         requires: "manage.resources",
-      },
-      // Relations and Orders are ways of reading the collection, so they
-      // belong here rather than in Admin — but both pages write through
-      // catalogue endpoints (mediaRelation/order + resource CRUD), so the
-      // rows (and the rule above them) ask for manage.catalog, same as Entry.
-      { divider: true, requires: "manage.catalog" },
-      {
-        label: "Relations",
-        icon: "fas fa-diagram-project",
-        to: "/relations",
-        requires: "manage.catalog",
-      },
-      {
-        label: "Orders",
-        icon: "fas fa-list-ol",
-        to: "/orders",
-        requires: "manage.catalog",
       },
     ],
   },
@@ -356,9 +355,10 @@ export const NAV_SECTIONS = [
     // holds manage.options, admin.authz and manage.pipelines but not
     // manage.catalog, and still sees the whole section.
     requires: ["manage.options", "admin.authz", "manage.catalog", "manage.pipelines"],
-    // The three read-only inventories of how the data is described: the
-    // vocabulary, its translations, and which columns each external API
-    // writes. manage.options, the key App.jsx's routes,
+    // System Options, External APIs and Alias Conversion are the three
+    // read-only inventories of how the data is described: the vocabulary,
+    // which columns each external API writes, and the vocabulary's
+    // translations. manage.options, the key App.jsx's routes,
     // /api/options/record-counts and /api/constants/external-apis ask; an
     // option itself is written on the forms, under manage.catalog.
     items: [
@@ -366,18 +366,6 @@ export const NAV_SECTIONS = [
         label: "System Options",
         icon: "fas fa-list-check",
         to: "/options",
-        requires: "manage.options",
-      },
-      {
-        label: "Alias Conversion",
-        icon: "fas fa-right-left",
-        to: "/aliases",
-        requires: "manage.options",
-      },
-      {
-        label: "External APIs",
-        icon: "fas fa-cloud-arrow-down",
-        to: "/external-apis",
         requires: "manage.options",
       },
       // The label reference: every content label, which modes show it and
@@ -401,6 +389,18 @@ export const NAV_SECTIONS = [
         to: "/business-logic",
         requires: "manage.pipelines",
       },
+      {
+        label: "External APIs",
+        icon: "fas fa-cloud-arrow-down",
+        to: "/external-apis",
+        requires: "manage.options",
+      },
+      {
+        label: "Alias Conversion",
+        icon: "fas fa-right-left",
+        to: "/aliases",
+        requires: "manage.options",
+      },
     ],
   },
   {
@@ -416,21 +416,22 @@ export const NAV_SECTIONS = [
       { label: "Data History", icon: "fas fa-history", to: "/data-history" },
       { label: "Review Queue", icon: "fas fa-tasks", to: "/review-queue" },
       { label: "Clean Orphans", icon: "fas fa-broom", to: "/clean-orphans" },
-      // The request inbox asks its own permission rather than the section's:
-      // App.jsx's /request-inbox route gates on manage.requests. Super and
-      // the admin hold both today, so the row shows wherever the tab does.
-      {
-        label: "Inbox",
-        icon: "fas fa-inbox",
-        to: "/request-inbox",
-        requires: "manage.requests",
-      },
-      // The marks on incomplete entries and groups. The same key as the
-      // inbox, which is what App.jsx's /needs-work route asks.
+      // Needs Work and the inbox each ask manage.requests rather than the
+      // section's key, as App.jsx's /needs-work and /request-inbox routes do,
+      // and so does the rule above them. Super and the admin hold both today,
+      // so the rows show wherever the tab does.
+      { divider: true, requires: "manage.requests" },
+      // The marks on incomplete entries and groups.
       {
         label: "待補充 Needs Work",
         icon: "fas fa-person-digging",
         to: "/needs-work",
+        requires: "manage.requests",
+      },
+      {
+        label: "Inbox",
+        icon: "fas fa-inbox",
+        to: "/request-inbox",
         requires: "manage.requests",
       },
     ],

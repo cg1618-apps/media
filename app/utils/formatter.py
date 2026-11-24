@@ -615,10 +615,9 @@ def parse_media_relation_from_sheet(raw: dict) -> dict:
     return {
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "from_type": parse_from_sheet(raw.get("from_type"), str),
-        # Neither endpoint has a foreign key - each points at whichever media
-        # table its *_type names - so an unparseable cell becomes None and the
-        # row shows up in the admin page as a missing endpoint rather than
-        # failing the whole Pull.
+        # An unparseable cell becomes None rather than raising here. Both ends
+        # are foreign keys onto media, so Pull then skips and reports the row
+        # (_missing_relation_endpoint) rather than failing the whole tab.
         "from_id": _uuid_or_none(raw.get("from_id")),
         # Preserved as written, not coerced: a kind added in a newer version
         # must survive a round trip through an older one.

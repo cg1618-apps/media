@@ -446,7 +446,8 @@ export const endpoints = {
   },
 
   // 待補充 Needs Work: the marks on entries and groups, and the page that
-  // lists them grouped by note. Every route is manage.requests.
+  // lists them (the server groups by note; the page folds every note that is
+  // not a common one into Other). Every route is manage.requests.
   needsWork: {
     list: () => "/api/needs-work",
     mark: (ownerType, ownerId) => `/api/needs-work/${ownerType}/${ownerId}`,

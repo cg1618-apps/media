@@ -5,6 +5,7 @@ import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import AdminActions from "../../components/layout/AdminActions";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
@@ -161,15 +162,6 @@ export default function Movie() {
       franchise.franchise_name_roman
     : null;
 
-  const eyebrow = [
-    "Movie",
-    movie.movie_type,
-    movie.release_status,
-    formatLength(movie.length_min),
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
-
   const imdbScore =
     movie.imdb_rating && movie.imdb_rating !== "N/A" ? movie.imdb_rating : "—";
 
@@ -178,7 +170,7 @@ export default function Movie() {
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
           <Link to="/library/movie" className="hover:text-brand transition">
@@ -201,39 +193,42 @@ export default function Movie() {
 
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
-        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">
-            Admin
-          </Eyebrow>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/modify?id=${system_id}&type=movie`)}>
-              Edit
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!isAdmin) return;
-                try {
-                  const res = await fetch(endpoints.resource("movie").complete(system_id), {
-                    method: "POST",
-                    credentials: "include",
-                  });
-                  if (!res.ok) throw new Error("Request failed");
-                  showToast("success", "Marked as Completed!");
-                  await invalidateMedia();
-                  await fetchMediaItem();
-                } catch {
-                  showToast("error", "Update failed");
-                }
-              }}
-            >
-              Mark completed
-            </Button>
-            <MarkReleaseButton type="movie" entry={movie} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
-              {autofilling ? "Autofilling…" : "Autofill & update"}
-            </Button>
-          </div>
-        </div>
+        <AdminActions
+          start={
+            <>
+              <Button onClick={() => navigate(`/modify?id=${system_id}&type=movie`)}>
+                Edit
+              </Button>
+              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                {autofilling ? "Autofilling…" : "Autofill & update"}
+              </Button>
+            </>
+          }
+          end={
+            <>
+              <MarkReleaseButton type="movie" entry={movie} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+              <Button
+                onClick={async () => {
+                  if (!isAdmin) return;
+                  try {
+                    const res = await fetch(endpoints.resource("movie").complete(system_id), {
+                      method: "POST",
+                      credentials: "include",
+                    });
+                    if (!res.ok) throw new Error("Request failed");
+                    showToast("success", "Marked as Completed!");
+                    await invalidateMedia();
+                    await fetchMediaItem();
+                  } catch {
+                    showToast("error", "Update failed");
+                  }
+                }}
+              >
+                Mark completed
+              </Button>
+            </>
+          }
+        />
       )}
 
       {/* Main Grid: 4 columns */}
@@ -278,11 +273,10 @@ export default function Movie() {
 
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
-          {/* Header & Titles */}
+          {/* Header & Titles. No eyebrow above the title: type, status and
+              runtime are each on the Information card, and the breadcrumb
+              names the type. */}
           <header>
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
-              {eyebrow}
-            </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
@@ -389,14 +383,17 @@ export default function Movie() {
                 fields={[
                   [
                     { label: "本傳 / 外傳", value: movie.is_main },
-                    { label: "Release Status", value: movie.release_status },
+                    { label: "Movie Type", value: movie.movie_type },
+                  ],
+                  [
+                    {
+                      label: "Director",
+                      value: creditValue(movie, "director", movie.director),
+                    },
                     { label: "Runtime", value: formatLength(movie.length_min) },
                   ],
-                  {
-                    label: "Director",
-                    value: creditValue(movie, "director", movie.director),
-                  },
                   [
+                    { label: "Release Status", value: movie.release_status },
                     { label: "Release Date TW", value: movie.release_date_tw },
                     { label: "Release Date USA", value: movie.release_date_usa },
                   ],

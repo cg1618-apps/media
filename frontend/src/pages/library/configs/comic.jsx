@@ -8,6 +8,9 @@ import {
 import { releaseScore } from "../../../lib/releaseDate";
 import { READING_STATUS_GROUP, parseTypes } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
+import {
+  genreFilters,
+} from "../../../lib/libraryFilterDefs";
 
 // EN leads for comics, matching Comic.display_name on the backend and
 // getDisplayName (lib/naming.js). Every other library type leads with CN.
@@ -78,6 +81,8 @@ const COMIC_LIBRARY_CONFIG = {
       match: (item, active) =>
         parseTypes(item.events).some((ev) => active.has(ev)),
     },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...genreFilters(),
   ],
 
   sortDefs: [
@@ -130,7 +135,7 @@ const COMIC_LIBRARY_CONFIG = {
       tdClass: "text-xs text-center hidden lg:table-cell",
       render: (item) =>
         item.era ? (
-          <span className="inline-flex border border-border-strong text-text-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] leading-none">
+          <span className="inline-flex border border-border-strong text-text-muted px-1.5 py-0.5 font-mono text-[10px] leading-none">
             {item.era}
           </span>
         ) : "-",

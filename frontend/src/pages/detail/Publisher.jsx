@@ -31,7 +31,7 @@ import {
   useEntityPatch,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
-import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { Eyebrow, RatingStamp, eyebrowCls } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePageTitle } from "../../contexts/PageTitleContext";
@@ -126,7 +126,7 @@ export default function Publisher() {
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
           <Link to="/library/publisher" className="hover:text-brand transition">
@@ -188,7 +188,7 @@ export default function Publisher() {
             <h1 className="font-display text-4xl font-semibold text-text leading-tight">
               {name}
             </h1>
-            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint mt-2">
+            <p className="font-mono text-[11px] text-text-faint mt-2">
               {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
             </p>
           </div>
@@ -244,7 +244,7 @@ export default function Publisher() {
           ) : (
             groups.map((group) => (
               <section key={group.media_type}>
-                <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] text-text-muted">
                   {group.label}
                   <span className="text-text-faint">{group.entries.length}</span>
                   <span className="flex-1 border-t border-dotted border-border-strong/60" />
@@ -298,7 +298,7 @@ function CreditCard({ entry, navPath }) {
         >
           {title}
         </h3>
-        <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+        <span className={eyebrowCls}>
           {year || "Undated"}
         </span>
       </div>

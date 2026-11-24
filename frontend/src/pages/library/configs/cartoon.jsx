@@ -8,8 +8,11 @@ import {
   myRatingSort,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import { WATCHING_STATUS_GROUP } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
+import {
+  genreFilters,
+  watchStatusFilter,
+} from "../../../lib/libraryFilterDefs";
 
 function getTitle(c)   { return c.cartoon_name_cn || c.cartoon_name_en || c.cartoon_name_alt || ""; }
 function getSortKey(c) { return c.cartoon_name_en || c.cartoon_name_alt || c.cartoon_name_cn || ""; }
@@ -55,15 +58,7 @@ const CARTOON_LIBRARY_CONFIG = {
         [...new Set(data.map((d) => d.airing_type).filter(Boolean))].sort(),
       match: (item, active) => active.has(item.airing_type),
     },
-    {
-      key: "watchingStatus",
-      label: "Watch Status",
-      personal: true,
-      type: "set-grouped",
-      groupOptions: ["Watching", "Planned", "Completed", "Dropped", "Might Watch"],
-      match: (item, active) =>
-        active.has(WATCHING_STATUS_GROUP[item.watching_status] ?? "Might Watch"),
-    },
+    watchStatusFilter("cartoon"),
     {
       key: "officialSource",
       label: "Official Source",
@@ -72,6 +67,8 @@ const CARTOON_LIBRARY_CONFIG = {
         [...new Set(data.map((d) => d.source_official).filter(Boolean))].sort(),
       match: (item, active) => active.has(item.source_official),
     },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...genreFilters(),
   ],
 
   sortDefs: [
@@ -122,7 +119,7 @@ const CARTOON_LIBRARY_CONFIG = {
     airingStatusColumn({ key: "airing", header: "Airing" }),
     {
       key: "ep",
-      header: "EP",
+      header: "Ep",
       personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",

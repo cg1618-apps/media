@@ -18,8 +18,12 @@ import {
   getDisplayName,
   getSortName,
   isBaha,
-  WATCHING_STATUS_GROUP,
 } from "../../../utils/media";
+import {
+  exclusiveSourceFilter,
+  genreFilters,
+  watchStatusFilter,
+} from "../../../lib/libraryFilterDefs";
 import { compareTitles } from "../../../lib/naming";
 
 // ---------------------------------------------------------------------------
@@ -74,31 +78,20 @@ const ANIME_LIBRARY_CONFIG = {
       key: "airingType",
       label: "Airing Type",
       type: "set",
-      options: ["TV", "Movie", "ONA", "OVA", "Special"],
+      options: ["TV", "Movie", "ONA", "OVA", "OAD", "Special"],
       match: (item, active) => active.has(item.airing_type),
     },
     {
       key: "airingStatus",
       label: "Airing Status",
       type: "set",
-      options: ["Airing", "Finished Airing", "Not Yet Aired", "Canceled"],
+      options: ["Not Yet Aired", "Airing", "Finished Airing", "Canceled"],
       match: (item, active) => active.has(item.airing_status),
     },
-    {
-      key: "watchingStatus",
-      label: "Watch Status",
-      personal: true,
-      type: "set-grouped",
-      groupOptions: ["Watching", "Planned", "Completed", "Dropped", "Might Watch"],
-      match: (item, active) =>
-        active.has(WATCHING_STATUS_GROUP[item.watching_status] ?? "Might Watch"),
-    },
-    {
-      key: "bahaOnly",
-      label: "動畫瘋 source only",
-      type: "boolean",
-      match: (item) => isBaha(item),
-    },
+    watchStatusFilter("anime"),
+    // Advanced section (FilterPanel draws it collapsed).
+    exclusiveSourceFilter(),
+    ...genreFilters(),
   ],
 
   // -- Sorts -----------------------------------------------------------------
@@ -147,7 +140,7 @@ const ANIME_LIBRARY_CONFIG = {
     airingStatusColumn({ hidden: null }),
     {
       key: "ep",
-      header: "EP",
+      header: "Ep",
       personal: true,
       thClass: "hidden sm:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden sm:table-cell",

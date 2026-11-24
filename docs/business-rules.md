@@ -1126,6 +1126,13 @@ parent franchise from the series' own names.
 Relations are rows in `media_relation` — `from (type, id) —kind→ to (type, id)`
 — read as "`from` is the {label} of `to`".
 
+**Deleting an entry deletes its relations**, both the rows it is the `from` of
+and the rows it is the `to` of. Each end is a foreign key onto
+`media(system_id, media_type)` ON DELETE CASCADE, so this holds for every path
+that deletes an entry, and no relation is ever left pointing at an entry that
+is gone. A Pull that meets a sheet row naming an entry this database does not
+hold skips and reports that row rather than failing the tab.
+
 ### Stored kinds
 
 | Key             | Label (on `from`) | Inverse label (on `to`) | Family      | Symmetric | Transitive |
@@ -1354,6 +1361,35 @@ The icon itself is looked up by the vocabulary value's name in
 drops its icon until the map is updated — a missing icon, not lost data. The
 one name code *branches* on is 動畫瘋's (above), and `getBahaRow` prefers the
 row's `option_id` where a caller has it.
+
+### An exclusive source is one of the main sources
+
+On anime and anime movie, an `exclusive_source` tag needs a `main` **access**
+row on the same Platform value, marked available (`available` true): the
+platform a work is exclusive to is a platform it can be watched on. The tag
+and the row draw from one vocabulary, so they are matched by `option_id` - an
+Other or Restricted row typed "Netflix" is not the Netflix platform, and a
+Netflix row whose availability is false or unknown does not back it.
+`exclusive_source_problem` in `sources.py` is the check, and it reads the
+state a write leaves behind, wherever either half is written:
+
+- **The entry write** (`POST`, `PUT`, `PATCH`), when its body carries
+  `sources` or `exclusive_source` - the registry's `write_check`. The entry
+  payload may carry the tag beside the sources, so one save can swap the
+  platform and its row together; the Add and Modify forms always send it
+  that way, and show the problem under the Exclusive Source field and in a
+  toast before they send anything.
+- **`PUT /api/credits`**, when its body names `exclusive_source`, against the
+  sources already stored.
+
+A broken rule is a **422** naming the platform, and nothing in the request is
+written. A write that touches neither half is not checked, so an entry stored
+before the rule is not blocked from every other edit; Pull and Fill write tags
+and sources directly and are not checked either.
+
+The Sources card leads its access rows with the row the tag names, as
+"Netflix (Exclusive)", and drops the tag's own chip; a tag with no matching
+row keeps its chip.
 
 ---
 

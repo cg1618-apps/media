@@ -6,14 +6,14 @@
 // take the bar instead when the game reports a total and no estimate exists.
 import { Link } from "react-router-dom";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
-import { Chip, ProgressRule, RatingStamp } from "../ui/primitives";
+import { Chip, ProgressRule, RatingStamp, eyebrowCls } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import LazyImage from "../ui/LazyImage";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 import { progressEstimate } from "../../lib/gameHours";
 
-const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
+const UNIT = eyebrowCls;
 
 export default function GameDashboardCard({ game, franchise, view = "card" }) {
 
@@ -65,7 +65,7 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
         <div className="flex shrink-0 h-28 border border-border">
           <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
             <span
-              className="font-mono text-[9px] uppercase tracking-[0.2em] whitespace-nowrap"
+              className="font-mono text-[9px] whitespace-nowrap"
               style={{ writingMode: "vertical-rl" }}
             >
               Game
@@ -78,7 +78,7 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
               className="absolute top-1.5 right-1.5 z-10"
             />
             {game.game_type && (
-              <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] z-10">
+              <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] z-10">
                 {game.game_type}
               </div>
             )}
@@ -110,7 +110,7 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
               title
             )}
           </h3>
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mt-1 mb-2">
+          <p className="font-mono text-[10px] text-text-faint truncate mt-1 mb-2">
             {subTitle}
             {hasEstimate ? ` · ~${estimate} h` : ""}
           </p>
@@ -130,7 +130,7 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
       </div>
 
       <div className="relative z-10 p-3 border-t border-border mt-auto">
-        <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+        <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] text-text-faint">
           <span>Playtime</span>
           <span className="text-text">{hasEstimate ? `${progressPercent}%` : ""}</span>
         </div>

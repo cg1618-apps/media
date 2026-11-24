@@ -13,9 +13,14 @@ import {
 import LazyImage from "../../../components/ui/LazyImage";
 import { BAHAMUT_VALUE } from "../../../lib/formatters";
 import { sourceIconUrl } from "../../../lib/sourceIcons";
-import { getBahaRow, isBaha, WATCHING_STATUS_GROUP } from "../../../utils/media";
+import { getBahaRow, isBaha } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
-import { FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
+import { ANIME_MOVIE_RELEASE_TYPES, FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
+import {
+  exclusiveSourceFilter,
+  genreFilters,
+  watchStatusFilter,
+} from "../../../lib/libraryFilterDefs";
 
 // ---------------------------------------------------------------------------
 // Release date sort score: year * 10000 + month * 100 + day
@@ -79,21 +84,19 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
       options: FILM_RELEASE_STATUSES,
       match: (item, active) => active.has(item.release_status),
     },
+    watchStatusFilter("anime-movie"),
+    // Below Watch Status. Never empty: the column is NOT NULL, Cinema by
+    // default, so no Not set chip.
     {
-      key: "watchingStatus",
-      label: "Watch Status",
-      personal: true,
-      type: "set-grouped",
-      groupOptions: ["Watching", "Planned", "Completed", "Dropped", "Might Watch"],
-      match: (item, active) =>
-        active.has(WATCHING_STATUS_GROUP[item.watching_status] ?? "Might Watch"),
+      key: "releaseType",
+      label: "Release Type",
+      type: "set",
+      options: ANIME_MOVIE_RELEASE_TYPES,
+      match: (item, active) => active.has(item.release_type),
     },
-    {
-      key: "bahaOnly",
-      label: "動畫瘋 source only",
-      type: "boolean",
-      match: (item) => isBaha(item),
-    },
+    // Advanced section (FilterPanel draws it collapsed).
+    exclusiveSourceFilter(),
+    ...genreFilters(),
   ],
 
   sortDefs: [

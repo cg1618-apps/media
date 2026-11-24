@@ -1,11 +1,13 @@
 // Frontend: page component file for NeedsWork - every 待補充 Needs Work mark.
 //
 // The entries and groups whose data is not complete yet - sequels not added,
-// names missing, an official name not released - grouped by their note, so
-// marks that share a note read as one piece of work. The unnoted group comes
+// names missing, an official name not released. A mark whose note is one of
+// the common notes (the Needs Work Note option values) is listed under that
+// note, so marks that share it read as one piece of work; every other note
+// is listed under Other, each row showing its own; the unnoted marks come
 // last. manage.requests, the key /api/needs-work asks: super and the admin.
 //
-// Per row: the note can be changed (which moves the row to another group)
+// Per row: the note can be changed (which moves the row to another section)
 // and the mark cleared. A mark is set on the Add form, the Modify editor or
 // the 待補充 badge on the record's own page.
 import { useState } from "react";
@@ -13,6 +15,7 @@ import { Link } from "react-router-dom";
 
 import {
   useClearNeedsWork,
+  useNeedsWorkCommonNotes,
   useNeedsWorkList,
   useSetNeedsWork,
 } from "../../api/mutations/useNeedsWork";
@@ -21,21 +24,24 @@ import ConfirmModal from "../../components/modals/ConfirmModal";
 import NeedsWorkNoteInput from "../../components/needs-work/NeedsWorkNoteInput";
 import { Button, Chip, Eyebrow } from "../../components/ui/primitives";
 import { useToast } from "../../hooks/useToast";
+import { needsWorkSections } from "../../lib/needsWork";
 import { formatRequestDate } from "../../lib/requests";
-
-export const NO_NOTE = "No note";
 
 export default function NeedsWork() {
   const { showToast } = useToast();
-  const { data, isLoading, error } = useNeedsWorkList();
+  const { data, isLoading: listLoading, error } = useNeedsWorkList();
+  // The sections wait for the common notes; if they fail to load, every
+  // noted mark is listed under Other rather than the page failing.
+  const { data: commonNotes, isLoading: notesLoading } = useNeedsWorkCommonNotes();
+  const isLoading = listLoading || notesLoading;
   const setMark = useSetNeedsWork();
   const clearMark = useClearNeedsWork();
   // The item whose note is being edited, and the item whose mark is clearing.
   const [editing, setEditing] = useState(null);
   const [note, setNote] = useState("");
   const [clearing, setClearing] = useState(null);
-  const groups = data ?? [];
-  const total = groups.reduce((n, g) => n + g.items.length, 0);
+  const sections = needsWorkSections(data, commonNotes);
+  const total = sections.reduce((n, s) => n + s.items.length, 0);
 
   function startEditing(item) {
     setNote(item.note ?? "");
@@ -76,7 +82,7 @@ export default function NeedsWork() {
           待補充 Needs Work
         </h1>
         <p className="text-sm text-text-muted mt-1">
-          Entries and groups whose data is not complete yet, grouped by note
+          Entries and groups whose data is not complete yet, grouped by common note
         </p>
       </header>
 
@@ -93,22 +99,22 @@ export default function NeedsWork() {
           its page, or while adding or modifying it.
         </p>
       ) : (
-        groups.map((group) => (
+        sections.map((section) => (
           <section
-            key={group.note ?? ""}
+            key={section.key}
             data-testid="needs-work-group"
-            aria-label={group.note ?? NO_NOTE}
+            aria-label={section.label}
             className="space-y-2"
           >
             <h2 className="flex items-baseline gap-3">
               <span
                 className={`font-display text-xl font-semibold ${
-                  group.note ? "text-text" : "text-text-faint"
+                  section.kind === "common" ? "text-text" : "text-text-faint"
                 }`}
               >
-                {group.note ?? NO_NOTE}
+                {section.label}
               </span>
-              <Eyebrow>{group.items.length}</Eyebrow>
+              <Eyebrow>{section.items.length}</Eyebrow>
             </h2>
             <div className="overflow-x-auto border border-border">
               <table className="w-full text-sm">
@@ -116,12 +122,15 @@ export default function NeedsWork() {
                   <tr className="border-b border-border bg-surface-2 text-left">
                     <th className="px-3 py-2 w-32"><Eyebrow>Type</Eyebrow></th>
                     <th className="px-3 py-2"><Eyebrow>Name</Eyebrow></th>
+                    {section.kind === "other" && (
+                      <th className="px-3 py-2"><Eyebrow>Note</Eyebrow></th>
+                    )}
                     <th className="px-3 py-2 w-40"><Eyebrow>Marked</Eyebrow></th>
                     <th className="px-3 py-2 w-48"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {group.items.map((item) => (
+                  {section.items.map((item) => (
                     <tr
                       key={`${item.owner_type}:${item.owner_id}`}
                       data-testid="needs-work-row"
@@ -137,6 +146,11 @@ export default function NeedsWork() {
                           )}
                         </Link>
                       </td>
+                      {section.kind === "other" && (
+                        <td className="px-3 py-2 text-text-muted whitespace-pre-wrap">
+                          {item.note}
+                        </td>
+                      )}
                       <td className="px-3 py-2 whitespace-nowrap font-mono text-xs text-text-faint">
                         {formatRequestDate(item.created_at)}
                       </td>
@@ -169,13 +183,14 @@ export default function NeedsWork() {
         >
           <label
             htmlFor="needs-work-note"
-            className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1"
+            className="block text-[10px] font-bold text-text-faint mb-1"
           >
             Note (optional)
           </label>
           <NeedsWorkNoteInput id="needs-work-note" value={note} onChange={setNote} />
           <p className="text-xs text-text-faint mt-2">
-            Marks with the same note are listed together.
+            Marks with a common note are listed under it; any other note is
+            listed under Other.
           </p>
         </ConfirmModal>
       )}

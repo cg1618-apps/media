@@ -32,7 +32,7 @@ function ScheduleEntry({ item, timeField }) {
   const body = (
     <>
       {time && (
-        <span className="block font-mono text-[10px] tracking-[0.14em] text-text-faint tabular-nums">
+        <span className="block font-mono text-[10px] text-text-faint tabular-nums">
           {time}
         </span>
       )}
@@ -121,7 +121,7 @@ export default function WeeklySchedule({
   const actions = (
     <>
       {subtitle && (
-        <span className="hidden sm:inline font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+        <span className="hidden sm:inline font-mono text-[10px] text-text-faint">
           {subtitle}
         </span>
       )}
@@ -179,7 +179,7 @@ export default function WeeklySchedule({
               >
                 <div className="flex items-baseline justify-between mb-2 pb-2 border-b border-border">
                   <h4
-                    className={`font-mono text-[11px] uppercase tracking-[0.16em] ${
+                    className={`font-mono text-[11px] ${
                       isToday ? "text-brand" : "text-text-muted"
                     }`}
                   >

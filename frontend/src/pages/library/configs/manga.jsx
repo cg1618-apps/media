@@ -12,6 +12,9 @@ import {
 import { releaseScore } from "../../../lib/releaseDate";
 import { READING_STATUS_GROUP } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
+import {
+  genreFilters,
+} from "../../../lib/libraryFilterDefs";
 
 function getTitle(m)   {
   return m.manga_name_cn || m.manga_name_en || m.manga_name_roman
@@ -73,6 +76,8 @@ const MANGA_LIBRARY_CONFIG = {
         [...new Set(data.map((d) => d.region).filter(Boolean))].sort(),
       match: (item, active) => active.has(item.region),
     },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...genreFilters(),
   ],
 
   sortDefs: [
@@ -121,7 +126,7 @@ const MANGA_LIBRARY_CONFIG = {
     },
     {
       key: "ch",
-      header: "CH",
+      header: "Ch",
       personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",
@@ -129,7 +134,7 @@ const MANGA_LIBRARY_CONFIG = {
     },
     {
       key: "vol",
-      header: "VOL",
+      header: "Vol",
       personal: true,
       thClass: "hidden lg:table-cell",
       tdClass: "text-xs text-center font-mono text-text-muted hidden lg:table-cell",

@@ -10,7 +10,7 @@
 import { useState } from "react";
 
 import { useAuth } from "../../contexts/AuthContext";
-import { Button, Slip } from "../ui/primitives";
+import { Button, Slip, eyebrowCls } from "../ui/primitives";
 import ChoiceGraph from "./ChoiceGraph";
 import ChoiceGraphModal from "./ChoiceGraphModal";
 import { graphCounts } from "./choiceGraphData";
@@ -31,7 +31,7 @@ export default function ChoiceGraphCard({ gameId, title }) {
   const actions =
     query.isSuccess && !empty ? (
       <>
-        <span data-testid="choice-counts" className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+        <span data-testid="choice-counts" className={eyebrowCls}>
           {plural(counts.parts, "part", "parts")} · {plural(counts.choices, "choice", "choices")} ·{" "}
           {plural(counts.endings, "ending", "endings")}
           {canMark && counts.endings > 0

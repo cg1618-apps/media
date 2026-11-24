@@ -7,7 +7,7 @@
 // Escape closes, as the Close button does.
 import { useEffect, useState } from "react";
 
-import { Button } from "../ui/primitives";
+import { Button, sectionTitleCls } from "../ui/primitives";
 import { copyTextToClipboard } from "../../lib/clipboardImage";
 
 function formatExpiry(iso) {
@@ -47,7 +47,7 @@ export default function OnceLinkModal({ title, link, expiresAt, children, onClos
         <div className="px-6 py-3 border-b border-border">
           <h3
             id="once-link-modal-title"
-            className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted"
+            className={sectionTitleCls}
           >
             {title}
           </h3>

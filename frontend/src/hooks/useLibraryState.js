@@ -21,7 +21,12 @@ import { useFilterState } from "./useFilterState";
 //   "boolean"      — single toggle; filter.key is a boolean
 //
 // Optional on the set types: optionLabel(value) => string, the chip text when
-// it should differ from the stored value.
+// it should differ from the stored value; optionHint(value) => string, the
+// chip's hover title.
+//
+// Optional on any def: advanced: true, which draws it in FilterPanel's
+// collapsed advanced section rather than with the ordinary filters
+// (lib/libraryFilterDefs.js builds the tag filters that go there).
 //
 // Optional on "set": parent: { label, children: [value, ...] } — one extra
 // chip standing for a group of values, drawn after `options` and boxed with

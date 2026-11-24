@@ -2114,10 +2114,10 @@ label ("Prequel") is derived at read time, never stored.
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `from_type` | String | no | | MEDIA_TYPE_KEYS |
-| `from_id` | UUID | no | | FK-less |
+| `from_id` | UUID | no | | With `from_type`, FK onto `media` (below) |
 | `relation_type` | String | no | | One of the **14 stored** RELATION_KEYS (the dropdown offers 15: `prequel` is accepted and normalised to a swapped `sequel`) |
 | `to_type` | String | no | | |
-| `to_id` | UUID | no | | FK-less |
+| `to_id` | UUID | no | | With `to_type`, FK onto `media` (below) |
 | `remark` | Text | yes | | e.g. "covers ep 1-12 only" |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
@@ -2126,7 +2126,11 @@ from_id = to_id)`; `uq_media_relation_pair` UNIQUE (`from_type`, `from_id`,
 `relation_type`, `to_type`, `to_id`) - the service normalises direction
 (symmetric kinds sort their endpoints) so this actually catches the
 "same fact from the other side" duplicate; indexes `ix_media_relation_from`,
-`ix_media_relation_to`.
+`ix_media_relation_to`. `fk_media_relation_from` (`from_id`, `from_type`) and
+`fk_media_relation_to` (`to_id`, `to_type`) each reference
+`media(system_id, media_type)` ON DELETE CASCADE, so deleting an entry deletes
+every relation touching it from either end, and a relation can neither name a
+missing entry nor file an id under the wrong type.
 
 ### `order_list`
 
@@ -2887,7 +2891,8 @@ type added without them.
 Ten entry tables each have their own `system_id` space, so a bare UUID would
 be ambiguous — except that the `media` supertable makes a media entry's id
 unique across all twelve, and six tables hold a real `media_id` FK instead of a
-pair.
+pair. `media_relation` keeps its two pairs, but each is a composite FK onto
+`media(system_id, media_type)`.
 
 `note` and `meme` store no pair either: an owner that may be a **grouping
 tier** cannot be one FK, so it is **four nullable FKs with a CHECK that
@@ -2898,9 +2903,10 @@ from whichever column is set, so the API shape is the pair even though the
 storage is not; being properties rather than columns, they are absent from the
 Google Sheets row.
 
-What still stores a **(type, id) pair** with no FK are the tables that point
-at entries on both ends, and `user_request`, whose target may be an entry, a
-tier or an entity. They resolve at read time through
+What still stores a **(type, id) pair** with no FK are `character_casting` and
+`character_casting_voice`, and `user_request`, whose target may be an entry, a
+tier or an entity. `media_relation` stores pairs too, but each is a composite
+FK onto `media(system_id, media_type)`. They resolve at read time through
 `app/utils/media_resolver.py`:
 
 | Registry | Keys | Still used by |
@@ -2912,8 +2918,9 @@ tier or an entity. They resolve at read time through
 `resolve_entries()` issues at most one query per involved table. A pair whose
 row does not exist resolves to `missing=True` rather than vanishing, so a
 dangling reference stays visible and fixable in the admin pages. Consequence:
-**deleting an entry does not cascade** to `media_relation`,
-`character_casting`, `character_casting_voice` or `user_request`. Every other table listed below cascades in the database.
+**deleting an entry does not cascade** to `character_casting`,
+`character_casting_voice` or `user_request`. Every other table listed below,
+`media_relation` included, cascades in the database.
 
 ### `note`, `quote` and `meme`: who wrote it
 

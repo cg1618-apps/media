@@ -11,6 +11,7 @@ import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import AdminActions from "../../components/layout/AdminActions";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
 import { useToast } from "../../hooks/useToast";
@@ -103,7 +104,7 @@ export function GameProgress({ game }) {
   return (
     <div className="space-y-3">
       {(played || estimate) && (
-        <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+        <div className="flex items-baseline justify-between font-mono text-[11px] text-text-faint">
           <span>Playtime</span>
           <span className="text-text normal-case tracking-normal">
             {played || "—"}
@@ -113,7 +114,7 @@ export function GameProgress({ game }) {
       )}
       {hasAchievements && (
         <div>
-          <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint mb-1.5">
+          <div className="flex items-baseline justify-between font-mono text-[11px] text-text-faint mb-1.5">
             <span>Achievements</span>
             <span className="text-text normal-case tracking-normal">
               {earned} / {total}
@@ -332,7 +333,7 @@ export default function Game() {
       <DetailContents>
         <div className="mb-8 flex items-center justify-between gap-3">
           <nav
-            className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+            className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
             aria-label="Breadcrumb"
           >
             <Link to="/library/game" className="hover:text-brand transition">
@@ -365,37 +366,42 @@ export default function Game() {
         </div>
 
         {isAdmin && (
-          <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-            <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => navigate(`/modify?id=${system_id}&type=game`)}>
-                Edit
-              </Button>
-              <Button
-                onClick={async () => {
-                  if (!isAdmin) return;
-                  try {
-                    const res = await fetch(endpoints.resource("game").complete(system_id), {
-                      method: "POST",
-                      credentials: "include",
-                    });
-                    if (!res.ok) throw new Error("Request failed");
-                    showToast("success", "Marked as Completed!");
-                    await invalidateMedia();
-                    await fetchMediaItem();
-                  } catch {
-                    showToast("error", "Update failed");
-                  }
-                }}
-              >
-                Mark completed
-              </Button>
-              <MarkReleaseButton type="game" entry={game} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
-                {autofilling ? "Autofilling…" : "Autofill & update"}
-              </Button>
-            </div>
-          </div>
+          <AdminActions
+            start={
+              <>
+                <Button onClick={() => navigate(`/modify?id=${system_id}&type=game`)}>
+                  Edit
+                </Button>
+                <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                  {autofilling ? "Autofilling…" : "Autofill & update"}
+                </Button>
+              </>
+            }
+            end={
+              <>
+                <MarkReleaseButton type="game" entry={game} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+                <Button
+                  onClick={async () => {
+                    if (!isAdmin) return;
+                    try {
+                      const res = await fetch(endpoints.resource("game").complete(system_id), {
+                        method: "POST",
+                        credentials: "include",
+                      });
+                      if (!res.ok) throw new Error("Request failed");
+                      showToast("success", "Marked as Completed!");
+                      await invalidateMedia();
+                      await fetchMediaItem();
+                    } catch {
+                      showToast("error", "Update failed");
+                    }
+                  }}
+                >
+                  Mark completed
+                </Button>
+              </>
+            }
+          />
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -421,7 +427,7 @@ export default function Game() {
                   />
                 </div>
                 <ProgressRule value={coverProgress} />
-                <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] text-text-faint">
                   <span>Played</span>
                   <span className="text-text">
                     {game.hours_played != null ? `${game.hours_played} h` : "—"}
@@ -443,7 +449,7 @@ export default function Game() {
           {/* ========== RIGHT COLUMN ========== */}
           <div className="lg:col-span-3 space-y-10">
             <header>
-              <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+              <div className="font-mono text-[11px] text-text-muted mb-3">
                 {eyebrow}
               </div>
               <div className="flex items-baseline gap-4 flex-wrap mb-2">

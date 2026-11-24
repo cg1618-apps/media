@@ -8,9 +8,13 @@ import {
   planFlagColumn,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import { WATCHING_STATUS_GROUP } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
 import { FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
+import {
+  exclusiveSourceFilter,
+  genreFilters,
+  watchStatusFilter,
+} from "../../../lib/libraryFilterDefs";
 
 function getTitle(m)   { return m.movie_name_cn || m.movie_name_en || m.movie_name_alt || ""; }
 function getSortKey(m) { return m.movie_name_en || m.movie_name_alt || m.movie_name_cn || ""; }
@@ -60,15 +64,11 @@ const MOVIE_LIBRARY_CONFIG = {
       options: ["Reality", "Animation"],
       match: (item, active) => active.has(item.movie_type),
     },
-    {
-      key: "watchingStatus",
-      label: "Watch Status",
-      personal: true,
-      type: "set-grouped",
-      groupOptions: ["Watching", "Planned", "Completed", "Dropped", "Might Watch"],
-      match: (item, active) =>
-        active.has(WATCHING_STATUS_GROUP[item.watching_status] ?? "Might Watch"),
-    },
+    watchStatusFilter("movie"),
+    // Advanced section (FilterPanel draws it collapsed).
+    // A movie's original_source is the one it labels Exclusive Source.
+    exclusiveSourceFilter("original_source"),
+    ...genreFilters(),
   ],
 
   sortDefs: [

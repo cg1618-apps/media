@@ -71,7 +71,7 @@ function SingletonText({ section, note, canWrite, onCreate, onUpdate, onDelete }
   return (
     <div className="bg-surface border border-border">
       <div className="flex items-center gap-3 px-3 py-2 border-b border-border">
-        <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted shrink-0">
+        <h4 className="font-mono text-[10px] text-text-muted shrink-0">
           {section.label}
           {isPersonal(section) && <PersonalBadge />}
         </h4>
@@ -107,7 +107,7 @@ function SingletonText({ section, note, canWrite, onCreate, onUpdate, onDelete }
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border shrink-0">
-              <h4 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted shrink-0">
+              <h4 className="font-mono text-[11px] text-text-muted shrink-0">
                 {section.label}
               </h4>
               <span className="flex-1 border-t border-dotted border-border-strong/60" />

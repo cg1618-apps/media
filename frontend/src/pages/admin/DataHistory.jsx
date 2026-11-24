@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { entityPath } from "../../lib/entityPath";
 
+import { sectionTitleCls } from "../../components/ui/primitives";
 // entityPath returns "" when an entity has no public_id; never navigate to the site root.
 function goTo(path) {
   if (path) window.location.href = path;
@@ -152,7 +153,7 @@ function DeletedTable({ records, onRefresh }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
       <div className="border-b border-border px-5 py-3 flex items-center justify-between">
-        <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+        <span className={sectionTitleCls}>
           Recently deleted records
         </span>
         <div className="flex items-center gap-3">
@@ -173,7 +174,7 @@ function DeletedTable({ records, onRefresh }) {
       </div>
       <div className="overflow-x-auto flex-1">
         <table className="w-full text-sm text-left">
-          <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider bg-surface sticky top-0 border-b border-border shadow-sm z-10">
+          <thead className="text-[10px] font-black text-text-faint bg-surface sticky top-0 border-b border-border shadow-sm z-10">
             <tr>
               <th className="px-5 py-2.5 whitespace-nowrap">Time</th>
               <th className="px-5 py-2.5">Type</th>
@@ -190,7 +191,7 @@ function DeletedTable({ records, onRefresh }) {
                   {formatDate(d.timestamp)}
                 </td>
                 <td className="px-5 py-2.5">
-                  <span className="px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border bg-danger/10 text-danger border-danger/40">
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold border bg-danger/10 text-danger border-danger/40">
                     {d.type}
                   </span>
                 </td>
@@ -245,7 +246,7 @@ function DeletedTable({ records, onRefresh }) {
           >
             <i className="fas fa-chevron-left"></i>
           </button>
-          <div className="text-xs font-black text-text-muted uppercase tracking-tighter">
+          <div className="text-xs font-black text-text-muted tracking-tighter">
             Page {page} of {totalPages}
           </div>
           <button
@@ -402,7 +403,7 @@ export default function DataHistory() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Modified Franchise */}
           <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
-            <div className="border-b border-border px-5 py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+            <div className="border-b border-border px-5 py-3 font-mono text-[11px] text-text-muted">
               Modified
               Franchise
             </div>
@@ -450,7 +451,7 @@ export default function DataHistory() {
 
           {/* Added Franchise */}
           <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
-            <div className="border-b border-border px-5 py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+            <div className="border-b border-border px-5 py-3 font-mono text-[11px] text-text-muted">
               Added
               Franchise
             </div>
@@ -498,7 +499,7 @@ export default function DataHistory() {
 
           {/* Modified Anime */}
           <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
-            <div className="border-b border-border px-5 py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+            <div className="border-b border-border px-5 py-3 font-mono text-[11px] text-text-muted">
               Modified Anime
             </div>
             <div className="overflow-x-auto flex-1">
@@ -555,7 +556,7 @@ export default function DataHistory() {
 
           {/* Added Entry */}
           <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col h-[400px]">
-            <div className="border-b border-border px-5 py-3 font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+            <div className="border-b border-border px-5 py-3 font-mono text-[11px] text-text-muted">
               Added Entry
             </div>
             <div className="overflow-x-auto flex-1">
@@ -589,7 +590,7 @@ export default function DataHistory() {
                         </td>
                         <td className="px-5 py-2.5">
                           <span
-                            className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${badgeCls}`}
+                            className={`px-2 py-0.5 rounded text-[9px] font-bold border ${badgeCls}`}
                           >
                             {item.__type}
                           </span>

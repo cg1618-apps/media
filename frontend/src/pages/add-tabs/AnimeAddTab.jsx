@@ -40,6 +40,7 @@ import {
 } from "../../config/fieldOptions";
 import StatusOptions from "../../components/ui/StatusOptions";
 import { endpoints } from "../../api/endpoints";
+import ExclusiveSourceHint from "../../components/forms/ExclusiveSourceHint";
 import { FLOAT_PROGRESS_FIELDS } from "../../lib/progressStep";
 
 export { defaultAnime } from "../../config/formFactories";
@@ -298,6 +299,7 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
           { max: 1 },
         )}
       </div>
+      <ExclusiveSourceHint form={f} />
       <SourcesEditor
         value={f.sources}
         onChange={(rows) => u("sources", rows)}

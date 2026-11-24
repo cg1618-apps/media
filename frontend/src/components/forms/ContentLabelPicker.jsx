@@ -139,7 +139,7 @@ export default function ContentLabelPicker({
 
   return (
     <div className="border border-border rounded-lg p-3">
-      <h4 className="text-xs font-bold text-text-muted uppercase mb-2">
+      <h4 className="text-xs font-bold text-text-muted mb-2">
         Content Labels
       </h4>
       <div className="flex flex-wrap gap-3">

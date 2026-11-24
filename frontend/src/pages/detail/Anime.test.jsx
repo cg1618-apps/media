@@ -229,24 +229,78 @@ describe("Anime detail page — release", () => {
     expect(screen.getByText("23")).toBeInTheDocument();
   });
 
-  // The episode count and runtime sit beside the airing status, and the
-  // season leads the row of dates it is derived from.
+  // The airing type sits beside 本傳/外傳, the episode count and runtime
+  // beside the airing status, and the season leads the row of dates it is
+  // derived from. Original / Remake is shown for a remake alone.
   it("lays the Information card out in these rows", async () => {
-    mockFetch(BASE_ANIME, []);
+    mockFetch({ ...BASE_ANIME, original_or_remake: "Original" }, []);
     mount();
 
-    const body = (await screen.findByRole("heading", { name: "Information" }))
-      .nextElementSibling;
-    const labels = [...body.children].map((row) =>
-      [...row.querySelectorAll(".font-mono")].map((el) => el.textContent),
-    );
-    expect(labels).toEqual([
-      ["本傳/外傳", "Original / Remake", "Season Part", "Special Episodes"],
-      ["Airing Type", "Airing Status", "Total Episodes", "Runtime (min)"],
+    expect(await infoLabels()).toEqual([
+      ["本傳/外傳", "Airing Type", "Season Part"],
+      ["Airing Status", "Total Episodes", "Runtime (min)"],
       ["Release Season", "Release Date JP", "Release Date TW"],
       ["Genre (Main)"],
       ["Genre (Sub)"],
-      ["標籤 Label"],
+      ["Label"],
     ]);
   });
+
+  it("puts Original / Remake right of the season part for a remake", async () => {
+    mockFetch({ ...BASE_ANIME, original_or_remake: "Remake" }, []);
+    mount();
+
+    const rows = await infoLabels();
+    expect(rows[0]).toEqual([
+      "本傳/外傳",
+      "Airing Type",
+      "Season Part",
+      "Original / Remake",
+    ]);
+    expect(infoValue("Original / Remake")).toBe("Remake");
+  });
 });
+
+// The season part carries a special's episode after it; there is no row of
+// its own for the special.
+describe("Anime detail page — season part", () => {
+  it("appends the special episode to the season part", async () => {
+    mockFetch({ ...BASE_ANIME, season_part: "Season 2", ep_special: "13" }, []);
+    mount();
+    await infoLabels();
+    expect(infoValue("Season Part")).toBe("Season 2 第13集");
+    expect(screen.queryByText("Special Episodes")).toBeNull();
+  });
+
+  it("shows the season part alone when there is no special episode", async () => {
+    mockFetch({ ...BASE_ANIME, season_part: "Season 2", ep_special: null }, []);
+    mount();
+    await infoLabels();
+    expect(infoValue("Season Part")).toBe("Season 2");
+  });
+
+  it("shows the special episode alone when there is no season part", async () => {
+    mockFetch({ ...BASE_ANIME, season_part: null, ep_special: "0" }, []);
+    mount();
+    await infoLabels();
+    expect(infoValue("Season Part")).toBe("第0集");
+  });
+});
+
+// The Information card's labels, row by row.
+async function infoLabels() {
+  const body = (await screen.findByRole("heading", { name: "Information" }))
+    .nextElementSibling;
+  return [...body.children].map((row) =>
+    [...row.querySelectorAll(".font-mono")].map((el) => el.textContent),
+  );
+}
+
+// The value shown under one Information card label.
+function infoValue(label) {
+  const body = screen.getByRole("heading", { name: "Information" }).nextElementSibling;
+  const labelEl = [...body.querySelectorAll(".font-mono")].find(
+    (el) => el.textContent === label,
+  );
+  return labelEl.nextElementSibling.textContent;
+}

@@ -17,7 +17,7 @@ Every relation is a `media_relation` row. There are no `prequel_id` / `sequel_id
 
 ### Table `media_relation` — `app/models/media_relation.py`
 
-One row is one fact, read as **`from` is the {label} of `to`**. With `relation_type = sequel`, `from` is the sequel and `to` the prequel. Both endpoints are FK-less `(type, id)` pairs, the same contract `order_item` uses, because no single foreign key can span seven tables. A deleted entry therefore leaves a dangling endpoint that the read side flags as `missing` instead of dropping.
+One row is one fact, read as **`from` is the {label} of `to`**. With `relation_type = sequel`, `from` is the sequel and `to` the prequel. Each endpoint is a `(type, id)` pair held by a composite foreign key onto `media(system_id, media_type)`, ON DELETE CASCADE. `media` is the supertable every media type shares, and each entry's AFTER DELETE trigger removes its `media` row, so **deleting an entry deletes every relation touching it, from either end**, whichever path deletes it — the entry router, the `/delete` page, a group cascade, a raw SQL delete. No relation can name an entry that does not exist, or file an id under a type that is not its own.
 
 | Column | Type | Null | Notes |
 | --- | --- | --- | --- |
@@ -36,6 +36,8 @@ One row is one fact, read as **`from` is the {label} of `to`**. With `relation_t
 | `uq_media_relation_pair` | unique `(from_type, from_id, relation_type, to_type, to_id)` | One fact, one row. Only works because the service normalizes direction first (see Rules) |
 | `ix_media_relation_from` | `(from_type, from_id)` | Both directions are queried on every entry read |
 | `ix_media_relation_to` | `(to_type, to_id)` | |
+| `fk_media_relation_from` | `(from_id, from_type)` → `media(system_id, media_type)`, ON DELETE CASCADE | Deleting the `from` entry deletes the row |
+| `fk_media_relation_to` | `(to_id, to_type)` → `media(system_id, media_type)`, ON DELETE CASCADE | Deleting the `to` entry deletes the row |
 
 ### Kind registry — `app/utils/relation_kinds.py`
 
@@ -84,6 +86,7 @@ Fifteen labels in the dropdown, fourteen kinds in the column: **Prequel is Seque
 | PATCH `swap: true` | Trades endpoints directly, keeping the kind — the only way to turn around a kind with no second name (Adaptation, Spin-off). Swap and re-kind go through one normalization; swapping a symmetric kind is a no-op, not an error | `update_relation` |
 | Repointing | Not supported — delete and re-add | `app/schemas/media_relation.py` `MediaRelationUpdate` |
 | Delete | Row logged to the deleted-record log (`log_deleted_record(db, row, "Media Relation")`) then removed in one commit; entries untouched | `delete_relation`, `reset_scope` |
+| Entry deleted | Every relation touching it goes with it, from both ends, by the two foreign keys; not written to the deleted-record log (the entry is) | `fk_media_relation_from`, `fk_media_relation_to` |
 
 ### Read rules — `relations_for_entry` in `app/services/domain/media_relation.py`
 
@@ -91,7 +94,7 @@ Fifteen labels in the dropdown, fourteen kinds in the column: **Prequel is Seque
 - Each item's `label` describes the **far** entry (`other`), so it inverts the stored kind when the viewed entry is the row's `from` side: A is the Sequel of B ⇒ on A's page B is labelled "Prequel". `direction` is `forward` (viewed entry is `from`) or `reverse`.
 - **Transitive peers** (`_transitive_peers`): one query loads every row of a transitive kind, builds an undirected adjacency, and walks a widest-path BFS from the viewed entry, widening the allowed kinds one at a time in `TRANSITIVE_KEYS` order. An entry first reached on the pass for kind K has K as its bottleneck, so a chain A-alternative-B-corresponding-C reports A and C as **Corresponding** (weakest link), never Alternative. Cycles are stopped by the visited set. Pairs already covered by a stored row are skipped; the rest are appended after the stored rows with `derived: true`, `system_id: null`, `remark: null`, and `via` = display name of the neighbour the chain came through.
 - Unknown `relation_type` (a sheet restored from a newer version) shows its raw key rather than blanking the row; family defaults to `derivation` for stored rows.
-- **Dangling target**: `resolve_entries` / `entry_ref_for` (`app/utils/media_resolver.py`) return `missing=True` for any endpoint whose row no longer exists. The relation is still listed and still deletable by id.
+- **No dangling target**: the foreign keys mean a stored relation's far end always exists. `resolve_entries` / `entry_ref_for` (`app/utils/media_resolver.py`) are shared with orders and still return `missing=True` for an id with no row, so the `missing` field stays in the response, but a relation never carries it.
 - **Viewer filtering**: for every viewer, the admin included, `filter_visible_pairs` (`app/services/rbac/enforcement.py`) drops any item whose far end is hidden — removed entirely, not blanked as missing, so nothing confirms the hidden entry exists.
 
 ### Sequel seed — `seed_sequel_relations` in `app/services/domain/media_relation.py`
@@ -117,7 +120,7 @@ It returns `relations_created`, `franchises_seeded` and `groups_skipped_tied`, w
 - Candidate nodes come from `list_candidate_entries` (`app/services/domain/order.py`) for the franchise ids, or `series_ids` for a series scope. **Every in-scope entry is a node, connected or not** — you cannot drag a line from a node that is not drawn.
 - Candidates are narrowed by `filter_visible_pairs(db, viewer, …)` first; hidden entries are not nodes.
 - Rows are loaded by id at either end, then re-checked against `(type, id)` because SQL cannot express the type discriminator across seven tables.
-- Endpoints outside the scope become **ghost nodes** (`in_scope: false`), resolved in one batch via `resolve_entries`; a ghost whose row is gone has `missing: true`. Ghosts the viewer may not see are dropped **with every edge touching them**, so an edge label alone can never reveal a hidden entry.
+- Endpoints outside the scope become **ghost nodes** (`in_scope: false`), resolved in one batch via `resolve_entries`; `missing` is always false for a relation's endpoint (see the foreign keys above). Ghosts the viewer may not see are dropped **with every edge touching them**, so an edge label alone can never reveal a hidden entry.
 - Node key is `"{media_type}:{entry_id}"` (`_node_key`), type-qualified because each table has its own id space.
 - `anime_movie` has no `series_id`, so an anime movie only ever appears on a series graph as a ghost.
 
@@ -175,7 +178,7 @@ Four handles in two groups: left/right = `timeline` (sequel/prequel only), top/b
 | Click edge | `EdgeInspector` (`components/relations/EdgeInspector.jsx`): kind select (posts kind as typed, server re-normalizes), Swap (disabled for symmetric kinds with an explanatory title), remark, Remove |
 | Click in-scope node | `NodePanel` (`components/relations/NodePanel.jsx`): link out to the detail page and **Isolate** toggle, which dims everything more than one hop away; type chips (one per media type on canvas) dim whole types and compose with isolate |
 | Click ghost node | Dashed, dimmed node from another franchise; clicking it calls `onPickGhostFranchise` and the admin page switches scope to that franchise |
-| Missing node | Endpoint whose row is gone: red border/background with a `fa-link-slash` icon (`components/relations/RelationNode.jsx`); its edges can still be selected and deleted |
+| Missing node | Endpoint whose row is gone: red border/background with a `fa-link-slash` icon (`components/relations/RelationNode.jsx`). Defensive only — the foreign keys keep a stored relation from naming a deleted entry |
 | Undo | `undoLast` replays the inverse request recorded for the last write (see below); a failure drops the entry |
 | Tidy | Clears `positionsRef` and refetches, so `layoutGraph` recomputes everything from scratch |
 | Reset | Confirm dialog, then `DELETE /scope`; empties the undo stack because the rows it remembers are gone — recovery is the deleted-record log |
@@ -203,12 +206,14 @@ Unknown families fall back to the derivation style. Stroke width is 2 throughout
 
 - Tab **"Media Relation"**, registered in `app/services/pipelines/tabs.py` (`SHEET_TABS`). Backup writes the model's columns in table order (`app/services/pipelines/backup.py`, `headers = [c.name for c in tab.model.__table__.columns]`): `system_id, from_type, from_id, relation_type, to_type, to_id, remark, created_at, updated_at`.
 - **Restore order**: after every media tab and the Order tabs, before Plan Next / Quote / Meme / Note / Seasonal — both endpoints must already exist. Order in `SHEET_TABS` is the restore order.
-- Parser `parse_media_relation_from_sheet` (`app/utils/formatter.py`): `from_id` / `to_id` use `_uuid_or_none`, so an unparseable cell becomes a missing endpoint on the admin page rather than failing the whole Pull; `relation_type` is preserved as written so a kind from a newer version survives a round trip (it then shows as its raw key). The CHECK constraint still rejects a self-relation row on Pull.
+- Parser `parse_media_relation_from_sheet` (`app/utils/formatter.py`): `from_id` / `to_id` use `_uuid_or_none`, so an unparseable cell becomes `None` rather than raising.
+- **A row naming an entry this database does not hold is skipped and reported** (`_missing_relation_endpoint` in `app/services/pipelines/pull.py`): an unparseable id, an id with no `media` row, or an id filed under the wrong type. It lands in the run's `unresolved_refs` and `rows_skipped`, because inserting it would violate a foreign key at the tab's single commit and roll back every relation in the sheet.
+- The parser preserves `relation_type` as written so a kind from a newer version survives a round trip (it then shows as its raw key). The CHECK constraint still rejects a self-relation row on Pull.
 
 ## Related
 
-- Tests: `tests/api/test_media_relation.py`, `tests/api/test_media_relation_model.py`, `tests/api/test_media_relation_service.py`, `tests/api/test_seed_sequel_relations.py`, `tests/unit/test_relation_kinds.py`, `tests/unit/test_formatter_media_relation.py`; frontend `frontend/src/lib/relationLayout.test.js`, `relationUndo.test.js`, and the `*.test.jsx` files beside each component in `frontend/src/components/relations/`.
+- Tests: `tests/api/test_media_relation.py`, `tests/api/test_media_relation_entry_delete.py`, `tests/api/test_media_relation_model.py`, `tests/api/test_media_relation_service.py`, `tests/api/test_seed_sequel_relations.py`, `tests/unit/test_relation_kinds.py`, `tests/unit/test_formatter_media_relation.py`; frontend `frontend/src/lib/relationLayout.test.js`, `relationUndo.test.js`, and the `*.test.jsx` files beside each component in `frontend/src/components/relations/`.
 - Cross-table resolver and `MEDIA_TABLES`: `app/utils/media_resolver.py`.
 - RBAC visibility used by every read: `app/services/rbac/enforcement.py` (`entry_visible`, `filter_visible_pairs`), `app/services/rbac/resolver.py` (`get_viewer`).
-- Orders share the FK-less endpoint contract and `list_candidate_entries`: `app/services/domain/order.py`.
+- Orders share `list_candidate_entries`: `app/services/domain/order.py`.
 - Older prose (partly stale): `../frontend/pages.md` relation-graph section, `docs/api.md`, `../business-rules.md`, `../data-model.md`.

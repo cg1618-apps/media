@@ -48,9 +48,22 @@ counts). `h1` is display by default.
    critical state; `success`/`warning`/`info` may tint a toast, a
    pipeline status or the order page's state chips (rule 5), tinted
    with opacity (`bg-success/15`).
-2. **Structure is mono.** Labels, section titles, breadcrumbs, ids, dates
-   and counts are set in `font-mono`, small, uppercase, letter-spaced
-   (`Eyebrow`). Values are in the body face. Titles are `font-display`.
+2. **Structure is mono, never capitals.** Labels, section titles,
+   breadcrumbs, ids, dates and counts are set in `font-mono`, small
+   (`Eyebrow`, `eyebrowCls`; a slip's title is `sectionTitleCls`). Values are
+   in the body face. Titles are `font-display`. Text reads in the casing it
+   is written in: no `uppercase` class, no `text-transform`, no English word
+   typed in capitals for effect. Letter-spacing exists for capitals, so it
+   goes with them: mono text keeps the face's own spacing, with no
+   `tracking-wide`/`-wider`/`-widest` or `tracking-[0.1em]`-style class.
+   Capitals that belong to the text itself stay as written - acronyms and
+   codes such as TV, OP, ED, NG, MAL, TMDB, OST, ID, the `WIN`/`SPR` season
+   codes and the P/M badges. Two sites are sanctioned exceptions: the
+   **CG1618** brand mark in the nav (capitals as written, tracked), and the
+   **account's role chip** (`SUPER`, `ADMIN`) on the nav strip and in the
+   mobile drawer, which keeps `uppercase` and its tracking.
+   `src/no-all-caps.test.js` fails on any other `uppercase` or wide
+   tracking.
 3. **Flat.** Surfaces are separated by hairlines, not shadows or tinted
    headers. A slip has a mono title on a dotted rule (`Slip`).
 4. **No decorative icons.** Font Awesome icons stay only where they carry
@@ -209,7 +222,9 @@ counts). `h1` is display by default.
 
 ## Primitives (`components/ui/primitives.jsx`)
 
-- `Eyebrow` — mono caption; `as="h3"` when it titles a section.
+- `Eyebrow` — mono caption; `as="h3"` when it titles a section. Its class
+  string is exported as `eyebrowCls` for a caption that is not an `Eyebrow`
+  element, and a slip's title class as `sectionTitleCls`.
 - `Slip` — flat bordered section with title row (`title`, `actions`,
   `padded`).
 - `RatingStamp` — outlined brand square with the rank letter; `size`
@@ -278,15 +293,15 @@ the same `Reorder <name>` label and the same keys.
 Detail page (`pages/detail/*.jsx`):
 
 ```
-ANIME  /  <title>                REPORT A PROBLEM  ← Eyebrow breadcrumb; the report link for self.requests (provisional)
-[ ADMIN .... Edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
-┌─────────┐  ANIME · TV · FINISHED AIRING · SPR 2021    ← Eyebrow line
+Anime  /  <title>                Report a problem  ← Eyebrow breadcrumb; the report link for self.requests (provisional)
+[ Admin .... Edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
+┌─────────┐  Anime · TV · Finished Airing · SPR 2021    ← Eyebrow line
 │  cover  │  <Title in display face>
 │   [A]   │  subtitle (muted)
 │─────────│  ───────────────────────────────
-│ progress│  FRANCHISE <link>   SERIES <link>
+│ progress│  Franchise <link>   Series <link>
 └─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
- Sources           My tracker (Slip)                          CONTENTS        ← xl+ only, sticky,
+ Sources           My tracker (Slip)                          Contents        ← xl+ only, sticky,
  Relations         Naming / Information / Production (InfoCard)  My tracker     right of the page
                    Notes                                          Naming …
 ```
@@ -304,8 +319,12 @@ filter chips, `brand` on the current one, scrolling sideways inside itself;
 pinned under the nav on a detail page, unpinned on the dashboard, whose own
 sticky headers already hold that strip.
 
+The anime movie page draws no eyebrow line: its type, release status, runtime
+and date are each on the Information card, and the breadcrumb names the type.
+
 A detail page's cover carries **no spine strip** - neither the type, which the
-breadcrumb and the eyebrow line already name, nor the entry's id. That holds
+breadcrumb (and the eyebrow line, where there is one) already names, nor the
+entry's id. That holds
 for every detail page: the twelve media types, the collection, franchise and
 series hubs (`HeroCover`), and the person, studio, publisher, character and
 identity pages.
