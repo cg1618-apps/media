@@ -188,3 +188,23 @@ describe("EpisodeStepper steps to the next whole episode", () => {
     expect(screen.getByText("Cum 0.3/26")).toBeInTheDocument();
   });
 });
+
+describe("MyTrackerCard's Pinged toggle", () => {
+  beforeEach(() => {
+    mockAuth.username = "member";
+  });
+
+  it("shows the pin and writes the new value through its handler", () => {
+    const onPingedChange = vi.fn();
+    render(card({ pinged: true, onPingedChange }));
+    const box = screen.getByRole("checkbox", { name: "Pinged" });
+    expect(box).toBeChecked();
+    fireEvent.click(box);
+    expect(onPingedChange).toHaveBeenCalledWith(false);
+  });
+
+  it("is absent when the page passes no handler", () => {
+    render(card({ pinged: true }));
+    expect(screen.queryByRole("checkbox", { name: "Pinged" })).toBeNull();
+  });
+});

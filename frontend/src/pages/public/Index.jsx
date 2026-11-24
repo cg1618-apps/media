@@ -88,20 +88,34 @@ const MEDIA_TYPES = [
 // DashboardCard - but it is watched, paused and finished like the rest.
 const WATCHING_TYPES = ["Anime", "Anime Movie", "Movie", "TV Show", "Cartoon"];
 
+const READING_TYPES = ["Manga", "Book", "Comic"];
+
 // The divisions each media type is tracked in. A type filter shows only the
-// division that can hold the picked type.
+// division that can hold the picked type. Pinged holds every type: it is the
+// viewer's pins, whatever the division the entry is tracked in.
 const DIVISION_TYPES = {
+  pinged: MEDIA_TYPES,
   watching: WATCHING_TYPES,
-  reading: ["Manga", "Book", "Comic"],
+  reading: READING_TYPES,
   playing: ["Game"],
 };
+
+// The Pinged division's soft sections: one per tracker division, named after
+// it. They group the pins the way a type eyebrow groups a sub-section's cards
+// (an eyebrow on a dotted rule) and are not anchors, so the contents column
+// lists Pinged alone.
+const PINGED_GROUPS = [
+  ["Watching", WATCHING_TYPES],
+  ["Reading", READING_TYPES],
+  ["Playing", ["Game"]],
+];
 
 function divisionShown(division, typeFilter) {
   return !typeFilter || DIVISION_TYPES[division].includes(typeFilter);
 }
 
 // The one type filter and view toggle for the Watching, Reading and Playing
-// divisions. It sits above Watching and stays pinned below the nav for as
+// divisions. It sits above Pinged and stays pinned below the nav for as
 // long as any of the three is on screen, reporting its height so the
 // sub-section headers can stack beneath it.
 function TypeFilterBar({ types, value, onChange, onHeightChange, view, onViewChange }) {
@@ -176,6 +190,7 @@ const TOC_ITEMS = [
   { id: "schedule-follows", label: "Followed orders", level: 2 },
   { id: "libraries", label: "Libraries", level: 1 },
   { id: "recent", label: "Recently added", level: 1 },
+  { id: "pinged", label: "Pinged", level: 1 },
   { id: "watching", label: "Watching", level: 1 },
   { id: "watching-active", label: "Active", level: 2 },
   { id: "watching-passive", label: "Passive", level: 2 },
@@ -412,7 +427,7 @@ function ReadingSection({
         </div>
       ) : (
         <div className="pt-4 space-y-6">
-          {["Manga", "Book", "Comic"].map((type) => {
+          {READING_TYPES.map((type) => {
             const typeItems = items.filter((i) => i._ui_type === type);
             if (!typeItems.length) return null;
             const sorted = [...typeItems].sort((a, b) => {
@@ -475,6 +490,128 @@ function ReadingSection({
 }
 
 const LIST_OPTIONS = { params: { limit: 2000 } };
+
+/**
+ * One tracker entry as its type's dashboard card, in either view. The Pinged
+ * division mixes every type, so it picks the card here; `handlers` holds the
+ * progress callbacks the dashboard's own sub-sections pass one by one.
+ */
+function TrackerCard({ item, franchise, canTrack, handlers, view }) {
+  const listView = view === "list" ? "list" : undefined;
+  switch (item._ui_type) {
+    case "Game":
+      return <GameDashboardCard game={item} franchise={franchise} view={listView} />;
+    case "Book":
+      return (
+        <BookDashboardCard
+          book={item}
+          franchise={franchise}
+          canTrack={canTrack}
+          onProgressChange={handlers.onBookProgressChange}
+          view={listView}
+        />
+      );
+    case "Comic":
+      return (
+        <ComicDashboardCard
+          comic={item}
+          franchise={franchise}
+          canTrack={canTrack}
+          onProgressChange={handlers.onComicProgressChange}
+          view={listView}
+        />
+      );
+    case "Manga":
+      return (
+        <DashboardCard
+          anime={item}
+          franchise={franchise}
+          canTrack={canTrack}
+          onEpChange={handlers.onChChange}
+          view={listView}
+        />
+      );
+    default:
+      return (
+        <DashboardCard
+          anime={item}
+          franchise={franchise}
+          canTrack={canTrack}
+          onEpChange={handlers.onEpChange}
+          view={listView}
+        />
+      );
+  }
+}
+
+/**
+ * The viewer's pinned entries, above Watching. Each soft section is one
+ * tracker division's pins, in that division's own order; one with no pins is
+ * not drawn. A pinned entry stays in its own division as well - the pin is a
+ * shortcut to it, not a status.
+ */
+function PingedDivision({ groups, franchiseData, canTrack, handlers, view }) {
+  const total = groups.reduce((n, [, items]) => n + items.length, 0);
+  return (
+    <div id="pinged">
+      <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
+        <div>
+          <Eyebrow className="mb-1">
+            {PINGED_GROUPS.map(([label]) => label).join(" · ")}
+          </Eyebrow>
+          <h2 className="font-display text-3xl font-semibold text-text leading-none">
+            Pinged
+          </h2>
+        </div>
+        <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+          {total} pinned
+        </span>
+      </div>
+      {total === 0 ? (
+        <div className="mt-8 py-8 px-4 border border-dashed border-border-strong text-center">
+          <p className="text-sm text-text-faint">
+            Nothing pinned. Pin an entry from its page or its form.
+          </p>
+        </div>
+      ) : (
+        <div className="pt-8 space-y-6">
+          {groups.map(([label, items]) => {
+            if (!items.length) return null;
+            const cards = items.map((item) => (
+              <TrackerCard
+                key={item.system_id}
+                item={item}
+                franchise={franchiseData.find(
+                  (f) => f.system_id === item.franchise_id,
+                )}
+                canTrack={canTrack}
+                handlers={handlers}
+                view={view}
+              />
+            ));
+            return (
+              <div key={label} data-testid={`pinged-${label.toLowerCase()}`} className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <Eyebrow as="h3">
+                    {label} · {items.length}
+                  </Eyebrow>
+                  <span className="flex-1 border-t border-dotted border-border-strong/60" />
+                </div>
+                {view === "list" ? (
+                  <DashboardTable>{cards}</DashboardTable>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {cards}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * One playing sub-section. Simpler than ReadingSection: the Playing division
@@ -943,6 +1080,12 @@ function CatalogueDashboard() {
     (g) => g.playing_status === "Paused",
   );
 
+  // Each soft section of Pinged reads its division's own sorted, filtered
+  // list, so a pin sits in the same order there as in its division.
+  const pingedGroups = [watchShown, readingShown, playingShown].map(
+    (items, i) => [PINGED_GROUPS[i][0], items.filter((item) => item.is_pinged)],
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* The same contents as chips, below xl where the column is not drawn.
@@ -1055,6 +1198,22 @@ function CatalogueDashboard() {
                 onViewChange={changeView}
               />
 
+              {/* Pinged Division */}
+              {divisionShown("pinged", typeFilter) && (
+                <PingedDivision
+                  groups={pingedGroups}
+                  franchiseData={franchiseData}
+                  canTrack={canTrack}
+                  view={view}
+                  handlers={{
+                    onEpChange: handleEpChange,
+                    onChChange: handleChChange,
+                    onBookProgressChange: handleBookProgressChange,
+                    onComicProgressChange: handleComicProgressChange,
+                  }}
+                />
+              )}
+
               {/* Watching Division */}
               {divisionShown("watching", typeFilter) && (
                 <div id="watching">
@@ -1113,7 +1272,7 @@ function CatalogueDashboard() {
                 <div id="reading">
                   <div className="flex items-end justify-between gap-3 pb-2 border-b border-border-strong">
                     <div>
-                      <Eyebrow className="mb-1">Manga · Book · Comic</Eyebrow>
+                      <Eyebrow className="mb-1">{READING_TYPES.join(" · ")}</Eyebrow>
                       <h2 className="font-display text-3xl font-semibold text-text leading-none">
                         Reading
                       </h2>

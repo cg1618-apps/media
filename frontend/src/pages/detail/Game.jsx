@@ -516,6 +516,10 @@ export default function Game() {
                 myRating={game.my_rating}
                 ratingOptions={MY_RATINGS}
                 canTrack={ownData}
+                pinged={game.is_pinged}
+                onPingedChange={(v) =>
+                  saveOwn({ is_pinged: v }, v ? "Pinned to the dashboard" : "Unpinned")
+                }
                 onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
                 onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
                 watchNext={game.play_next}

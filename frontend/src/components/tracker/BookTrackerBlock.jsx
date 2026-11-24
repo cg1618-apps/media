@@ -1,7 +1,7 @@
 // Frontend: tracker component file for BookTrackerBlock.
 import { useAuth } from "../../contexts/AuthContext";
 import { Button, Eyebrow, Slip } from "../ui/primitives";
-import { SELECT_CLS, STEP_INPUT_CLS } from "./MyTrackerCard";
+import { PlanFlagToggle, SELECT_CLS, STEP_INPUT_CLS } from "./MyTrackerCard";
 import StatusOptions from "../ui/StatusOptions";
 import ProgressInput from "./ProgressInput";
 import {
@@ -68,6 +68,7 @@ export default function BookTrackerBlock({
   onRatingChange,
   onReadNextChange,
   onToRerereadChange,
+  onPingedChange,
   onProgressDisplayChange,
 }) {
   // A guest has no tracker, and neither has a viewer without self.list. The
@@ -382,6 +383,14 @@ export default function BookTrackerBlock({
 
         {/* Flags */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Pinned to the dashboard's Pinged division. */}
+          {typeof onPingedChange === "function" && (
+            <PlanFlagToggle
+              label="Pinged"
+              checked={book.is_pinged}
+              onChange={onPingedChange}
+            />
+          )}
           <div className="space-y-1.5">
             <Eyebrow className="block">Read next</Eyebrow>
             <label className="flex items-center gap-2 cursor-pointer">

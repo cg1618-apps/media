@@ -107,6 +107,7 @@ export function MovieFormBody({ f, u, sources, ownerId }) {
         f={f}
         u={u}
         flags={[
+          ["is_pinged", "Pinged", "Pin to the dashboard"],
           ["watch_next", "Watch Next", "Add to Watch Next list"],
           ["to_rewatch", "To Rewatch", "Mark for rewatch"],
         ]}

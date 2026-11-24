@@ -46,6 +46,7 @@ import CastSection from "../../components/info/CastSection";
 import LazyImage from "../../components/ui/LazyImage";
 import { useViewScope } from "../../hooks/useViewScope";
 import ProgressInput from "../../components/tracker/ProgressInput";
+import { PlanFlagToggle } from "../../components/tracker/MyTrackerCard";
 import { formatProgress, stepDown, stepUp } from "../../lib/progressStep";
 
 const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
@@ -70,6 +71,7 @@ function MangaTrackerBlock({
   onRatingChange,
   onWatchNextChange,
   onToRewatchChange,
+  onPingedChange,
 }) {
   const chFin = manga.ch_fin ?? 0;
   const chTotal = manga.ch_total != null ? manga.ch_total : null;
@@ -226,6 +228,12 @@ function MangaTrackerBlock({
               ))}
             </select>
           </div>
+          {/* Pinned to the dashboard's Pinged division. */}
+          <PlanFlagToggle
+            label="Pinged"
+            checked={manga.is_pinged}
+            onChange={onPingedChange}
+          />
           {/* Read Next */}
           <div className="space-y-1">
             <Eyebrow>Read next</Eyebrow>
@@ -618,6 +626,9 @@ export default function Manga() {
               }
               onWatchNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
               onToRewatchChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
+              onPingedChange={(v) =>
+                saveOwn({ is_pinged: v }, v ? "Pinned to the dashboard" : "Unpinned")
+              }
             />
           </TocSection>
 

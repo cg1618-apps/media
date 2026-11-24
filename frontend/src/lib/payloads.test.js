@@ -932,3 +932,34 @@ describe("progress counts and totals travel as floats", () => {
     expect(mangaFieldsPayload({ vol_fin_page: "12.7" }).vol_fin_page).toBe(12);
   });
 });
+
+// is_pinged pins the entry to the dashboard's Pinged division. It is a
+// personal flag on the nine ordinary types only; the gated types' APIs
+// refuse it with a 422, so their bodies must never carry the key.
+describe("is_pinged", () => {
+  it.each([
+    ["anime", buildAnimePayload],
+    ["anime movie", buildAnimeMoviePayload],
+    ["movie", movieFieldsPayload],
+    ["tv show", tvShowFieldsPayload],
+    ["cartoon", cartoonFieldsPayload],
+    ["manga", mangaFieldsPayload],
+    ["book", bookFieldsPayload],
+    ["comic", comicFieldsPayload],
+    ["game", gameFieldsPayload],
+  ])("round-trips on the %s body", (_, build) => {
+    expect(build({ is_pinged: true }).is_pinged).toBe(true);
+    expect(build({ is_pinged: false }).is_pinged).toBe(false);
+    // A form that never set it sends false, not undefined or null.
+    expect(build({}).is_pinged).toBe(false);
+  });
+
+  it.each([
+    ["h-comic", hComicFieldsPayload],
+    ["h-game", hGameFieldsPayload],
+    ["hentai", hentaiFieldsPayload],
+  ])("is never sent on the %s body", (_, build) => {
+    // Set on the form, so the absence proves the builder drops it.
+    expect("is_pinged" in build({ is_pinged: true })).toBe(false);
+  });
+});

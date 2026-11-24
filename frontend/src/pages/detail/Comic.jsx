@@ -406,6 +406,10 @@ export default function Comic() {
               watchingStatus={comic.reading_status || "Might Read"}
               myRating={comic.my_rating}
               canTrack={ownData}
+              pinged={comic.is_pinged}
+              onPingedChange={(v) =>
+                saveOwn({ is_pinged: v }, v ? "Pinned to the dashboard" : "Unpinned")
+              }
               onEpChange={(v) =>
                 saveOwn({ issue_fin: v }, "Issue progress saved")
               }

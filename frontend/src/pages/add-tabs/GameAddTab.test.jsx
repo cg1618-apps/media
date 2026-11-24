@@ -191,11 +191,13 @@ describe("GameAddTab layout", () => {
     expect(endings).toEqual(["", "Yes", "No", "Inapplicable"]);
   });
 
-  it("ends My Tracker with the plan flags", () => {
+  it("ends My Tracker with Pinged, then the plan flags", () => {
     const { container } = renderTab();
     const tracker = labelsBySection(container)["My Tracker"];
     expect(tracker.slice(0, 2)).toEqual(["Playing Status", "My Rating"]);
-    expect(tracker.slice(-4)).toEqual([
+    expect(tracker.slice(-6)).toEqual([
+      "Pinged",
+      "Pin to the dashboard",
       "Play Next",
       "Add to Play Next list",
       "To Replay",

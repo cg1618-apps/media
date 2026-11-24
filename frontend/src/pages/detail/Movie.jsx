@@ -378,6 +378,10 @@ export default function Movie() {
               watchNext={movie.watch_next}
               toRewatch={movie.to_rewatch}
               canTrack={ownData}
+              pinged={movie.is_pinged}
+              onPingedChange={(v) =>
+                saveOwn({ is_pinged: v }, v ? "Pinned to the dashboard" : "Unpinned")
+              }
               onStatusChange={(v) => saveOwn({ watching_status: v }, "Status updated")}
               onRatingChange={(v) => saveOwn({ my_rating: v }, "Rating saved")}
               onTimeFinChange={(v) => saveOwn({ time_fin: v }, "Paused position saved")}

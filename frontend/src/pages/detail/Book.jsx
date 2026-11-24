@@ -592,6 +592,9 @@ export default function Book() {
               }
               onReadNextChange={(v, msg) => saveOwn({ read_next: v }, msg)}
               onToRerereadChange={(v, msg) => saveOwn({ to_reread: v }, msg)}
+              onPingedChange={(v) =>
+                saveOwn({ is_pinged: v }, v ? "Pinned to the dashboard" : "Unpinned")
+              }
               onProgressDisplayChange={(v) =>
                 saveOwn({ progress_display: v || null }, "Progress display updated")
               }

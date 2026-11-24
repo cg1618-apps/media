@@ -556,6 +556,8 @@ def parse_user_media_list_from_sheet(raw: dict) -> dict:
         "page_fin": parse_from_sheet(raw.get("page_fin"), float),
         "usefulness": parse_from_sheet(raw.get("usefulness"), str),
         "time_fin": _text_cell_from_sheet(raw.get("time_fin")),
+        # NOT NULL; a sheet backed up before the column existed reads unpinned.
+        "is_pinged": bool(parse_from_sheet(raw.get("is_pinged"), bool)),
     }
 
 

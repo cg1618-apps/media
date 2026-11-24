@@ -34,6 +34,8 @@ class MangaBase(BaseModel):
     ch_fin: Optional[float] = 0
 
     my_rating: Optional[str] = None
+    # Pinned to the viewer's dashboard (user_media_list.is_pinged).
+    is_pinged: bool = False
     mal_rating: Optional[float] = None
     mal_rank: Optional[str] = None
     anilist_rating: Optional[int] = None

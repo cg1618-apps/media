@@ -407,6 +407,10 @@ export default function Cartoon() {
               timeFin={cartoon.time_fin}
               watchNext={cartoon.watch_next}
               canTrack={ownData}
+              pinged={cartoon.is_pinged}
+              onPingedChange={(v) =>
+                saveOwn({ is_pinged: v }, v ? "Pinned to the dashboard" : "Unpinned")
+              }
               onEpChange={(v) =>
                 saveOwn({ ep_fin: v }, "Episode progress saved")
               }

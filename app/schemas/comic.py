@@ -33,6 +33,8 @@ class ComicBase(BaseModel):
     read_order: Optional[float] = None
 
     my_rating: Optional[str] = None
+    # Pinned to the viewer's dashboard (user_media_list.is_pinged).
+    is_pinged: bool = False
 
     comicvine_id: Optional[int] = None
     comicvine_link: Optional[str] = None

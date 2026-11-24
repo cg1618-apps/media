@@ -398,6 +398,10 @@ export default function TV() {
               watchNext={show.watch_next}
               toRewatch={show.to_rewatch}
               canTrack={ownData}
+              pinged={show.is_pinged}
+              onPingedChange={(v) =>
+                saveOwn({ is_pinged: v }, v ? "Pinned to the dashboard" : "Unpinned")
+              }
               onEpChange={(v) =>
                 saveOwn({ ep_fin: v }, "Episode progress saved")
               }
