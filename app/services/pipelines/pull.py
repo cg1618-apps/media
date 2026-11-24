@@ -23,6 +23,7 @@ from app.models import (
     Meme,
     Movies,
     Note,
+    OrderList,
     Quote,
     ResourceNode,
     Role,
@@ -31,7 +32,6 @@ from app.models import (
     SystemOption,
     TVShows,
     User,
-    WatchOrderList,
 )
 from app.services.domain import (
     resolve_anime_movie_parent_hierarchy,
@@ -287,12 +287,12 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
     ),
     # One follow per user per group: the group's row is matched and repointed
     # at the sheet's list, rather than a second row colliding with it.
-    "Watch Order Follow": (
+    "Order Follow": (
         "user_id",
         "franchise_id",
         "series_id",
         "collection_id",
-    ),  # uq_watch_order_follow_group
+    ),  # uq_order_follow_group
     # Mints its own uuid but cites an entry id, which is the same in every
     # database. option_id IS part of the key (unlike the parent tabs above,
     # whose own uuid never appears in it): two "main" rows on the same entry
@@ -1443,14 +1443,14 @@ def execute_pull_specific(
         # that row's owner is unknown, so it is skipped and reported rather
         # than quietly filed under the admin.
         #
-        # Watch Order Follow, User Rating, User Book Unit Rating, Note Mark
+        # Order Follow, User Rating, User Book Unit Rating, Note Mark
         # and User Favorite have carried `username` from their first day, so
         # they reach the fallback only for a hand-built sheet; they share the
         # block for the resolution.
         if tab_name in (
             "Plan Next",
             "Seasonal",
-            "Watch Order Follow",
+            "Order Follow",
             "User Rating",
             "User Book Unit Rating",
             "Note Mark",
@@ -2037,7 +2037,7 @@ def execute_pull_specific(
                         .filter(SystemConfigs.config_key == config_key)
                         .first()
                     )
-            elif tab_name == "Watch Order List":
+            elif tab_name == "Order List":
                 # An id-less row is matched on owner + name. Items have no
                 # natural key at all, so an id-less item row always inserts.
                 name = clean_header_dict.get("list_name")
@@ -2045,11 +2045,11 @@ def execute_pull_specific(
                 owner_collection = clean_header_dict.get("collection_id")
                 if name and (owner_franchise or owner_collection):
                     existing_record = (
-                        db.query(WatchOrderList)
+                        db.query(OrderList)
                         .filter(
-                            WatchOrderList.list_name == name,
-                            WatchOrderList.franchise_id == owner_franchise,
-                            WatchOrderList.collection_id == owner_collection,
+                            OrderList.list_name == name,
+                            OrderList.franchise_id == owner_franchise,
+                            OrderList.collection_id == owner_collection,
                         )
                         .first()
                     )

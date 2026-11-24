@@ -136,7 +136,7 @@ describe("Anime detail page - table of contents", () => {
     await waitFor(() => expect(rows()).toContain("Production"));
     expect(rows()).not.toContain("Cast");
     // The followed-orders band is empty for this viewer too.
-    expect(rows()).not.toContain("Watch orders");
+    expect(rows()).not.toContain("Orders");
   });
 
   it("leaves out the tracker for a viewer with no list of their own", async () => {

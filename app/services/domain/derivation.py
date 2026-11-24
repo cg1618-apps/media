@@ -1,9 +1,9 @@
 """Field derivation: ep_previous, season, id/season extraction.
 
-Neither watch order nor prequel/sequel is derived any more, for the same
+Neither order nor prequel/sequel is derived any more, for the same
 reason: chaining a franchise by release order cannot tell a sequel from a side
 story, and guessed wrong often enough to be worth losing. Relations moved to
-the `media_relation` table and ordering to watch_order_list / watch_order_item,
+the `media_relation` table and ordering to order_list / order_item,
 where both are curated by hand.
 """
 

@@ -137,8 +137,8 @@ def apply_single_replace_tv_show(
 ) -> None:
     """
     Core 'Replace' logic for a single TVShows entry.
-    Nothing is derived franchise-wide any more - watch order was the only such
-    field and it moved to watch_order_list - so `bulk` no longer changes what
+    Nothing is derived franchise-wide any more - order was the only such
+    field and it moved to order_list - so `bulk` no longer changes what
     this does. It is kept for signature parity with the other media types.
     """
     apply_extract_imdb_id(tv_show)
@@ -151,8 +151,8 @@ def apply_single_replace_cartoon(
 ) -> None:
     """
     Core 'Replace' logic for a single Cartoon entry.
-    Nothing is derived franchise-wide any more - watch order was the only such
-    field and it moved to watch_order_list - so `bulk` no longer changes what
+    Nothing is derived franchise-wide any more - order was the only such
+    field and it moved to order_list - so `bulk` no longer changes what
     this does. It is kept for signature parity with the other media types.
     """
     apply_extract_imdb_id(cartoon)
@@ -326,7 +326,7 @@ def derive_ep_previous_all_anime(db: Session) -> None:
     """Derives ep_previous for every franchise holding an anime.
 
     Was derive_related_anime, which also assigned watch_order. Ordering moved
-    to watch_order_list / watch_order_item, where it is curated rather than
+    to order_list / order_item, where it is curated rather than
     guessed, so ep_previous is all that is still derived franchise-wide.
     """
     rows = (

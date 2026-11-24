@@ -43,7 +43,7 @@ export function HubError({ title, message, backTo, backLabel }) {
 }
 
 /**
- * A section that owns nothing yet - no member franchises, no watch orders.
+ * A section that owns nothing yet - no member franchises, no orders.
  * Boxed, because it stands in for content the page would otherwise draw in a
  * slip. `icon` is still accepted by callers and ignored; `children` takes an
  * optional call to action.

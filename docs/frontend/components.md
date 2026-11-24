@@ -33,7 +33,7 @@ src/
 | Piece | What it does |
 |---|---|
 | `api/client.js` `fetchJson(url, init)` | `fetch` with `credentials: "include"`; parses JSON; **throws** on `!res.ok` with the server `detail`. There is no automatic redirect on 401 — a stale session surfaces as a thrown error. |
-| `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, statistics, announcements, watchOrder, mediaRelation, gameChoice, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
+| `api/endpoints.js` | The only place URLs are spelled. `resource(type)` gives `list/detail/create/update/patch/remove/complete` for every `MEDIA_CONFIG` key; named groups for auth, options, roles, users, contentLabels, seasonal, statistics, announcements, order, mediaRelation, gameChoice, formDefaults, person, studio, credits, system, quotes, memes, resources (the Resources tree - plural, because `resource` is the media builder), dataControl. |
 | `api/mutations/useResourceMutations.js` | `useCreateResource`, `usePatchResource`, `useDeleteResource`, `useReorderResources`: `useMutation` wrappers for `/api/resources` that invalidate `RESOURCES_QUERY_KEY` (`["resources"]`) when they settle. The reorder one also applies the move to the cache first (`applyReorder`) and restores the previous tree on failure. |
 | `api/mutations/useRequestMutations.js` | Requests and reports. `useMyRequests(status?)` reads `GET /api/requests/mine` under `["requests", "mine", status ?? "all"]`; `useRequestInbox(status = "open")` reads `GET /api/requests?status=` under `["requests", "inbox", status]`. `useFileRequest` (POST), `useEditRequest` (`{id, data}`, PATCH), `useSetRequestStatus` (`{id, status, response?}`, PUT `/status`) and `useDeleteRequest` (`id`) each invalidate the whole `["requests"]` prefix when they settle, so both pages and every status filter refetch. |
 | `api/mutations/useMyRatingMutations.js` | The caller's own ratings. `useSaveMyRating()` sends `PUT /api/me/ratings/{owner_type}/{owner_id}` with a partial `{my_rating?, expectation?}` and invalidates `["media-list", ownerType]` and `["api", "search"]`; `useMyRatingSaver(ownerType, ownerId, setRow)` wraps it for one page, folding the answer into the page's row (`applyMyRating`, which writes `expectation` back under the tier's own field, `EXPECTATION_FIELD`) and toasting. `useSaveMyBookUnit(bookId)` sends `PUT /api/me/book-units/{unit_id}` `{my_rating?, remark?}` and invalidates the book's list and detail; the book detail page's Units card calls it, with the book's `public_id`, from each unit's rating select and remark field. |
@@ -364,15 +364,15 @@ columns.
   `RELEASE_PERSONAL_FIELDS` in `lib/releaseAction.js`), `WeeklySchedule`,
   `ComingNext` (the dashboard's next-season block; its selection is the pure
   `selectComingNext` in `lib/comingNext.js`), `FollowedOrders` (the
-  dashboard's followed watch orders, under Coming Next), `FollowedOrderPanel`
+  dashboard's followed orders, under Coming Next), `FollowedOrderPanel`
   (where the entry sits in the viewer's followed orders, under every entry
   detail page's header), `FollowOrderButton` (the Follow / Following toggle),
   `FollowedStep` (one step line shared by those two views),
   `RelationsSection` (its optional `onRows` prop is handed every row the card
   loads, so the h-comic page names the hentai its derived animation status
-  comes from without a second request), `WatchOrderSection`, `WatchOrderGuide`,
-  `WatchOrderEditor` (steps and parts dragged by a grip, plus a typed
-  position box; its move arithmetic is the pure `watchOrderLayout.js` beside
+  comes from without a second request), `OrderSection`, `OrderGuide`,
+  `OrderEditor` (steps and parts dragged by a grip, plus a typed
+  position box; its move arithmetic is the pure `orderLayout.js` beside
   it, which flattens the drawn blocks into a token stream - one token per step
   and per *empty* part - and turns every move into one `PUT /reorder` body:
   `item_ids`, `section_ids` and every part's `section_positions`).
@@ -721,7 +721,7 @@ columns.
   drag - see [design-system.md](design-system.md#reordering-a-list).
   `CastEditor`, `BookUnitsEditor`, `GameCopiesEditor`, `ClubMembership`,
   `WorkImagesEditor`, `NameEntriesSection` and `StructuredSection` use it directly; `ResourceTree`,
-  `WatchOrderEditor` and the Fav 3x3 ranked list are not one flat list, so they
+  `OrderEditor` and the Fav 3x3 ranked list are not one flat list, so they
   build on dnd-kit's `useDraggable` / `useDroppable` with `useDragSensors` and
   the same ArrowUp / ArrowDown keys - the first two with the same grip and
   label, the ranked list by its whole row, which holds no inputs.
@@ -1391,7 +1391,7 @@ another:
 | Nav rows (Restricted → H-Comic, H-Game, Hentai) | `gatedType` on each item in `config/navigation.js`; `visibleSections(sections, has, canSeeType)` drops it, and drops the Restricted tab once no gated row is left in it. Both permission surfaces ask the same helper, and `navigation.test.js` pins the pair |
 | Add / Modify / Delete / Form Defaults tab | `AdminTabBar` filters every tab list through `visibleByType` |
 | Nav search scope | `canSearchScope` in `NavSearch.jsx`: `canSeeGatedType` and the role's `media_type.<type>` key, the rule the server picks its search buckets by |
-| Plan tabs, Completions tabs, Random Picker mode strip and media-type chips, Quotes filter, image owner-type filter, watch-order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
+| Plan tabs, Completions tabs, Random Picker mode strip and media-type chips, Quotes filter, image owner-type filter, order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
 | Favourite grids (the h-game franchise and entry grids) | `gatedType` on the grid in `config/favoriteGrids.js`; `visibleFavoriteGrids(auth)` filters them for the statistics page and the admin 3x3 editor, and the statistics sidebar drops their links the same way |
 | Options scope picker (`ScopePicker`, both Options tabs) | `visibleMediaTypes` over the list it is handed, so the `MEDIA_TYPES` fallback drawn before `/api/constants` answers does not name a hidden gated type either |
 | Lists fetched only when visible | `usePlanData`, `Completions`, `RandomPicker`, `useStatisticsData` (the h-comic, h-game and hentai rating cards and the h-game favourite grids), `SeriesPage` (h-games and hentai only under a parent franchise of the restricted family) and `FranchiseLibrary` (which waits for `/api/auth/me`) |

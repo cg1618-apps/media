@@ -1292,7 +1292,7 @@ def media_entry_for(db_session, client):
 
 
 # The non-media detail endpoints, as base path -> (model, name field). Series
-# and the watch-order list need an owner, so they are built by hand below
+# and the order list need an owner, so they are built by hand below
 # rather than described here.
 _ENTITY_MODEL_FOR_BASE = {
     "/api/collection": (models.Collection, "collection_name_en"),
@@ -1303,7 +1303,7 @@ _ENTITY_MODEL_FOR_BASE = {
     "/api/character": (models.Character, "name_en"),
 }
 
-WATCH_ORDER_LIST_BASE = "/api/watch-order/lists"
+ORDER_LIST_BASE = "/api/order/lists"
 
 
 @pytest.fixture
@@ -1327,7 +1327,7 @@ def entity_for(db_session, client):
                 franchise_id=owner.system_id,
                 series_name_en="Ref Series",
             )
-        elif base == WATCH_ORDER_LIST_BASE:
+        elif base == ORDER_LIST_BASE:
             owner = models.Franchise(
                 system_id=uuid.uuid4(),
                 franchise_type="Anime",
@@ -1335,8 +1335,8 @@ def entity_for(db_session, client):
             )
             db_session.add(owner)
             db_session.flush()
-            # ck_watch_order_list_single_owner wants exactly one owner set.
-            row = models.WatchOrderList(
+            # ck_order_list_single_owner wants exactly one owner set.
+            row = models.OrderList(
                 system_id=uuid.uuid4(),
                 list_name="Ref List",
                 franchise_id=owner.system_id,

@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-11-20
+Last verified: 2026-11-24
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -1296,11 +1296,11 @@ relying on any of them - a symbol acquires a caller.
 
 | Symbol                                   | Where                                   | Status                                                                                                                                                                        |
 | ---------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `_AIRING_TYPE_ORDER`                     | `derivation.py`                         | Defined (TV < ONA < Special < OVA < OAD); no reference anywhere. A leftover of the retired watch-order derivation.                                                            |
+| `_AIRING_TYPE_ORDER`                     | `derivation.py`                         | Defined (TV < ONA < Special < OVA < OAD); no reference anywhere. A leftover of the retired order derivation.                                                            |
 | `MONTH_MAP`                              | `app/utils/utils.py`                    | `"JAN" → "01"` map; no reference. Superseded by `release_date._MONTH_ABBREVIATIONS`.                                                                                          |
 | `entry_bucket`                           | `size_group.py`                         | Pure function for an entry's inherited bucket; no caller in `app/` (tests only). Display-time bucket resolution is done elsewhere.                                            |
 | `size_group_keys`                        | `plan_next_kinds.py`                    | No caller.                                                                                                                                                                    |
-| `get_entry_franchise_id`                 | `watch_order.py`                        | Exported from `app/services/domain/__init__.py` but never called.                                                                                                             |
+| `get_entry_franchise_id`                 | `order.py`                        | Exported from `app/services/domain/__init__.py` but never called.                                                                                                             |
 | `runtime_min` mapping for cartoons       | `tmdb_utils.map_tmdb_to_cartoon_data`, `imdb_utils.map_imdb_to_cartoon_data` | The mappers compute the most-common episode runtime (season) with a show-level `episode_run_time` fallback, but `autofill_cartoon_from_imdb` never writes `cartoon.runtime_min`. The column exists and round-trips through Sheets; it is manual today. (The TV show autofill does write its own `runtime_min` from the same mapping.) |
 | `derive_ep_previous_anime(series_id=…)` explicit-series branch | `derivation.py`     | Only `prepare_anime_write` passes a series; every pipeline uses the all-groups form. Still live, just single-caller.                                                          |
 | `AiringStatus`, `ReadStatus` enums       | `constants.py`                          | `ReadStatus` feeds `COMPLETED_READ_STATUSES`; `AiringStatus` is only served by `/api/constants`. Business logic compares string literals.                                     |
@@ -1403,7 +1403,7 @@ about; the live name is shown while it exists.
 | Rule / column                                                    | Migration                                                       | Replaced by                                                                                          |
 | ---------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `prequel_id`, `sequel_id`, `alternative`, `derive_related` columns on every media table, and the prequel/sequel derivation from release order | `media_relation_drop_legacy.py`                                 | `media_relation` rows, hand-curated (section 13), plus a one-time sequel seed for uncurated Anime franchises that orders by season/part rather than release order. The derivation guessed wrong too often — it could not tell a sequel from a side story. |
-| Watch-order derivation (`derive_related_anime` assigning `watch_order`)   | (function removed; `derive_ep_previous_all_anime` is what is left) | `watch_order_list` / `watch_order_section` / `watch_order_item`, curated by hand                 |
+| Order derivation (`derive_related_anime` assigning the per-entry `watch_order` column)   | (function removed; `derive_ep_previous_all_anime` is what is left) | `order_list` / `order_section` / `order_item`, curated by hand                 |
 | `watch_next` / `read_next` boolean columns; `franchise.watch_next_group`  | `b872c435410b_add_plan_next_table.py`                           | `plan_next` rows with `kind="next"`; `watch_next_group` values were copied into `size_group_manual.anime` |
 | `to_rewatch` (franchise, series, anime_movies, movies, tv_shows, cartoons) and `to_reread` (manga, novel, comic) columns | `9b0bcb763e8c_add_plan_next_kind_and_drop_rewatch_.py` | `plan_next` rows with `kind="rewatch"` (section 14)                                             |
 | `director` (anime, anime_movies, movies), `writer` / `artist` / `publisher` (comic), `publisher_tw` (manga, novel, comic) text columns | `d1r2o3p4c5o6l_drop_legacy_credit_columns.py`                   | `media_credit` / `media_tag` link rows; Fill checks them through `*_LINK_FIELDS_TO_FILL` (section 5) |

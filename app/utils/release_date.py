@@ -33,7 +33,7 @@ _MONTH_ABBREVIATIONS = {
 
 # Which release columns represent an entry, most preferred first. Consulted by
 # sorting, list display, and airing-status derivation. Keyed by media-type slug
-# to match the routing vocabulary the frontend and watch_order already use.
+# to match the routing vocabulary the frontend and order already use.
 RELEASE_PRIORITY: Dict[str, tuple] = {
     "anime": ("release_date_jp", "release_date_tw"),
     "anime-movie": ("release_date_jp", "release_date_tw"),

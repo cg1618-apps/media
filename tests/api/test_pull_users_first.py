@@ -24,7 +24,7 @@ OWNER_DEPENDENT_TABS = (
     "User Media List",
     "Plan Next",
     "Seasonal",
-    "Watch Order Follow",
+    "Order Follow",
     "Note",
     "Meme",
     "Quote",

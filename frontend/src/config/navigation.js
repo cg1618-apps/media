@@ -60,7 +60,7 @@ export const NAV_SECTIONS = [
             label: "Franchise",
             icon: "fas fa-layer-group",
             to: "/library/franchise",
-            matches: ["/franchise", "/watch-order"],
+            matches: ["/franchise", "/order"],
           },
           {
             label: "Series",
@@ -279,7 +279,7 @@ export const NAV_SECTIONS = [
     key: "extras",
     label: "Extras",
     // Quotes, memes and resources, then the catalogue editors' relations and
-    // watch orders.
+    // orders.
     items: [
       // Quotes and Memes follow the account's quotes_memes feature switch,
       // the one App.jsx's routes ask. Both are read-only for a member; their
@@ -294,9 +294,9 @@ export const NAV_SECTIONS = [
         to: "/resources",
         requires: "manage.resources",
       },
-      // Relations and Watch Orders are ways of reading the collection, so they
+      // Relations and Orders are ways of reading the collection, so they
       // belong here rather than in Admin — but both pages write through
-      // catalogue endpoints (mediaRelation/watchOrder + resource CRUD), so the
+      // catalogue endpoints (mediaRelation/order + resource CRUD), so the
       // rows (and the rule above them) ask for manage.catalog, same as Entry.
       { divider: true, requires: "manage.catalog" },
       {
@@ -306,9 +306,9 @@ export const NAV_SECTIONS = [
         requires: "manage.catalog",
       },
       {
-        label: "Watch Orders",
+        label: "Orders",
         icon: "fas fa-list-ol",
-        to: "/watch-orders",
+        to: "/orders",
         requires: "manage.catalog",
       },
     ],

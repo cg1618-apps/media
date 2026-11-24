@@ -288,7 +288,7 @@ def apply_owner_visibility(
     Narrow rows owned by one grouping tier to those whose owner may be seen.
 
     For tables whose rows belong to a collection, franchise or series through
-    three nullable owner columns, as watch orders do. A NULL column matches no
+    three nullable owner columns, as orders do. A NULL column matches no
     label row, so only the owner actually set decides, and each tier's
     condition carries its cascade (a series under a hidden franchise is
     hidden).
@@ -312,7 +312,7 @@ def visible_scope_franchise_ids(
 ) -> list:
     """
     The franchises a franchise or collection scope covers, for the reads that
-    take one (watch-order candidates, the relations scope listing and graph).
+    take one (order candidates, the relations scope listing and graph).
 
     A hidden scope is 404, in the words a missing one would get, and a
     collection's hidden member franchises are dropped. The caller has already

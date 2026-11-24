@@ -482,9 +482,9 @@ export default function Game() {
               </div>
             </header>
 
-            {/* Where this entry sits in the watch orders the viewer follows. */}
-            <TocSection id="watch-orders" label="Watch orders">
-              <FollowedOrderPanel entryId={game.system_id} mediaType="game" />
+            {/* Where this entry sits in the orders the viewer follows. */}
+            <TocSection id="orders" label="Orders">
+              <FollowedOrderPanel entryId={game.system_id} />
             </TocSection>
 
             {/* My Tracker — no stepper: a game has no unit to count off, so the

@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-11-17
+Last verified: 2026-11-24
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -49,7 +49,7 @@ app/
   routers/         one APIRouter per resource; _factory.py and _patching.py are shared
   services/
     domain/        pure business rules: hierarchy, derivation, checking, completion,
-                   credits, duplicates, plan_next, remarks, search, seasonal, watch_order ...
+                   credits, duplicates, plan_next, remarks, search, seasonal, order ...
     pipelines/     Fill / Replace / Pull / Backup: runner.py, specs.py, tabs.py + per-op modules
     integrations/  outbound HTTP: tenrai, tmdb, omdb, imdb, comicvine, sheets;
                    image_manager is local-disk cover storage, not HTTP out
@@ -88,7 +88,7 @@ for the catch-all, which is last).
 | `game` | `/api/game` | factory router nested in a prefix-less router that adds `GET /api/game/search-igdb` |
 | `h_comic` | `/api/h-comic` | factory; a gated type |
 | `h_game` | `/api/h-game` | factory router nested in a prefix-less router that adds `GET /api/h-game/search-igdb`; a gated type |
-| `watch_order` | `/api/watch-order` | |
+| `order` | `/api/order` | |
 | `media_relation` | `/api/media-relation` | |
 | `game_choice` | `/api/game-choice` | a game's choice graph and each viewer's marks on it |
 | `plan_next` | `/api/plan-next` | |

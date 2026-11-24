@@ -85,13 +85,13 @@ def test_blank_cell_still_clears_the_value(db_session, sheet, owner_user):
     assert anime.mal_rank is None
 
 
-def test_absent_owner_column_does_not_orphan_a_watch_order_list(db_session, sheet, owner_user):
-    """`watch_order_list.series_id` is a post-migration column with no guard."""
+def test_absent_owner_column_does_not_orphan_a_order_list(db_session, sheet, owner_user):
+    """`order_list.series_id` is a post-migration column with no guard."""
     series = models.Series(series_name_en="Monogatari")
     db_session.add(series)
     db_session.flush()
 
-    wol = models.WatchOrderList(series_id=series.system_id, list_name="Release Order")
+    wol = models.OrderList(series_id=series.system_id, list_name="Release Order")
     db_session.add(wol)
     db_session.flush()
 
@@ -101,7 +101,7 @@ def test_absent_owner_column_does_not_orphan_a_watch_order_list(db_session, shee
         [[str(wol.system_id), "", "", "Release Order"]],
     )
 
-    result = pull.execute_pull_specific(db_session, "Watch Order List", log_action=False)
+    result = pull.execute_pull_specific(db_session, "Order List", log_action=False)
 
     assert result["status"] == "success"
     db_session.refresh(wol)

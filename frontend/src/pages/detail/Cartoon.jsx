@@ -373,8 +373,8 @@ export default function Cartoon() {
             </div>
           </header>
 
-          {/* Where this entry sits in the watch orders the viewer follows. */}
-          <TocSection id="watch-orders" label="Watch orders">
+          {/* Where this entry sits in the orders the viewer follows. */}
+          <TocSection id="orders" label="Orders">
             <FollowedOrderPanel entryId={cartoon.system_id} />
           </TocSection>
 

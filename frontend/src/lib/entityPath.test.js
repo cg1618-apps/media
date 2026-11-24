@@ -91,8 +91,8 @@ describe("entitySlug", () => {
     expect(entitySlug("studio", { name_en: "Studio Bones" })).toBe("studio-bones");
   });
 
-  it("uses list_name for a watch order", () => {
-    expect(entitySlug("watch-order", { list_name: "Release Order" })).toBe("release-order");
+  it("uses list_name for an order", () => {
+    expect(entitySlug("order", { list_name: "Release Order" })).toBe("release-order");
   });
 });
 

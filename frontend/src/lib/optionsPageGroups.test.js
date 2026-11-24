@@ -47,7 +47,7 @@ const SERVED = [
   "tag_categories",
   "tv_region",
   "tv_show_airing_type",
-  "watch_order_importance",
+  "order_importance",
   "watching_status",
 ];
 
@@ -98,7 +98,7 @@ describe("groupTier1Keys", () => {
       "day_of_week",
       "is_main",
       "my_rating",
-      "watch_order_importance",
+      "order_importance",
     ]);
   });
 

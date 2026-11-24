@@ -300,11 +300,11 @@ function GroupMembers({ tier, members }) {
 }
 
 // The rows a collection, franchise or series takes with it when deleted: its
-// memes, notes and watch orders are ON DELETE CASCADE on the tier.
+// memes, notes and orders are ON DELETE CASCADE on the tier.
 function TierOwnedNote() {
   return (
     <div className="bg-surface-2 border border-border rounded-xl p-3 text-xs text-text-muted">
-      Its memes, notes and watch orders are deleted with it.
+      Its memes, notes and orders are deleted with it.
     </div>
   );
 }

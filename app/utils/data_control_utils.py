@@ -109,8 +109,8 @@ def log_deleted_record(db: Session, entry: Any, entry_type: str):
             if _has_cn(entry, "collection"):
                 name_en = _en(entry, "collection")
 
-        elif entry_type == "Watch Order":
-            # A watch order has one plain name, and belongs to either a
+        elif entry_type == "Order":
+            # An order has one plain name, and belongs to either a
             # franchise or a collection - never both.
             name_cn = getattr(entry, "list_name", None)
             category = getattr(entry, "list_type", None)

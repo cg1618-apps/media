@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_db
-from app.services.domain.watch_order import ITEM_IMPORTANCE
+from app.services.domain.order import ITEM_IMPORTANCE
 from app.services.integrations.catalog import catalog_payload
 from app.services.rbac.gated_types import (
     hidden_franchise_types,
@@ -164,7 +164,7 @@ def _constants() -> dict[str, list[str]]:
         # The status of a whole song list (an anime's OPs, EDs, insert songs
         # or OST), as opposed to one song's music_status above.
         "music_type_status": list(c.MUSIC_TYPE_STATUSES),
-        "watch_order_importance": list(ITEM_IMPORTANCE),
+        "order_importance": list(ITEM_IMPORTANCE),
         "character_role": list(CHARACTER_ROLES),
         # Two closed vocabularies the ADMIN forms need. person_role was
         # hand-duplicated in OptionsAddTab.jsx with nothing enforcing the

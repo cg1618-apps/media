@@ -27,7 +27,7 @@ code.
   - [Note sections](#note-sections-apputilsnote_sectionspy)
   - [Plan-next vocabulary](#plan-next-vocabulary-apputilsplan_next_kindspy)
   - [Credit roles and tag fields](#credit-roles-and-tag-fields-apputilscredit_rolespy)
-  - [Watch-order built-ins](#watch-order-built-ins-appservicesdomainwatch_orderpy)
+  - [Order built-ins](#order-built-ins-appservicesdomainorderpy)
   - [RBAC permissions and field groups](#rbac-permissions-and-field-groups)
   - [Media type and owner keys](#media-type-and-owner-keys-apputilsmedia_resolverpy)
 - [Tier 2: system options](#tier-2-system-options)
@@ -168,7 +168,7 @@ from the endpoint and the literals in that file are only the pre-fetch
 fallback.
 
 `/api/constants` also serves six keys from other modules:
-`watch_order_importance` ([below](#watch-order-built-ins-appservicesdomainwatch_orderpy)),
+`order_importance` ([below](#order-built-ins-appservicesdomainorderpy)),
 `person_role`, `option_categories`, `tag_categories` and
 `common_option_categories`
 ([below](#credit-roles-and-tag-fields-apputilscredit_rolespy)) and
@@ -710,18 +710,18 @@ tag pairs and comic's `comic_publisher` pair when those vocabularies retired,
 so every tab kept the header it already had; anime-movie's `distributor_tw` is
 the one new column.
 
-### Watch-order built-ins (`app/services/domain/watch_order.py`)
+### Order built-ins (`app/services/domain/order.py`)
 
 | Name | Values |
 |---|---|
-| `ITEM_IMPORTANCE` | `Essential`, `Recommended`, `Normal`, `Optional` (served as `/api/constants` `watch_order_importance`) |
+| `ITEM_IMPORTANCE` | `Essential`, `Recommended`, `Normal`, `Optional` (served as `/api/constants` `order_importance`) |
 | `DEFAULT_IMPORTANCE` | `Normal`; `normalize_importance` coerces anything unrecognised (NULL, a bad Sheets cell) to it |
-| `MEDIA_TYPE_MODELS` / `VALID_WATCH_ORDER_MEDIA_TYPES` | the eight hyphenated media types — **`game` is not among them**: this map is hand-written, not derived from `MEDIA_TABLES`, so a game cannot be a watch-order step |
+| `MEDIA_TYPE_MODELS` / `VALID_ORDER_MEDIA_TYPES` | all twelve hyphenated media types, games and the three gated types included, so one order can mix watching, reading and playing. Hand-written, not derived from `MEDIA_TABLES`: a new type is not an order step until it is added here |
 | `_STATUS_FIELDS` | `watching_status` for anime, anime-movie, movie, tv-show, cartoon; `reading_status` for manga, book, comic |
 | `_TOTAL_FIELDS` | `ep_total` (anime, tv-show, cartoon), `ch_total` (manga, book), `issue_total` (comic); movies and anime movies have none |
 
-Generated release orders have no `watch_order_item` rows, so every step of
-one is `Normal`. See [systems/watch-orders.md](systems/watch-orders.md).
+Generated release orders have no `order_item` rows, so every step of
+one is `Normal`. See [systems/orders.md](systems/orders.md).
 
 ### RBAC permissions and field groups
 
@@ -749,7 +749,7 @@ labels.
 
 ### Media type and owner keys (`app/utils/media_resolver.py`)
 
-`MEDIA_TYPE_KEYS` (hyphenated, stored in `media_relation`, `watch_order_item`,
+`MEDIA_TYPE_KEYS` (hyphenated, stored in `media_relation`, `order_item`,
 `plan_next`, `media_credit`, `media_tag`, `system_option_scope`; served as
 `/api/constants` `media_type`): `anime`, `anime-movie`, `movie`, `tv-show`,
 `cartoon`, `manga`, `book`, `comic`, `game`, `h-comic`, `h-game`, `hentai`. `OWNER_TYPE_KEYS` adds the grouping
@@ -1174,7 +1174,7 @@ anime-movie, manga, book) and comic.
 | `frontend/src/config/planNextGroups.js` | `SIZE_GROUPS`, `ALLOWED_SCOPES`, `KINDS` from `plan_next_kinds.py` | **hand-maintained**; `GET /api/plan-next/kinds` is not called. `planNext.test.js` guards `ALLOWED_SCOPES`/`KINDS` against drift; `SIZE_GROUPS` has no guard. It also adds two frontend-only groupings: manga by `serialization_status` (`完結`, `連載中`, `腰斬`, `停更`, ungrouped label `其他`) and book by `type` (`網路小說` first, then `輕小說`, `小說`, `短篇集`, `指南/設定集`, `其他`; an empty type falls into `其他`). |
 | `frontend/src/utils/planNext.js` | `COMIC_BANDS` (a copy of the comic `SIZE_THRESHOLDS`) | hand-maintained |
 | `frontend/src/config/statusGroups.js` | `COMPLETED_STATUSES`; `WATCHING_STATUS_GROUP` / `READING_STATUS_GROUP` filter buckets (`Might Watch`/`Might Read`, `Planned`, `Watching`/`Reading`, `Completed`, `Dropped`); `STATUS_PICKER_GROUP` / `groupStatusOptions()` picker groups (`Not Released`, `On-Going`, `Done`) | hand-maintained; both groupings exist only in the frontend. The picker groups are a **display aid only** - `components/ui/StatusOptions.jsx` renders them as `<optgroup>`s in every Add/Modify and detail-page status `<select>`, and nothing filters, sorts or counts by them. A status the map does not know still renders, ungrouped, at the end of the list. |
-| `frontend/src/components/tracker/WatchOrderEditor.jsx` | `ITEM_IMPORTANCE` | hand-maintained mirror |
+| `frontend/src/components/tracker/OrderEditor.jsx` | `ITEM_IMPORTANCE` | hand-maintained mirror |
 | `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` - two entries, `""` (label "— Default (VOL JP/KR) —") and `vol_tw` (label "VOL TW (Taiwan Volumes)"): `book.type` drives structure, so the only genuine choice left is JP/KR volumes vs TW volumes. A book holding any other stored value (`ch`, `vol_original`, `arc_ch`) has it appended back by `withLegacyProgressDisplay()` as a selectable "(legacy)" entry rather than silently reverting to the default. Also `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
 
 Relation kinds and note sections are **not** copied: the frontend fetches

@@ -10,9 +10,11 @@ under its old name (pull.RENAMED_COLUMNS) and a cell value in its old spelling
 The main rename here is Novel becoming Book: the tabs `Novel`, `Novel Unit`
 and `User Novel Unit Rating`, the media-type key `novel`, the franchise type
 `Novel`, the cover folder `novel/`, the two per-type system_configs keys and
-the fields inside them, and the old `type` vocabulary. The other is the tab
-`Studio Relation` becoming `Company Relation` once a publisher could be
-either end; its columns kept their names, so only the title maps.
+the fields inside them, and the old `type` vocabulary. The others only
+retitle tabs whose columns kept their names: `Studio Relation` became
+`Company Relation` once a publisher could be either end, and the four
+`Watch Order …` tabs became `Order …` once an order could mix watching,
+reading and playing.
 """
 
 import json
@@ -25,6 +27,10 @@ LEGACY_TAB_NAMES: dict[str, tuple[str, ...]] = {
     "Book Unit": ("Novel Unit",),
     "User Book Unit Rating": ("User Novel Unit Rating",),
     "Company Relation": ("Studio Relation",),
+    "Order List": ("Watch Order List",),
+    "Order Section": ("Watch Order Section",),
+    "Order Item": ("Watch Order Item",),
+    "Order Follow": ("Watch Order Follow",),
 }
 
 OLD_MEDIA_TYPE = "novel"

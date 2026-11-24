@@ -161,33 +161,33 @@ export const endpoints = {
       `/api/images/owners/${ownerType}/${ownerId}/${role}`,
   },
 
-  // Watch orders don't fit the resource() CRUD shape: lists and their items
+  // Orders don't fit the resource() CRUD shape: lists and their items
   // live under one prefix, and reorder is its own verb.
-  watchOrder: {
-    lists: () => "/api/watch-order/lists",
-    list: (id) => `/api/watch-order/lists/${id}`,
-    createList: () => "/api/watch-order/lists",
-    updateList: (id) => `/api/watch-order/lists/${id}`,
-    patchList: (id) => `/api/watch-order/lists/${id}`,
-    removeList: (id) => `/api/watch-order/lists/${id}`,
-    duplicateList: (id) => `/api/watch-order/lists/${id}/duplicate`,
-    createItem: (listId) => `/api/watch-order/lists/${listId}/items`,
-    updateItem: (itemId) => `/api/watch-order/items/${itemId}`,
-    patchItem: (itemId) => `/api/watch-order/items/${itemId}`,
-    removeItem: (itemId) => `/api/watch-order/items/${itemId}`,
-    reorder: (listId) => `/api/watch-order/lists/${listId}/reorder`,
-    createSection: (listId) => `/api/watch-order/lists/${listId}/sections`,
-    updateSection: (sectionId) => `/api/watch-order/sections/${sectionId}`,
-    patchSection: (sectionId) => `/api/watch-order/sections/${sectionId}`,
-    removeSection: (sectionId) => `/api/watch-order/sections/${sectionId}`,
-    candidates: () => "/api/watch-order/candidates",
-    createRelease: () => "/api/watch-order/lists/release",
-    backfillRelease: () => "/api/watch-order/lists/release/backfill",
+  order: {
+    lists: () => "/api/order/lists",
+    list: (id) => `/api/order/lists/${id}`,
+    createList: () => "/api/order/lists",
+    updateList: (id) => `/api/order/lists/${id}`,
+    patchList: (id) => `/api/order/lists/${id}`,
+    removeList: (id) => `/api/order/lists/${id}`,
+    duplicateList: (id) => `/api/order/lists/${id}/duplicate`,
+    createItem: (listId) => `/api/order/lists/${listId}/items`,
+    updateItem: (itemId) => `/api/order/items/${itemId}`,
+    patchItem: (itemId) => `/api/order/items/${itemId}`,
+    removeItem: (itemId) => `/api/order/items/${itemId}`,
+    reorder: (listId) => `/api/order/lists/${listId}/reorder`,
+    createSection: (listId) => `/api/order/lists/${listId}/sections`,
+    updateSection: (sectionId) => `/api/order/sections/${sectionId}`,
+    patchSection: (sectionId) => `/api/order/sections/${sectionId}`,
+    removeSection: (sectionId) => `/api/order/sections/${sectionId}`,
+    candidates: () => "/api/order/candidates",
+    createRelease: () => "/api/order/lists/release",
+    backfillRelease: () => "/api/order/lists/release/backfill",
     // The caller's own follows; PUT follows (replacing the group's previous
     // one), DELETE unfollows.
-    follows: () => "/api/watch-order/follows",
-    followsForEntry: (entryId) => `/api/watch-order/follows/entry/${entryId}`,
-    follow: (listId) => `/api/watch-order/lists/${listId}/follow`,
+    follows: () => "/api/order/follows",
+    followsForEntry: (entryId) => `/api/order/follows/entry/${entryId}`,
+    follow: (listId) => `/api/order/lists/${listId}/follow`,
   },
 
   mediaRelation: {

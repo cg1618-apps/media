@@ -16,7 +16,7 @@ import {
 import WeeklySchedule from "../../components/tracker/WeeklySchedule";
 import ComingNext from "../../components/tracker/ComingNext";
 import FollowedOrders from "../../components/tracker/FollowedOrders";
-import { useWatchOrderFollows } from "../../api/mutations/useWatchOrderFollows";
+import { useOrderFollows } from "../../api/mutations/useOrderFollows";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import ContentsBar from "../../components/layout/ContentsBar";
 import TableOfContents from "../../components/layout/TableOfContents";
@@ -746,9 +746,9 @@ function CatalogueDashboard() {
     endpoints.seasonal.currentSeason(),
     { enabled: showComingNext },
   );
-  // Followed watch orders are the viewer's own too, so they share the gate,
+  // Followed orders are the viewer's own too, so they share the gate,
   // and like Coming Next they stay out of the combined loading state.
-  const followsQuery = useWatchOrderFollows(showComingNext);
+  const followsQuery = useOrderFollows(showComingNext);
   // Announcements are intentionally kept out of the combined loading/error state
   // below — a failed board must never block the rest of the dashboard.
   const announcementQuery = useApiQuery(

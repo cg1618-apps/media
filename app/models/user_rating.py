@@ -8,7 +8,7 @@ used to be columns on the shared rows (`my_rating`, `*_expectation`), which
 held exactly one person's view.
 
 The owner is one FK column per owning table rather than an (owner_type,
-owner_id) pair, the shape `note` and `watch_order_follow` already use: a real
+owner_id) pair, the shape `note` and `order_follow` already use: a real
 foreign key cascades, so deleting the franchise or the account takes the
 rating with it. Exactly one owner column is set (ck_user_rating_one_owner),
 an expectation only on a tier (ck_user_rating_expectation_on_tier), and one

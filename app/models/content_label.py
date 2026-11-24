@@ -59,7 +59,7 @@ class MediaContentLabel(Base):
     supertable, ON DELETE CASCADE - so a deleted entry takes its labels with
     it. It was an FK-less (media_type, entry_id) pair until Step 0 gave the
     nine media tables one shared id space; `media_credit`, `media_tag` and
-    `watch_order_item` moved the same way, and only `media_relation` and
+    `order_item` moved the same way, and only `media_relation` and
     `character_casting` still carry a pair, because both ends of those are
     entries.
 

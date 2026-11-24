@@ -1,15 +1,15 @@
-// Frontend: the Follow / Following toggle for one watch order.
+// Frontend: the Follow / Following toggle for one order.
 //
 // Drawn on the order's own page and beside the order picked in a group page's
-// watch-order section. A member follows at most one order per group, so
+// order section. A member follows at most one order per group, so
 // following this one replaces whichever of its group's orders was followed -
 // the server does the replacing, and the shared follows query refetches.
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 import {
   useToggleFollow,
-  useWatchOrderFollows,
-} from "../../api/mutations/useWatchOrderFollows";
+  useOrderFollows,
+} from "../../api/mutations/useOrderFollows";
 import { Button } from "../ui/primitives";
 
 /** True when `listId` is among the caller's follows. */
@@ -21,7 +21,7 @@ export default function FollowOrderButton({ list }) {
   const { has } = useAuth();
   const canFollow = has("self.list");
   const { showToast } = useToast();
-  const follows = useWatchOrderFollows(canFollow);
+  const follows = useOrderFollows(canFollow);
   const toggle = useToggleFollow();
 
   if (!canFollow || !list) return null;

@@ -46,7 +46,7 @@ counts). `h1` is display by default.
    Never use Tailwind palette colours (`blue-500`, `emerald-100`, …) for
    categories, statuses or decoration. `danger` marks destructive or
    critical state; `success`/`warning`/`info` may tint a toast, a
-   pipeline status or the watch order page's state chips (rule 5), tinted
+   pipeline status or the order page's state chips (rule 5), tinted
    with opacity (`bg-success/15`).
 2. **Structure is mono.** Labels, section titles, breadcrumbs, ids, dates
    and counts are set in `font-mono`, small, uppercase, letter-spaced
@@ -64,7 +64,7 @@ counts). `h1` is display by default.
    the franchise and series tables and the future-release cover overlay, so
    the most anticipated stand out of a library), destructive states (danger), two
    type-coloured chips, both drawn from `config/scopeColors.js` and the
-   `--color-scope-*` tokens in all three palettes, and the watch order
+   `--color-scope-*` tokens in all three palettes, and the order
    page's state chips (below):
 
    - The **scope chips** (`scopeChip`), on the System Options page and the
@@ -91,9 +91,9 @@ counts). `h1` is display by default.
    rows in ink too — and a further colour-coded category needs the same
    argument made again, not these cited.
 
-   - The **watch order page's status and importance chips**
-     (`config/watchOrderColors.js`), on `/watch-order/:publicId` only —
-     `WatchOrderPage` passes `colourCoded` to `WatchOrderGuide`, and the
+   - The **order page's status and importance chips**
+     (`config/orderColors.js`), on `/order/:publicId` only —
+     `OrderPage` passes `colourCoded` to `OrderGuide`, and the
      franchise and collection tab draws the same guide in ink. That page is
      read as a checklist down a column of steps: "how far through this am I,
      and which of what is left matters" is a scan for the gaps, not a
@@ -116,7 +116,7 @@ counts). `h1` is display by default.
      under AA as 10 px text on bone paper. Each clears 4.5:1 against its own
      tint over `--c-surface` — floors 4.98 light, 5.64 dark — and muted grey
      is `text-text-muted`, since the `muted` tone's `text-faint` is under 3:1.
-     `config/watchOrderColors.test.js` checks that every status in the three
+     `config/orderColors.test.js` checks that every status in the three
      vocabularies has a tone and that each token is in all three palettes.
    Adding a type means adding its `--c-scope-*` hue to `:root`,
    `[data-theme="dark"]` **and** the `prefers-color-scheme` block
@@ -256,7 +256,7 @@ grip (`fa-grip-vertical`, `text-text-faint/60`, `cursor-grab`) at the left of
 each row. There are no up/down chevron buttons anywhere. The grip is
 `DragHandle` from `components/ui/Sortable.jsx` (see
 [components.md](components.md)); a surface that is not one flat list - the
-Resources tree, the watch-order editor - draws its own grip with the same look,
+Resources tree, the order editor - draws its own grip with the same look,
 the same `Reorder <name>` label and the same keys.
 
 - **Only the grip picks a row up**, so the inputs inside the row stay usable,

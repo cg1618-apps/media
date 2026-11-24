@@ -1,4 +1,4 @@
-// Frontend: the dashboard's Followed watch orders block, under Coming Next.
+// Frontend: the dashboard's Followed orders block, under Coming Next.
 //
 // One row per followed order: its group and name, done / total, every step in
 // progress ("Now") and the earliest step not yet started ("Up next"). Never
@@ -13,7 +13,7 @@ import FollowedStep from "./FollowedStep";
 
 function FollowedRow({ follow }) {
   const { list, owner, done, total, now, up_next: upNext } = follow;
-  const orderPath = entityPath("watch-order", list);
+  const orderPath = entityPath("order", list);
   const orderName = list.list_name || "Untitled order";
   return (
     <li className="px-4 py-3">
@@ -52,7 +52,7 @@ function FollowedRow({ follow }) {
   );
 }
 
-/** `follows` is the array GET /api/watch-order/follows answers. */
+/** `follows` is the array GET /api/order/follows answers. */
 export default function FollowedOrders({ id, follows }) {
   const [collapsed, setCollapsed] = useState(true);
   const rows = follows || [];
@@ -78,7 +78,7 @@ export default function FollowedOrders({ id, follows }) {
   return (
     <Slip
       id={id}
-      title={`Followed watch orders (${rows.length})`}
+      title={`Followed orders (${rows.length})`}
       actions={actions}
       padded={false}
       className="select-none"
@@ -89,7 +89,7 @@ export default function FollowedOrders({ id, follows }) {
           className="px-4 py-6 text-center text-sm text-text-faint"
           onClick={(e) => e.stopPropagation()}
         >
-          You follow no watch order. Follow one from its page or from a
+          You follow no order. Follow one from its page or from a
           franchise, series or collection.
         </p>
       ) : (

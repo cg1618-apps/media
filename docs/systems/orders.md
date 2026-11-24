@@ -1,0 +1,230 @@
+# Orders
+
+Last verified: 2026-11-24
+
+## What this is for
+
+An order is a named, ordered guide through a group of media entries — "watch A ep 1-10, then movie B, then A ep 11-12" — owned by one franchise, series or collection. It replaced the old per-entry `watch_order` float (dropped in `alembic/versions_archive/drop_entry_watch_order.py`), which could not span media types, hold more than one order per franchise, or split one entry across two steps. Orders come in two flavours: **hand-built** lists whose steps are stored rows, and **built-in** ("generated") lists whose steps are computed from release dates every time they are read. Every viewer that reads the catalogue can read every order whose owning group it may see; every write to an order is a catalogue editor's (`manage.catalog`). A signed-in member may **follow** one order per group and read their progress through it — see [Following](#following).
+
+## Model
+
+Three tables, defined in `app/models/order.py`, plus the per-user `order_follow` described under [Following](#following). Migrations: `alembic/versions/t3u4v5w6x7y8_add_order_tables.py` (list + item), `ws1e2c3t4i5n_add_order_section.py` (section), `x7y8z9a0b1c2_add_order_auto_source.py`, `wo_item_importance.py`, `wo_flatten_section_order.py`, `wo_series_owner_series_and_no_builtin.py` (series owner + `collection.no_built_in_orders`).
+
+### `order_list` — one order
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `system_id` | UUID | PK | indexed |
+| `public_id` | Integer | no | Per-table sequence `order_list_public_id_seq`; the short id in `/order/<public_id>/<slug>`. `uq_order_list_public_id` is **DEFERRABLE INITIALLY DEFERRED** so a Pull may permute ids across rows inside one transaction — see [../data-actions.md](../data-actions.md) |
+| `franchise_id` | UUID | yes | FK `franchise.system_id`, ON DELETE CASCADE, indexed |
+| `collection_id` | UUID | yes | FK `collection.system_id`, ON DELETE CASCADE, indexed |
+| `series_id` | UUID | yes | FK `series.system_id`, ON DELETE CASCADE, indexed |
+| `list_name` | String | yes | `display_name` property falls back to "Untitled Order" |
+| `list_type` | String | yes | default `"Custom"`; UI offers Custom / Chronological / Release / Recommended (`LIST_TYPES` in `frontend/src/components/tracker/OrderEditor.jsx`) — not validated server-side |
+| `is_default` | Boolean | yes | default False; at most one per owner (see Rules) |
+| `is_most_recommended` | Boolean | yes | default False; at most one per owner, independent of `is_default` |
+| `auto_source` | String | yes | NULL = hand-built; `"release"` or `"release-anime"` = built-in |
+| `sort_index` | Float | yes | manual ordering among an owner's lists |
+| `remark` | Text | yes | shown above the guide |
+| `created_at` / `updated_at` | DateTime | yes | Taipei time |
+
+Constraint `ck_order_list_single_owner`: exactly one of `franchise_id`, `collection_id`, `series_id` is non-null. Owner FKs cascade (not SET NULL like Collection→Franchise) because a nulled owner would violate that check. No unique constraint on names; only the indexes listed above.
+
+### `order_section` — an optional "part" inside a list
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `system_id` | UUID | PK | indexed |
+| `list_id` | UUID | no | FK `order_list.system_id`, ON DELETE CASCADE, indexed |
+| `position` | Float | yes | only matters while the part has no steps (anchors it in the item stream) |
+| `section_name` | String | yes | `display_name` falls back to "Untitled Section" |
+| `remark` | Text | yes | printed under the part heading |
+| `created_at` / `updated_at` | DateTime | yes | |
+
+### `order_item` — one step
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `system_id` | UUID | PK | indexed |
+| `list_id` | UUID | no | FK `order_list.system_id`, ON DELETE CASCADE, indexed |
+| `position` | Float | yes | reading order; float so a step can be slotted between two others |
+| `media_id` | UUID | yes | FK `media.system_id`, ON DELETE **CASCADE**, indexed. Nullable: a step may be written before its entry is chosen, and the migration left pre-existing orphans unattached rather than deleting them |
+| `section_id` | UUID | yes | FK `order_section.system_id`, ON DELETE **SET NULL**, indexed |
+| `ep_start` / `ep_end` | Integer | yes | both null = the whole entry |
+| `importance` | String | yes | default `"Normal"`; one of `ITEM_IMPORTANCE` |
+| `note` | Text | yes | per-step commentary |
+| `created_at` / `updated_at` | DateTime | yes | |
+
+`media_type` and `entry_id` are **not stored**: the column is `media_id`, and the pair is derived — `entry_id` is a **synonym** for it and `media_type` a read-only `column_property` off the `media` row (`app/models/__init__.py`). The API wire format, the editor, the guide and the Google Sheets tab all speak the pair, and a step cannot claim a `media_type` that disagrees with the entry it points at. The FK is CASCADE, unlike `quote`'s SET NULL, and for the opposite reason: a step is almost pure pointer — `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry — so a step left pointing at nothing is a blank row in a curated list.
+
+The same entry may appear in several items of one list (a split run). A **dangling** step can no longer exist: deleting an entry now removes its steps in the database. `resolve_items` still flags `missing: true` for a step whose `media_id` is null or whose type is unknown, so the admin can see and remove it; a *hidden* entry's step is dropped instead, since `missing` means "broken reference, go fix it" and a hidden entry is neither broken nor the viewer's business.
+
+### Constants (`app/services/domain/order.py`, `app/routers/order.py`)
+
+| Name | Value | Where |
+| --- | --- | --- |
+| `MEDIA_TYPE_MODELS` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game, h-comic, hentai, h-game | domain |
+| `ITEM_IMPORTANCE` | `("Essential", "Recommended", "Normal", "Optional")`; `DEFAULT_IMPORTANCE = "Normal"` | domain; mirrored in `OrderEditor.jsx` |
+| `BUILT_IN_KINDS` | `release` → "Release Order", all types; `release-anime` → "Release Order (Anime)", anime only | router |
+| `MIN_ENTRIES_FOR_RELEASE` | `2` — an owner with fewer entries in scope gets no built-in order | router |
+| `_SINGLE_WINNER_FLAGS` | `is_default`, `is_most_recommended` | router |
+| `_TOTAL_FIELDS` | anime/tv-show/cartoon → `ep_total`; manga/book → `ch_total`; comic → `issue_total`; movie types have none | domain |
+| `_STATUS_FIELDS` | watching_status for the five watched types and hentai, reading_status for manga/book/comic/h-comic, playing_status for game/h-game | domain |
+
+## Rules
+
+| Rule | Where enforced |
+| --- | --- |
+| Reading order is `position` alone (NULL sorts last, stable). Parts do not sort the guide; a part is drawn around whichever run of adjacent steps shares a `section_id`, so an unfiled step may sit before, between or after parts. | `sort_items_by_reading_order`, list-detail query; `TestPartsDoNotSortTheGuide` |
+| A part's steps must be contiguous. Reorder rejects (400) an order that would split a part, checked on the prospective order before any row is written. | `first_section_break`; reorder endpoint; `TestPartsStayContiguous` |
+| A new unfiled step appends after the highest position (`_next_position`). A step added with a `section_id` lands at the end of *that part's run* — midpoint between the part's last step and the next item — so the part stays unbroken. First step of an empty part appends to the list. | `_append_position`; `TestAddingAStepToAPart` |
+| A step may only reference a section of its own list (400 otherwise). | `_validate_section` |
+| `media_type` must be a known slug and `entry_id` must exist in that table (400) — checked in the router before the write, so a bad pair is a 400 rather than a foreign-key error. | `_validate_entry`, `entry_exists` |
+| `importance` must be one of the four rungs (400). The Sheets parser instead coerces junk to "Normal" (`normalize_importance`). | `_validate_importance` |
+| Exactly one owner (400 mirrors the DB check). | `_validate_owner` |
+| The owner is fixed at creation: a `PUT` or `PATCH` naming a different `franchise_id`, `collection_id` or `series_id` is refused (400); restating the current owner is allowed. Every follow copies its order's owner, and the copy is only true while the owner never moves. | `_reject_owner_change`; `TestOwnerIsImmutable` |
+| Setting `is_default` or `is_most_recommended` on a list clears that flag on the owner's other lists. The two flags are independent. | `_enforce_single_winners`; `TestMostRecommended` |
+| Built-in lists have no item/section rows; every item/section/reorder write is refused with 400. Name, type, remark, flags and delete still work. | `_reject_if_generated`; `TestGeneratedListIsReadOnly` |
+| Built-in steps are generated on every read from `list_candidate_entries` sorted by `release_sort_key` (per-type column priority in `app/utils/release_date.py: RELEASE_PRIORITY`), then name; undated entries sink to the bottom. Positions renumber 1..N; `system_id` of a generated step is the entry id; every step is whole, "Normal", no note. | `build_release_items`; `TestReleaseOrder` |
+| Built-in creation is idempotent per kind, refused when fewer than 2 entries are in scope, and refused for a franchise whose collection has `no_built_in_orders = true` (`app/models/collection.py`). | `create_release_list`; `TestSingleWorkFranchisesGetNoOrder`, `TestCollectionOptOut` |
+| Anime-only kind counts only anime entries; both kinds may coexist on one owner. Collections get the cross-type kind only. | `_count_owner_entries`, backfill; `TestAnimeOnlyBuiltIn` |
+| Series-owned orders draw on `series_id`; `anime_movies` has no `series_id`, so anime movies never appear in a series scope. | `list_candidate_entries`; `TestSeriesOwnedBuiltIn` |
+| Duplicate copies owner, type, remark, sort_index and every step into a new hand-built list named "… (Copy)", clears both winner flags, and always sets `auto_source = NULL` — this is how a built-in order becomes editable. | `duplicate_order_list`; `TestDuplicateOrderList`, `TestDuplicateGeneratedList` |
+| `item_count` and `media_types` are derived, never stored; `media_types` is in the fixed `MEDIA_TYPE_MODELS` order (single type = single-type order, several = cross-type). | `_summarize`, `_summarize_generated`, `_ordered_types`; `TestMediaScope` |
+| Listing sort: `is_most_recommended` desc, `is_default` desc, `sort_index` asc, `list_name` asc. | `get_order_lists` |
+
+### Range fields and units
+
+`ep_start`/`ep_end` are generic integers; what they count depends on the step's media type. The unit, the "whole-only" rule and `TYPE_LABELS` (each type's name, read by the editor's type filter too) live in `frontend/src/components/tracker/OrderGuide.jsx` (the `frontend/src/utils/orderRange.js` path does not exist; its test is `frontend/src/components/tracker/orderRange.test.js`):
+
+| Media type | Range unit label | Range inputs offered? (`supportsEpisodeRange`) |
+| --- | --- | --- |
+| anime, tv-show, cartoon | `Ep` | yes |
+| comic | `#` (issue) | yes |
+| manga, book | `Ch` | **no** — `WHOLE_ONLY_TYPES` |
+| movie, anime-movie | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES` |
+| game | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES`: a game is one whole entry, done or not by its `playing_status` |
+| h-comic, h-game, hentai | `Ep` (never shown) | **no** — `WHOLE_ONLY_TYPES` (a hentai step names the entry, never a range of its episodes); each offered in the editor's type filter only to a session that can see it |
+| unknown / null | `Ep` | yes (nothing is lost for an unrecognised type) |
+
+`rangeLabel` renders "Ep 1-10", "Ep 5", "Ch 1-40", "# 1-12", "Ep 5+" or "Ep up to 10". A stored range on a whole-only type is still displayed; the editor just hides the inputs rather than clearing data. The backend does not validate ranges against the type. Anime steps also get `ep_special` resolved: the episode a special sits at, as text (`"0"`, `"14.5"`, `"17.5A"`), which `specialLabel` shows as written ("Ep. Special 17.5A"). Nothing in an order sorts by it; reading order is the steps' positions.
+
+### Viewer visibility
+
+Reads apply RBAC (`app/services/rbac/enforcement.py`). An order whose owning collection, franchise or series the viewer's mode hides reads as missing: `/lists` and `/follows` leave it out (`apply_owner_visibility`), and its detail, follow and unfollow are 404 (`tier_visible`), because its name and owner would confirm the group. The follow row itself stays, and a wider mode lists it again. Candidates for a hidden owner are 404, and a collection's hidden member franchises are skipped (`visible_scope_franchise_ids`). Inside a visible order, the list-detail endpoint passes the `Viewer` into `resolve_items`, which calls `drop_hidden_rows` for every viewer, the admin included — hidden entries are *removed* from the guide, not flagged missing. The candidates endpoint passes the viewer into `list_candidate_entries`, which wraps each table query in `apply_entry_visibility`. Built-in lists are generated without a viewer (`build_release_items` never receives one), so their steps are **not** visibility-filtered. Reorder responses call the detail handler with `viewer=None` (an editor's write anyway).
+
+## API
+
+Router: `app/routers/order.py`, prefix `/api/order`. Schemas: `app/schemas/order.py`. Writes are `Depends(require_manage_catalog)` (401 for guests, proved throughout `tests/api/test_order.py`). The four follow routes are each `Depends(require_self_list)` instead and act on the caller's own rows only (`tests/api/test_order_follow.py`).
+
+| Method | Path | Auth | Params / body | Response | Errors |
+| --- | --- | --- | --- | --- | --- |
+| GET | `/lists` | public | query `franchise_id`, `collection_id`, `series_id`, `search_query` (ilike on name), `auto` = `exclude` \| `only`, `limit` 1–2000 (500), `offset` | `[OrderListResponse]` (no items) | — |
+| GET | `/lists/{system_id}` | public (viewer-filtered) | — | `OrderListDetailResponse`: list + `items` (resolved, flat, reading order) + `sections` | 404 |
+| GET | `/candidates` | public (viewer-filtered) | exactly one of `franchise_id`, `collection_id` | `[OrderCandidate]` sorted by type then name; includes `search_names` for the picker | 400 if zero or two owners |
+| POST | `/lists` | admin | `OrderListCreate` | `OrderListResponse` | 400 owner rule; 500 on DB error |
+| POST | `/lists/release` | admin | query: one owner id, `anime_only` bool | existing or new built-in list | 400 owner rule / opted-out collection / < 2 entries |
+| POST | `/lists/release/backfill` | admin | — | `{status, created, skipped_too_small, skipped_opted_out}` | — |
+| PUT | `/lists/{id}` | admin | `OrderListUpdate` (unset fields untouched) | list | 404, 400 owner rule / owner change |
+| PATCH | `/lists/{id}` | admin | dict, columns whitelisted by `apply_column_patch` (`app/routers/_patching.py`) | list | 404, 400 owner change |
+| DELETE | `/lists/{id}` | admin | — | `{status, message}`; items and sections cascade; logs via `log_deleted_record` | 404 |
+| POST | `/lists/{id}/duplicate` | admin | — | new list | 404, 500 |
+| POST | `/lists/{id}/items` | admin | `OrderItemCreate` (`media_type`, `entry_id`, `section_id`, `position`, `ep_start`, `ep_end`, `importance`, `note`) | `OrderItemResponse` (no display data) | 404; 400 generated / bad type / missing entry / bad importance / foreign section |
+| PUT | `/items/{id}` | admin | `OrderItemUpdate` | item | 404, 400 as above |
+| PATCH | `/items/{id}` | admin | dict | item | 404, 400 |
+| DELETE | `/items/{id}` | admin | — | `{status, message}` | 404, 400 generated |
+| PUT | `/lists/{id}/reorder` | admin | `{item_ids: [...], section_ids?: [...], section_positions?: [{section_id, position}]}` — every item exactly once; `section_ids` parallel, null = unfiled; `section_positions` every part of the list exactly once, written in the same commit | full detail response | 400 duplicate ids / partial payload / length mismatch / foreign section / split part / duplicate or partial `section_positions` |
+| POST | `/lists/{id}/sections` | admin | `OrderSectionCreate` (`section_name`, `position`, `remark`) | `OrderSectionResponse` | 404, 400 generated |
+| PUT | `/sections/{id}` | admin | `OrderSectionUpdate` | section | 404, 400 generated |
+| PATCH | `/sections/{id}` | admin | dict | section | 404, 400 generated |
+| DELETE | `/sections/{id}` | admin | — | `{status, message}`; steps become unfiled (SET NULL) | 404, 400 generated |
+| GET | `/follows` | `self.list` | — | `[OrderFollowSummary]`: the caller's followed orders, oldest follow first, each with `list`, `owner`, `done`, `total`, `now`, `up_next` | 401 |
+| GET | `/follows/entry/{entry_id}` | `self.list` | path: an entry's `media.system_id` | `[OrderEntryFollow]`: each followed order stepping through the entry, with `list`, `owner`, `total` and one `occurrences` element per step naming it (`step`, `previous`, `next`); `[]` when none does | 401, 422 bad uuid |
+| PUT | `/lists/{id}/follow` | `self.list` | — (`id` is a `public_id` or UUID) | `OrderFollowSummary` for that order; replaces the caller's follow of another order in the same group; idempotent | 401, 404 |
+| DELETE | `/lists/{id}/follow` | `self.list` | — | `{status, message}` | 401, 404 order unknown or not followed |
+
+Frontend endpoint map: `frontend/src/api/endpoints.js` (`endpoints.order.*`).
+
+## UI
+
+| Surface | File | Notes |
+| --- | --- | --- |
+| Hub tab (Franchise / Series / Collection page) | `frontend/src/components/tracker/OrderSection.jsx`, mounted from `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx` | Loads the owner's lists, opens the first (backend sorts most-recommended → default first). Scope filter (cross-type vs single type) when scopes differ; chips up to `CHIP_LIMIT = 6`, dropdown beyond; Custom group before Built-in. Draws at most `INLINE_STEP_LIMIT = 10` steps with a "See all" link. Admin gets "Add built-in" (cross-type kind only), and an "Edit" link that opens the order on show in the editor (`/orders?owner=<tier>:<system_id>&order=<system_id>`); with no order yet, "Build one by hand" opens `/orders` on this group alone. |
+| Full page `/order/:system_id` | `frontend/src/pages/detail/OrderPage.jsx` (wrapped by `pages/detail/Order.jsx`, route in `App.jsx`) | Roomy guide, owner back-link, sibling orders. Admin gets "Edit this order", to `/orders` with this order open and scoped to its owner. Owner is resolved as franchise-or-collection only; a series-owned order's back-link falls through to collection with a null id. |
+| Guide renderer | `frontend/src/components/tracker/OrderGuide.jsx` | `buildBlocks` folds the flat item list into part boxes and loose runs (tests in `OrderGuide.test.jsx`). Filters: All / Hide optional / Essentials only, shown only when they would change something; step numbers follow visible rows, 1..N across parts. Badges: range, importance, type, release, total, Ep. Special; the viewer's status at the far right of the row, only for a holder of `self.list`. `colourCoded` (the standalone page) tints status and importance from `config/orderColors.js`; the hub tab keeps them in ink. Optional rows dimmed; missing rows dashed. |
+| Admin page `/orders` | `frontend/src/pages/admin/Orders.jsx` | Owner-first search over collections / franchises / series / orders. The scoped owner is `?owner=<tier>:<system_id>` and the order open in the editor is `?order=<system_id>`, so a reload or a hub's "Edit" lands on that order; opening a search hit writes both in one update. Both URL helpers (`ownerKeyOf`, `orderEditPath`) live in `frontend/src/lib/orderPaths.js`. "Show built-in" toggle (uses `auto=exclude` by default), "Backfill built-in orders" button, per-order Duplicate and Delete, create form with `LIST_TYPES`. |
+| Editor | `frontend/src/components/tracker/OrderEditor.jsx` | A band across the top carries the order's scope and an "Open full page" link to `/order/:id` (drawn whenever the order has a `public_id`). Entry picker from `/candidates` (client-side search over `search_names`, type filter, hide-added). Per-step from/to inputs (hidden for whole-only types), four importance buttons, note, a typed position box, and a grip. Steps and parts are dragged by their grip (dnd-kit pointer drag, the same look and keys as `components/ui/Sortable.jsx`'s `DragHandle`; ArrowUp / ArrowDown on a grip moves it one place). A step dropped on a row takes that row's slot and part, dropped on a part's box joins that part, dropped in a gap between blocks is unfiled there; a step moved by the box or the keys adopts the part of its new neighbours. Parts are boxes: add part ("Part N"), rename, remark, "Add entry to this part", and a part is dragged whole, steps and all. Every move - a whole part included - is **one** PUT to `/reorder` carrying `item_ids`, `section_ids` and every part's `section_positions`, built by the pure `orderLayout.js`; it is applied on screen at once, and every further move is refused until it settles. Built-in lists show an explanation instead of the picker. The anime-only kind has no UI button — it is created only by backfill or a direct `anime_only=true` call. |
+
+## Sheets
+
+Backup writes and Pull restores four tabs, registered in `app/services/pipelines/tabs.py` in restore order **Order List → Order Section → Order Item → Order Follow** (after every media tab, since items cite entries). Columns are every model column, taken dynamically by `app/services/pipelines/backup.py` (`tab.model.__table__.columns`); parsers are `parse_order_list_from_sheet`, `parse_order_section_from_sheet`, `parse_order_item_from_sheet` in `app/utils/formatter.py`.
+
+| Tab | Restore behaviour (`app/services/pipelines/pull.py`) |
+| --- | --- |
+| Order List | Owner ids are strict UUIDs (junk → None → single-owner check would fail). An id-less row is matched on `list_name` + `franchise_id` + `collection_id` and updated in place. |
+| Order Section | `list_id` strict UUID; an unparseable id becomes None. |
+| Order Item | `entry_id` unparseable → None (shows as a missing step); `section_id` unparseable → None (step restores unfiled); `importance` coerced via `normalize_importance` so a blank or pre-column cell restores as "Normal". Items have no natural key, so an id-less item row always inserts. |
+| Order Follow | After Order Item. `user_id` is dropped for `username` and resolved by Pull exactly as Plan Next's is (an unknown name skips the row and is reported). The natural key is `uq_order_follow_group` - `(user_id, franchise_id, series_id, collection_id)` - so a sheet row for a group the user already follows locally repoints that row rather than colliding with it. Parser: `parse_order_follow_from_sheet`. |
+
+Sheet-sync schemas (`Order*SheetSync`) live in `app/schemas/order.py`.
+
+## Following
+
+A signed-in member holding `self.list` may follow an order. A follow is per user, and a user follows **at most one order per group** — the franchise, series or collection that owns it. Following another order of the same group replaces the first; unfollowing deletes the row. A built-in order is followed like any other.
+
+### `order_follow`
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `system_id` | UUID | PK | indexed |
+| `user_id` | UUID | no | FK `users.id` ON DELETE CASCADE (`fk_order_follow_user`), indexed |
+| `list_id` | UUID | no | FK `order_list.system_id` ON DELETE CASCADE (`fk_order_follow_list`), indexed |
+| `franchise_id` / `series_id` / `collection_id` | UUID | yes | The followed order's owner, copied at follow time. Each an FK to its tier, ON DELETE CASCADE |
+| `created_at` / `updated_at` | DateTime | yes | Taipei time |
+
+Constraints: `ck_order_follow_one_owner` (`num_nonnulls(franchise_id, series_id, collection_id) = 1`) and `uq_order_follow_group`, **UNIQUE NULLS NOT DISTINCT** `(user_id, franchise_id, series_id, collection_id)` — the one-per-group rule, held by the database. NULLS NOT DISTINCT because two of the three owner columns are NULL on every row. The owner is copied rather than read through `list_id` so the rule can be a constraint, and the copy stays true because a list's owner cannot change (see Rules). Migration: `alembic/versions/w1o2follow34_order_follow.py`.
+
+`PUT /lists/{id}/follow` finds the caller's row for the order's group and repoints its `list_id`, or inserts one; it never deletes and re-inserts, so the unique constraint is never in question.
+
+### Progress
+
+Computed on every read, per viewer, from the viewer's own `user_media_list` rows; nothing is stored. The steps counted are exactly the ones the guide draws for that viewer — `_resolved_steps` in the router serves both the detail endpoint and the follows — so a hidden entry's step is dropped for every viewer by `resolve_items`, and a built-in order's steps are generated as they are for the page (unfiltered, as noted under Viewer visibility). The rules live in `app/services/domain/order_follow.py`:
+
+| State | When |
+| --- | --- |
+| **done** | The status is in a completed set (`COMPLETED_WATCH_STATUSES`, `_READ_`, `_PLAY_`), or is `Dropped` or `Temp Dropped`; **or** the step has an `ep_end` and the viewer's unit count for the entry is at least `ep_end` |
+| **active** | The status is an in-progress one — `Active Watching`, `Passive Watching`, `Active Reading`, `Passive Reading`, `Active Playing`, `Passive Playing` — and the step is not done by its range, and the range has been reached: a step whose `ep_start` is beyond the next unit (`units + 1 < ep_start`) stays pending, so the second half of a split run is not "now" while the first half is being watched |
+| **pending** | Everything else: no list row, `Might …`, `Plan to …`, `Watch When Airs`, `Watch When Released`, `Paused`, `Won't …` |
+
+The unit count is `UNIT_FIELDS`: `ep_fin` for anime, TV show, cartoon and hentai; `issue_fin` for comic; `ch_fin` for manga and book. A type with no unit count (movies, games, h-comic, h-game) is done by status alone.
+
+`done / total` counts steps. **Now** is every active step — there may be several. **Up next** is the **earliest pending step in reading order**, even when later steps are done: a skipped step is exactly what the follower needs to see. Optional steps are not skipped; the step carries its `importance` and the views show it. Each step is numbered 1..N over the steps the viewer can see.
+
+### Entry context and split runs
+
+`GET /follows/entry/{entry_id}` answers one element per followed order that steps through the entry. An entry that appears in several steps of one order (a split run) gets one **occurrence** per step, each with its own `previous` and `next`, because the two halves sit between different neighbours. Each step carries `number`, `state`, `media_type`, `entry_id`, the entry's `public_id` (for its link), `display_name`, `ep_start` / `ep_end`, `importance`, `note` and `section_name` (the part it sits in, or null).
+
+### UI
+
+| Surface | File | Notes |
+| --- | --- | --- |
+| Follow / Following toggle | `frontend/src/components/tracker/FollowOrderButton.jsx` | On `OrderPage.jsx`'s header and beside the selected order in `OrderSection.jsx`. The section marks the group's followed order "Following" in its chips, its dropdown and its single-order label. Drawn only for `has("self.list")` |
+| Entry detail panel | `frontend/src/components/tracker/FollowedOrderPanel.jsx` | Mounted directly under the `<header>` of all twelve entry detail pages. Its eyebrow names the feature by the page's `mediaType` (`orderNoun`, `frontend/src/lib/orderNoun.js`): "Following Play Order" on the Game page, "Following Order" everywhere else - one feature and one kind of order underneath. A brand-ruled band, deliberately not a `Slip` like Relations in the left column. "Following Order: order (group) · step N / total", then per occurrence the previous step, this step and the next, each with its range, importance chip, part name and note. Renders nothing when no followed order holds the entry |
+| Dashboard | `frontend/src/components/tracker/FollowedOrders.jsx` | "Followed orders (n)", directly under Coming Next on `/`, collapsed by default, gated on `self.list` as Coming Next is, and listed in the contents as "Followed orders" (`schedule-follows`). One row per order: group · order (linked), `done / total` with a progress rule, every **Now** step and the **Next** step, notes left to the order page |
+| Shared step line | `frontend/src/components/tracker/FollowedStep.jsx` | Used by the panel and the dashboard so a step reads the same in both; the range label is `rangeLabel` from `OrderGuide.jsx` |
+
+Hooks: `frontend/src/api/mutations/useOrderFollows.js` — `useOrderFollows`, `useEntryFollows`, `useToggleFollow`, all under the query key prefix `["order-follows"]`, which every follow or unfollow invalidates.
+
+## Krakoan reading orders
+
+`scripts/seed_krakoan_reading_orders.py` builds two comic reading orders on the Marvel Comics franchise (hard-coded `FRANCHISE_ID`) from `UltimateKrakoanAXEReadingOrder.pdf`: "Ultimate Krakoan × A.X.E. Reading Order" (`list_type` Recommended, `is_most_recommended=True`) and "The Combined Core 精簡整合路線". Each plan is a list of `(section_name, section_remark, entries)`; entries resolve to `comic` rows by `(comic_name_en, release_year)` and carry issue ranges (`ep_start`/`ep_end` as issue numbers), importance and notes. It is idempotent (a same-named list on the franchise is deleted and rebuilt) and rolls back if any entry is unresolved, printing the missing keys. Title mismatches between the PDF and Comic Vine are catalogued in [`../notes/comicvine-link-conflicts.md`](../notes/comicvine-link-conflicts.md).
+
+## Related
+
+- `../data-model.md`, `docs/api.md`, `../frontend/pages.md`, `../business-rules.md` — older overviews; this file is the current reference for orders.
+- `app/utils/release_date.py` — `RELEASE_PRIORITY`, `sort_key`, `display` used by built-in orders.
+- `app/services/rbac/enforcement.py` — `apply_entry_visibility`, `drop_hidden_rows`.
+- `app/utils/data_control_utils.py` — "Order" branch of `log_deleted_record`.
+- `tests/api/test_order_hidden_owner.py` — an order or relations scope whose owning group is hidden reads as missing.
+- `tests/api/test_order_follow.py` — following: one per group, per user, permission, every progress rule, visibility, built-in orders, entry context, Sheets.
+- `tests/api/test_order.py` — the behavioural spec (≈150 tests across lists, built-ins, series owners, opt-out, candidates, parts, contiguity, duplication).
