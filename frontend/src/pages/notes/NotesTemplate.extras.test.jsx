@@ -17,6 +17,7 @@ vi.mock("./sections/QuoteSection", () => ({
 }));
 vi.mock("./sections/MemeSection", () => ({
   default: ({ label }) => <div data-testid="meme-section">{label}</div>,
+  GroupMemeRows: () => null,
 }));
 const { auth } = vi.hoisted(() => ({ auth: { features: [] } }));
 vi.mock("../../contexts/AuthContext", () => ({

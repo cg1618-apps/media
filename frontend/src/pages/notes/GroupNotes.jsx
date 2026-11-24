@@ -17,7 +17,9 @@ const OWNER_WORD = { series: "series", franchise: "franchise" };
 
 // `groups` is [{ ownerType, owner, name, notes }] in the order they render
 // (series, then franchise), each already narrowed to this section's rows and
-// holding at least one. `Component` is the section's shape component.
+// holding at least one. `Component` is the section's shape component - or,
+// for an external section, the read view `EXTERNAL_GROUP_ROWS` names for it
+// (`GroupMemeRows`), whose rows are memes rather than notes.
 export default function GroupNotes({ section, groups, Component, optionValues }) {
   return groups.map(({ ownerType, owner, name, notes }) => {
     const label = `From ${OWNER_WORD[ownerType]}: ${name}`;
