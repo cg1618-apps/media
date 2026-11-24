@@ -1299,9 +1299,12 @@ under sticky division headers and the filter bar.
   tracker" without `self.list`, no "Cast" with nobody cast, no "Watch
   orders" for an entry in no followed order.
 - **Notes** list at card level only. `NotesBlocks` wraps the Notes card
-  (`#notes`), each group card (`#notes-<group key>`, labelled with the
-  group's label, e.g. "攻略 Guides") and each standalone section
-  (`#notes-<section key>`) in a `TocSection`; a group's own sections
+  (`#notes`), each group card (`#notes-<group key>`) and each standalone
+  section (`#notes-<section key>`) in a `TocSection`, labelled with only the
+  Chinese part of its label - "攻略" for "攻略 Guides", "資源" for
+  "資源 Resources" (`chineseLabel`, `lib/noteLabels.js`); a label with no
+  Chinese, such as "Notes", or none after it, is listed whole. The card
+  itself keeps the whole label. A group's own sections
   (Beginner, Controls) sit inside its card and are never rows. The hubs
   render `NotesBlocks` too and carry the same anchors, unread.
 - **Not listed**: the header (title, eyebrow, scores) and the left column

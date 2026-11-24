@@ -2243,7 +2243,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     NoteSection(
         key="resources",
         shape=SHAPE_NAME_LINKS,
-        label="Resources",
+        label="資源 Resources",
         owners=ALL_OWNERS,
         scope=SCOPE_CATALOG,
         mixed=True,
@@ -2259,7 +2259,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
     NoteSection(
         key="questions",
         shape=SHAPE_EPISODE_TEXT,
-        label="Questions",
+        label="問題 Questions",
         owners=_all_but(ALL_OWNERS, *_H_READ_OWNERS),
         scope=SCOPE_PERSONAL,
         # The locator here is not an episode: it is whatever prompted the

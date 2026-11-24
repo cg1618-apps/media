@@ -69,7 +69,7 @@ const rows = () => within(contents()).getAllByRole("button").map((b) => b.textCo
 describe("DetailContents", () => {
   it("lists the rendered sections, then the note cards once they load", async () => {
     mount();
-    await waitFor(() => expect(rows()).toEqual(["Naming", "Notes", "攻略 Guides"]));
+    await waitFor(() => expect(rows()).toEqual(["Naming", "Notes", "攻略"]));
   });
 
   it("does not list a section that rendered nothing", async () => {
@@ -80,16 +80,16 @@ describe("DetailContents", () => {
 
   it("lists a note group but not the sections inside it", async () => {
     mount();
-    await waitFor(() => expect(rows()).toContain("攻略 Guides"));
+    await waitFor(() => expect(rows()).toContain("攻略"));
     expect(rows()).not.toContain("Beginner");
     expect(rows()).not.toContain("Controls");
   });
 
   it("anchors each row to its section", async () => {
     mount();
-    await waitFor(() => expect(rows()).toContain("攻略 Guides"));
+    await waitFor(() => expect(rows()).toContain("攻略"));
     expect(document.getElementById("naming")).toHaveAttribute("data-toc", "Naming");
-    expect(document.getElementById("notes-guides")).toHaveAttribute("data-toc", "攻略 Guides");
+    expect(document.getElementById("notes-guides")).toHaveAttribute("data-toc", "攻略");
   });
 
   it("draws the same rows as a pinned chip bar for screens below xl", async () => {
@@ -97,7 +97,7 @@ describe("DetailContents", () => {
     const bar = () => screen.getByRole("navigation", { name: "Sections" });
     await waitFor(() =>
       expect(within(bar()).getAllByRole("button").map((b) => b.textContent)).toEqual(
-        ["Naming", "Notes", "攻略 Guides"],
+        ["Naming", "Notes", "攻略"],
       ),
     );
     expect(bar().className).toMatch(/xl:hidden/);
