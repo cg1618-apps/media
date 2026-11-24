@@ -6,6 +6,7 @@
 // always visible without having to guess which map won.
 import { SIZE_GROUPS } from "../../config/planNextGroups";
 
+import { sectionTitleCls } from "../ui/primitives";
 export default function SizeGroupControls({
   mediaTypes,
   planned,
@@ -32,7 +33,7 @@ export default function SizeGroupControls({
                 onChange={(e) => onTogglePlan(mediaType, e.target.checked)}
                 className="w-4 h-4 accent-brand"
               />
-              <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted">
+              <span className={sectionTitleCls}>
                 {mediaType.replace("-", " ")}
               </span>
             </label>

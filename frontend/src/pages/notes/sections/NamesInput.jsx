@@ -22,6 +22,7 @@ import {
 import { isEnterKey, useEnterSubmitGuard } from "../../../hooks/useEnterToAdd";
 import { inputCls, tagCls } from "./ui";
 
+import { eyebrowCls } from "../../../components/ui/primitives";
 const MAX_SUGGESTIONS = 8;
 
 export default function NamesInput({ label, value = [], onChange, suggestions = [] }) {
@@ -62,7 +63,7 @@ export default function NamesInput({ label, value = [], onChange, suggestions = 
 
   return (
     <div className="space-y-1">
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">{label}</p>
+      <p className={eyebrowCls}>{label}</p>
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {value.map((name) => (

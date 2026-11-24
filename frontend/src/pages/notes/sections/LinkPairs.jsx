@@ -64,7 +64,7 @@ export function LinkPairsEditor({ pairs, onChange, textOptions }) {
       <button
         type="button"
         onClick={() => onChange([...list, { text: "", url: "" }])}
-        className="font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:text-brand transition"
+        className="font-mono text-[11px] text-text-muted hover:text-brand transition"
       >
         + Add link
       </button>

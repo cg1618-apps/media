@@ -262,7 +262,7 @@ function PickerPool({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint">
+          <p className="font-mono text-[11px] text-text-faint">
             {pool.length} in the pool
           </p>
           {canWeight && (

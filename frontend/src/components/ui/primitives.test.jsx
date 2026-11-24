@@ -42,7 +42,7 @@ describe("dashed Chip", () => {
     expect(chip.className).toMatch(/border-dashed/);
     expect(chip.className).toMatch(/bg-transparent/);
     expect(chip.className).toMatch(/font-mono/);
-    expect(chip.className).toMatch(/uppercase/);
+    expect(chip.className).not.toMatch(/uppercase|tracking-/);
   });
 
   it("leaves an ordinary chip solid", () => {

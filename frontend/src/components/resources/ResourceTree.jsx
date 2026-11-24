@@ -144,7 +144,7 @@ function NodeForm({ kind, initial = {}, submitLabel, busy, onSubmit, onCancel })
               type="button"
               onClick={() => setPreview(false)}
               aria-pressed={!preview}
-              className={`px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] border ${
+              className={`px-2 py-0.5 font-mono text-[10px] border ${
                 preview
                   ? "border-border-strong text-text-muted"
                   : "border-brand bg-brand text-on-brand"
@@ -156,7 +156,7 @@ function NodeForm({ kind, initial = {}, submitLabel, busy, onSubmit, onCancel })
               type="button"
               onClick={() => setPreview(true)}
               aria-pressed={preview}
-              className={`px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] border ${
+              className={`px-2 py-0.5 font-mono text-[10px] border ${
                 preview
                   ? "border-brand bg-brand text-on-brand"
                   : "border-border-strong text-text-muted"
@@ -556,7 +556,7 @@ function TopLevelDrop() {
   return (
     <div
       ref={attachDrop}
-      className={`border border-dashed px-3 py-3 text-center font-mono text-[10px] uppercase tracking-[0.12em] ${
+      className={`border border-dashed px-3 py-3 text-center font-mono text-[10px] ${
         drop.over ? "border-brand bg-brand-soft text-brand" : "border-border-strong text-text-faint"
       }`}
     >

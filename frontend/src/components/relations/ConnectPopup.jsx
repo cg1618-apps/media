@@ -136,7 +136,7 @@ export default function ConnectPopup({
                     name={hit.display_name}
                     className="min-w-0 flex-1 truncate"
                   />
-                  <span className="shrink-0 text-[9px] uppercase text-text-faint">
+                  <span className="shrink-0 text-[9px] text-text-faint">
                     {hit.media_type}
                   </span>
                 </button>
@@ -152,7 +152,7 @@ export default function ConnectPopup({
             key={k.key}
             type="button"
             onClick={() => setChosenKind(k.key)}
-            className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
+            className={`rounded-full px-2 py-1 text-[10px] font-black ${
               kind === k.key
                 ? "bg-brand text-on-brand"
                 : "bg-surface-2 text-text-muted hover:bg-surface-3"
@@ -181,14 +181,14 @@ export default function ConnectPopup({
         <button
           type="button"
           onClick={() => setSwapped((s) => !s)}
-          className="rounded-lg border border-border px-2 py-1.5 text-[10px] font-black uppercase text-text-faint"
+          className="rounded-lg border border-border px-2 py-1.5 text-[10px] font-black text-text-faint"
         >
           Swap
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-lg px-2 py-1.5 text-[10px] font-black uppercase text-text-faint"
+          className="rounded-lg px-2 py-1.5 text-[10px] font-black text-text-faint"
         >
           Cancel
         </button>

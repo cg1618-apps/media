@@ -371,7 +371,7 @@ function ItemRow({
                 onClick={() =>
                   onPatch(item.system_id, { importance: level })
                 }
-                className={`font-mono text-[10px] uppercase tracking-[0.12em] px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                className={`font-mono text-[10px] px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                   active
                     ? "bg-brand-soft text-brand"
                     : "text-text-muted hover:text-text"
@@ -755,7 +755,7 @@ function UnfileGap({ index }) {
       }`}
     >
       {open && (
-        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-brand text-center leading-7">
+        <p className="font-mono text-[10px] text-brand text-center leading-7">
           {isPart ? "Drop here to move the part here" : "Drop here to leave it out of any part"}
         </p>
       )}

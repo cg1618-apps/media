@@ -22,7 +22,7 @@ import { Link } from "react-router-dom";
 import { Chip, RatingStamp } from "../ui/primitives";
 
 const TH =
-  "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint font-normal py-2 px-3 text-left whitespace-nowrap";
+  "font-mono text-[10px] text-text-faint font-normal py-2 px-3 text-left whitespace-nowrap";
 const TD = "py-2 px-3 align-middle";
 
 export function DashboardTable({ children }) {
@@ -82,14 +82,14 @@ export function EntryRow({
         </div>
         {subTitle && (
           <div
-            className="truncate font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint"
+            className="truncate font-mono text-[10px] text-text-faint"
             title={subTitle}
           >
             {subTitle}
           </div>
         )}
       </td>
-      <td className={`${TD} font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted whitespace-nowrap`}>
+      <td className={`${TD} font-mono text-[11px] text-text-muted whitespace-nowrap`}>
         {type}
       </td>
       <td className={`${TD} whitespace-nowrap`}>

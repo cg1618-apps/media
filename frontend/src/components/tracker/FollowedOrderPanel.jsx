@@ -54,7 +54,7 @@ function FollowedOrder({ context }) {
             )
           </span>
         )}
-        <span className="ml-auto font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint tabular-nums">
+        <span className="ml-auto font-mono text-[11px] text-text-faint tabular-nums">
           {stepPosition(occurrences, total)}
         </span>
       </div>

@@ -20,7 +20,7 @@ export default function RequestTarget({ request }) {
 
   return (
     <span>
-      <span className="block font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+      <span className="block font-mono text-[10px] text-text-faint">
         {target.type_label}
       </span>
       {target.nav_path && !target.missing ? (

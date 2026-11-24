@@ -92,7 +92,7 @@ function OrderChip({ list, active, followed, onSelect }) {
     >
       {list.is_most_recommended && (
         <span
-          className={`shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] ${
+          className={`shrink-0 font-mono text-[10px] ${
             active ? "text-on-brand/80" : "text-brand"
           }`}
         >
@@ -102,7 +102,7 @@ function OrderChip({ list, active, followed, onSelect }) {
       <span className="truncate max-w-[18rem]">{name}</span>
       {followed && (
         <span
-          className={`shrink-0 font-mono text-[10px] uppercase tracking-[0.12em] ${
+          className={`shrink-0 font-mono text-[10px] ${
             active ? "text-on-brand/80" : "text-brand"
           }`}
         >
@@ -320,7 +320,7 @@ export default function OrderSection({ franchiseId, collectionId, seriesId }) {
                 type="button"
                 aria-pressed={scope === opt.key}
                 onClick={() => selectScope(opt.key)}
-                className={`font-mono text-[11px] uppercase tracking-[0.12em] px-2.5 py-1 transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                className={`font-mono text-[11px] px-2.5 py-1 transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                   scope === opt.key
                     ? "bg-brand-soft text-brand"
                     : "text-text-muted hover:text-text"

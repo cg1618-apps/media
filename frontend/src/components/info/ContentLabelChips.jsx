@@ -11,7 +11,7 @@
 // the API refuses an entry whose labels their active mode does not carry
 // (app/services/rbac/enforcement.py), so a label shown here is one this
 // session holds, never a hint about one it does not.
-import { Chip } from "../ui/primitives";
+import { Chip, eyebrowCls } from "../ui/primitives";
 
 export default function ContentLabelChips({
   labels,
@@ -24,7 +24,7 @@ export default function ContentLabelChips({
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
-      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+      <span className={eyebrowCls}>
         Content
       </span>
       {labels.map((row) => (

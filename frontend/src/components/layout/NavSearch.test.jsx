@@ -228,11 +228,11 @@ describe("the suggestion dropdown", () => {
   it("colours each row's badge by its type", async () => {
     const user = userEvent.setup();
     const list = await typeAndAnswer(user, renderSearch(), "frieren");
-    const badge = within(list).getByText("ANIME");
+    const badge = within(list).getByText("Anime");
     for (const cls of typeHue("anime").split(" ")) {
       expect(badge).toHaveClass(cls);
     }
-    expect(within(list).getByText("FRAN")).toHaveClass("text-scope-franchise");
+    expect(within(list).getByText("Fran")).toHaveClass("text-scope-franchise");
   });
 
   it("closes on Enter", async () => {

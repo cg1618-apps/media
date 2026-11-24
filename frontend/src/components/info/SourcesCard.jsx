@@ -29,7 +29,7 @@ function Tag({ name }) {
   return (
     <span
       data-testid="source-tag"
-      className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.12em] border border-border-strong text-text-muted px-1 py-0.5 leading-none shrink-0"
+      className="inline-flex items-center gap-1 font-mono text-[9px] border border-border-strong text-text-muted px-1 py-0.5 leading-none shrink-0"
     >
       {icon && (
         <LazyImage
@@ -158,7 +158,7 @@ function SourceEntry({ row, coverUrl, exclusive = false }) {
     return (
       <SourceRow icon={icon} cover={cover} muted>
         {name}
-        <span className="ml-2 text-[10px] uppercase tracking-wide">
+        <span className="ml-2 text-[10px]">
           (not available)
         </span>
       </SourceRow>
@@ -273,7 +273,7 @@ export default function SourcesCard({
       )}
       {(accessRows.length > 0 || hasStorefront) && (
         <section aria-label={accessHeading(mediaType)}>
-          <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+          <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] text-text-faint">
             {accessHeading(mediaType)}
           </div>
           {accessRows.map((row) => (
@@ -325,7 +325,7 @@ export default function SourcesCard({
         openLibraryLink ||
         igdbLink) && (
         <section aria-label="Where to Look Up">
-          <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+          <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] text-text-faint">
             Where to Look Up
           </div>
           {referenceRows.map((row) => (

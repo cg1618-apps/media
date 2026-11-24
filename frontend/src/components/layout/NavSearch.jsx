@@ -61,25 +61,25 @@ export function canSearchScope(auth, key) {
 // hue (typeHue, config/scopeColors.js) is an index on top of it, so a reader
 // scanning eight mixed rows finds the type they meant before reading.
 const TYPE_LABEL = {
-  collection: "COLLECT",
-  franchise: "FRAN",
-  series: "SERIES",
-  anime: "ANIME",
-  "anime-movie": "A.MOVIE",
-  movie: "MOVIE",
+  collection: "Collect",
+  franchise: "Fran",
+  series: "Series",
+  anime: "Anime",
+  "anime-movie": "A.Movie",
+  movie: "Movie",
   "tv-show": "TV",
-  cartoon: "CARTOON",
-  manga: "MANGA",
-  book: "BOOK",
-  comic: "COMIC",
-  game: "GAME",
-  "h-comic": "H-COMIC",
-  "h-game": "H-GAME",
-  hentai: "HENTAI",
-  seasonal: "SEASON",
-  person: "PERSON",
-  studio: "STUDIO",
-  publisher: "PUBLISH",
+  cartoon: "Cartoon",
+  manga: "Manga",
+  book: "Book",
+  comic: "Comic",
+  game: "Game",
+  "h-comic": "H-Comic",
+  "h-game": "H-Game",
+  hentai: "Hentai",
+  seasonal: "Season",
+  person: "Person",
+  studio: "Studio",
+  publisher: "Publish",
 };
 
 // Result types that open a detail page. The bucket key is the route segment,
@@ -391,7 +391,7 @@ export default function NavSearch({ variant = "inline", onDone }) {
           onClick={() => setShowScopeMenu((s) => !s)}
           aria-haspopup="listbox"
           aria-expanded={showScopeMenu}
-          className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-ink-text/60 hover:text-ink-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand transition whitespace-nowrap group-focus-within:text-text-muted"
+          className="flex items-center gap-1 pl-3 pr-1.5 py-1.5 font-mono text-[11px] text-ink-text/60 hover:text-ink-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand transition whitespace-nowrap group-focus-within:text-text-muted"
         >
           {scopeLabel}
         </button>
@@ -410,7 +410,7 @@ export default function NavSearch({ variant = "inline", onDone }) {
                   setSearchScope(s.key);
                   setShowScopeMenu(false);
                 }}
-                className={`w-full text-left px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.08em] transition ${
+                className={`w-full text-left px-3 py-1.5 font-mono text-[11px] transition ${
                   searchScope === s.key
                     ? "text-brand bg-brand-soft"
                     : "text-text-muted hover:bg-surface-2 hover:text-text"

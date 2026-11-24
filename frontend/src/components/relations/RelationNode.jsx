@@ -115,7 +115,7 @@ export default function RelationNode({ data, selected, isConnectable = true }) {
           className="line-clamp-2 text-xs font-black leading-tight text-text"
         />
         <span
-          className={`mt-1 inline-block px-1.5 py-px font-mono text-[9px] uppercase tracking-[0.12em] ${mediaTypeChip(
+          className={`mt-1 inline-block px-1.5 py-px font-mono text-[9px] ${mediaTypeChip(
             media_type,
           )}`}
         >

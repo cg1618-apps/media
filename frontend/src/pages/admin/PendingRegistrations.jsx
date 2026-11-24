@@ -53,7 +53,7 @@ export default function PendingRegistrations() {
 
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
-      <h2 className="text-lg font-black text-text uppercase tracking-widest mb-4 flex items-center border-b border-border pb-2">
+      <h2 className="text-lg font-black text-text mb-4 flex items-center border-b border-border pb-2">
         Pending Registrations
       </h2>
       {pending.isLoading ? (
@@ -134,7 +134,7 @@ function PendingRow({ user, roles }) {
       <span className="font-mono text-sm text-text min-w-[8rem] self-center">
         {user.username}
       </span>
-      <label htmlFor={`${id}-role`} className="flex flex-col gap-1 text-[10px] font-bold text-text-faint uppercase tracking-wider">
+      <label htmlFor={`${id}-role`} className="flex flex-col gap-1 text-[10px] font-bold text-text-faint">
         Role
         <select
           id={`${id}-role`}
@@ -149,7 +149,7 @@ function PendingRow({ user, roles }) {
           ))}
         </select>
       </label>
-      <label htmlFor={`${id}-ceiling`} className="flex flex-col gap-1 text-[10px] font-bold text-text-faint uppercase tracking-wider">
+      <label htmlFor={`${id}-ceiling`} className="flex flex-col gap-1 text-[10px] font-bold text-text-faint">
         Ceiling
         <select
           id={`${id}-ceiling`}
@@ -164,7 +164,7 @@ function PendingRow({ user, roles }) {
           ))}
         </select>
       </label>
-      <label htmlFor={`${id}-default`} className="flex flex-col gap-1 text-[10px] font-bold text-text-faint uppercase tracking-wider">
+      <label htmlFor={`${id}-default`} className="flex flex-col gap-1 text-[10px] font-bold text-text-faint">
         Default
         <select
           id={`${id}-default`}

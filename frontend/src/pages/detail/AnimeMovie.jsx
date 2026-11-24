@@ -169,7 +169,7 @@ export default function AnimeMovie() {
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
           <Link to="/library/anime-movie" className="hover:text-brand transition">
@@ -193,7 +193,7 @@ export default function AnimeMovie() {
       {/* Admin toolbar: a plain instrument strip */}
       {isAdmin && (
         <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">
+          <Eyebrow className="text-[11px] text-text-muted">
             Admin
           </Eyebrow>
           <div className="flex flex-wrap gap-2">

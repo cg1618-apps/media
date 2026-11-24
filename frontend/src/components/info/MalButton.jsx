@@ -17,7 +17,7 @@ export function SiteButton({ href, site }) {
       target="_blank"
       rel="noreferrer"
       aria-label={`Open on ${site}`}
-      className="inline-flex items-center gap-1.5 border border-border px-2 py-0.5 font-mono text-[11px] uppercase tracking-[0.12em] text-text-muted hover:border-brand hover:text-brand"
+      className="inline-flex items-center gap-1.5 border border-border px-2 py-0.5 font-mono text-[11px] text-text-muted hover:border-brand hover:text-brand"
     >
       {icon && <LazyImage src={icon} alt="" className="w-3.5 h-3.5" />}
       {site}

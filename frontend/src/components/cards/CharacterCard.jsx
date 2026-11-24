@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 
 import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { useEntityHref } from "../../lib/entityPath";
-import { Chip, RatingStamp } from "../ui/primitives";
+import { Chip, RatingStamp, eyebrowCls } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 
 // An identity card is drawn as one: a dashed border and divider (the dashed
@@ -93,7 +93,7 @@ export default function CharacterCard({ character }) {
                   data-character-face
                 />
               </span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint truncate">
+              <span className="font-mono text-[10px] text-text-faint truncate">
                 {character.character_display_name}
               </span>
             </span>
@@ -104,7 +104,7 @@ export default function CharacterCard({ character }) {
             </span>
           </>
         ) : (
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+          <span className={eyebrowCls}>
             {castingCount} casting{castingCount !== 1 ? "s" : ""}
           </span>
         )}

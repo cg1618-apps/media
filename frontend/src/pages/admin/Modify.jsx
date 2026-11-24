@@ -3,6 +3,7 @@ import { usePageTitle } from "../../contexts/PageTitleContext";
 import { editorTitle } from "../../lib/pageTitle";
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
+import { ownerTypeLabel } from "../../config/mediaRegistry";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
@@ -2952,7 +2953,7 @@ export default function Modify() {
                   setOptCatFilter("");
                 }}
               />
-              <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+              <label className="block text-[10px] font-bold text-text-faint mb-1">
                 Select Category
               </label>
               <OptionCategorySelect
@@ -2983,7 +2984,7 @@ export default function Modify() {
 
           {activeTab !== "options" && (
             <div>
-              <p className="text-xs font-black text-text-faint uppercase tracking-widest mb-3">
+              <p className="text-xs font-black text-text-faint mb-3">
                 <i className="fas fa-clock mr-1"></i> Recently Modified
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -3078,7 +3079,7 @@ export default function Modify() {
               {getItemLabel(editingItem, editingType)}
             </h2>
             <p className="text-xs text-brand font-bold">
-              {editingType.toUpperCase()}
+              {ownerTypeLabel(editingType)}
             </p>
 
             {/* The mark is its own row, saved on its own: every owner type
