@@ -1,6 +1,6 @@
 // The page chrome shared by the Collection, Franchise and Series hubs, in the
-// archive look: mono breadcrumb, dashed admin strip, cover with an ink spine
-// strip and the rating stamp, underline tab bar, section slips.
+// archive look: mono breadcrumb, dashed admin strip, cover with the rating
+// stamp, underline tab bar, section slips.
 //
 // Each hub still owns its hero *contents* (the fields beside the cover) and
 // its tab wiring; you only come here when a change should land on all three
@@ -86,28 +86,14 @@ export function AdminStrip({ editId }) {
 }
 
 /**
- * Cover with the ink spine strip, the rating stamp and - when the tier tracks
+ * The cover with the rating stamp and - when the tier tracks
  * completion - a progress rule along the bottom edge. Leave `total` undefined
  * to drop the rule (a collection tracks no completion).
  */
 // `cover` is a resolved { url, focus } from lib/covers.js.
-export function HeroCover({ cover, spine, id, rating, done, total, pct }) {
+export function HeroCover({ cover, rating, done, total, pct }) {
   return (
     <div className="flex border border-border bg-surface">
-      <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
-        <span
-          className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
-          style={{ writingMode: "vertical-rl" }}
-        >
-          {spine}
-        </span>
-        <span
-          className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
-          style={{ writingMode: "vertical-rl" }}
-        >
-          {id}
-        </span>
-      </div>
       <div className="relative flex-1 min-w-0">
         <RatingStamp
           rating={rating}

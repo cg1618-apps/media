@@ -176,3 +176,16 @@ describe("TV detail page information", () => {
     expect(screen.getByText("47")).toBeInTheDocument();
   });
 });
+
+// The cover carries no spine strip: no type label down its edge and no entry
+// id. An editor (manage.catalog) is the session that used to be shown the id,
+// so it is the one that has to come back without it.
+describe("TV detail page cover", () => {
+  it("draws no spine strip and no entry id, even for an editor", async () => {
+    mockFetch(SHOW, { admin: true, permissions: ["manage.catalog", "self.list"] });
+    const { container } = mount();
+    await screen.findByRole("heading", { name: "測試劇" });
+    expect(container.querySelector('[style*="vertical-rl"]')).toBeNull();
+    expect(screen.queryByText(SHOW.system_id)).toBeNull();
+  });
+});

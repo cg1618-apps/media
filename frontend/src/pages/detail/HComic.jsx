@@ -440,22 +440,6 @@ export default function HComic() {
         {/* ========== LEFT COLUMN ========== */}
         <div className="lg:col-span-1 space-y-6">
           <div className="flex border border-border bg-surface">
-            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center justify-between py-2">
-              <span
-                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
-                style={{ writingMode: "vertical-rl" }}
-              >
-                H-Comic{region ? ` · ${region}` : ""}
-              </span>
-              {has("manage.catalog") && (
-                <span
-                  className="font-mono text-[9px] tracking-[0.1em] opacity-60 whitespace-nowrap"
-                  style={{ writingMode: "vertical-rl" }}
-                >
-                  {hComic.system_id}
-                </span>
-              )}
-            </div>
             <div className="relative flex-1 min-w-0">
               <RatingStamp
                 rating={hComic.my_rating}

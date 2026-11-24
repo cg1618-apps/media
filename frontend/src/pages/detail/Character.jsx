@@ -156,14 +156,6 @@ export default function Character() {
         {/* ========== LEFT COLUMN: the profile ========== */}
         <div className="lg:col-span-1 space-y-6">
           <div className="flex border border-border bg-surface">
-            <div className="w-7 shrink-0 bg-ink text-ink-text flex flex-col items-center py-2">
-              <span
-                className="font-mono text-[10px] uppercase tracking-[0.2em] whitespace-nowrap"
-                style={{ writingMode: "vertical-rl" }}
-              >
-                Character
-              </span>
-            </div>
             <div
               className="relative flex-1 min-w-0 bg-surface-2 overflow-hidden"
               style={{ aspectRatio: "2/3" }}

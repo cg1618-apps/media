@@ -1362,13 +1362,11 @@ export default function FranchisePage() {
 
       {isAdmin && <AdminStrip editId={system_id} />}
 
-      {/* Hero: cover with spine strip, then the identity block */}
+      {/* Hero: the cover, then the identity block */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
           <HeroCover
             cover={cover}
-            spine={`Franchise · ${franchise.franchise_type || "—"}`}
-            id={franchise.system_id}
             rating={ownData ? franchise.my_rating : null}
             done={completedCount}
             total={totalEntries}

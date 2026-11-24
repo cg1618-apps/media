@@ -1,7 +1,7 @@
 // Frontend: page component file for CollectionPage.
 //
-// The Collection hub. Same shape as the Franchise and Series hubs - cover with
-// spine strip, identity block, two-group tab bar, section slips - but a
+// The Collection hub. Same shape as the Franchise and Series hubs - cover,
+// identity block, two-group tab bar, section slips - but a
 // collection groups franchises rather than media entries, so its contents
 // group holds the one "Franchises" tab instead of a tab per media type, and
 // there are no status filters or roll-up statistics. Clicking a member card
@@ -231,13 +231,11 @@ export default function CollectionPage() {
 
       {isAdmin && <AdminStrip editId={collection.system_id} />}
 
-      {/* Hero: cover with spine strip, then the identity block */}
+      {/* Hero: the cover, then the identity block */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-1">
           <HeroCover
             cover={cover}
-            spine="Collection"
-            id={collection.system_id}
             rating={ownData ? collection.my_rating : null}
           />
         </div>

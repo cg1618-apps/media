@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -81,8 +81,7 @@ toggled inside a hub does not update the library cache until it goes stale.
   (`pages/notes` below); a control belonging to the administrator asks
   its own key with `has()` (the role chip asks `isAdmin || has("admin.authz")`,
   Back up asks `has("manage.pipelines")`, the announcement editor on
-  `/system` asks `has("manage.announcements")`, the poster-spine entry id on
-  the twelve detail pages asks `has("manage.catalog")`), and the guest
+  `/system` asks `has("manage.announcements")`), and the guest
   scope's flags are read through `useViewScope()`. `refetchAuth()` is
   *not* how an identity change is applied: sign-in, sign-out and an
   access-mode switch each call `hardNavigate()` (`lib/hardNavigate.js`) and

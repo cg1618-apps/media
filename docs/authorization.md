@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -670,9 +670,8 @@ field group:
   *is*, and nothing withholds them from anyone — not a role permission either.
 - **`created_at` / `updated_at` are ungated.** When the catalogue *row* was
   last edited is a fact about the database rather than about the work, and no
-  page displays it. See
-  [The entry id on the poster spine](#the-entry-id-on-the-poster-spine) for
-  the one visible id.
+  page displays it. Nor does any page print an entry's `system_id`; see
+  [The entry id](#the-entry-id).
 
 **`sources_restricted` is withheld in `safe`.**
 `FIELD_GROUP_LOWEST_MODE` in `app/services/rbac/seed_modes.py` names `normal`
@@ -699,7 +698,7 @@ with the component named in JSX. A string documenting a mapping the code does
 not make is worse than no string, because the next reader changes it and
 expects an effect.
 
-#### The entry id on the poster spine
+#### The entry id
 
 **`system_id` is not gated at all**, and never was. That id is the route
 parameter of the page the viewer is already on (`/anime/<system_id>`), as well
@@ -710,13 +709,8 @@ answering 404, and a viewer can only learn an id for an entry they were
 already allowed to see. Removing it from the UI entirely would mean routing on
 slugs instead of UUIDs.
 
-A decorative copy of it is printed down the spine of a detail page's poster,
-and **that block is drawn for a catalogue editor** — `has("manage.catalog")`,
-which in practice is `super`, the account that reads and writes the
-catalogue. There is nothing to gate server-side, so there is no permission to
-invent: the SPA asks a key `/api/auth/me` already carries. It is
-presentation, like every `has()` call that hides a block the server has
-already emptied.
+No page prints it: a detail page's cover carries no spine strip, so neither
+the type label nor the id is drawn beside it.
 
 Withheld fields are **absent, not blanked**, in the UI as well as the API: the
 "Last updated" figure is dropped rather than showing `—`, for the same reason
@@ -2027,9 +2021,8 @@ What an admin can change from the browser, and what needs a commit:
 | which field groups exist | | `field_groups.py` |
 | which media types / field-group families exist | | `permissions.py`, the registry |
 
-Some blocks the SPA hides itself: the detail pages ask
-`useAuth().has("manage.catalog")` to draw the poster-spine id. The component is named in
-JSX, not declared anywhere server-side — there is no `ui_block` field and
+Some blocks the SPA hides itself, asking `useAuth().has(...)` for a key
+`/api/auth/me` already carries. The component is named in JSX, not declared anywhere server-side — there is no `ui_block` field and
 never was a mapping behind it.
 Where the server already blanks the value there is nothing to ask —
 `ScoreBlock.jsx` drops its "Last updated" figure on a null timestamp, so the
