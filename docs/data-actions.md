@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -370,6 +370,9 @@ next Pull. Pull drops one leading apostrophe if a cell still carries it
 (`_text_cell_from_sheet`), and restores the value verbatim - neither clearing
 rule in [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)
 runs on a restore.
+
+`is_pinged` travels as `TRUE` / `FALSE`. The column is NOT NULL, so a blank
+cell - a sheet backed up before the column existed - restores as `false`.
 
 **`Plan Next`, `Seasonal`, `Watch Order Follow`, `User Rating` and `User Book Unit Rating`** drop `user_id` for `username` too, for the same
 reason (the follow and the two rating tabs have carried `username` from their first day, so they meet the fallback below only for a hand-built sheet). Pull falls back to `_restore_owner_id` — the [installation owner](#the-installation-owner), and with none the row is skipped and counted — **only** when the header is absent

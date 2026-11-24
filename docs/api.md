@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -2664,7 +2664,7 @@ which keys a type owns.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/me/list/{media_id}` | The caller's row. Never creates one: an entry they have never touched reads back the type's default status and `null` for the rest, the same values `attach_list_fields` puts on an untouched entry. 404 on an unknown `media_id`. |
-| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a book's arc cursor is derived. The `time_fin` rules apply here as on the entry endpoints: stripped, a blank stored as `null`, and cleared when `ep_fin` goes up or the status becomes Completed ([business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)). A Completed status stamps `completed_at`, and a write that carries the progress counter up to its total finishes the caller's row as a catalogue `PATCH` does ([business-rules.md](business-rules.md#reaching-the-total-completes)) - the row's half only, never the work's airing or serialization status. |
+| PUT | `/api/me/list/{media_id}` | Upsert. A key this media type does not own is **422**, not silently dropped - `is_pinged` on a gated type among them. 404 on an unknown `media_id`. Runs the type's `progress_hook_list` after the payload, as the entry endpoints do: an h-comic's `usefulness` outside its vocabulary is **422** and the counter its region does not use is cleared; a book's arc cursor is derived. The `time_fin` rules apply here as on the entry endpoints: stripped, a blank stored as `null`, and cleared when `ep_fin` goes up or the status becomes Completed ([business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress)). A Completed status stamps `completed_at`, and a write that carries the progress counter up to its total finishes the caller's row as a catalogue `PATCH` does ([business-rules.md](business-rules.md#reaching-the-total-completes)) - the row's half only, never the work's airing or serialization status. |
 | PUT | `/api/me/plan-flags/{media_id}` | The caller's plan flags on one entry, by the type's own keys (`watch_next`, `to_rewatch`, `read_next`, `to_reread`, `play_next`, `to_replay`, as `PLAN_FLAG_FIELDS` gives each type). Body `{key: bool}`; a key left out is untouched, a key the type lacks is **422**. Returns every flag the type has as the caller now holds it. 404 on an unknown or hidden entry. |
 
 Neither route takes a user id, so there is no shape of request that writes

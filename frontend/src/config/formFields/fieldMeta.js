@@ -278,6 +278,7 @@ export const COMMON_FIELD_META = {
   },
 
   // ---- Flags -----------------------------------------------------------
+  is_pinged: { label: "Pinged", control: "checkbox", group: "Flags" },
   watch_next: { label: "Watch Next", control: "checkbox", group: "Flags" },
   to_rewatch: { label: "To Rewatch", control: "checkbox", group: "Flags" },
   read_next: { label: "Read Next", control: "checkbox", group: "Flags" },

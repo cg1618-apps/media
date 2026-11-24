@@ -404,6 +404,10 @@ export default function Anime() {
               myRating={anime.my_rating}
               timeFin={anime.time_fin}
               canTrack={ownData}
+              pinged={anime.is_pinged}
+              onPingedChange={(v) =>
+                saveOwn({ is_pinged: v }, v ? "Pinned to the dashboard" : "Unpinned")
+              }
               onEpChange={(v) =>
                 saveOwn({ ep_fin: v }, "Episode progress saved")
               }

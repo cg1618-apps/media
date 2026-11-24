@@ -88,6 +88,8 @@ class GameBase(BaseModel):
     metacritic_user_score: Optional[float] = None
 
     my_rating: Optional[str] = None
+    # Pinned to the viewer's dashboard (user_media_list.is_pinged).
+    is_pinged: bool = False
     cover_image_file: Optional[str] = None
     cover_image_focus: ImageFocus = None
 

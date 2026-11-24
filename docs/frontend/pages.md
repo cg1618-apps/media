@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -329,7 +329,7 @@ loading state until then, because before it every viewer looks like a guest.
 | Part | Asks | Who that is, as seeded |
 |---|---|---|
 | The admin's own page (`AdminDashboard`), **instead of** everything below | `has("admin.authz")` and none of `LIBRARY_MEDIA_TYPE_PERMISSIONS`, the Library tab's own question | admin |
-| Tracker: My watch schedule, Coming Next, Followed orders, the type filter bar, Watching, Reading, Playing | `has("self.list")` | super, user |
+| Tracker: My watch schedule, Coming Next, Followed orders, the type filter bar, Pinged, Watching, Reading, Playing | `has("self.list")` | super, user |
 | Summary (`DashboardSummary`) above Announcements | `has("self.list") && has("manage.requests")` | super |
 | Libraries (`#libraries`, `LibraryLinks`) | `!has("self.list")`, and at least one library row visible | guest, shared |
 | Recently added (`#recent`, `RecentlyAdded`) | `!has("self.list") && has("view.random_picker")` | shared |
@@ -392,11 +392,12 @@ lists; announcements, the three Coming Next queries, the summary and
 recently added stay out of it so a failure there never blanks the dashboard.
 The summary and recently added each show their own error in place.
 
-**Type filter and view**: one `TypeFilterBar` sits above the Watching
-division and is the sticky header for Watching, Reading and Playing together —
-it pins below the nav from where Watching starts to where Playing ends, and
-Announcements and Schedule above it keep their own sticky division headers.
-The three tracker division titles (Watching, Reading, Playing) do **not** pin;
+**Type filter and view**: one `TypeFilterBar` sits above the Pinged
+division and is the sticky header for Pinged, Watching, Reading and Playing
+together — it pins below the nav from where Pinged starts to where Playing
+ends, and Announcements and Schedule above it keep their own sticky division
+headers. The tracker division titles (Pinged, Watching, Reading, Playing) do
+**not** pin;
 their sub-section headers (Active watching, Passive reading, …) pin below the
 bar, which reports its measured height so they stack under it.
 
@@ -404,7 +405,7 @@ The bar's type filter is single-select over `MEDIA_TYPES` (All / Anime / Anime
 Movie / Movie / TV Show / Cartoon / Manga / Book / Comic / Game); clicking the active type again
 returns to All. Picking a type does two things: each section shows only that
 type's entries, and every division that cannot hold the type is **not
-rendered at all** (`DIVISION_TYPES`: Watching holds `WATCHING_TYPES`, Anime ·
+rendered at all** (`DIVISION_TYPES`: Pinged holds every type, Watching holds `WATCHING_TYPES`, Anime ·
 Anime Movie · Movie · TV Show · Cartoon,
 Reading holds Manga · Book · Comic, Playing holds Game). So picking Game
 leaves only Playing. The TOC drops the links of hidden divisions with them.
@@ -436,6 +437,7 @@ headers and the filter bar already pin under the nav):
 | `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed watch orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next — see [../systems/watch-orders.md](../systems/watch-orders.md#following). |
 | `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown. Not drawn when there are none. |
 | `#recent` | Recently added | `view.random_picker` without a list (shared): one section per visible type, newest first — anime two rows, every other type one. |
+| `#pinged` | Pinged (Watching · Reading · Playing) | members only. Every entry the viewer has pinned (`is_pinged`), whatever its status, grouped into three **soft sections** — Watching, Reading, Playing — each an eyebrow on a dotted rule (`Watching · 3`), the way a type eyebrow groups a sub-section's cards. A soft section reads its division's own sorted, filtered list, so its pins keep that division's order and follow the type filter; one with no pins is not drawn, and with none at all the division says so. The soft sections are not anchors: the contents lists Pinged alone. The cards are each type's own dashboard card (a local `TrackerCard` picks it), steppers included, and list view draws one `DashboardTable` per soft section. A pinned entry is still drawn in its own division as well. |
 | `#watching` | Watching (Anime · Anime Movie · Movie · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → Anime Movie → Movie → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A film's card has no stepper - there is no episode to count - and shows **Paused at** (`time_fin`, a dash when unset) and its **Runtime** (`length_min`) instead; in list view its progress cell reads `at <time_fin>`, or the runtime. The two film lists are the ones Coming Next already fetches for a member, outside the combined loading state, so the films join the division when they arrive. Shown when no type is picked or the picked type is one of its five. |
 | `#reading` | Reading (Manga · Book · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Book → `BookDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
@@ -1289,7 +1291,8 @@ state, `useMediaList("franchise", LIST_OPTIONS)`, `useMediaList("series")`
 whose value it is:
 
 - **The viewer's own** - status, my rating, progress counters, Paused at
-  (`time_fin`), usefulness, Book's `progress_display` and the plan flags
+  (`time_fin`), usefulness, Book's `progress_display`, the pin (`is_pinged`)
+  and the plan flags
   (`watch_next` / `to_rewatch` and each type's spelling) - go through
   `saveOwn(fields, msg)` from `hooks/useOwnTrackerSave.js`, which calls
   `useStatusToggle(type)`: plan flags to `PUT /api/me/plan-flags/{id}`, every
@@ -1449,7 +1452,9 @@ and not at all for anyone else - an editor without `self.list` included -
 and every control in it is enabled and saves through `saveOwn`, never the
 catalogue PATCH. `MyTrackerCard` (`components/tracker/MyTrackerCard.jsx`:
 progress stepper with cumulative counts, status select, rating select,
-an optional **Paused at** text input (`time_fin`, `PausedAtInput`), optional
+an optional **Paused at** text input (`time_fin`, `PausedAtInput`), an
+optional **Pinged** checkbox (`is_pinged`, drawn when the page passes
+`onPingedChange` - all seven of its ordinary-type pages do), optional
 Watch/Read Next and To Rewatch/Reread checkboxes) on Anime, TV (`watch_next`
 + `to_rewatch`), Cartoon (`watch_next`), AnimeMovie and Movie (no stepper,
 `watch_next` + `to_rewatch`, Paused at placeholder `1:10:00`) - those five
@@ -1467,8 +1472,8 @@ editor's: a select for `isAdmin`, written through the catalogue PATCH, and a
 read-only `Chip` for any other signed-in viewer; nothing at all for a
 logged-out visitor.
 Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
-`read_next`, `to_reread`); Book uses `components/tracker/BookTrackerBlock`
-(`ch_fin/vol_fin/arc_fin` by `progress_display`); H-Comic and Hentai use the
+`is_pinged`, `read_next`, `to_reread`); Book uses `components/tracker/BookTrackerBlock`
+(`ch_fin/vol_fin/arc_fin` by `progress_display`, and the Pinged checkbox); H-Comic and Hentai use the
 local blocks described below. All take `canTrack` and draw nothing without
 it. **Mark completed** stays in the editor's toolbar: `POST /{id}/complete`
 asks `manage.catalog` and also writes the work's airing status. A list

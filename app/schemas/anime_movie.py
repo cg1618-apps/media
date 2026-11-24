@@ -28,6 +28,8 @@ class AnimeMovieBase(BaseModel):
     release_type: Literal["Cinema", "ONA"] = "Cinema"
     watching_status: str = "Might Watch"
     my_rating: Optional[str] = None
+    # Pinned to the viewer's dashboard (user_media_list.is_pinged).
+    is_pinged: bool = False
     # "Paused at": free text, stored stripped and NULL when blank.
     time_fin: Optional[str] = None
 

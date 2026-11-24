@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1029,6 +1029,7 @@ number among them is `vol_fin_page`, a page. See
 | `issue_fin` | Float | yes | | comic |
 | `page_fin` | Float | yes | | h_comic (JP; cleared on KR) |
 | `usefulness` | String | yes | | h_comic, h_game, hentai. H_COMIC_USEFULNESS, checked on every write; personal for the reason `my_rating` is |
+| `is_pinged` | Boolean | **no** | false | **Pinged**: the entry is drawn in the dashboard's Pinged division, whatever its status. The nine ordinary types; the gated three do not own the key. An entry with no row reads `false`, and a `null` written through `PUT /api/me/list` stores `false`. |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 **Which keys a type owns** is `LIST_FIELDS`, not this table's shape. A write

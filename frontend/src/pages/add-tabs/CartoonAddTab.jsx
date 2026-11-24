@@ -137,7 +137,14 @@ export function CartoonFormBody({ f, u, sources, ownerId }) {
           />
         </Field>
       </div>
-      <EntryFlags f={f} u={u} flags={[["watch_next", "Watch Next", "Add to Watch Next list"]]} />
+      <EntryFlags
+        f={f}
+        u={u}
+        flags={[
+          ["is_pinged", "Pinged", "Pin to the dashboard"],
+          ["watch_next", "Watch Next", "Add to Watch Next list"],
+        ]}
+      />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
       <div className={row2}>

@@ -146,8 +146,12 @@ export function PausedAtInput({
   );
 }
 
-/** One plan flag as a checkbox - Watch next, To rewatch, and each type's spelling. */
-function PlanFlagToggle({ label, checked, onChange }) {
+/**
+ * One personal flag as a checkbox - the plan flags (Watch next, To rewatch,
+ * and each type's spelling) and Pinged. Exported for the trackers that lay
+ * out their own fields (manga's, book's).
+ */
+export function PlanFlagToggle({ label, checked, onChange }) {
   return (
     <div className="space-y-1.5">
       <Eyebrow className="block">{label}</Eyebrow>
@@ -175,6 +179,7 @@ export default function MyTrackerCard({
   timeFin,
   watchNext,
   toRewatch,
+  pinged,
   canTrack,
   onEpChange,
   onStatusChange,
@@ -182,6 +187,7 @@ export default function MyTrackerCard({
   onTimeFinChange,
   onWatchNextChange,
   onToRewatchChange,
+  onPingedChange,
   statusOptions,
   ratingOptions,
   statusLabel = "Watching status",
@@ -258,6 +264,14 @@ export default function MyTrackerCard({
             canTrack={canTrack}
             onChange={onTimeFinChange}
             placeholder={pausedPlaceholder}
+          />
+        )}
+        {/* Pinned to the dashboard's Pinged division. */}
+        {typeof onPingedChange === "function" && (
+          <PlanFlagToggle
+            label="Pinged"
+            checked={pinged}
+            onChange={onPingedChange}
           />
         )}
         {onWatchNextChange !== undefined && (

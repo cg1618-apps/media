@@ -146,7 +146,10 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
       <EntryFlags
         f={f}
         u={u}
-        flags={[["watch_next", "Watch Next", "Add to Watch Next list"]]}
+        flags={[
+          ["is_pinged", "Pinged", "Pin to the dashboard"],
+          ["watch_next", "Watch Next", "Add to Watch Next list"],
+        ]}
       />
 
       {/* Season and Part are form-only: the payload derives season_part

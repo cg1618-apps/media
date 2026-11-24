@@ -247,5 +247,7 @@ describe("HGameAddTab layout", () => {
       "To Replay",
       "Mark for replay",
     ]);
+    // A gated type has no is_pinged: its API refuses the key with a 422.
+    expect(tracker).not.toContain("Pinged");
   });
 });

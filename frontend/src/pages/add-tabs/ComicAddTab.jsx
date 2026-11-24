@@ -43,6 +43,7 @@ const eventsToArray = (s) =>
     .filter(Boolean);
 
 const FLAGS = [
+  ["is_pinged", "Pinged", "Pin to the dashboard"],
   ["read_next", "Read Next", "Add to Read Next list"],
   ["to_reread", "To Reread", "Mark for reread"],
 ];
