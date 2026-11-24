@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -264,8 +264,9 @@ columns.
   `franchiseColumn`, `airingStatusColumn`, `myRatingColumn`, `malRatingColumn`,
   `imdbRatingColumn` (any IMDb field - TV shows and cartoons add one for
   `imdb_series_rating`), `watchButtonColumn`, `readButtonColumn`,
-  `planFlagColumn`, `myRatingSort`, `malRatingSort`, `imdbRatingSort`,
-  `imdbSeriesRatingSort`, `usefulnessSort`; the factories that read the
+  `planFlagColumn`, `myRatingSort` (a factory: each library passes its public
+  score sort and its title order, the two tie-breaks), `malRatingSort`,
+  `imdbRatingSort`, `imdbSeriesRatingSort`, `usefulnessSort`; the factories that read the
   viewer's own value - `myRatingColumn`, the three status buttons,
   `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
   themselves, see [The `personal` flag](#the-personal-flag)),

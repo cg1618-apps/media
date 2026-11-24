@@ -233,12 +233,26 @@ export function planFlagColumn(field, header) {
 // Sort comparators
 // ---------------------------------------------------------------------------
 
-export const myRatingSort = {
-  key: "my_rating",
-  label: "My Rating",
-  personal: true,
-  compare: (a, b) => getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating),
-};
+/**
+ * My Rating, built per library. A rating tie falls through to the type's
+ * public score - `publicScore`, the library's own MAL, IMDb or Metacritic
+ * sort, higher first - and then to `title`, the library's title order. A type
+ * with no public score (comic and the gated three) passes none and goes
+ * straight to the title. Both get the franchise and series lookups the
+ * sort is called with, since anime's title order reads them. A media entry carries no expectation; that tie-break
+ * is the grouping tiers' (lib/groupSort.js).
+ */
+export function myRatingSort({ publicScore, title }) {
+  return {
+    key: "my_rating",
+    label: "My Rating",
+    personal: true,
+    compare: (a, b, ...rest) =>
+      getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating) ||
+      (publicScore ? publicScore.compare(a, b, ...rest) : 0) ||
+      title(a, b, ...rest),
+  };
+}
 
 // The three gated types share h-comic's usefulness vocabulary, which is listed
 // most useful first; a sort follows that order, with an unset value last.

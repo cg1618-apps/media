@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getDisplayName, cleanString, parseTypes } from "../../utils/media";
-import { compareGroups } from "../../lib/groupSort";
+import { compareGroups, expectationTone } from "../../lib/groupSort";
 import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import FranchiseCard from "../../components/cards/FranchiseCard";
@@ -151,7 +151,9 @@ const TABLE_COLUMNS = [
     tdClass: `text-center ${HIDDEN.lg}`,
     render: (f) =>
       f.franchise_expectation ? (
-        <Chip className="text-[9px]">{f.franchise_expectation}</Chip>
+        <Chip tone={expectationTone(f.franchise_expectation)} className="text-[9px]">
+          {f.franchise_expectation}
+        </Chip>
       ) : (
         "-"
       ),

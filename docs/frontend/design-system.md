@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -59,7 +59,10 @@ counts). `h1` is display by default.
    not get an icon.
 5. **Colour never encodes a category.** Media type, airing status,
    expectation and the like are text (`Chip`, tone `ink`). The exceptions
-   are the rating stamp (brand), destructive states (danger), two
+   are the rating stamp (brand), a **Highest** expectation (brand, and only
+   Highest - `expectationTone` in `lib/groupSort.js`, on the group cards,
+   the franchise and series tables and the future-release cover overlay, so
+   the most anticipated stand out of a library), destructive states (danger), two
    type-coloured chips, both drawn from `config/scopeColors.js` and the
    `--color-scope-*` tokens in all three palettes, and the watch order
    page's state chips (below):

@@ -667,6 +667,14 @@ viewer. In the table below the personal defs are marked *(p)*.
 | comic | yes | comicType: set-dynamic · readingStatus *(p)* · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
 | game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) *(p)* · ownership: set-dynamic *(p)* · releaseStatus: set-dynamic | title (EN-first, `getSortName`), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating *(p)* | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
 
+**My Rating breaks a tie on the type's public score, then on the title**
+(`myRatingSort({ publicScore, title })` in `libraryColumns.jsx`): MAL for
+anime, anime movie, manga and book; IMDb (`imdb_rating`) for movie, TV show
+and cartoon; Metacritic for game - each higher first, unscored last - and the
+library's own title order after it. Comic, H-Comic, H-Game and Hentai carry
+no public score and go from my rating straight to the title. An entry carries
+no expectation, so that tie-break is the group libraries' alone (below).
+
 All default to the `title` sort. **Every library's title sort reads the English name first** — `getSortName` for the media types and the three groups, `entitySortName` (`name_en`, then `display_name`) for studios, publishers, people and characters — and compares through `compareTitles` (`lib/naming.js`), an `Intl.Collator` fixed to `en`, so a Latin title sorts before a CJK one whatever the browser's language (a `zh-TW` browser's own collation puts Han first). `configs/titleSort.test.js` runs every config's title sort under a `zh-TW` default. `Library.test.jsx` pins the twelve config
 keys, requires more than three table columns and a `my_rating` sort per
 config, and checks the unknown-type redirect; it also renders one library
@@ -695,12 +703,16 @@ File `pages/library/CollectionLibrary.jsx`. Raw `fetch` in one `Promise.all`:
 `/api/cartoon/`, `/api/manga/`, `/api/book/`, `/api/comic/`), each
 `?limit=2000`, purely to resolve a cover per collection. **Games are not among
 them**, so a game can never supply a collection cover. Search over the five
-collection names; sort `title | my_rating (default) | collection_expectation`
-for a viewer holding `self.list`, the viewer's own values. Without it the
+collection names; sort `title | my_rating (default) | expectation` for a
+viewer holding `self.list`, the viewer's own values, through `compareGroups`
+as the franchise library sorts. Without it the
 viewer has neither, so only `title` is offered and the list sorts by title
 whatever was chosen. No filter panel, no table view, no admin controls.
 Renders `CollectionCard` with member count; the card's rating stamp and
-expectation chip are drawn only with `self.list`.
+expectation chip are drawn only with `self.list`. The chip is in the brand
+tone on a Highest expectation and the neutral ink tone on any other
+(`expectationTone` in `lib/groupSort.js`), as on every card and table that
+shows an expectation.
 
 ### FranchiseLibrary — `/library/franchise`
 
@@ -723,16 +735,18 @@ under "Other". A second group, "Relation" - Has relation / No relation - reads
 two groups AND. Sort
 `title (default) | my_rating | expectation`, shared by both views, through
 `compareGroups` in `lib/groupSort.js`: each key falls through to the next on a
-tie - expectation, then my rating, then title; my rating, then title. The last
-two are the viewer's own, offered only to a holder of `self.list`, and without
+tie - expectation, then my rating, then title; my rating, then expectation,
+then title. A tier carries no public score, so the media libraries'
+public-score tie-break has no counterpart here. The last two are the viewer's
+own, offered only to a holder of `self.list`, and without
 it the list sorts by title.
 
 Grid renders `FranchiseCard`. Table view renders the file's `TABLE_COLUMNS`,
 whose markup and class names mirror the table in `LibraryLayout.jsx` so the
 two read as one component: Franchise (a `Link` built by `entityPath`, plain
 text when the row carries no `public_id`), Collection (`md`), Type (`lg`),
-Entries, Expectation (`lg`), My. Expectation and My carry `personal: true`
-and are dropped for a viewer without `self.list`, as are the card's
+Entries, Expectation (`lg`, a Highest expectation in the brand tone), My.
+Expectation and My carry `personal: true` and are dropped for a viewer without `self.list`, as are the card's
 rating stamp and expectation chip. The breakpoint in brackets is where that
 column collapses, so Franchise, Entries and My are what survives at phone
 width; the wrapper is `overflow-auto`, so a wider table scrolls inside itself

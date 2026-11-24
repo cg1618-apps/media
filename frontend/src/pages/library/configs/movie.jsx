@@ -26,6 +26,10 @@ function getReleaseSortScore(m) {
 // ---------------------------------------------------------------------------
 // Movie library config
 // ---------------------------------------------------------------------------
+// The library's title order: the Title sort, and the last tie-break of
+// My Rating.
+const compareTitle = (a, b) => compareTitles(getSortKey(a), getSortKey(b));
+
 const MOVIE_LIBRARY_CONFIG = {
   usesSeries: false,
   navPath: "/movie",
@@ -71,14 +75,14 @@ const MOVIE_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) => compareTitles(getSortKey(a), getSortKey(b)),
+      compare: compareTitle,
     },
     {
       key: "release_date",
       label: "Release Date",
       compare: (a, b) => getReleaseSortScore(b) - getReleaseSortScore(a),
     },
-    myRatingSort,
+    myRatingSort({ publicScore: imdbRatingSort, title: compareTitle }),
     imdbRatingSort,
   ],
 

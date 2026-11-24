@@ -18,6 +18,10 @@ function getSortKey(s) { return s.tv_name_en || s.tv_name_alt || s.tv_name_cn ||
 // ---------------------------------------------------------------------------
 // TV Show library config
 // ---------------------------------------------------------------------------
+// The library's title order: the Title sort, and the last tie-break of
+// My Rating.
+const compareTitle = (a, b) => compareTitles(getSortKey(a), getSortKey(b));
+
 const TV_LIBRARY_CONFIG = {
   usesSeries: false,
   navPath: "/tv-show",
@@ -64,14 +68,14 @@ const TV_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) => compareTitles(getSortKey(a), getSortKey(b)),
+      compare: compareTitle,
     },
     {
       key: "release_date",
       label: "Release Date",
       compare: (a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime(),
     },
-    myRatingSort,
+    myRatingSort({ publicScore: imdbRatingSort, title: compareTitle }),
     imdbRatingSort,
     imdbSeriesRatingSort,
   ],

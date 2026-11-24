@@ -17,6 +17,10 @@ function getSortKey(c) { return c.cartoon_name_en || c.cartoon_name_alt || c.car
 // ---------------------------------------------------------------------------
 // Cartoon library config
 // ---------------------------------------------------------------------------
+// The library's title order: the Title sort, and the last tie-break of
+// My Rating.
+const compareTitle = (a, b) => compareTitles(getSortKey(a), getSortKey(b));
+
 const CARTOON_LIBRARY_CONFIG = {
   usesSeries: true,
   navPath: "/cartoon",
@@ -74,15 +78,14 @@ const CARTOON_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) =>
-        compareTitles(getSortKey(a), getSortKey(b)),
+      compare: compareTitle,
     },
     {
       key: "release_date",
       label: "Release Date",
       compare: (a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime(),
     },
-    myRatingSort,
+    myRatingSort({ publicScore: imdbRatingSort, title: compareTitle }),
     imdbRatingSort,
     imdbSeriesRatingSort,
   ],

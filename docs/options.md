@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -1142,11 +1142,11 @@ upper bound inclusive, `None` = everything above):
 so the index matches `Date.prototype.getDay()`) for the dashboard schedule.
 
 **Expectation sort weight.** `EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 }`
-exists only in the frontend, defined three times: in
-`frontend/src/pages/library/CollectionLibrary.jsx` and
-`frontend/src/pages/library/FranchiseLibrary.jsx` (unknown -> 4) and in the
-Plan page sort described in [systems/plan-next.md](systems/plan-next.md)
-(unknown -> 99). There is no Python equivalent.
+exists only in the frontend: in `frontend/src/lib/groupSort.js` (unknown
+-> 4), which the collection, franchise and series libraries sort through, and
+again in the Plan page sort described in
+[systems/plan-next.md](systems/plan-next.md) and the two seasonal pages
+(`SeasonalDetail.jsx`, `SeasonalOverall.jsx`), each unknown -> 99. There is no Python equivalent.
 
 **External API rate limits** (sliding-window limiters in
 `app/services/integrations/`; details in [external-apis.md](external-apis.md)):

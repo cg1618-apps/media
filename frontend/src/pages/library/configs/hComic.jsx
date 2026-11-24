@@ -39,6 +39,10 @@ function setFilter(key, label, field) {
 // H-Comic library config. The route that renders it is gated (App.jsx), and
 // the list endpoint returns nothing to a session that cannot see the type.
 // ---------------------------------------------------------------------------
+// The library's title order: the Title sort, and the last tie-break of
+// My Rating.
+const compareTitle = (a, b) => compareTitles(getSortKey(a), getSortKey(b));
+
 const H_COMIC_LIBRARY_CONFIG = {
   usesSeries: true,
   navPath: "/h-comic",
@@ -87,7 +91,7 @@ const H_COMIC_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
-      compare: (a, b) => compareTitles(getSortKey(a), getSortKey(b)),
+      compare: compareTitle,
     },
     {
       key: "release_date",
@@ -99,7 +103,7 @@ const H_COMIC_LIBRARY_CONFIG = {
       label: "Ending Date",
       compare: (a, b) => releaseScore(b.end_date) - releaseScore(a.end_date),
     },
-    myRatingSort,
+    myRatingSort({ title: compareTitle }),
     usefulnessSort,
   ],
 
