@@ -113,6 +113,7 @@ import ContentLabelPicker, {
 import { useAuth } from "../../contexts/AuthContext";
 import { useCasting, useReplaceCasting } from "../../hooks/useCasting";
 import { castIdentityProblem, orderLoadedCast } from "../../lib/castOrder";
+import { exclusiveSourceProblem } from "../../lib/exclusiveSource";
 import useLabelTagSync from "../../hooks/useLabelTagSync";
 import { hasLabelField } from "../../lib/labelTags";
 import { SuggestItem, SuggestList } from "../../components/forms/SuggestList";
@@ -1324,6 +1325,15 @@ export default function Modify() {
     const castProblem = castForm && castIdentityProblem(castForm.cast);
     if (castProblem) {
       showToast("warning", castProblem);
+      return;
+    }
+    // The exclusive source needs its platform among the Main Sources,
+    // marked Available - the server refuses the save otherwise.
+    const exclusiveForm = { anime: af, "anime-movie": amf }[editingType];
+    const exclusiveProblem =
+      exclusiveForm && exclusiveSourceProblem(exclusiveForm);
+    if (exclusiveProblem) {
+      showToast("warning", exclusiveProblem);
       return;
     }
     // The browser is not told which labels a mode carries, so this cannot say

@@ -169,6 +169,18 @@ export default function Anime() {
   const progressPct =
     epTotal !== "?" ? Math.round((epFin / Number(epTotal)) * 100) : 0;
 
+  // A special says where it sits after the season it belongs to: "Season 2
+  // 第13集". With no season part the episode stands alone.
+  const seasonPartDisplay =
+    [
+      anime.season_part,
+      anime.ep_special != null && anime.ep_special !== ""
+        ? `第${anime.ep_special}集`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || null;
+
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
       franchise.franchise_name_en ||
@@ -415,14 +427,17 @@ export default function Anime() {
               <InfoCard
                 title="Information"
                 fields={[
+                  // Original / Remake is shown for a remake alone: an
+                  // original is the default and says nothing.
                   [
                     { label: "本傳/外傳", value: anime.is_main },
-                    { label: "Original / Remake", value: anime.original_or_remake },
-                    { label: "Season Part", value: anime.season_part },
-                    { label: "Special Episodes", value: anime.ep_special },
+                    { label: "Airing Type", value: anime.airing_type },
+                    { label: "Season Part", value: seasonPartDisplay },
+                    ...(anime.original_or_remake === "Remake"
+                      ? [{ label: "Original / Remake", value: anime.original_or_remake }]
+                      : []),
                   ],
                   [
-                    { label: "Airing Type", value: anime.airing_type },
                     { label: "Airing Status", value: anime.airing_status },
                     { label: "Total Episodes", value: epTotalDisplay },
                     {
@@ -441,7 +456,7 @@ export default function Anime() {
                   ],
                   { label: "Genre (Main)", value: anime.genre_main },
                   { label: "Genre (Sub)", value: anime.genre_sub },
-                  { label: "標籤 Label", value: anime.label },
+                  { label: "Label", value: anime.label },
                 ]}
               />
             </TocSection>

@@ -490,7 +490,11 @@ columns.
   for a `steamLink` alone, so a game whose only place to play is its Steam
   page still gets one; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
   beside it the same way, as "DLsite (JP)" / "DLsite (TW)" — and the tag-field props (`originalSource`,
-  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — one
+  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — except
+  an `exclusiveSource` that names one of the `main` access rows, which moves that
+  row to the head of its section as "Netflix (Exclusive)" (the icon still looked
+  up by the bare name) and is not drawn as a chip too; one no row matches keeps
+  its chip — one
   component composing from both the `media_source` table and the surviving
   columns/tag fields, per the guiding rule in
   [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).

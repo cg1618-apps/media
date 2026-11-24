@@ -79,5 +79,28 @@ def test_response_schema_carries_every_link_field(media_type):
 def test_create_schema_does_not_accept_link_fields(media_type):
     """A write naming one of these must not be silently stored on the entry."""
     fields = CREATE_SCHEMAS[media_type].model_fields
+    allowed = WRITE_THROUGH_FIELDS.get(media_type, set())
     for attr, _kind, _key in legacy_link_fields(media_type):
+        if attr in allowed:
+            continue
         assert attr not in fields, f"{media_type}.{attr} leaked onto the write schema"
+
+
+# The link fields an entry write deliberately carries: each is a nested
+# collection, popped off the payload and written to its own table, never set
+# on the entry. exclusive_source rides with `sources` so the rule tying the two
+# is checked on one write (app/services/domain/sources.py).
+WRITE_THROUGH_FIELDS = {
+    "anime": {"exclusive_source"},
+    "anime-movie": {"exclusive_source"},
+}
+
+
+@pytest.mark.parametrize("media_type", sorted(WRITE_THROUGH_FIELDS))
+def test_a_write_through_field_is_popped_before_the_entry_is_built(media_type):
+    from app.registry import MEDIA_REGISTRY
+
+    spec = next(s for s in MEDIA_REGISTRY.values() if s.owner_type == media_type)
+    for attr in WRITE_THROUGH_FIELDS[media_type]:
+        assert attr in spec.nested_collections, f"{media_type}.{attr} is not popped"
+        assert attr not in spec.model.__table__.columns

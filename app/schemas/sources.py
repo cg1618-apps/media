@@ -47,3 +47,16 @@ class SourceWriteFields(BaseModel):
     """
 
     sources: Optional[list[SourceWrite]] = None
+
+
+class ExclusiveSourceWriteFields(BaseModel):
+    """Mixed into the Create/Update schemas of the types with an exclusive source.
+
+    The tag is otherwise written through PUT /api/credits; carried here it
+    lands in the same request as `sources`, so the rule tying the two
+    (services.domain.sources.exclusive_source_problem) is checked on the
+    state that one write leaves. Absent means "said nothing"; null or blank
+    clears it.
+    """
+
+    exclusive_source: Optional[str] = None

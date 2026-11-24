@@ -71,7 +71,11 @@ from app.services.domain.hentai import (
     hentai_progress_hook_list,
 )
 from app.services.domain.music_status import seed_music_status
-from app.services.domain.sources import media_sources_writer
+from app.services.domain.sources import (
+    check_exclusive_source_write,
+    exclusive_source_writer,
+    media_sources_writer,
+)
 from app.services.pipelines import (
     execute_replace_single_book,
     execute_replace_single_cartoon,
@@ -142,6 +146,13 @@ class MediaTypeSpec:
     # is the per-user twin of progress_hook, and it has to run after the
     # payload so it sees the reader's NEW cursor.
     progress_hook_list: Optional[Callable] = None
+    # (db, entry, touched_keys) -> str | None, called in create, update AND
+    # patch once columns and nested collections are written, before the
+    # commit. A string refuses the write with a 422 carrying it. touched_keys
+    # are the payload keys the write carried, so a check can stay out of a
+    # write that touches nothing it guards. Anime and anime movie check their
+    # exclusive source (services.domain.sources).
+    write_check: Optional[Callable] = None
     has_series: bool = True                     # anime_movies carries no series_id column
     # (query, query_params) -> query, for filters that are not plain equality.
     extra_filters: Optional[Callable] = None
@@ -222,7 +233,12 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         pre_commit_hook=prepare_anime_write,
         create_hook=seed_music_status,
         extra_filters=_anime_airing_season,
-        nested_collections={"sources": media_sources_writer("anime")},
+        nested_collections={
+            "sources": media_sources_writer("anime"),
+            # After sources: write_check reads the state both leave behind.
+            "exclusive_source": exclusive_source_writer(),
+        },
+        write_check=check_exclusive_source_write,
     ),
     "anime_movie": MediaTypeSpec(
         key="anime_movie",
@@ -243,7 +259,11 @@ MEDIA_REGISTRY: dict[str, MediaTypeSpec] = {
         mark_completed=mark_movie_catalog,
         mark_completed_list=mark_movie_list,
         has_series=False,
-        nested_collections={"sources": media_sources_writer("anime-movie")},
+        nested_collections={
+            "sources": media_sources_writer("anime-movie"),
+            "exclusive_source": exclusive_source_writer(),
+        },
+        write_check=check_exclusive_source_write,
         progress_hook=sync_ona_release_date,
     ),
     "movie": MediaTypeSpec(

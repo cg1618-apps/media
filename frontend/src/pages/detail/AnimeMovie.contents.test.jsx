@@ -106,6 +106,20 @@ describe("AnimeMovie detail page - tab title and contents", () => {
   });
 });
 
+// No line of type, status, runtime and date above the title: the
+// Information card says each of them. The breadcrumb stays.
+describe("AnimeMovie detail page - header", () => {
+  it("draws no eyebrow line above the title, and keeps the breadcrumb", async () => {
+    mockFetch({ ...ENTRY, length_min: 95 });
+    mount();
+    const title = await screen.findByRole("heading", { level: 1, name: "測試動畫電影" });
+    expect(title.previousElementSibling).toBeNull();
+    expect(screen.queryByText(/·/)).toBeNull();
+    const crumb = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(within(crumb).getByRole("link", { name: /anime movie/i })).toBeInTheDocument();
+  });
+});
+
 describe("AnimeMovie detail page - release", () => {
   const information = async () =>
     within(await screen.findByRole("heading", { level: 3, name: "Information" }).then((h) => h.closest("section")));
@@ -131,6 +145,36 @@ describe("AnimeMovie detail page - release", () => {
     expect(card.getByText("2025-03-01")).toBeInTheDocument();
     expect(card.queryByText("Release Date JP")).toBeNull();
     expect(card.queryByText("Release Date TW")).toBeNull();
+  });
+
+  // Runtime sits right of Release Type, whatever the release type is.
+  const infoLabels = async () => {
+    const body = (await screen.findByRole("heading", { level: 3, name: "Information" }))
+      .nextElementSibling;
+    return [...body.children].map((row) =>
+      [...row.querySelectorAll(".font-mono")].map((el) => el.textContent),
+    );
+  };
+
+  it("puts Runtime right of Release Type on a Cinema release", async () => {
+    mockFetch({ ...ENTRY, length_min: 95 });
+    mount();
+    const labels = await infoLabels();
+    expect(labels.slice(0, 2)).toEqual([
+      ["Release Status", "Release Type", "Runtime"],
+      ["Release Date JP", "Release Date TW"],
+    ]);
+    expect(screen.getByText("1hr 35min")).toBeInTheDocument();
+  });
+
+  it("puts Runtime right of Release Type on an ONA", async () => {
+    mockFetch({ ...ENTRY, release_type: "ONA", length_min: 95 });
+    mount();
+    const labels = await infoLabels();
+    expect(labels.slice(0, 2)).toEqual([
+      ["Release Status", "Release Type", "Runtime"],
+      ["Release Date"],
+    ]);
   });
 
   it("falls back to the TW date on an ONA with no JP one", async () => {
