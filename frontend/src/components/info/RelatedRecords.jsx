@@ -240,7 +240,7 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
               <li key={keyOf(r.kind, r.system_id)} className="text-sm">
                 <RecordLink type={r.kind || type} record={r} />
                 {kind.relatesTo.length > 1 && (
-                  <span className="ml-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+                  <span className="ml-1.5 font-mono text-[10px] text-text-faint">
                     {CANDIDATES[r.kind]?.label}
                   </span>
                 )}

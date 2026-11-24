@@ -80,7 +80,7 @@ function FavoriteGrid({ grid, rows, covers }) {
               className="aspect-[3/4] border border-dashed border-border-strong flex flex-col items-center justify-center"
             >
               <span className="font-display text-2xl text-text-faint">{slot}</span>
-              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint mt-1">
+              <span className="font-mono text-[10px] text-text-faint mt-1">
                 Empty
               </span>
             </div>

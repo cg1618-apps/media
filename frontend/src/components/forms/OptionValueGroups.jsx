@@ -16,7 +16,7 @@ import {
 
 const GRID = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2";
 const HEADING =
-  "text-xs font-black text-text-faint uppercase tracking-widest mb-2";
+  "text-xs font-black text-text-faint mb-2";
 const SUB_HEADING = "text-xs font-bold text-text-faint mb-2";
 
 function groupTitle(scope) {

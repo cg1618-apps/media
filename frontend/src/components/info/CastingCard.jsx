@@ -17,6 +17,7 @@ import { useEntityHref } from "../../lib/entityPath";
 import { releaseYear } from "../../lib/releaseDate";
 import LazyImage from "../ui/LazyImage";
 
+import { eyebrowCls } from "../ui/primitives";
 export default function CastingCard({ entry, navPath, hideIdentity = false }) {
   const title = entry.display_name || "Untitled";
   const year = releaseYear(entry.release_date);
@@ -67,7 +68,7 @@ export default function CastingCard({ entry, navPath, hideIdentity = false }) {
           {entry.remark}
         </span>
       )}
-      <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+      <span className={eyebrowCls}>
         {year || "Undated"}
       </span>
     </>

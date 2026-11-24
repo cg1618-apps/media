@@ -45,7 +45,7 @@ export default function CollapsibleCardGrid({ items, renderItem, rows = 2 }) {
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="mt-3 w-full py-2 border border-border-strong bg-surface font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted hover:border-text hover:text-text transition-colors"
+          className="mt-3 w-full py-2 border border-border-strong bg-surface font-mono text-[10px] text-text-muted hover:border-text hover:text-text transition-colors"
         >
           {expanded ? "Show fewer" : `Show all ${items.length}`}
         </button>

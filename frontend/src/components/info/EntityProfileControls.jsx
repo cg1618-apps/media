@@ -57,7 +57,7 @@ export function AdminToolbar({ ownerType, systemId, onAutofilled }) {
   const navigate = useNavigate();
   return (
     <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-      <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
+      <Eyebrow className="text-[11px] text-text-muted">Admin</Eyebrow>
       <div className="flex flex-wrap gap-2">
         {/* Named for its entity as well as "Edit": a studio's or publisher's
             Related records slip has an Edit button of its own on the page. */}

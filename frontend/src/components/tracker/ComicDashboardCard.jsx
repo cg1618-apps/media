@@ -6,7 +6,7 @@ import {
   getDisplayName,
   parseTypes,
 } from "../../utils/media";
-import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
+import { Button, Chip, ProgressRule, RatingStamp, eyebrowCls } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
 import { EntryRow } from "./DashboardTable";
 import LazyImage from "../ui/LazyImage";
@@ -21,7 +21,7 @@ import { focusStyle, thumbUrl } from "../../lib/covers";
 
 const STEPPER_INPUT =
   "font-mono text-[13px] text-text text-center w-16 px-1 py-0.5 border border-border-strong bg-surface focus:outline-none focus:ring-2 focus:ring-brand appearance-none";
-const UNIT = "font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint";
+const UNIT = eyebrowCls;
 
 export default function ComicDashboardCard({
   comic,
@@ -92,7 +92,7 @@ export default function ComicDashboardCard({
         <div className="flex shrink-0 h-28 border border-border">
           <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
             <span
-              className="font-mono text-[9px] uppercase tracking-[0.2em] whitespace-nowrap"
+              className="font-mono text-[9px] whitespace-nowrap"
               style={{ writingMode: "vertical-rl" }}
             >
               Comic
@@ -105,7 +105,7 @@ export default function ComicDashboardCard({
               className="absolute top-1.5 right-1.5 z-10"
             />
             {comic.comic_type && (
-              <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] uppercase tracking-[0.12em] z-10">
+              <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] z-10">
                 {comic.comic_type}
               </div>
             )}
@@ -144,7 +144,7 @@ export default function ComicDashboardCard({
               </span>
             )}
           </div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint truncate mt-1 mb-2">
+          <p className="font-mono text-[10px] text-text-faint truncate mt-1 mb-2">
             {subTitle}
             {hasTotal ? ` · ${total} iss` : ""}
           </p>
@@ -171,7 +171,7 @@ export default function ComicDashboardCard({
       </div>
 
       <div className="relative z-10 p-3 border-t border-border mt-auto">
-        <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+        <div className="flex justify-between items-end mb-1.5 font-mono text-[10px] text-text-faint">
           <span>Progress</span>
           <span className="text-text">
             {hasTotal ? `${progressPercent}%` : ""}

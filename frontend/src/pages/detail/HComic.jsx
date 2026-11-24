@@ -134,7 +134,7 @@ function ProgressStepper({ progress, onChange }) {
           />
           <span className="text-text-faint mx-1 text-xs">/</span>
           <span className="text-text-faint text-sm leading-none">{formatProgress(total) ?? "?"}</span>
-          <span className="text-[9px] text-text-faint ml-1.5 uppercase">{unit}</span>
+          <span className="text-[9px] text-text-faint ml-1.5">{unit}</span>
         </div>
         <button
           onClick={() => step(1)}
@@ -184,7 +184,7 @@ function HComicTrackerBlock({ hComic, canTrack, onPatch }) {
             />
             {/* Hand-set by the owner, not derived (spec D8). */}
             {behind != null && (
-              <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-muted pb-2">
+              <div className="font-mono text-[11px] text-text-muted pb-2">
                 Behind official: <span className="text-text">{behind}</span>
               </div>
             )}
@@ -400,7 +400,7 @@ export default function HComic() {
     <DetailContents>
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
           <Link to="/library/h-comic" className="hover:text-brand transition">
@@ -466,7 +466,7 @@ export default function HComic() {
               </div>
               <ProgressRule value={progressValue} />
               {progress && (
-                <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint">
+                <div className="flex justify-between px-2 py-1.5 font-mono text-[10px] text-text-faint">
                   <span>{progress.label}</span>
                   <span className="text-text">
                     {progress.fin} / {progress.total ?? "?"}
@@ -496,7 +496,7 @@ export default function HComic() {
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
           <header>
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+            <div className="font-mono text-[11px] text-text-muted mb-3">
               {eyebrow}
             </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">

@@ -7,7 +7,7 @@ export const selectCls =
 export function Field({ label, required, half, hint, children }) {
   return (
     <div className={half ? "" : ""}>
-      <label className="block text-[10px] font-bold text-text-faint uppercase tracking-wider mb-1">
+      <label className="block text-[10px] font-bold text-text-faint mb-1">
         {label}
         {required && <span className="text-danger ml-0.5">*</span>}
       </label>
@@ -41,7 +41,7 @@ export function SectionHeader({ icon, title }) {
       className="flex items-center gap-2 pb-2 border-b border-border mt-6 mb-4"
     >
       <i className={`fas ${icon} text-brand text-sm`}></i>
-      <span className="text-xs font-black text-text-muted uppercase tracking-widest">
+      <span className="text-xs font-black text-text-muted">
         {title}
       </span>
     </div>

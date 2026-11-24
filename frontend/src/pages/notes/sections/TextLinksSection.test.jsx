@@ -271,3 +271,24 @@ it("offers no group on a section without the flag", async () => {
   await user.click(screen.getByRole("button", { name: "Save" }));
   expect(onCreate.mock.calls[0][0]).not.toHaveProperty("kind");
 });
+
+// 優點, 缺點 and 優缺點 mix public rows with each viewer's own
+// (`kind_choice`), so their title carries M rather than a personal section's P.
+it("marks a kind-choice section M, and an ordinary one with neither M nor P", () => {
+  const advantages = {
+    ...EASTER_EGGS,
+    key: "advantages",
+    label: "優點 Advantages",
+    scope: "catalog",
+    mixed: true,
+    kind_choice: true,
+  };
+  const { unmount } = renderSection({ section: advantages });
+  expect(screen.getByRole("img", { name: "Mixed" })).toHaveTextContent("M");
+  expect(screen.queryByRole("img", { name: "Personal" })).toBeNull();
+  unmount();
+
+  renderSection();
+  expect(screen.queryByRole("img", { name: "Mixed" })).toBeNull();
+  expect(screen.queryByRole("img", { name: "Personal" })).toBeNull();
+});

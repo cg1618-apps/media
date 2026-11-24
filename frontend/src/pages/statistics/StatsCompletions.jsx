@@ -27,7 +27,7 @@ const COMPLETION_TABS = [
   { key: "h-game", label: "H-Game" },
   { key: "hentai", label: "Hentai" },
 ];
-import { Button, Eyebrow, RatingStamp } from "../../components/ui/primitives";
+import { Button, Eyebrow, RatingStamp, sectionTitleCls } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { entityPath } from "../../lib/entityPath";
 import { focusStyle, thumbUrl } from "../../lib/covers";
@@ -53,7 +53,7 @@ function GroupedCompletions({ type, groups, pages, setPages, franchiseMap, extra
         return (
           <div key={key}>
             <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-              <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+              <h3 className={sectionTitleCls}>
                 {label}
               </h3>
               <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -262,7 +262,7 @@ export default function StatsCompletions({
                 return (
                   <div key={type}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {type}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -432,7 +432,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {label}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -587,7 +587,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {label}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -741,7 +741,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {label}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -911,7 +911,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {label}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -974,7 +974,7 @@ export default function StatsCompletions({
                                 )}
                             </div>
                             {cartoon.airing_type && (
-                              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint shrink-0">
+                              <span className="font-mono text-[10px] text-text-faint shrink-0">
                                 {cartoon.airing_type}
                               </span>
                             )}
@@ -1073,7 +1073,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {label}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -1238,7 +1238,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {label}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -1402,7 +1402,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {label}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -1567,7 +1567,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {label}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -1722,7 +1722,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {key}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">
@@ -1876,7 +1876,7 @@ export default function StatsCompletions({
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted">
+                      <h3 className={sectionTitleCls}>
                         {key}
                       </h3>
                       <span className="font-mono text-[11px] text-text-faint tabular-nums">

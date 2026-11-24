@@ -115,7 +115,7 @@ function RowCluster({ tab, group }) {
       </div>
       <table className="w-full text-xs">
         <thead>
-          <tr className="text-text-faint text-[10px] uppercase">
+          <tr className="text-text-faint text-[10px]">
             <th className="text-left pb-1 pr-3">ID</th>
             {tab.names.map(([label]) => (
               <th key={label} className="text-left pb-1 pr-3">
@@ -170,7 +170,7 @@ function EntityCluster({ group }) {
   return (
     <div className={card}>
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-[10px] font-bold bg-surface-2 text-text-muted px-2 py-0.5 rounded uppercase">
+        <span className="text-[10px] font-bold bg-surface-2 text-text-muted px-2 py-0.5 rounded">
           {group.kind}
         </span>
         <span className="text-xs text-text-faint">{group.ids.length} entries</span>

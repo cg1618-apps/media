@@ -154,7 +154,7 @@ export function MediaScopeLine({ mediaTypes, className = "", short = false }) {
 // One type pill. Drawn as the dashboard's type filter draws its pills, so a
 // type filter looks the same wherever the app offers one.
 const typePillClass = (active) =>
-  `px-2.5 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors ${
+  `px-2.5 py-1 border font-mono text-[11px] transition-colors ${
     active
       ? "border-brand text-brand"
       : "border-border text-text-faint hover:text-text hover:border-border-strong"
@@ -578,7 +578,7 @@ export default function OrderGuide({
                 type="button"
                 aria-pressed={filter === f.key}
                 onClick={() => setFilter(f.key)}
-                className={`font-mono text-[11px] uppercase tracking-[0.12em] px-2.5 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                className={`font-mono text-[11px] px-2.5 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                   filter === f.key
                     ? "bg-brand-soft text-brand"
                     : "text-text-muted hover:text-text"
@@ -627,7 +627,7 @@ export default function OrderGuide({
               <header className="px-3 py-2 border-b border-border">
                 <div className="flex items-center gap-3">
                   <h4
-                    className={`font-mono uppercase tracking-[0.16em] text-text-muted shrink-0 ${
+                    className={`font-mono text-text-muted shrink-0 ${
                       roomy ? "text-xs" : "text-[11px]"
                     }`}
                   >

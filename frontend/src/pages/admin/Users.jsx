@@ -36,7 +36,7 @@ import { fetchJson, jsonBody } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import ConfirmModal from "../../components/modals/ConfirmModal";
 import OnceLinkModal from "../../components/modals/OnceLinkModal";
-import { Button, Chip } from "../../components/ui/primitives";
+import { Button, Chip, sectionTitleCls } from "../../components/ui/primitives";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 
@@ -307,7 +307,7 @@ export default function Users() {
       </form>
 
       <table className="w-full text-sm border border-border rounded-lg overflow-hidden">
-        <thead className="bg-surface-2 text-xs uppercase text-text-faint">
+        <thead className="bg-surface-2 text-xs text-text-faint">
           <tr>
             <th className="text-left px-4 py-2">Username</th>
             <th className="text-left px-4 py-2">Role</th>
@@ -583,7 +583,7 @@ function UserEditDialog({ user, roles, modes, busy, onCancel, onSave }) {
         <div className="px-6 py-3 border-b border-border">
           <h3
             id={titleId}
-            className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted"
+            className={sectionTitleCls}
           >
             Edit {user.username}
           </h3>

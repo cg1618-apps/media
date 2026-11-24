@@ -100,7 +100,7 @@ function RemarkTable({ tab }) {
   const [lead, second] = tab.names;
   return (
     <table className="w-full text-sm text-left">
-      <thead className="text-[10px] font-black text-text-faint uppercase tracking-wider border-b border-border bg-surface">
+      <thead className="text-[10px] font-black text-text-faint border-b border-border bg-surface">
         <tr>
           <th className={colClass}>Name ({lead.endsWith("_en") ? "EN" : "CN"})</th>
           <th className={colClass}>Name ({second.endsWith("_en") ? "EN" : "CN"})</th>

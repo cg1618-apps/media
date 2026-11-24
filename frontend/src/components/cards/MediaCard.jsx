@@ -32,7 +32,7 @@ import {
 import { statusToggleFields } from "../../lib/status";
 import { focusStyle, thumbUrl } from "../../lib/covers";
 import { isFilmType, WAIT_FOR_RELEASE_STATUSES } from "../../config/fieldOptions";
-import { Chip, RatingStamp } from "../ui/primitives";
+import { Chip, RatingStamp, eyebrowCls } from "../ui/primitives";
 import PlatformIcons from "./PlatformIcons";
 import LazyImage from "../ui/LazyImage";
 import { formatProgress, parseProgressTotal } from "../../lib/progressStep";
@@ -63,11 +63,11 @@ const BOLT_RELEASE = {
 
 // Small ink label laid over cover art.
 const OVERLAY_CLS =
-  "bg-black/60 text-white px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] leading-none z-10";
+  "bg-black/60 text-white px-1.5 py-0.5 font-mono text-[9px] leading-none z-10";
 // The same label in the brand fill: a Highest expectation, and only that,
 // stands out from the rest (lib/groupSort.js, expectationTone).
 const OVERLAY_BRAND_CLS =
-  "bg-brand text-on-brand px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] leading-none z-10";
+  "bg-brand text-on-brand px-1.5 py-0.5 font-mono text-[9px] leading-none z-10";
 
 // Score figure on a mono meta line (MAL / AniList / IMDb).
 function Score({ value, label = "Score" }) {
@@ -94,7 +94,7 @@ const SCORE_LABEL = {
 function MetaLine({ children, className = "" }) {
   return (
     <div
-      className={`font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint mb-3 flex items-center justify-between gap-1 ${className}`}
+      className={`font-mono text-[10px] text-text-faint mb-3 flex items-center justify-between gap-1 ${className}`}
     >
       {children}
     </div>
@@ -328,7 +328,7 @@ function LibraryMeta({ type, data, scoreField }) {
               {data.version && <Chip tone="muted">{data.version}</Chip>}
             </div>
           )}
-          <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint truncate">
+          <span className="font-mono text-[10px] text-text-faint truncate">
             {yearRange(data, data.release_date_jp || data.release_date_tw)}
           </span>
         </div>
@@ -349,7 +349,7 @@ function LibraryMeta({ type, data, scoreField }) {
     // show the first and count the rest.
     const events = parseTypes(data.events);
     return (
-      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint mb-1 flex flex-col gap-1 min-w-0">
+      <div className="font-mono text-[10px] text-text-faint mb-1 flex flex-col gap-1 min-w-0">
         {data.comic_name_cn && (
           <span
             className="truncate font-sans normal-case tracking-normal"
@@ -400,7 +400,7 @@ function HubMeta({ type, data, scoreField }) {
           <Score value={score} label={SCORE_LABEL[field]} />
         </MetaLine>
         {length && (
-          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+          <div className={eyebrowCls}>
             {length}
           </div>
         )}
@@ -444,7 +444,7 @@ function HubMeta({ type, data, scoreField }) {
 }
 
 const COUNT_CLS = "font-mono text-[11px] text-text-muted tabular-nums";
-const UNIT_CLS = "text-[9px] text-text-faint uppercase tracking-[0.12em] ml-1";
+const UNIT_CLS = "text-[9px] text-text-faint ml-1";
 
 function Count({ fin, total, unit }) {
   return (
@@ -479,7 +479,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
       <div className="flex items-center gap-1.5">
         <button
           onClick={onToggleVol}
-          className="font-mono text-[9px] uppercase tracking-[0.12em] text-text-faint hover:text-brand border border-border-strong px-1 py-0.5 transition-colors shrink-0"
+          className="font-mono text-[9px] text-text-faint hover:text-brand border border-border-strong px-1 py-0.5 transition-colors shrink-0"
           title="Toggle Ch/Vol"
         >
           {showVol ? "Ch" : "Vol"}
@@ -586,7 +586,7 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
 function FutureMeta({ type, data }) {
   if (type === "anime") {
     return data.studio ? (
-      <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint truncate mt-0.5">
+      <p className="font-mono text-[10px] text-text-faint truncate mt-0.5">
         {data.studio}
       </p>
     ) : null;
@@ -623,7 +623,7 @@ function FutureMeta({ type, data }) {
   }
   if (type === "cartoon") {
     return (
-      <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint mt-1 truncate">
+      <div className="font-mono text-[10px] text-text-faint mt-1 truncate">
         {data.release_date || "TBD"}
       </div>
     );

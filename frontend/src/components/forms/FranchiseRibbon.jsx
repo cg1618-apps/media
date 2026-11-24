@@ -53,14 +53,14 @@ export default function FranchiseRibbon({
 
   return (
     <div className="mb-5 bg-surface-2 border border-border rounded-xl px-4 py-3 space-y-3 max-h-64 overflow-y-auto">
-      <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint uppercase tracking-widest">
+      <p className="sticky top-0 z-10 -mx-4 -mt-3 bg-canvas px-4 pt-3 pb-1 text-[10px] font-black text-text-faint">
         Other entries in this franchise
       </p>
       {Object.entries(bySeries).map(([sid, group]) => {
         const s = allSeries.find((x) => x.system_id === sid);
         return (
           <div key={sid}>
-            <p className="text-[9px] font-black text-brand/60 uppercase tracking-widest mb-1.5">
+            <p className="text-[9px] font-black text-brand/60 mb-1.5">
               {s ? getDisplayName(s, "series") : "Series"}
             </p>
             <div className="flex gap-2 flex-wrap">{group.map(renderChip)}</div>
@@ -70,7 +70,7 @@ export default function FranchiseRibbon({
       {noSeries.length > 0 && (
         <div>
           {Object.keys(bySeries).length > 0 && (
-            <p className="text-[9px] font-black text-text-faint uppercase tracking-widest mb-1.5">
+            <p className="text-[9px] font-black text-text-faint mb-1.5">
               No Series
             </p>
           )}

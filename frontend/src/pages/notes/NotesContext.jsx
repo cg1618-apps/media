@@ -35,7 +35,7 @@ import NameEntriesSection from "./sections/NameEntriesSection";
 import StructuredSection from "./sections/StructuredSection";
 import MusicTrackSection from "./sections/MusicTrackSection";
 import QuoteSection from "./sections/QuoteSection";
-import MemeSection from "./sections/MemeSection";
+import MemeSection, { GroupMemeRows } from "./sections/MemeSection";
 import { SectionCardProvider } from "./sections/ui";
 
 const SHAPES = {
@@ -80,6 +80,17 @@ const EXTERNAL_SHAPES = {
       onCount={onCount}
     />
   ),
+};
+
+// The external sections an entry's series and franchise can hold rows in too,
+// and how to read and draw those rows: `fetchRows(ownerType, ownerId)` gets one
+// group's, and `Rows` draws them read-only under GroupNotes' headings, the way
+// a registry shape draws its own group rows. Memes qualify - a running gag
+// often spans a franchise, so the registry offers the section on series and
+// franchises as well as entries. Quotes do not: a quote is said in one work,
+// so the registry offers that section on entries alone.
+const EXTERNAL_GROUP_ROWS = {
+  memes: { fetchRows: api.fetchMemes, Rows: GroupMemeRows },
 };
 
 // The permission a write to a section needs, from its `scope`: the server
@@ -381,11 +392,61 @@ export function NotesProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupKey]);
 
+  // The same, for the external sections in EXTERNAL_GROUP_ROWS that this
+  // entry shows: their rows are not notes, so each comes from its own
+  // endpoint, one request per group. `sections` has already dropped Memes for
+  // a viewer without the quotes_memes switch, so nothing here asks /api/meme
+  // for one, and a refusal or a failure simply leaves that group out. The
+  // endpoint applies its own visibility: a meme on a group the viewer may not
+  // see never arrives.
+  const externalGroupKeys = sections
+    .filter((s) => s.shape === "external" && s.key in EXTERNAL_GROUP_ROWS)
+    .map((s) => s.key);
+  const externalKey = `${groupKey}|${externalGroupKeys.join(",")}`;
+  const [fetchedExternal, setFetchedExternal] = useState({ key: "", bySection: {} });
+  const externalGroupRows =
+    fetchedExternal.key === externalKey ? fetchedExternal.bySection : {};
+  useEffect(() => {
+    if (!groupOwners.length || !externalGroupKeys.length) return;
+    let cancelled = false;
+    Promise.all(
+      externalGroupKeys.map((key) =>
+        Promise.all(
+          groupOwners.map(([ownerType, row]) =>
+            Promise.resolve(EXTERNAL_GROUP_ROWS[key].fetchRows(ownerType, row.system_id))
+              .then((rows) => ({
+                ownerType,
+                owner: row,
+                name: getDisplayName(row, ownerType),
+                notes: Array.isArray(rows) ? rows : [],
+              }))
+              .catch(() => null),
+          ),
+        ).then((groups) => [key, groups.filter(Boolean)]),
+      ),
+    ).then((entries) => {
+      if (!cancelled) {
+        setFetchedExternal({ key: externalKey, bySection: Object.fromEntries(entries) });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+    // externalKey stands for groupOwners and externalGroupKeys, as groupKey
+    // does above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalKey]);
+
   // One section's rows from each group that has any, series first. A
   // singleton section takes none: it is one editable textarea, not a list a
-  // group's row could join. Hidden and external sections never reach here.
+  // group's row could join. Hidden sections never reach here. An external
+  // section's come from EXTERNAL_GROUP_ROWS, already its own; one not listed
+  // there takes none.
   const groupNotesFor = (section) => {
-    if (section.singleton || section.shape === "external" || section.hidden) return [];
+    if (section.singleton || section.hidden) return [];
+    if (section.shape === "external") {
+      return (externalGroupRows[section.key] || []).filter((group) => group.notes.length > 0);
+    }
     return groupRows
       .map((group) => ({
         ...group,
@@ -582,49 +643,11 @@ export function NotesProvider({
     [ownerType, ownerId, reloadNotes, showToast, allSections, queryClient],
   );
 
-  const renderSection = (section) => {
-    if (section.shape === "external") {
-      const External = EXTERNAL_SHAPES[section.key];
-      if (!External) return null;
-      return (
-        <External
-          key={section.key}
-          label={section.label}
-          ownerType={ownerType}
-          ownerId={ownerId}
-          canWrite={canWrite(section)}
-          onCount={reporterFor(section.key)}
-        />
-      );
-    }
-    const Component = SHAPES[section.shape];
-    if (!Component || section.hidden) return null;
-    // A song list's own status: the row of its `type_status_section` whose
-    // kind is this section's key, or undefined until one is written.
-    const typeStatusNote = section.type_status_section
-      ? (bySection[section.type_status_section] || []).find(
-          (n) => n.kind === section.key,
-        )
-      : undefined;
+  // `own`, the section's own card, with the rows its entry's series and
+  // franchise hold in it plugged in after its own rows (see SectionCard), drawn
+  // by `Component` in its read view. Unchanged when the groups hold none.
+  const withGroupRows = (section, Component, own) => {
     const groups = groupNotesFor(section);
-    const own = (
-      <Component
-        key={section.key}
-        section={section}
-        notes={bySection[section.key] || []}
-        optionValues={optionValues}
-        sectionTitles={sectionTitles}
-        typeStatusNote={typeStatusNote}
-        {...accessFor(section)}
-        canMark={canMark(section)}
-        ownerId={ownerId}
-        nameSuggestions={nameSuggestions}
-        groupOrder={groupOrder}
-        onGroupOrderChange={onGroupOrderChange}
-        reordering={reordering.has(section.key)}
-        {...handlers}
-      />
-    );
     if (!groups.length) return own;
     return (
       <SectionCardProvider
@@ -647,17 +670,65 @@ export function NotesProvider({
     );
   };
 
+  const renderSection = (section) => {
+    if (section.shape === "external") {
+      const External = EXTERNAL_SHAPES[section.key];
+      if (!External) return null;
+      return withGroupRows(
+        section,
+        EXTERNAL_GROUP_ROWS[section.key]?.Rows,
+        <External
+          key={section.key}
+          label={section.label}
+          ownerType={ownerType}
+          ownerId={ownerId}
+          canWrite={canWrite(section)}
+          onCount={reporterFor(section.key)}
+        />,
+      );
+    }
+    const Component = SHAPES[section.shape];
+    if (!Component || section.hidden) return null;
+    // A song list's own status: the row of its `type_status_section` whose
+    // kind is this section's key, or undefined until one is written.
+    const typeStatusNote = section.type_status_section
+      ? (bySection[section.type_status_section] || []).find(
+          (n) => n.kind === section.key,
+        )
+      : undefined;
+    const own = (
+      <Component
+        key={section.key}
+        section={section}
+        notes={bySection[section.key] || []}
+        optionValues={optionValues}
+        sectionTitles={sectionTitles}
+        typeStatusNote={typeStatusNote}
+        {...accessFor(section)}
+        canMark={canMark(section)}
+        ownerId={ownerId}
+        nameSuggestions={nameSuggestions}
+        groupOrder={groupOrder}
+        onGroupOrderChange={onGroupOrderChange}
+        reordering={reordering.has(section.key)}
+        {...handlers}
+      />
+    );
+    return withGroupRows(section, Component, own);
+  };
+
   // How many rows a card holds, which is what decides whether it opens
   // collapsed. null means "not known yet": an external section that has not
   // finished loading leaves the whole card unknown, so it stays open rather
-  // than collapsing on a count that is about to change.
+  // than collapsing on a count that is about to change. Every section counts
+  // the rows its groups hold in it too, an external one included.
   const blockCount = (secs) => {
     let total = 0;
     for (const sec of secs) {
       if (sec.shape === "external") {
         const n = externalCounts[sec.key];
         if (n == null) return null;
-        total += n;
+        total += n + groupCount(sec);
       } else {
         total += (bySection[sec.key] || []).length + groupCount(sec);
       }

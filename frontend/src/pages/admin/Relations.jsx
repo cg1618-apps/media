@@ -280,7 +280,7 @@ export default function Relations() {
             <div className="flex max-h-[36rem] flex-col gap-4 overflow-y-auto pr-1">
               {grouped.map(([mediaType, rows]) => (
                 <div key={mediaType}>
-                  <p className="text-[10px] font-black text-text-faint uppercase tracking-wider mb-1.5">
+                  <p className="text-[10px] font-black text-text-faint mb-1.5">
                     {mediaType}
                   </p>
                   <div className="flex flex-col gap-1">

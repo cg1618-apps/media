@@ -179,7 +179,7 @@ export default function Movie() {
       {/* Breadcrumb: a catalogue path, set in mono */}
       <div className="mb-8 flex items-center justify-between gap-3">
         <nav
-          className="font-mono text-[11px] uppercase tracking-[0.14em] text-text-faint min-w-0 flex items-center gap-3"
+          className="font-mono text-[11px] text-text-faint min-w-0 flex items-center gap-3"
           aria-label="Breadcrumb"
         >
           <Link to="/library/movie" className="hover:text-brand transition">
@@ -284,7 +284,7 @@ export default function Movie() {
         <div className="lg:col-span-3 space-y-10">
           {/* Header & Titles */}
           <header>
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-text-muted mb-3">
+            <div className="font-mono text-[11px] text-text-muted mb-3">
               {eyebrow}
             </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">

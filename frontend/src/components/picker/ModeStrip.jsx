@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import { FRANCHISE_MODE, pickerTypeLabel } from "../../lib/randomPicker";
 
 const CHIP =
-  "px-2.5 py-1 border font-mono text-[11px] uppercase tracking-[0.12em] transition-colors";
+  "px-2.5 py-1 border font-mono text-[11px] transition-colors";
 const ON = "bg-brand text-on-brand border-brand";
 const OFF =
   "bg-surface text-text-muted border-border-strong hover:border-text hover:text-text";

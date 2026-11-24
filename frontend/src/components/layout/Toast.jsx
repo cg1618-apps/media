@@ -25,7 +25,7 @@ export default function Toast() {
             className={`pointer-events-auto flex items-baseline gap-3 bg-surface border border-border border-l-4 ${tone.rule} px-4 py-3 min-w-64 max-w-sm animate-slide-in`}
           >
             <span
-              className={`font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted px-1 py-0.5 shrink-0 ${tone.tint}`}
+              className={`font-mono text-[10px] text-text-muted px-1 py-0.5 shrink-0 ${tone.tint}`}
             >
               {tone.label}
             </span>
