@@ -2442,7 +2442,7 @@ session that may not see the type, so the endpoint does not say it exists.
 **Response model:** `RandomPickerDefaultsResponse` (`RandomPickerDefaultsPayload` + `mode`)
 
 ```json
-{ "mode": "anime", "version": 1, "filters": { "airingType": ["TV", "OVA"], "bahaOnly": true }, "weighted": true }
+{ "mode": "anime", "version": 1, "filters": { "airingType": ["TV", "OVA"], "airingStatus": ["Airing"] }, "weighted": true }
 ```
 
 - `filters` is **sparse**: a filter absent from the map opens empty. Keys are the

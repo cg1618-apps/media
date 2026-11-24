@@ -9,6 +9,10 @@ import {
 import { PLAYING_STATUS_GROUP } from "../../../config/statusGroups";
 import { compareTitles, getDisplayName, getSortName } from "../../../lib/naming";
 import { releaseScore } from "../../../lib/releaseDate";
+import {
+  gameGenreFilters,
+  hGenreFilters,
+} from "../../../lib/libraryFilterDefs";
 
 // CN leads, as everywhere but comic; lib/naming.js holds the one chain.
 const getTitle = (g) => getDisplayName(g, "h-game");
@@ -104,6 +108,9 @@ const H_GAME_LIBRARY_CONFIG = {
     { ...setFilter("ownership", "Ownership", "ownership"), personal: true },
     setFilter("releaseStatus", "Release", "release_status"),
     { ...setFilter("usefulness", "Usefulness", "usefulness"), personal: true },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...gameGenreFilters(),
+    ...hGenreFilters(),
   ],
 
   sortDefs: [

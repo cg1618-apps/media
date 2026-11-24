@@ -12,6 +12,9 @@ import {
 import { releaseScore } from "../../../lib/releaseDate";
 import { READING_STATUS_GROUP } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
+import {
+  genreFilters,
+} from "../../../lib/libraryFilterDefs";
 
 function getTitle(m)   {
   return m.manga_name_cn || m.manga_name_en || m.manga_name_roman
@@ -73,6 +76,8 @@ const MANGA_LIBRARY_CONFIG = {
         [...new Set(data.map((d) => d.region).filter(Boolean))].sort(),
       match: (item, active) => active.has(item.region),
     },
+    // Advanced section (FilterPanel draws it collapsed).
+    ...genreFilters(),
   ],
 
   sortDefs: [
