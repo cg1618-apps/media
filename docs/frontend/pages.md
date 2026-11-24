@@ -1421,9 +1421,16 @@ Top to bottom:
    with its note while the entry is marked Needs Work, dashed **+ 待補充**
    while it is not - which opens the mark-and-note control
    ([admin-pages.md](admin-pages.md#needs-work-needsworkjsx)).
-2. **Admin toolbar** (`isAdmin`): **Quick Edit** → `/modify?id={id}`;
-   **Mark Completed** → `POST {apiEndpoint}/{id}/complete` then refetch;
-   the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
+2. **Admin actions** (`isAdmin`), the dashed strip
+   `components/layout/AdminActions.jsx` draws, with no caption. It has two
+   groups: at the left end the editing actions, **Edit** then **Autofill &
+   update**; at the right end the status steps, the release button then
+   **Mark completed**, which is always last. On a narrow screen the right
+   group wraps to a line of its own and stays right-aligned. Every page
+   passes its own buttons and handlers; the strip owns only the layout.
+   **Edit** → `/modify?id={id}`; **Autofill & update** runs the type's
+   single-entry fill; **Mark completed** → `POST {apiEndpoint}/{id}/complete`
+   then refetch; the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
    in `lib/releaseAction.js`) moves the entry one step along its release
    axis, and is absent when there is no next step. It is the one control
    that edits the work and the viewer's row together, so `saveRelease` (from
@@ -1579,7 +1586,7 @@ Manga uses a local `MangaTrackerBlock` (`ch_fin`, `vol_fin`, `vol_fin_page`,
 `is_pinged`, `read_next`, `to_reread`); Book uses `components/tracker/BookTrackerBlock`
 (`ch_fin/vol_fin/arc_fin` by `progress_display`, and the Pinged checkbox); H-Comic and Hentai use the
 local blocks described below. All take `canTrack` and draw nothing without
-it. **Mark completed** stays in the editor's toolbar: `POST /{id}/complete`
+it. **Mark completed** stays in the admin actions: `POST /{id}/complete`
 asks `manage.catalog` and also writes the work's airing status. A list
 holder who is not an editor finishes an entry by choosing Completed in the
 status select, which goes through `/api/me/list`.
@@ -1621,8 +1628,8 @@ tag, and the MAL link and the E-Hentai gallery (`ehentaiLink`, tag "EH")
 under "Where to Look Up"; `RelationsSection`; a **Cast** slip, the shared
 `CastSection` (characters only - an h-comic casting never carries a seiyuu);
 the series number beside the
-series link on JP. The admin toolbar has Edit, Mark completed and
-**Autofill & update**, which runs `POST /replace/h-comic/{id}` - Tenrai's
+series link on JP. **Autofill & update** in the admin actions runs
+`POST /replace/h-comic/{id}` - Tenrai's
 manga record, then the E-Hentai gallery's cover and illustrator where still
 blank, all fill-only.
 
@@ -1689,9 +1696,8 @@ Material, Originality, Airing Status, Release Date, Episodes), **Credits** (Stud
 Credits and Genres - the shared `CastSection`, characters with "voiced by"
 every seiyuu, from `useCasting("hentai", …)`, drawn only when the entry has a
 cast. The series number sits beside the series link. The left
-column carries `SourcesCard` with `malLink` and `anidbLink` and `RelationsSection`. The admin
-toolbar has Edit, Mark completed and **Autofill & update**, the
-single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing
+column carries `SourcesCard` with `malLink` and `anidbLink` and `RelationsSection`. **Autofill & update**
+in the admin actions is the single-entry Tenrai and AniDB fetch (`replaceSingle("hentai")`: airing
 status, release date, episode count, cover and the Official site / Twitter
 reference rows,
 each only where blank, AniDB only for what MAL left blank).

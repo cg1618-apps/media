@@ -17,6 +17,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { useHighlightGroupOrderSaver } from "../../api/mutations/useMyHighlightGroupOrder";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import AdminActions from "../../components/layout/AdminActions";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
 import NamingCard from "../../components/info/NamingCard";
@@ -421,19 +422,24 @@ export default function HComic() {
       </div>
 
       {isAdmin && (
-        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <Eyebrow className="text-[11px] text-text-muted">Admin</Eyebrow>
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => navigate(`/modify?id=${system_id}&type=h-comic`)}>
-              Edit
-            </Button>
-            <Button onClick={markCompleted}>Mark completed</Button>
-            <MarkReleaseButton type="h-comic" entry={hComic} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-            <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
-              {autofilling ? "Autofilling…" : "Autofill & update"}
-            </Button>
-          </div>
-        </div>
+        <AdminActions
+          start={
+            <>
+              <Button onClick={() => navigate(`/modify?id=${system_id}&type=h-comic`)}>
+                Edit
+              </Button>
+              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                {autofilling ? "Autofilling…" : "Autofill & update"}
+              </Button>
+            </>
+          }
+          end={
+            <>
+              <MarkReleaseButton type="h-comic" entry={hComic} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
+              <Button onClick={markCompleted}>Mark completed</Button>
+            </>
+          }
+        />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

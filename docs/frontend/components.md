@@ -285,7 +285,11 @@ columns.
   `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
   themselves, see [The `personal` flag](#the-personal-flag)),
   `GroupedEntryPage`, `CollapsibleCardGrid`,
-  `AdminTabBar`, `FittedName`, `TierBadge`, and the in-page contents:
+  `AdminTabBar`, `AdminActions` (the media-type detail pages' admin strip:
+  a `start` group at the left end and an `end` group at the right end,
+  which wraps to its own line on a narrow screen and stays right-aligned;
+  no caption - see [pages.md](pages.md#detail-pages--typesystem_id)),
+  `FittedName`, `TierBadge`, and the in-page contents:
   `TableOfContents`, `ContentsBar` and `DetailContents` (see
   [In-page table of contents](#in-page-table-of-contents)).
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs` (an
@@ -376,7 +380,7 @@ columns.
   `Chip` otherwise. An axis marked `{ personal: true }` - usefulness, a list
   field - follows `canTrack` instead: a select written through `onOwnChange`
   (`/api/me`) for a holder of `self.list`, absent for anyone else),
-  `MarkReleaseButton` (the editor toolbar's release step; with `canTrack`
+  `MarkReleaseButton` (the admin actions' release step; with `canTrack`
   false it carries none of the viewer's own fields - see
   `RELEASE_PERSONAL_FIELDS` in `lib/releaseAction.js`), `WeeklySchedule`,
   `ComingNext` (the dashboard's next-season block; its selection is the pure
