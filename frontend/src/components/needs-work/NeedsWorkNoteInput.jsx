@@ -33,7 +33,7 @@ export default function NeedsWorkNoteInput({ value, onChange, id }) {
       <SuggestInput
         id={id}
         aria-label={id ? undefined : "Needs Work note"}
-        placeholder="Note - marks with the same note are listed together"
+        placeholder="Note - marks with a common note are listed together"
         value={value}
         onChange={onChange}
         options={common ?? []}

@@ -1,5 +1,6 @@
-// The Needs Work page: marks grouped by note with the unnoted group last,
-// each row linking to its owner's page; Edit note and Clear reach the one
+// The Needs Work page: a section per common note in the option's order, one
+// Other section for every custom note (each row showing its note), the
+// unnoted section last; each row linking to its owner's page; Edit note and Clear reach the one
 // endpoint the server gates them on, and Clear sends nothing until confirmed.
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -25,7 +26,11 @@ const item = (ownerType, ownerId, typeLabel, name, note, isTier = false) => ({
   updated_at: "2026-11-19T10:00:00",
 });
 
+// The server sends one group per distinct note, sorted by note. 名稱缺 and
+// 自訂備註 are custom - not values of the Needs Work Note category - so they
+// are load-bearing: without them the Other section has nothing to collect.
 const GROUPS = [
+  { note: "名稱缺", items: [item("game", "g1", "Game", "Elden Ring", "名稱缺")] },
   {
     note: "續集未補",
     items: [
@@ -33,13 +38,23 @@ const GROUPS = [
       item("franchise", "f1", "Franchise", "Dandadan", "續集未補", true),
     ],
   },
+  { note: "官方名稱未出", items: [item("movie", "m1", "Movie", "Dune", "官方名稱未出")] },
+  { note: "自訂備註", items: [item("book", "b1", "Book", "Dune Messiah", "自訂備註")] },
   { note: null, items: [item("series", "s1", "Series", "Solo Leveling", null, true)] },
 ];
 
+// The Needs Work Note option values, in their sort order.
+const COMMON_NOTES = [
+  { system_id: "o1", value: "官方名稱未出" },
+  { system_id: "o2", value: "續集未補" },
+];
+
 let groups;
+let commonNotes;
 
 beforeEach(() => {
   groups = GROUPS;
+  commonNotes = COMMON_NOTES;
   vi.stubGlobal(
     "fetch",
     vi.fn((url, opts) => {
@@ -49,7 +64,7 @@ beforeEach(() => {
       // /notes is load-bearing: an in-use note that is not a common one,
       // where the retired notes-in-use read lived.
       const body = url.startsWith("/api/options/")
-        ? [{ system_id: "o1", value: "官方名稱未出" }]
+        ? commonNotes
         : url.endsWith("/notes")
           ? [{ note: "名稱缺", count: 2 }]
           : groups;
@@ -79,17 +94,47 @@ const writes = () =>
   global.fetch.mock.calls.filter(([, opts]) => opts?.method && opts.method !== "GET");
 
 describe("the Needs Work page", () => {
-  it("groups the marks by note, the unnoted group last", async () => {
+  it("gives each common note a section in the option's order, then Other, then No note", async () => {
     renderPage();
     await screen.findByText("Frieren");
     const sections = screen.getAllByTestId("needs-work-group");
-    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["續集未補", "No note"]);
-    expect(within(sections[0]).getAllByTestId("needs-work-row")).toHaveLength(2);
+    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual([
+      "官方名稱未出",
+      "續集未補",
+      "Other",
+      "No note",
+    ]);
+    expect(within(sections[1]).getAllByTestId("needs-work-row")).toHaveLength(2);
+    expect(within(sections[3]).getByText("Solo Leveling")).toBeInTheDocument();
     expect(screen.getByText("Frieren").closest("a")).toHaveAttribute("href", "/anime/a1");
     expect(screen.getByText("Solo Leveling").closest("a")).toHaveAttribute(
       "href",
       "/series/s1",
     );
+  });
+
+  it("collects every custom note into Other, each row showing its own note", async () => {
+    renderPage();
+    await screen.findByText("Frieren");
+    const other = screen.getByRole("region", { name: "Other" });
+    const rows = within(other).getAllByTestId("needs-work-row");
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText("Elden Ring")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("名稱缺")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("Dune Messiah")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("自訂備註")).toBeInTheDocument();
+    // A common note's section names the note once, in its heading, not per row.
+    const common = screen.getByRole("region", { name: "續集未補" });
+    expect(within(common).getAllByText("續集未補")).toHaveLength(1);
+  });
+
+  it("puts every note in Other when there are no common notes", async () => {
+    commonNotes = [];
+    renderPage();
+    await screen.findByText("Frieren");
+    const sections = screen.getAllByTestId("needs-work-group");
+    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["Other", "No note"]);
+    expect(within(sections[0]).getAllByTestId("needs-work-row")).toHaveLength(5);
   });
 
   it("says so when nothing is marked", async () => {

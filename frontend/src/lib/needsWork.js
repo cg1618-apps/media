@@ -16,3 +16,34 @@ export const NEEDS_WORK_OWNER_TYPES = new Set([
   "franchise",
   "series",
 ]);
+
+export const OTHER_NOTES = "Other";
+export const NO_NOTE = "No note";
+
+/**
+ * The Needs Work page's sections, from the server's one-group-per-note list
+ * (`[{ note, items }]`) and the common notes in their option order.
+ *
+ * A note that is one of the common notes keeps a section of its own, in the
+ * option's order; every other note goes into one Other section, its rows in
+ * the server's order; the unnoted marks come last, in No note. A section
+ * with no marks is left out. Each section is `{ key, label, kind, items }`,
+ * `kind` one of "common", "other", "none".
+ */
+export function needsWorkSections(groups, commonNotes) {
+  const common = [...new Set(commonNotes ?? [])];
+  const byNote = new Map();
+  const other = [];
+  let unnoted = [];
+  for (const group of groups ?? []) {
+    if (group.note == null) unnoted = group.items;
+    else if (common.includes(group.note)) byNote.set(group.note, group.items);
+    else other.push(...group.items);
+  }
+  const sections = common
+    .filter((note) => byNote.get(note)?.length)
+    .map((note) => ({ key: `common:${note}`, label: note, kind: "common", items: byNote.get(note) }));
+  if (other.length) sections.push({ key: "other", label: OTHER_NOTES, kind: "other", items: other });
+  if (unnoted.length) sections.push({ key: "none", label: NO_NOTE, kind: "none", items: unnoted });
+  return sections;
+}
