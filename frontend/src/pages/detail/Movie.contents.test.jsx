@@ -23,6 +23,8 @@ const ENTRY = {
   movie_name_en: "Test Movie",
   movie_name_alt: null,
   release_status: "Released",
+  movie_type: "Reality",
+  length_min: 171,
   watching_status: "Completed",
   genre_main: "Drama",
 };
@@ -100,5 +102,35 @@ describe("Movie detail page - release status", () => {
     expect(card.getByText("Release Status")).toBeInTheDocument();
     expect(card.getByText("Released")).toBeInTheDocument();
     expect(card.queryByText("Airing Status")).toBeNull();
+  });
+
+  it("draws no eyebrow line above the title", async () => {
+    mockFetch();
+    mount();
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByText(/Movie\s+·\s+Reality/)).toBeNull();
+    // The same facts are still on the page, on the Information card.
+    expect(screen.getByText("Reality")).toBeInTheDocument();
+    expect(screen.getByText("2hr 51min")).toBeInTheDocument();
+  });
+
+  // 本傳 / 外傳 beside Movie Type, Director beside Runtime, and Release Status
+  // leading the two release dates.
+  it("lays the Information card out in three rows", async () => {
+    mockFetch();
+    mount();
+    const heading = await screen.findByRole("heading", { level: 3, name: "Information" });
+    const card = within(heading.closest("section"));
+    const rowOf = (label) => card.getByText(label).closest(".grid");
+    const labelsIn = (row) =>
+      ["本傳 / 外傳", "Movie Type", "Director", "Runtime", "Release Status",
+        "Release Date TW", "Release Date USA"].filter((l) => row.contains(card.getByText(l)));
+    expect(labelsIn(rowOf("本傳 / 外傳"))).toEqual(["本傳 / 外傳", "Movie Type"]);
+    expect(labelsIn(rowOf("Director"))).toEqual(["Director", "Runtime"]);
+    expect(labelsIn(rowOf("Release Status"))).toEqual([
+      "Release Status",
+      "Release Date TW",
+      "Release Date USA",
+    ]);
   });
 });
