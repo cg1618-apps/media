@@ -25,6 +25,7 @@ import {
   ReorderRow,
   SaveCancel,
   SectionCard,
+  isMixedByChoice,
   isPersonal,
   ShowAllToggle,
   brandTagCls,
@@ -338,6 +339,7 @@ export default function TextLinksSection({
     <SectionCard
       label={section.label}
       personal={isPersonal(section)}
+      mixed={isMixedByChoice(section)}
       count={notes.length}
       canWrite={canWrite}
       onAdd={() => setAdding(true)}

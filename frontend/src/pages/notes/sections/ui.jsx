@@ -75,22 +75,43 @@ const countCls = "font-mono text-[10px] text-text-faint tabular-nums";
 const SectionCardContext = createContext({ bare: false, appendix: null, appendixCount: 0 });
 export const SectionCardProvider = SectionCardContext.Provider;
 
-// The mark after a PERSONAL section's title (`scope: "personal"`): its rows
-// are each viewer's own, never the catalogue's. A small circled P in the
-// title's mono ink, with the meaning in its tooltip and accessible name - a
-// drawn circle rather than the Ⓟ glyph, which the mono font sets unevenly.
-export function PersonalBadge() {
+// The mark after a section's title that says whose rows it holds: a small
+// circled letter in the title's mono ink, with the meaning in its tooltip and
+// accessible name - a drawn circle rather than the Ⓟ glyph, which the mono
+// font sets unevenly.
+function ScopeBadge({ letter, name, title }) {
   return (
     <span
       role="img"
-      aria-label="Personal"
-      title="Personal - only you see your rows here"
+      aria-label={name}
+      title={title}
       className="inline-flex items-center justify-center w-3.5 h-3.5 ml-1.5 rounded-full border border-current font-mono text-[8px] leading-none normal-case tracking-normal align-middle"
     >
-      P
+      {letter}
     </span>
   );
 }
+
+// P, for a PERSONAL section (`scope: "personal"`): its rows are each viewer's
+// own, never the catalogue's.
+export function PersonalBadge() {
+  return <ScopeBadge letter="P" name="Personal" title="Personal - only you see your rows here" />;
+}
+
+// M, for a section whose writer picks each row's kind (`kind_choice` - 優點,
+// 缺點, 優缺點): public rows everyone reads, mixed with each viewer's own.
+export function MixedBadge() {
+  return (
+    <ScopeBadge
+      letter="M"
+      name="Mixed"
+      title="Mixed - public rows everyone reads, plus your own personal rows"
+    />
+  );
+}
+
+// Whether a section mixes public rows with each viewer's own by choice.
+export const isMixedByChoice = (section) => Boolean(section?.kind_choice);
 
 // Whether a section's rows are each viewer's own.
 export const isPersonal = (section) => section?.scope === "personal";
@@ -98,10 +119,11 @@ export const isPersonal = (section) => section?.scope === "personal";
 // `actions` are extra header controls drawn before Add - a section's view
 // toggles. They sit in the header's click-shielded strip, so pressing one
 // never collapses the card. `openWhenEmpty` - see useCollapsed. `personal`
-// draws PersonalBadge after the label.
+// draws PersonalBadge after the label, and `mixed` MixedBadge.
 export function SectionCard({
   label,
   personal = false,
+  mixed = false,
   count,
   canWrite,
   onAdd,
@@ -122,6 +144,7 @@ export function SectionCard({
         <h4 className="font-mono text-[10px] uppercase tracking-[0.14em] text-text-muted shrink-0">
           {label}
           {personal && <PersonalBadge />}
+          {mixed && <MixedBadge />}
         </h4>
         {total > 0 && <span className={countCls}>{total}</span>}
         <span className="flex-1 border-t border-dotted border-border-strong/60" />
