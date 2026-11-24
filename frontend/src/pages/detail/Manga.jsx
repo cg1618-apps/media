@@ -445,7 +445,7 @@ export default function Manga() {
           </Eyebrow>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => navigate(`/modify?id=${system_id}&type=manga`)}>
-              Quick edit
+              Edit
             </Button>
             <Button
               onClick={async () => {

@@ -291,7 +291,7 @@ describe("Hentai detail page own tracker", () => {
     mockFetch(watching, [], { admin: true, permissions: ["manage.catalog"] });
     mount(watching);
     expect(await screen.findByRole("button", { name: "Mark completed" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Quick edit" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "My tracker" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Watching status" })).toBeNull();
   });

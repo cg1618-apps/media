@@ -10,7 +10,7 @@
 // MAL record).
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=publisher, the
-// detail page's Quick edit): that publisher's editor opens on mount.
+// detail page's Edit button): that publisher's editor opens on mount.
 import RelatedRecords from "../../components/info/RelatedRecords";
 import {
   applyMyRating,

@@ -9,7 +9,7 @@
 // markup isn't duplicated - see the comment on that export.
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=character, the
-// detail page's Quick edit): that character's editor opens on mount.
+// detail page's Edit button): that character's editor opens on mount.
 //
 // `sources` is Modify.jsx's fetchAllSources() bag, which the Appearance and
 // Trait pickers suggest from; a save can create values in either vocabulary,

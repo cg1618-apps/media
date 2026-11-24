@@ -138,7 +138,7 @@ counts). `h1` is display by default.
    hues cannot all sit far apart round the wheel, so the close pairs are told
    apart by saturation as well as hue.
 6. **Copy** is sentence case, plain verbs, no exclamation marks:
-   "Quick edit", "Mark completed", "Saved". Empty states say what is
+   "Edit", "Mark completed", "Saved". Empty states say what is
    missing and what to do, not a mood.
 7. **Both themes.** Anything on a brand fill uses `text-on-brand`, never
    `text-white`. Nothing sits on a hard-coded grey (`src/theme-tokens.test.js`
@@ -279,7 +279,7 @@ Detail page (`pages/detail/*.jsx`):
 
 ```
 ANIME  /  <title>                REPORT A PROBLEM  ← Eyebrow breadcrumb; the report link for self.requests (provisional)
-[ ADMIN .... Quick edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
+[ ADMIN .... Edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
 ┌─────────┐  ANIME · TV · FINISHED AIRING · SPR 2021    ← Eyebrow line
 │  cover  │  <Title in display face>
 │   [A]   │  subtitle (muted)

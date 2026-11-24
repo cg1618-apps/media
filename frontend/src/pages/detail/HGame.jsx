@@ -326,7 +326,7 @@ export default function HGame() {
             <Eyebrow className="text-[11px] tracking-[0.16em] text-text-muted">Admin</Eyebrow>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => navigate(`/modify?id=${system_id}&type=h-game`)}>
-                Quick edit
+                Edit
               </Button>
               <Button onClick={markCompleted}>Mark completed</Button>
               <MarkReleaseButton type="h-game" entry={hGame} title={titleMain} canTrack={ownData} onPatch={saveRelease} />

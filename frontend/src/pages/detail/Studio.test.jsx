@@ -231,7 +231,7 @@ describe("Studio detail page", () => {
   it("shows a guest the remark and rating as text, with no admin controls", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "KyoAni" });
-    expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit this studio" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
     expect(screen.getByText(STUDIO.remark)).toBeInTheDocument();
@@ -250,7 +250,7 @@ describe("Studio detail page", () => {
       await user.selectOptions(await screen.findByLabelText("My rating"), "C");
       await waitFor(() => expect(putCalls()).toHaveLength(1));
       expect(putCalls()[0][0]).toBe("/api/me/ratings/studio/s1");
-      expect(screen.queryByRole("button", { name: "Quick edit" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit this studio" })).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
     });
 
@@ -276,14 +276,14 @@ describe("Studio detail page", () => {
 
     it("draws no rating editor", async () => {
       renderPage();
-      await screen.findByRole("button", { name: "Quick edit" });
+      await screen.findByRole("button", { name: "Edit this studio" });
       expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     });
 
-    it("links Quick edit to this studio's Modify editor", async () => {
+    it("links Edit to this studio's Modify editor", async () => {
       const user = userEvent.setup();
       renderPage();
-      await user.click(await screen.findByRole("button", { name: "Quick edit" }));
+      await user.click(await screen.findByRole("button", { name: "Edit this studio" }));
       expect(await screen.findByText("at /modify?id=s1&type=studio")).toBeInTheDocument();
     });
 
@@ -322,7 +322,7 @@ describe("Studio Autofill & update", () => {
     auth = ADMIN;
     mockFetch({ studio: { ...STUDIO, mal_id: null, mal_link: null } });
     renderPage();
-    await screen.findByRole("button", { name: "Quick edit" });
+    await screen.findByRole("button", { name: "Edit this studio" });
     expect(screen.queryByRole("button", { name: /Autofill/ })).not.toBeInTheDocument();
   });
 

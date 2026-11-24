@@ -234,7 +234,7 @@ it("does not seed a country", async () => {
   expect(screen.queryByDisplayValue("Japan")).not.toBeInTheDocument();
 });
 
-// /modify?id=<system_id>&type=publisher (the detail page's Quick edit) hands
+// /modify?id=<system_id>&type=publisher (the detail page's Edit button) hands
 // the id in as initialId.
 it("opens the editor for initialId without a pick", async () => {
   mount({ initialId: "p1" });

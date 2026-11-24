@@ -1462,7 +1462,7 @@ export default function FranchisePage() {
           {/* The rating and expectation are the viewer's own (self.list);
               the plan and rewatch controls stay the catalogue manager's. */}
           {(ownData || isAdmin) && (
-            <Slip title="Curation">
+            <Slip title="Personal Status">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {ownData && (
                   <>
@@ -1600,7 +1600,6 @@ export default function FranchisePage() {
         animeList.length > 0 && (
           <Section
             title="Anime"
-            subtitle="TV · ONA · Movie · OVA · Special"
             count={filteredAndSortedAnime.length}
           >
 
@@ -1750,7 +1749,6 @@ export default function FranchisePage() {
         animeMovieList.length > 0 && (
           <Section
             title="Anime Movies"
-            subtitle="Standalone theatrical films"
             count={sortedAnimeMovies.length}
           >
 
@@ -1787,7 +1785,6 @@ export default function FranchisePage() {
         mangaList.length > 0 && (
           <Section
             title="Manga"
-            subtitle="Manga · Manhwa · Manhua"
             count={filteredAndSortedManga.length}
           >
 
@@ -1913,7 +1910,6 @@ export default function FranchisePage() {
         bookList.length > 0 && (
           <Section
             title="Book"
-            subtitle="輕小說 · 小說 · 網路小說 · 短篇集 · 指南/設定集 · 其他"
             count={filteredAndSortedBook.length}
           >
 
@@ -2036,7 +2032,6 @@ export default function FranchisePage() {
       {activeTab === "Comic" && comicList.length > 0 && (
         <Section
           title="Comic"
-          subtitle="Runs, limited series &amp; one-shots"
           count={filteredAndSortedComic.length}
         >
 
@@ -2159,7 +2154,6 @@ export default function FranchisePage() {
       {activeTab === "Game" && gameList.length > 0 && (
         <Section
           title="Game"
-          subtitle="Base games, DLC &amp; expansions"
           count={gameList.length}
         >
           <div className={GRID_CLS}>
@@ -2185,7 +2179,6 @@ export default function FranchisePage() {
       {activeTab === "H-Comic" && hComicList.length > 0 && (
         <Section
           title="H-Comic"
-          subtitle="In series order, then by release"
           count={hComicList.length}
         >
           <div className={GRID_CLS}>
@@ -2211,7 +2204,7 @@ export default function FranchisePage() {
 
       {/* ── Hentai tab content ──────────────────────────────── */}
       {activeTab === "Hentai" && hentaiList.length > 0 && (
-        <Section title="Hentai" subtitle="One entry per episode" count={hentaiList.length}>
+        <Section title="Hentai" count={hentaiList.length}>
           <div className={GRID_CLS}>
             {[...hentaiList]
               .sort(
@@ -2237,7 +2230,6 @@ export default function FranchisePage() {
       {activeTab === "H-Game" && hGameList.length > 0 && (
         <Section
           title="H-Game"
-          subtitle="Base games, DLC &amp; expansions"
           count={hGameList.length}
         >
           <div className={GRID_CLS}>
@@ -2266,7 +2258,6 @@ export default function FranchisePage() {
         movieList.length > 0 && (
           <Section
             title="Movies"
-            subtitle="Live-action &amp; animated films"
             count={filteredAndSortedMovies.length}
           >
 
@@ -2386,7 +2377,6 @@ export default function FranchisePage() {
         tvShowList.length > 0 && (
           <Section
             title="TV Shows"
-            subtitle="Live-action series"
             count={filteredAndSortedTvShows.length}
           >
 
@@ -2509,7 +2499,6 @@ export default function FranchisePage() {
         cartoonList.length > 0 && (
           <Section
             title="Cartoons"
-            subtitle="Cartoon entries"
             count={filteredAndSortedCartoons.length}
           >
 
@@ -2646,7 +2635,6 @@ export default function FranchisePage() {
       {showCharacters && activeTab === "Characters" && (
         <Section
           title="Characters"
-          subtitle="Everyone cast on this franchise's entries, and the identities they appear as"
         >
           <HubCharacters scope="franchise" tierId={system_id} />
         </Section>
@@ -2656,7 +2644,6 @@ export default function FranchisePage() {
       {activeTab === "Order" && (
         <Section
           title="Order"
-          subtitle="Ordered viewing guide across every media type"
         >
           <OrderSection franchiseId={system_id} />
         </Section>
@@ -2666,7 +2653,6 @@ export default function FranchisePage() {
       {activeTab === "Relations" && (
         <Section
           title="Relations"
-          subtitle="How this franchise's entries connect - prequels, alternatives, side stories and adaptations"
         >
           {/* Read-only everywhere outside the admin Relations page, for admins
               too: this is a view of the structure, and curating it belongs in
@@ -2690,7 +2676,6 @@ export default function FranchisePage() {
       {activeTab === "Notes" && (
         <Section
           title="Notes"
-          subtitle="Structured notes belonging to the whole franchise"
         >
           <FranchiseNotes
             franchise={franchise}

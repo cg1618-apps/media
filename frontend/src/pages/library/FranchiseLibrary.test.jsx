@@ -218,3 +218,17 @@ describe("FranchiseLibrary Relation filter", () => {
     expect(screen.queryByText("進撃の巨人")).toBeNull();
   });
 });
+
+// The page's title stands alone: no grey "Library" eyebrow above it.
+describe("FranchiseLibrary heading", () => {
+  it("draws the title with no Library eyebrow", async () => {
+    render(
+      <MemoryRouter>
+        <FranchiseLibrary />
+      </MemoryRouter>,
+    );
+    await screen.findByText("進撃の巨人");
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+    expect(screen.queryByText("Library")).toBeNull();
+  });
+});
