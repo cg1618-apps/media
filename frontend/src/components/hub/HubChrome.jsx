@@ -142,11 +142,17 @@ export function Field({ label, className = "", children }) {
  * The underline tab bar. `groups` is [{ label, tabs, counted }] in display
  * order; a group with no tabs is dropped. `counted` asks for a count on each
  * of that group's tabs, resolved through `getCount`.
+ *
+ * The bar scrolls sideways on a narrow screen. Its hairline is an inset
+ * shadow rather than a border, so the tabs fit the bar exactly and the
+ * active tab's underline paints over the rule: a tab pulled 1px below a real
+ * border overflowed the bar, and since overflow-x makes overflow-y scroll
+ * too, that 1px drew a vertical scrollbar beside the tabs.
  */
 export function HubTabs({ groups, activeTab, onSelect, getCount }) {
   const filled = groups.filter((g) => g.tabs.length > 0);
   return (
-    <div className="flex items-end gap-6 border-b border-border overflow-x-auto">
+    <div className="flex items-end gap-6 shadow-[inset_0_-1px_0_var(--color-border)] overflow-x-auto overflow-y-hidden">
       {filled.map((group) => (
         <div key={group.label} className="flex items-end gap-1 shrink-0">
           <Eyebrow className="pr-2 pb-2.5">{group.label}</Eyebrow>
@@ -157,7 +163,7 @@ export function HubTabs({ groups, activeTab, onSelect, getCount }) {
                 key={tab}
                 type="button"
                 onClick={() => onSelect(tab)}
-                className={`px-3 pb-2 pt-1 -mb-px font-mono text-[11px] uppercase tracking-[0.14em] border-b-2 transition whitespace-nowrap ${
+                className={`px-3 pb-2 pt-1 font-mono text-[11px] uppercase tracking-[0.14em] border-b-2 transition whitespace-nowrap ${
                   active
                     ? "border-brand text-brand"
                     : "border-transparent text-text-muted hover:text-text"
