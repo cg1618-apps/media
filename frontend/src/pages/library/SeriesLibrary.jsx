@@ -9,14 +9,15 @@ import { getSeriesCover, withMediaType } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import { compareGroups, expectationTone } from "../../lib/groupSort";
 import SeriesCard from "../../components/cards/SeriesCard";
-import { Chip, Eyebrow } from "../../components/ui/primitives";
+import { ClearAllButton, Chip, Eyebrow } from "../../components/ui/primitives";
 import { useAuth } from "../../contexts/AuthContext";
 import { useViewScope } from "../../hooks/useViewScope";
 import { canSeeGatedType } from "../../lib/gatedTypes";
 import { withoutPersonal } from "../../lib/libraryScope";
 
 // Every entry table a series can hold, with the label its type filter and
-// Types column show. anime_movies has no series_id, so it is absent.
+// Types column show, in the order both draw them. anime_movies has no
+// series_id, so it is absent.
 // getSeriesCover() needs the full set - a series whose chosen cover entry is
 // of a type left out falls back to the placeholder silently - and the
 // Entries column counts whatever is listed here.
@@ -24,10 +25,10 @@ const ENTRY_SOURCES = [
   ["anime", "/api/anime/", "Anime"],
   ["manga", "/api/manga/", "Manga"],
   ["book", "/api/book/", "Book"],
-  ["comic", "/api/comic/", "Comic"],
   ["movie", "/api/movies/", "Movie"],
   ["tv-show", "/api/tv-shows/", "TV"],
   ["cartoon", "/api/cartoon/", "Cartoon"],
+  ["comic", "/api/comic/", "Comic"],
   ["game", "/api/game/", "Game"],
   // Gated: each fetched only for a session that can see its type.
   ["h-comic", "/api/h-comic/", "H-Comic"],
@@ -40,6 +41,15 @@ const TYPE_LABEL = Object.fromEntries(ENTRY_SOURCES.map(([type, , label]) => [ty
 function typesHeld(entries = []) {
   const held = new Set(entries.map((e) => e.media_type));
   return ENTRY_SOURCES.filter(([type]) => held.has(type)).map(([, , label]) => label);
+}
+
+// The type chip for a series holding no entry of any type the session sees.
+export const OTHER_TYPE = "Other";
+
+/** The type chips a series matches: the types it holds, else Other. */
+function typeCategories(entries) {
+  const held = typesHeld(entries);
+  return held.length > 0 ? held : [OTHER_TYPE];
 }
 
 const EMPTY_FILTERS = { mediaType: new Set() };
@@ -276,8 +286,8 @@ export default function SeriesLibrary() {
         if (!match) return false;
       }
       if (filters.mediaType.size > 0) {
-        const held = typesHeld(entriesBySeries[s.system_id]);
-        if (!held.some((t) => filters.mediaType.has(t))) return false;
+        const cats = typeCategories(entriesBySeries[s.system_id]);
+        if (!cats.some((t) => filters.mediaType.has(t))) return false;
       }
       return true;
     });
@@ -409,28 +419,26 @@ export default function SeriesLibrary() {
             <div className="border-t border-border mt-3 pt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
               <Eyebrow className="shrink-0">Holds</Eyebrow>
               <div className="flex flex-wrap gap-1.5">
-                {visibleTypes.map(([type]) => {
-                  const label = TYPE_LABEL[type];
-                  const active = filters.mediaType.has(label);
-                  return (
-                    <button
-                      key={type}
-                      onClick={() => toggleFilter(label)}
-                      className={`px-3 py-1 border text-xs font-medium transition-colors ${active ? PILL_ON : PILL_OFF}`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+                {[...visibleTypes.map(([type]) => TYPE_LABEL[type]), OTHER_TYPE].map(
+                  (label) => {
+                    const active = filters.mediaType.has(label);
+                    return (
+                      <button
+                        key={label}
+                        onClick={() => toggleFilter(label)}
+                        className={`px-3 py-1 border text-xs font-medium transition-colors ${active ? PILL_ON : PILL_OFF}`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  },
+                )}
               </div>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearFilters}
-                  className="ml-auto font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint hover:text-text transition"
-                >
-                  Clear
-                </button>
-              )}
+              <ClearAllButton
+                active={activeFilterCount > 0}
+                onClick={clearFilters}
+                className="ml-auto"
+              />
             </div>
           )}
         </div>

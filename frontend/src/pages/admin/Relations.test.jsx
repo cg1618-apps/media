@@ -1,6 +1,6 @@
 // Frontend: tests for the Relations page's scope in the URL.
 //
-// The picked franchise or collection lives in ?owner=<tier>:<system_id>, so a
+// The picked franchise, series or collection lives in ?owner=<tier>:<system_id>, so a
 // hub's "Edit relations" link, a reload and a shared link all land on that
 // scope. The canvas and the form are stubbed: what is under test is which
 // scope the page hands them, and what it writes back to the URL.
@@ -35,6 +35,7 @@ const FRANCHISES = [
   { system_id: "FR002", franchise_name_en: "Dark Souls" },
 ];
 const COLLECTIONS = [{ system_id: "CO001", collection_name_en: "FromSoftware" }];
+const SERIES = [{ system_id: "SE001", series_name_en: "Souls Trilogy" }];
 
 function jsonRes(body) {
   return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
@@ -47,6 +48,7 @@ beforeEach(() => {
       const u = String(url);
       if (u.startsWith("/api/franchise")) return jsonRes(FRANCHISES);
       if (u.startsWith("/api/collection")) return jsonRes(COLLECTIONS);
+      if (u.startsWith("/api/series")) return jsonRes(SERIES);
       return jsonRes([]);
     }),
   );
@@ -104,8 +106,19 @@ describe("Relations scope from the URL", () => {
     );
   });
 
-  it("opens empty on an owner of a tier it cannot show", async () => {
+  it("opens on a series, scoping every request to that series", async () => {
     renderAt("/relations?owner=series:SE001");
+
+    expect(await screen.findByText("Souls Trilogy")).toBeInTheDocument();
+    expect(screen.getByTestId("graph-scope").textContent).toBe("series:SE001");
+    await waitFor(() => {
+      expect(fetchedUrls()).toContain("/api/order/candidates?series_id=SE001");
+      expect(fetchedUrls()).toContain("/api/media-relation/?series_id=SE001");
+    });
+  });
+
+  it("opens empty on an owner of a tier it cannot show", async () => {
+    renderAt("/relations?owner=studio:ST001");
 
     expect(screen.getByText("Pick a franchise to begin.")).toBeInTheDocument();
     expect(screen.getByTestId("graph-scope").textContent).toBe("franchise:none");
@@ -133,6 +146,15 @@ describe("Relations scope into the URL", () => {
 
     expect(screen.getByTestId("search").textContent).toBe("");
     expect(screen.getByText("Pick a collection to begin.")).toBeInTheDocument();
+  });
+
+  it("offers series as a tier to pick from", async () => {
+    renderAt("/relations");
+
+    await userEvent.click(screen.getByRole("button", { name: "Series" }));
+
+    expect(screen.getByText("Pick a series to begin.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Search series…")).toBeInTheDocument();
   });
 
   it("drops the owner parameter when the pick is cleared", async () => {

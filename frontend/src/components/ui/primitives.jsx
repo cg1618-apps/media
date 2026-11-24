@@ -143,3 +143,19 @@ export function Button({
     </button>
   );
 }
+
+// The one control that resets a filter set. Every filter set has it (see
+// docs/frontend/design-system.md, "Filters"); it renders only while something
+// in that set is on, so an untouched strip carries no dead button.
+export function ClearAllButton({ active, onClick, className = "" }) {
+  if (!active) return null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`font-mono text-[10px] uppercase tracking-[0.14em] text-text-faint hover:text-danger transition ${className}`}
+    >
+      Clear all
+    </button>
+  );
+}

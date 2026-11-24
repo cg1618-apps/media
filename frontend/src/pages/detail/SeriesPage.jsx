@@ -1,6 +1,5 @@
 // Frontend: page component file for SeriesPage.
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { releaseScore, releaseYear } from "../../lib/releaseDate";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { endpoints } from "../../api/endpoints";
 import { buildUrl } from "../../api/client";
@@ -8,27 +7,12 @@ import { useAuth } from "../../contexts/AuthContext";
 import { RESTRICTED_FAMILY, canSeeGatedType, inFranchiseFamily } from "../../lib/gatedTypes";
 import { buildMediaTabs } from "../../lib/mediaTabs";
 import { useToast } from "../../hooks/useToast";
-import {
-  getDisplayName,
-  getSortName,
-  isBaha,
-  FALLBACK_SVG,
-  getRatingWeight,
-  COMPLETED_STATUSES,
-} from "../../utils/media";
+import { getDisplayName } from "../../utils/media";
 import { getSeriesCover } from "../../lib/covers";
-import { PLAYING_STATUS_GROUP } from "../../config/statusGroups";
-import { GAME_TYPES } from "../../config/fieldOptions";
-import {
-  HubLoading,
-  HubError,
-  FilterEmpty,
-} from "../../components/hub/HubStates";
+import { HubLoading, HubError } from "../../components/hub/HubStates";
 import {
   HubShell,
-  GRID_CLS,
   SELECT_CLS,
-  pillCls,
   Crumbs,
   AdminStrip,
   HeroCover,
@@ -36,14 +20,9 @@ import {
   HubTabs,
   Section,
 } from "../../components/hub/HubChrome";
-import {
-  Eyebrow,
-  Slip,
-  RatingStamp,
-  Chip,
-  ProgressRule,
-} from "../../components/ui/primitives";
-import MediaCard from "../../components/cards/MediaCard";
+import { Eyebrow, Slip, Chip } from "../../components/ui/primitives";
+import BelongingTab from "../../components/hub/BelongingTab";
+import { useHubTabViews } from "../../hooks/useHubTabViews";
 import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import OrderSection from "../../components/tracker/OrderSection";
@@ -61,39 +40,11 @@ import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
 
-const WATCHING_STATUS_GROUPS = {
-  // Watch When Released is the two films' spelling of Watch When Airs.
-  Planned: ["Plan to Watch", "Watch When Airs", "Watch When Released"],
-  Watching: ["Active Watching", "Passive Watching", "Paused"],
-  Completed: COMPLETED_STATUSES,
-  Dropped: ["Temp Dropped", "Dropped", "Won't Watch"],
-  "Might Watch": ["Might Watch"],
-};
-
-function getWatchingGroup(status) {
-  for (const [group, statuses] of Object.entries(WATCHING_STATUS_GROUPS)) {
-    if (statuses.includes(status)) return group;
-  }
-  return "Might Watch";
-}
-
-// JP first, matching the stored release priority for anime.
-function animeDateScore(a) {
-  return releaseScore(a.release_date_jp || a.release_date_tw);
-}
-
-// TW first, matching the stored release priority for movies.
-function movieDateScore(m) {
-  return releaseScore(m.release_date_tw || m.release_date_usa);
-}
-
-// JP first, matching the stored release priority for books.
-function bookDateScore(n) {
-  return releaseScore(n.release_date_jp || n.release_date_tw);
-}
-
-function tvDateScore(t) {
-  return releaseScore(t.release_date);
+// A card's write hands back the whole row; it replaces the one in its list.
+function replaceEntry(setEntries, updated) {
+  setEntries((list) =>
+    list.map((e) => (e.system_id === updated.system_id ? updated : e)),
+  );
 }
 
 // An entry list is only usable as an array. Anything else - an error body, an
@@ -151,69 +102,8 @@ export default function SeriesPage() {
   // ── tab ───────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState(null);
 
-  // ── Anime tab state ───────────────────────────────────────────────────────
-  const [animeSort, setAnimeSort] = useState("release_date");
-  const [animeFilters, setAnimeFilters] = useState({
-    airingType: new Set(),
-    airingStatus: new Set(),
-    watchingStatus: new Set(),
-    bahaOnly: false,
-  });
-
-  // ── Manga tab state ───────────────────────────────────────────────────────
-  const [mangaSort, setMangaSort] = useState("title");
-  const [mangaFilters, setMangaFilters] = useState({
-    serializationStatus: new Set(),
-    readingStatus: new Set(),
-    region: new Set(),
-  });
-
-  // ── Book tab state ───────────────────────────────────────────────────────
-  const [bookSort, setBookSort] = useState("title");
-  const [bookFilters, setBookFilters] = useState({
-    serializationStatus: new Set(),
-    readingStatus: new Set(),
-    region: new Set(),
-  });
-
-  // ── Comic tab state ───────────────────────────────────────────────────────
-  // No `region`: comic has no such column - every run is Western by definition.
-  const [comicSort, setComicSort] = useState("title");
-  const [comicFilters, setComicFilters] = useState({
-    serializationStatus: new Set(),
-    readingStatus: new Set(),
-  });
-
-  // ── Game tab state ────────────────────────────────────────────────────────
-  // Sorted by release date by default: a series of games is read as a release
-  // line, and the DLC sits after the base game it hangs off.
-  const [gameSort, setGameSort] = useState("release_date");
-  const [gameFilters, setGameFilters] = useState({
-    gameType: new Set(),
-    playingStatus: new Set(),
-  });
-
-  // ── Movies tab state ──────────────────────────────────────────────────────
-  const [movSort, setMovSort] = useState("release_date");
-  const [movFilters, setMovFilters] = useState({
-    releaseStatus: new Set(),
-    watchingStatus: new Set(),
-  });
-
-  // ── TV Shows tab state ────────────────────────────────────────────────────
-  const [tvSort, setTvSort] = useState("release_date");
-  const [tvFilters, setTvFilters] = useState({
-    airingStatus: new Set(),
-    watchingStatus: new Set(),
-  });
-
-  // ── Cartoons tab state ────────────────────────────────────────────────────
-  const [cartoonSort, setCartoonSort] = useState("release_date");
-  const [cartoonFilters, setCartoonFilters] = useState({
-    airingStatus: new Set(),
-    airingType: new Set(),
-    watchingStatus: new Set(),
-  });
+  // ── media tabs: each tab's sort, filters and grouping ─────────────────────
+  const { viewOf, updateView } = useHubTabViews("series");
 
   // Everything past the lookup still speaks UUIDs; only the URL segment
   // changed. Resolved from the fetched row so the two can never disagree.
@@ -414,41 +304,45 @@ export default function SeriesPage() {
   // a tab appears purely because its list holds something. The tab's count
   // and the hero's totals come from the same rows. Game is the last ungated
   // tab; the gated types follow it.
+  const mediaRows = useMemo(
+    () =>
+      series
+        ? [
+            { label: "Anime", type: "anime", entries: animeList, setEntries: setAnimeList },
+            { label: "Manga", type: "manga", entries: mangaList, setEntries: setMangaList },
+            { label: "Book", type: "book", entries: bookList, setEntries: setBookList },
+            { label: "Comic", type: "comic", entries: comicList, setEntries: setComicList },
+            { label: "Movies", type: "movie", entries: movieList, setEntries: setMovieList },
+            { label: "TV Shows", type: "tv-show", entries: tvShowList, setEntries: setTvShowList },
+            { label: "Cartoons", type: "cartoon", entries: cartoonList, setEntries: setCartoonList },
+            { label: "Game", type: "game", entries: gameList, setEntries: setGameList },
+            // Gated types last, after every ungated one.
+            { label: "H-Comic", type: "h-comic", entries: hComicList, setEntries: setHComicList },
+            { label: "H-Game", type: "h-game", entries: hGameList, setEntries: setHGameList },
+            { label: "Hentai", type: "hentai", entries: hentaiList, setEntries: setHentaiList },
+          ]
+        : [],
+    [
+      series,
+      animeList,
+      mangaList,
+      bookList,
+      comicList,
+      gameList,
+      hComicList,
+      hGameList,
+      hentaiList,
+      movieList,
+      tvShowList,
+      cartoonList,
+    ],
+  );
   const {
     tabs: mediaTabs,
     countOf: getTabCount,
     total: totalEntries,
     completed: completedCount,
-  } = useMemo(() => {
-    if (!series) return buildMediaTabs([]);
-    return buildMediaTabs([
-      { label: "Anime", type: "anime", entries: animeList },
-      { label: "Manga", type: "manga", entries: mangaList },
-      { label: "Book", type: "book", entries: bookList },
-      { label: "Comic", type: "comic", entries: comicList },
-      { label: "Movies", type: "movie", entries: movieList },
-      { label: "TV Shows", type: "tv-show", entries: tvShowList },
-      { label: "Cartoons", type: "cartoon", entries: cartoonList },
-      { label: "Game", type: "game", entries: gameList },
-      // Gated types last, after every ungated one.
-      { label: "H-Comic", type: "h-comic", entries: hComicList },
-      { label: "H-Game", type: "h-game", entries: hGameList },
-      { label: "Hentai", type: "hentai", entries: hentaiList },
-    ]);
-  }, [
-    series,
-    animeList,
-    mangaList,
-    bookList,
-    comicList,
-    gameList,
-    hComicList,
-    hGameList,
-    hentaiList,
-    movieList,
-    tvShowList,
-    cartoonList,
-  ]);
+  } = useMemo(() => buildMediaTabs(mediaRows), [mediaRows]);
 
   // Always offered, and never dependent on the entry lists: each section
   // reports whether it holds anything, and an admin needs the entry point
@@ -472,67 +366,11 @@ export default function SeriesPage() {
     if (tabs.length > 0 && activeTab === null) setActiveTab(tabs[0]);
   }, [tabs, activeTab]);
 
-  // ── callbacks ─────────────────────────────────────────────────────────────
-  const handleAnimeUpdated = useCallback(
-    (u) =>
-      setAnimeList((p) => p.map((a) => (a.system_id === u.system_id ? u : a))),
-    [],
-  );
-  const handleMovieUpdated = useCallback(
-    (u) =>
-      setMovieList((p) => p.map((m) => (m.system_id === u.system_id ? u : m))),
-    [],
-  );
-  const handleTvShowUpdated = useCallback(
-    (u) =>
-      setTvShowList((p) => p.map((t) => (t.system_id === u.system_id ? u : t))),
-    [],
-  );
-  const handleCartoonUpdated = useCallback(
-    (u) =>
-      setCartoonList((p) => p.map((c) => (c.system_id === u.system_id ? u : c))),
-    [],
-  );
-  const handleMangaUpdated = useCallback(
-    (u) =>
-      setMangaList((p) => p.map((m) => (m.system_id === u.system_id ? u : m))),
-    [],
-  );
-  const handleBookUpdated = useCallback(
-    (u) =>
-      setBookList((p) => p.map((n) => (n.system_id === u.system_id ? u : n))),
-    [],
-  );
+  // The media row the open tab shows, if the open tab is a media one.
+  const activeRow = mediaTabs.includes(activeTab)
+    ? mediaRows.find((row) => row.label === activeTab)
+    : null;
 
-  const handleComicUpdated = useCallback(
-    (u) =>
-      setComicList((p) => p.map((c) => (c.system_id === u.system_id ? u : c))),
-    [],
-  );
-
-  const handleGameUpdated = useCallback(
-    (u) =>
-      setGameList((p) => p.map((g) => (g.system_id === u.system_id ? u : g))),
-    [],
-  );
-
-  const handleHGameUpdated = useCallback(
-    (u) =>
-      setHGameList((p) => p.map((g) => (g.system_id === u.system_id ? u : g))),
-    [],
-  );
-
-  const handleHentaiUpdated = useCallback(
-    (u) =>
-      setHentaiList((p) => p.map((h) => (h.system_id === u.system_id ? u : h))),
-    [],
-  );
-
-  const handleHComicUpdated = useCallback(
-    (u) =>
-      setHComicList((p) => p.map((h) => (h.system_id === u.system_id ? u : h))),
-    [],
-  );
 
   // Optional parent tier: resolve the franchise name for the breadcrumb.
   useEffect(() => {
@@ -597,367 +435,6 @@ export default function SeriesPage() {
     }
   }
 
-  function toggleSetFilter(setFn, group, value) {
-    setFn((prev) => {
-      const next = { ...prev, [group]: new Set(prev[group]) };
-      if (next[group].has(value)) next[group].delete(value);
-      else next[group].add(value);
-      return next;
-    });
-  }
-
-  // ── Anime memos ───────────────────────────────────────────────────────────
-  const filteredAndSortedAnime = useMemo(() => {
-    let result = animeList.filter((a) => {
-      if (
-        animeFilters.airingType.size > 0 &&
-        !animeFilters.airingType.has(a.airing_type)
-      )
-        return false;
-      if (
-        animeFilters.airingStatus.size > 0 &&
-        !animeFilters.airingStatus.has(a.airing_status)
-      )
-        return false;
-      if (animeFilters.bahaOnly && !isBaha(a)) return false;
-      if (animeFilters.watchingStatus.size > 0) {
-        const group = getWatchingGroup(a.watching_status || "Might Watch");
-        if (!animeFilters.watchingStatus.has(group)) return false;
-      }
-      return true;
-    });
-    result.sort((a, b) => {
-      if (animeSort === "release_date") {
-        const diff = animeDateScore(a) - animeDateScore(b);
-        if (diff !== 0) return diff;
-      }
-      if (animeSort === "my_rating")
-        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      if (animeSort === "mal_rating") {
-        const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
-        const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
-        if (wA !== wB) return wB - wA;
-      }
-      return getSortName(a, "anime").localeCompare(getSortName(b, "anime"));
-    });
-    return result;
-  }, [animeList, animeFilters, animeSort]);
-
-  // ── Manga memos ───────────────────────────────────────────────────────────
-  const filteredAndSortedManga = useMemo(() => {
-    let result = mangaList.filter((m) => {
-      if (
-        mangaFilters.serializationStatus.size > 0 &&
-        !mangaFilters.serializationStatus.has(m.serialization_status || "")
-      )
-        return false;
-      if (
-        mangaFilters.region.size > 0 &&
-        !mangaFilters.region.has(m.region || "")
-      )
-        return false;
-      if (mangaFilters.readingStatus.size > 0) {
-        const rs = m.reading_status || "Might Read";
-        let group = "Might Read";
-        if (rs === "Plan to Read") group = "Planned";
-        else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
-          group = "Reading";
-        else if (COMPLETED_STATUSES.includes(rs))
-          group = "Completed";
-        else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
-          group = "Dropped";
-        if (!mangaFilters.readingStatus.has(group)) return false;
-      }
-      return true;
-    });
-    result.sort((a, b) => {
-      if (mangaSort === "my_rating")
-        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      if (mangaSort === "mal_rating") {
-        const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
-        const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
-        if (wA !== wB) return wB - wA;
-      }
-      if (mangaSort === "release_date")
-        return (
-          releaseScore(a.release_date) - releaseScore(b.release_date)
-        );
-      if (mangaSort === "end_date")
-        return releaseScore(a.end_date) - releaseScore(b.end_date);
-      return (a.manga_name_cn || a.manga_name_en || "").localeCompare(
-        b.manga_name_cn || b.manga_name_en || "",
-      );
-    });
-    return result;
-  }, [mangaList, mangaFilters, mangaSort]);
-
-  // ── Book memos ───────────────────────────────────────────────────────────
-  const filteredAndSortedBook = useMemo(() => {
-    let result = bookList.filter((n) => {
-      if (
-        bookFilters.serializationStatus.size > 0 &&
-        !bookFilters.serializationStatus.has(n.serialization_status || "")
-      )
-        return false;
-      if (
-        bookFilters.region.size > 0 &&
-        !bookFilters.region.has(n.region || "")
-      )
-        return false;
-      if (bookFilters.readingStatus.size > 0) {
-        const rs = n.reading_status || "Might Read";
-        let group = "Might Read";
-        if (rs === "Plan to Read") group = "Planned";
-        else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
-          group = "Reading";
-        else if (COMPLETED_STATUSES.includes(rs))
-          group = "Completed";
-        else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
-          group = "Dropped";
-        if (!bookFilters.readingStatus.has(group)) return false;
-      }
-      return true;
-    });
-    result.sort((a, b) => {
-      if (bookSort === "my_rating")
-        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      if (bookSort === "mal_rating") {
-        const wA = a.mal_rating != null ? parseFloat(a.mal_rating) : -1;
-        const wB = b.mal_rating != null ? parseFloat(b.mal_rating) : -1;
-        if (wA !== wB) return wB - wA;
-      }
-      if (bookSort === "release_date")
-        return bookDateScore(a) - bookDateScore(b);
-      if (bookSort === "end_date")
-        return releaseScore(a.end_date) - releaseScore(b.end_date);
-      return (a.book_name_cn || a.book_name_en || "").localeCompare(
-        b.book_name_cn || b.book_name_en || "",
-      );
-    });
-    return result;
-  }, [bookList, bookFilters, bookSort]);
-
-  // ── Comic memos ───────────────────────────────────────────────────────────
-  // Mirrors the manga memo minus the two things comic has no column for: no
-  // region filter, and no MAL rating to sort on. The title sort leads with the
-  // English name because comic's display name falls back EN -> CN -> Alt.
-  const filteredAndSortedComic = useMemo(() => {
-    let result = comicList.filter((c) => {
-      if (
-        comicFilters.serializationStatus.size > 0 &&
-        !comicFilters.serializationStatus.has(c.serialization_status || "")
-      )
-        return false;
-      if (comicFilters.readingStatus.size > 0) {
-        const rs = c.reading_status || "Might Read";
-        let group = "Might Read";
-        if (rs === "Plan to Read") group = "Planned";
-        else if (["Active Reading", "Passive Reading", "Paused"].includes(rs))
-          group = "Reading";
-        else if (COMPLETED_STATUSES.includes(rs))
-          group = "Completed";
-        else if (["Temp Dropped", "Dropped", "Won't Read"].includes(rs))
-          group = "Dropped";
-        if (!comicFilters.readingStatus.has(group)) return false;
-      }
-      return true;
-    });
-    result.sort((a, b) => {
-      if (comicSort === "my_rating")
-        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      if (comicSort === "release_date")
-        return (
-          releaseScore(a.release_date) - releaseScore(b.release_date)
-        );
-      if (comicSort === "end_date")
-        return releaseScore(a.end_date) - releaseScore(b.end_date);
-      return (a.comic_name_en || a.comic_name_cn || "").localeCompare(
-        b.comic_name_en || b.comic_name_cn || "",
-      );
-    });
-    return result;
-  }, [comicList, comicFilters, comicSort]);
-
-  // ── Game memos ────────────────────────────────────────────────────────────
-  // Game type is a filter of its own, unlike the other tabs: a series usually
-  // mixes a base game with its DLC, and looking at one without the other is
-  // the common case. The title sort leads with the Chinese name, the way the
-  // game display name does.
-  const filteredAndSortedGame = useMemo(() => {
-    let result = gameList.filter((g) => {
-      if (
-        gameFilters.gameType.size > 0 &&
-        !gameFilters.gameType.has(g.game_type || "")
-      )
-        return false;
-      if (gameFilters.playingStatus.size > 0) {
-        const group =
-          PLAYING_STATUS_GROUP[g.playing_status || "Might Play"] ||
-          "Might Play";
-        if (!gameFilters.playingStatus.has(group)) return false;
-      }
-      return true;
-    });
-    result.sort((a, b) => {
-      if (gameSort === "my_rating")
-        return getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-      if (gameSort === "hours_played")
-        return (b.hours_played || 0) - (a.hours_played || 0);
-      if (gameSort === "title")
-        return (a.game_name_cn || a.game_name_en || "").localeCompare(
-          b.game_name_cn || b.game_name_en || "",
-        );
-      return releaseScore(a.release_date) - releaseScore(b.release_date);
-    });
-    return result;
-  }, [gameList, gameFilters, gameSort]);
-
-  // ── Movies memos ──────────────────────────────────────────────────────────
-  const filteredAndSortedMovies = useMemo(() => {
-    let result = movieList.filter((m) => {
-      if (
-        movFilters.releaseStatus.size > 0 &&
-        !movFilters.releaseStatus.has(m.release_status)
-      )
-        return false;
-      if (movFilters.watchingStatus.size > 0) {
-        const group = getWatchingGroup(m.watching_status || "Might Watch");
-        if (!movFilters.watchingStatus.has(group)) return false;
-      }
-      return true;
-    });
-    result.sort((a, b) => {
-      if (movSort === "release_date") {
-        const diff = movieDateScore(a) - movieDateScore(b);
-        if (diff !== 0) return diff;
-      }
-      if (movSort === "my_rating") {
-        const diff =
-          getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-        if (diff !== 0) return diff;
-      }
-      if (movSort === "imdb_rating") {
-        const wA =
-          a.imdb_rating && a.imdb_rating !== "N/A"
-            ? parseFloat(a.imdb_rating)
-            : -1;
-        const wB =
-          b.imdb_rating && b.imdb_rating !== "N/A"
-            ? parseFloat(b.imdb_rating)
-            : -1;
-        if (wA !== wB) return wB - wA;
-      }
-      return (a.movie_name_en || a.movie_name_cn || "").localeCompare(
-        b.movie_name_en || b.movie_name_cn || "",
-      );
-    });
-    return result;
-  }, [movieList, movFilters, movSort]);
-
-  // ── TV Shows memos ────────────────────────────────────────────────────────
-  const filteredAndSortedTvShows = useMemo(() => {
-    let result = tvShowList.filter((t) => {
-      if (
-        tvFilters.airingStatus.size > 0 &&
-        !tvFilters.airingStatus.has(t.airing_status)
-      )
-        return false;
-      if (tvFilters.watchingStatus.size > 0) {
-        const group = getWatchingGroup(t.watching_status || "Might Watch");
-        if (!tvFilters.watchingStatus.has(group)) return false;
-      }
-      return true;
-    });
-    result.sort((a, b) => {
-      if (tvSort === "release_date") {
-        const diff = tvDateScore(a) - tvDateScore(b);
-        if (diff !== 0) return diff;
-      }
-      if (tvSort === "my_rating") {
-        const diff =
-          getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-        if (diff !== 0) return diff;
-      }
-      if (tvSort === "imdb_rating") {
-        const wA =
-          a.imdb_rating && a.imdb_rating !== "N/A"
-            ? parseFloat(a.imdb_rating)
-            : -1;
-        const wB =
-          b.imdb_rating && b.imdb_rating !== "N/A"
-            ? parseFloat(b.imdb_rating)
-            : -1;
-        if (wA !== wB) return wB - wA;
-      }
-      return (a.tv_name_en || a.tv_name_cn || "").localeCompare(
-        b.tv_name_en || b.tv_name_cn || "",
-      );
-    });
-    return result;
-  }, [tvShowList, tvFilters, tvSort]);
-
-  // ── Cartoons memos ────────────────────────────────────────────────────────
-  const cartoonAiringTypeOptions = useMemo(
-    () =>
-      [
-        ...new Set(cartoonList.map((c) => c.airing_type).filter(Boolean)),
-      ].sort(),
-    [cartoonList],
-  );
-
-  const filteredAndSortedCartoons = useMemo(() => {
-    let result = cartoonList.filter((c) => {
-      if (
-        cartoonFilters.airingStatus.size > 0 &&
-        !cartoonFilters.airingStatus.has(c.airing_status)
-      )
-        return false;
-      if (
-        cartoonFilters.airingType.size > 0 &&
-        !cartoonFilters.airingType.has(c.airing_type)
-      )
-        return false;
-      if (cartoonFilters.watchingStatus.size > 0) {
-        const group = getWatchingGroup(c.watching_status || "Might Watch");
-        if (!cartoonFilters.watchingStatus.has(group)) return false;
-      }
-      return true;
-    });
-    result.sort((a, b) => {
-      if (cartoonSort === "release_date") {
-        const dA = a.release_date ? new Date(a.release_date).getTime() : 0;
-        const dB = b.release_date ? new Date(b.release_date).getTime() : 0;
-        if (dA !== dB) return dA - dB;
-      }
-      if (cartoonSort === "my_rating") {
-        const diff =
-          getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-        if (diff !== 0) return diff;
-      }
-      if (cartoonSort === "imdb_rating") {
-        const wA =
-          a.imdb_rating && a.imdb_rating !== "N/A"
-            ? parseFloat(a.imdb_rating)
-            : -1;
-        const wB =
-          b.imdb_rating && b.imdb_rating !== "N/A"
-            ? parseFloat(b.imdb_rating)
-            : -1;
-        if (wA !== wB) return wB - wA;
-      }
-      return (
-        a.cartoon_name_en ||
-        a.cartoon_name_alt ||
-        a.cartoon_name_cn ||
-        ""
-      ).localeCompare(
-        b.cartoon_name_en || b.cartoon_name_alt || b.cartoon_name_cn || "",
-        undefined,
-        { numeric: true },
-      );
-    });
-    return result;
-  }, [cartoonList, cartoonFilters, cartoonSort]);
 
   // ── Completion ────────────────────────────────────────────────────────────
   // totalEntries and completedCount come from the media tab rows above.
@@ -1030,7 +507,6 @@ export default function SeriesPage() {
   const eyebrow = [
     "Series",
     `${totalEntries} ${totalEntries === 1 ? "entry" : "entries"}`,
-    `${completionPct}% completed`,
   ].join("  ·  ");
 
   return (
@@ -1212,725 +688,18 @@ export default function SeriesPage() {
         getCount={getTabCount}
       />
 
-      {/* ── Anime tab content ─────────────────────────────────────────────── */}
-      {activeTab === "Anime" && animeList.length > 0 && (
-        <Section
-          title="Anime"
-          count={filteredAndSortedAnime.length}
-        >
-
-          <div className="flex flex-wrap gap-2 mb-4 items-center">
-            <select
-              value={animeSort}
-              onChange={(e) => setAnimeSort(e.target.value)}
-              className={SELECT_CLS}
-            >
-              <option value="title">Sort: title</option>
-              <option value="release_date">Sort: release date</option>
-              {ownData && (
-                <option value="my_rating">Sort: my rating</option>
-              )}
-              <option value="mal_rating">Sort: MAL rating</option>
-            </select>
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["TV", "Movie", "ONA", "OVA", "Special"].map((v) => (
-              <button
-                key={v}
-                onClick={() => toggleSetFilter(setAnimeFilters, "airingType", v)}
-                className={pillCls(animeFilters.airingType.has(v))}
-              >
-                {v}
-              </button>
-            ))}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {[
-              ["Airing", "Airing"],
-              ["Finished", "Finished Airing"],
-              ["Not Aired", "Not Yet Aired"],
-            ].map(([label, val]) => (
-              <button
-                key={val}
-                onClick={() =>
-                  toggleSetFilter(setAnimeFilters, "airingStatus", val)
-                }
-                className={pillCls(animeFilters.airingStatus.has(val))}
-              >
-                {label}
-              </button>
-            ))}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
-              (v) => (
-                <button
-                  key={v}
-                  onClick={() =>
-                    toggleSetFilter(setAnimeFilters, "watchingStatus", v)
-                  }
-                  className={pillCls(animeFilters.watchingStatus.has(v))}
-                >
-                  {v}
-                </button>
-              ),
-            )}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            <label className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-text-muted cursor-pointer">
-              <input
-                type="checkbox"
-                checked={animeFilters.bahaOnly}
-                onChange={(e) =>
-                  setAnimeFilters((p) => ({
-                    ...p,
-                    bahaOnly: e.target.checked,
-                  }))
-                }
-                className="rounded"
-              />
-              動畫瘋 only
-            </label>
-          </div>
-
-          {filteredAndSortedAnime.length === 0 ? (
-            <FilterEmpty />
-          ) : (
-            <div className={GRID_CLS}>
-              {filteredAndSortedAnime.map((a) => (
-                <MediaCard
-                  key={a.system_id}
-                  type="anime"
-                  data={a}
-                  onUpdated={handleAnimeUpdated}
-                />
-              ))}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* ── Manga tab content ─────────────────────────────────────────────── */}
-      {activeTab === "Manga" && mangaList.length > 0 && (
-        <Section
-          title="Manga"
-          count={filteredAndSortedManga.length}
-        >
-
-          <div className="flex flex-wrap gap-2 mb-4 items-center">
-            <select
-              value={mangaSort}
-              onChange={(e) => setMangaSort(e.target.value)}
-              className={SELECT_CLS}
-            >
-              <option value="title">Sort: title</option>
-              {ownData && (
-                <option value="my_rating">Sort: my rating</option>
-              )}
-              <option value="mal_rating">Sort: MAL rating</option>
-              <option value="release_date">Sort: release date</option>
-              <option value="end_date">Sort: end date</option>
-            </select>
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["連載中", "完結", "腰斬", "停更"].map((v) => (
-              <button
-                key={v}
-                onClick={() =>
-                  toggleSetFilter(setMangaFilters, "serializationStatus", v)
-                }
-                className={pillCls(mangaFilters.serializationStatus.has(v))}
-              >
-                {v}
-              </button>
-            ))}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
-              (v) => (
-                <button
-                  key={v}
-                  onClick={() =>
-                    toggleSetFilter(setMangaFilters, "readingStatus", v)
-                  }
-                  className={pillCls(mangaFilters.readingStatus.has(v))}
-                >
-                  {v}
-                </button>
-              ),
-            )}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["日漫", "韓漫", "國漫", "台漫", "其他"].map((v) => (
-              <button
-                key={v}
-                onClick={() => toggleSetFilter(setMangaFilters, "region", v)}
-                className={pillCls(mangaFilters.region.has(v))}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-
-          {filteredAndSortedManga.length === 0 ? (
-            <FilterEmpty />
-          ) : (
-            <div className={GRID_CLS}>
-              {filteredAndSortedManga.map((m) => (
-                <MediaCard
-                  key={m.system_id}
-                  type="manga"
-                  data={m}
-                  isAdmin={isAdmin}
-                  onUpdated={handleMangaUpdated}
-                />
-              ))}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* ── Book tab content ────────────────────────────────────────────── */}
-      {activeTab === "Book" && bookList.length > 0 && (
-        <Section
-          title="Book"
-          count={filteredAndSortedBook.length}
-        >
-
-          <div className="flex flex-wrap gap-2 mb-4 items-center">
-            <select
-              value={bookSort}
-              onChange={(e) => setBookSort(e.target.value)}
-              className={SELECT_CLS}
-            >
-              <option value="title">Sort: title</option>
-              {ownData && (
-                <option value="my_rating">Sort: my rating</option>
-              )}
-              <option value="mal_rating">Sort: MAL rating</option>
-              <option value="release_date">Sort: release date</option>
-              <option value="end_date">Sort: end date</option>
-            </select>
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["連載中", "完結", "腰斬", "停更"].map((v) => (
-              <button
-                key={v}
-                onClick={() =>
-                  toggleSetFilter(setBookFilters, "serializationStatus", v)
-                }
-                className={pillCls(bookFilters.serializationStatus.has(v))}
-              >
-                {v}
-              </button>
-            ))}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
-              (v) => (
-                <button
-                  key={v}
-                  onClick={() =>
-                    toggleSetFilter(setBookFilters, "readingStatus", v)
-                  }
-                  className={pillCls(bookFilters.readingStatus.has(v))}
-                >
-                  {v}
-                </button>
-              ),
-            )}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["JP", "CN", "TW", "KR", "Western"].map((v) => (
-              <button
-                key={v}
-                onClick={() => toggleSetFilter(setBookFilters, "region", v)}
-                className={pillCls(bookFilters.region.has(v))}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-
-          {filteredAndSortedBook.length === 0 ? (
-            <FilterEmpty />
-          ) : (
-            <div className={GRID_CLS}>
-              {filteredAndSortedBook.map((n) => (
-                <MediaCard
-                  key={n.system_id}
-                  type="book"
-                  data={n}
-                  onUpdated={handleBookUpdated}
-                />
-              ))}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* ── Comic tab content ─────────────────────────────────────────────── */}
-      {activeTab === "Comic" && comicList.length > 0 && (
-        <Section
-          title="Comic"
-          count={filteredAndSortedComic.length}
-        >
-
-          <div className="flex flex-wrap gap-2 mb-4 items-center">
-            <select
-              value={comicSort}
-              onChange={(e) => setComicSort(e.target.value)}
-              className={SELECT_CLS}
-            >
-              <option value="title">Sort: title</option>
-              {ownData && (
-                <option value="my_rating">Sort: my rating</option>
-              )}
-              <option value="release_date">Sort: release date</option>
-              <option value="end_date">Sort: end date</option>
-            </select>
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["連載中", "完結", "腰斬", "停更"].map((v) => (
-              <button
-                key={v}
-                onClick={() =>
-                  toggleSetFilter(setComicFilters, "serializationStatus", v)
-                }
-                className={pillCls(comicFilters.serializationStatus.has(v))}
-              >
-                {v}
-              </button>
-            ))}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["Planned", "Reading", "Completed", "Dropped", "Might Read"].map(
-              (v) => (
-                <button
-                  key={v}
-                  onClick={() =>
-                    toggleSetFilter(setComicFilters, "readingStatus", v)
-                  }
-                  className={pillCls(comicFilters.readingStatus.has(v))}
-                >
-                  {v}
-                </button>
-              ),
-            )}
-          </div>
-
-          {filteredAndSortedComic.length === 0 ? (
-            <FilterEmpty />
-          ) : (
-            <div className={GRID_CLS}>
-              {filteredAndSortedComic.map((c) => (
-                <MediaCard
-                  key={c.system_id}
-                  type="comic"
-                  data={c}
-                  isAdmin={isAdmin}
-                  onUpdated={handleComicUpdated}
-                />
-              ))}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* ── Game tab content ──────────────────────────────────────────────── */}
-      {activeTab === "Game" && gameList.length > 0 && (
-        <Section
-          title="Game"
-          count={filteredAndSortedGame.length}
-        >
-
-          <div className="flex flex-wrap gap-2 mb-4 items-center">
-            <select
-              value={gameSort}
-              onChange={(e) => setGameSort(e.target.value)}
-              className={SELECT_CLS}
-            >
-              <option value="release_date">Sort: release date</option>
-              <option value="title">Sort: title</option>
-              {ownData && (
-                <option value="my_rating">Sort: my rating</option>
-              )}
-              <option value="hours_played">Sort: hours played</option>
-            </select>
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {GAME_TYPES.map((v) => (
-              <button
-                key={v}
-                onClick={() => toggleSetFilter(setGameFilters, "gameType", v)}
-                className={pillCls(gameFilters.gameType.has(v))}
-              >
-                {v}
-              </button>
-            ))}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["Planned", "Playing", "Completed", "Dropped", "Might Play"].map(
-              (v) => (
-                <button
-                  key={v}
-                  onClick={() =>
-                    toggleSetFilter(setGameFilters, "playingStatus", v)
-                  }
-                  className={pillCls(gameFilters.playingStatus.has(v))}
-                >
-                  {v}
-                </button>
-              ),
-            )}
-          </div>
-
-          {filteredAndSortedGame.length === 0 ? (
-            <FilterEmpty />
-          ) : (
-            <div className={GRID_CLS}>
-              {filteredAndSortedGame.map((g) => (
-                <MediaCard
-                  key={g.system_id}
-                  type="game"
-                  data={g}
-                  isAdmin={isAdmin}
-                  onUpdated={handleGameUpdated}
-                />
-              ))}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* ── H-Comic tab content ─────────────────────────────────────────── */}
-      {activeTab === "H-Comic" && hComicList.length > 0 && (
-        <Section
-          title="H-Comic"
-          count={hComicList.length}
-        >
-          <div className={GRID_CLS}>
-            {[...hComicList]
-              .sort(
-                (a, b) =>
-                  (a.series_number ?? Infinity) - (b.series_number ?? Infinity) ||
-                  String(a.release_date || "").localeCompare(
-                    String(b.release_date || ""),
-                  ),
-              )
-              .map((h) => (
-                <MediaCard
-                  key={h.system_id}
-                  type="h-comic"
-                  data={h}
-                  isAdmin={isAdmin}
-                  onUpdated={handleHComicUpdated}
-                />
-              ))}
-          </div>
-        </Section>
-      )}
-
-      {/* ── H-Game tab content ──────────────────────────────────────────── */}
-      {activeTab === "H-Game" && hGameList.length > 0 && (
-        <Section
-          title="H-Game"
-          count={hGameList.length}
-        >
-          <div className={GRID_CLS}>
-            {[...hGameList]
-              .sort(
-                (a, b) =>
-                  (a.series_number ?? Infinity) - (b.series_number ?? Infinity) ||
-                  String(a.release_date || "").localeCompare(
-                    String(b.release_date || ""),
-                  ),
-              )
-              .map((g) => (
-                <MediaCard
-                  key={g.system_id}
-                  type="h-game"
-                  data={g}
-                  isAdmin={isAdmin}
-                  onUpdated={handleHGameUpdated}
-                />
-              ))}
-          </div>
-        </Section>
-      )}
-
-      {/* ── Hentai tab content ──────────────────────────────────────────── */}
-      {activeTab === "Hentai" && hentaiList.length > 0 && (
-        <Section title="Hentai" count={hentaiList.length}>
-          <div className={GRID_CLS}>
-            {[...hentaiList]
-              .sort(
-                (a, b) =>
-                  (a.series_number ?? Infinity) - (b.series_number ?? Infinity) ||
-                  String(a.release_date || "").localeCompare(
-                    String(b.release_date || ""),
-                  ),
-              )
-              .map((h) => (
-                <MediaCard
-                  key={h.system_id}
-                  type="hentai"
-                  data={h}
-                  isAdmin={isAdmin}
-                  onUpdated={handleHentaiUpdated}
-                />
-              ))}
-          </div>
-        </Section>
-      )}
-
-      {/* ── Movies tab content ────────────────────────────────────────────── */}
-      {activeTab === "Movies" && movieList.length > 0 && (
-        <Section
-          title="Movies"
-          count={filteredAndSortedMovies.length}
-        >
-
-          <div className="flex flex-wrap gap-2 mb-4 items-center">
-            <select
-              value={movSort}
-              onChange={(e) => setMovSort(e.target.value)}
-              className={SELECT_CLS}
-            >
-              <option value="release_date">Sort: release date</option>
-              <option value="title">Sort: title</option>
-              {ownData && (
-                <option value="my_rating">Sort: my rating</option>
-              )}
-              <option value="imdb_rating">Sort: IMDb rating</option>
-            </select>
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {[
-              ["Released", "Released"],
-              ["Not Released", "Not Released"],
-            ].map(([label, val]) => (
-              <button
-                key={val}
-                onClick={() =>
-                  toggleSetFilter(setMovFilters, "releaseStatus", val)
-                }
-                className={pillCls(movFilters.releaseStatus.has(val))}
-              >
-                {label}
-              </button>
-            ))}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
-              (v) => (
-                <button
-                  key={v}
-                  onClick={() =>
-                    toggleSetFilter(setMovFilters, "watchingStatus", v)
-                  }
-                  className={pillCls(movFilters.watchingStatus.has(v))}
-                >
-                  {v}
-                </button>
-              ),
-            )}
-          </div>
-
-          {filteredAndSortedMovies.length === 0 ? (
-            <FilterEmpty />
-          ) : (
-            <div className={GRID_CLS}>
-              {filteredAndSortedMovies.map((m) => (
-                <MediaCard
-                  key={m.system_id}
-                  type="movie"
-                  data={m}
-                  onUpdated={handleMovieUpdated}
-                />
-              ))}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* ── TV Shows tab content ──────────────────────────────────────────── */}
-      {activeTab === "TV Shows" && tvShowList.length > 0 && (
-        <Section
-          title="TV Shows"
-          count={filteredAndSortedTvShows.length}
-        >
-
-          <div className="flex flex-wrap gap-2 mb-4 items-center">
-            <select
-              value={tvSort}
-              onChange={(e) => setTvSort(e.target.value)}
-              className={SELECT_CLS}
-            >
-              <option value="release_date">Sort: release date</option>
-              <option value="title">Sort: title</option>
-              {ownData && (
-                <option value="my_rating">Sort: my rating</option>
-              )}
-              <option value="imdb_rating">Sort: IMDb rating</option>
-            </select>
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {[
-              ["Airing", "Airing"],
-              ["Finished", "Finished Airing"],
-              ["Not Aired", "Not Yet Aired"],
-            ].map(([label, val]) => (
-              <button
-                key={val}
-                onClick={() =>
-                  toggleSetFilter(setTvFilters, "airingStatus", val)
-                }
-                className={pillCls(tvFilters.airingStatus.has(val))}
-              >
-                {label}
-              </button>
-            ))}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
-              (v) => (
-                <button
-                  key={v}
-                  onClick={() =>
-                    toggleSetFilter(setTvFilters, "watchingStatus", v)
-                  }
-                  className={pillCls(tvFilters.watchingStatus.has(v))}
-                >
-                  {v}
-                </button>
-              ),
-            )}
-          </div>
-
-          {filteredAndSortedTvShows.length === 0 ? (
-            <FilterEmpty />
-          ) : (
-            <div className={GRID_CLS}>
-              {filteredAndSortedTvShows.map((t) => (
-                <MediaCard
-                  key={t.system_id}
-                  type="tv-show"
-                  data={t}
-                  onUpdated={handleTvShowUpdated}
-                />
-              ))}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* ── Cartoons tab content ──────────────────────────────────────────── */}
-      {activeTab === "Cartoons" && cartoonList.length > 0 && (
-        <Section
-          title="Cartoons"
-          count={filteredAndSortedCartoons.length}
-        >
-
-          <div className="flex flex-wrap gap-2 mb-4 items-center">
-            <select
-              value={cartoonSort}
-              onChange={(e) => setCartoonSort(e.target.value)}
-              className={SELECT_CLS}
-            >
-              <option value="release_date">Sort: release date</option>
-              <option value="title">Sort: title</option>
-              {ownData && (
-                <option value="my_rating">Sort: my rating</option>
-              )}
-              <option value="imdb_rating">Sort: IMDb rating</option>
-            </select>
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {cartoonAiringTypeOptions.length > 0 && (
-              <>
-                {cartoonAiringTypeOptions.map((v) => (
-                  <button
-                    key={v}
-                    onClick={() =>
-                      toggleSetFilter(setCartoonFilters, "airingType", v)
-                    }
-                    className={pillCls(cartoonFilters.airingType.has(v))}
-                  >
-                    {v}
-                  </button>
-                ))}
-                <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-              </>
-            )}
-
-            {[
-              ["Finished", "Finished Airing"],
-              ["Airing", "Airing"],
-              ["Not Aired", "Not Yet Aired"],
-            ].map(([label, val]) => (
-              <button
-                key={val}
-                onClick={() =>
-                  toggleSetFilter(setCartoonFilters, "airingStatus", val)
-                }
-                className={pillCls(cartoonFilters.airingStatus.has(val))}
-              >
-                {label}
-              </button>
-            ))}
-
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-
-            {["Planned", "Watching", "Completed", "Dropped", "Might Watch"].map(
-              (v) => (
-                <button
-                  key={v}
-                  onClick={() =>
-                    toggleSetFilter(setCartoonFilters, "watchingStatus", v)
-                  }
-                  className={pillCls(cartoonFilters.watchingStatus.has(v))}
-                >
-                  {v}
-                </button>
-              ),
-            )}
-          </div>
-
-          {filteredAndSortedCartoons.length === 0 ? (
-            <FilterEmpty />
-          ) : (
-            <div className={GRID_CLS}>
-              {filteredAndSortedCartoons.map((c) => (
-                <MediaCard
-                  key={c.system_id}
-                  type="cartoon"
-                  data={c}
-                  onUpdated={handleCartoonUpdated}
-                />
-              ))}
-            </div>
-          )}
-        </Section>
+      {/* ── Media tab content: one tab of entries, sorted and filtered ──── */}
+      {activeRow && (
+        <BelongingTab
+          key={activeRow.type}
+          title={activeRow.label}
+          type={activeRow.type}
+          scope="series"
+          entries={activeRow.entries}
+          view={viewOf(activeRow.type)}
+          onViewChange={(update) => updateView(activeRow.type, update)}
+          onUpdated={(updated) => replaceEntry(activeRow.setEntries, updated)}
+        />
       )}
 
       {/* ── Characters tab content ───────────────────────────────────────── */}
@@ -1958,7 +727,18 @@ export default function SeriesPage() {
         >
           {/* Read-only everywhere outside the admin Relations page, for admins
               too: this is a view of the structure, and curating it belongs in
-              one place rather than scattered across every hub. */}
+              one place rather than scattered across every hub. The link is
+              the way there, already scoped to this series. */}
+          {isAdmin && (
+            <div className="flex justify-end mb-2">
+              <Link
+                to={`/relations?owner=series:${system_id}`}
+                className="text-xs font-medium text-text-muted hover:text-text whitespace-nowrap"
+              >
+                Edit relations
+              </Link>
+            </div>
+          )}
           <RelationGraph readOnly scopeType="series" scopeId={system_id} />
         </Section>
       )}

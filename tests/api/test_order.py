@@ -959,8 +959,42 @@ class TestCandidates:
         ).json()
         assert data == []
 
+    def test_series_candidates_are_that_series_alone(
+        self, client, db_session, sample_series, sample_anime
+    ):
+        # Both anime share the franchise; only one joins the series, so a
+        # series scope that widened to its franchise would return both.
+        outside = models.Anime(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_series.franchise_id,
+            anime_name_en="Outside The Series",
+            airing_type="TV",
+        )
+        db_session.add(outside)
+        sample_anime.series_id = sample_series.system_id
+        db_session.flush()
+
+        data = client.get(
+            "/api/order/candidates", params={"series_id": str(sample_series.system_id)}
+        ).json()
+        ids = {c["entry_id"] for c in data}
+        assert str(sample_anime.system_id) in ids
+        assert str(outside.system_id) not in ids
+
     def test_no_owner_is_rejected(self, client):
         assert client.get("/api/order/candidates").status_code == 400
+
+    def test_a_series_with_another_owner_is_rejected(
+        self, client, sample_franchise, sample_series
+    ):
+        response = client.get(
+            "/api/order/candidates",
+            params={
+                "franchise_id": str(sample_franchise.system_id),
+                "series_id": str(sample_series.system_id),
+            },
+        )
+        assert response.status_code == 400
 
     def test_two_owners_are_rejected(
         self, client, sample_franchise, sample_collection

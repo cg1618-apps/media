@@ -1,7 +1,8 @@
 // Frontend: the card every grouping-tier library draws - collection,
 // franchise and series. Each tier's own card names its kind and passes the
 // row; anything only one tier shows (a collection's member count) comes in
-// through `badge` and `children`.
+// through `badge` and `children`. `expectationFirst` draws the viewer's
+// expectation chip above `children` rather than below it.
 import { Link } from "react-router-dom";
 import { entityPath } from "../../lib/entityPath";
 import { useViewScope } from "../../hooks/useViewScope";
@@ -15,7 +16,14 @@ import LazyImage from "../ui/LazyImage";
 const KIND_LABEL = { collection: "Collection", franchise: "Franchise", series: "Series" };
 
 // `cover` is the resolved { url, focus } from lib/covers.js.
-export default function GroupCard({ kind, row, cover, badge = null, children = null }) {
+export default function GroupCard({
+  kind,
+  row,
+  cover,
+  badge = null,
+  children = null,
+  expectationFirst = false,
+}) {
   const name = getDisplayName(row, kind) || `Unknown ${KIND_LABEL[kind]}`;
   // The rating and expectation are the viewer's own: drawn only for a viewer
   // holding self.list (anyone else has none, and the server answers null).
@@ -64,12 +72,13 @@ export default function GroupCard({ kind, row, cover, badge = null, children = n
         >
           {name}
         </h3>
-        {children}
+        {!expectationFirst && children}
         {showPersonal && expectation && (
           <Chip tone={expectationTone(expectation)} className="self-start">
             {expectation}
           </Chip>
         )}
+        {expectationFirst && children}
       </div>
     </Wrapper>
   );

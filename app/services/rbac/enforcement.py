@@ -307,26 +307,32 @@ def apply_owner_visibility(
     )
 
 
-def visible_scope_franchise_ids(
-    db: Session, viewer, franchise_id=None, collection_id=None
-) -> list:
+def visible_scope(
+    db: Session, viewer, franchise_id=None, collection_id=None, series_id=None
+) -> tuple:
     """
-    The franchises a franchise or collection scope covers, for the reads that
-    take one (order candidates, the relations scope listing and graph).
+    What a franchise, collection or series scope covers, for the reads that
+    take one (order candidates, the relations scope listing and graph), as
+    `(franchise_ids, series_ids)` - the two arguments `list_candidate_entries`
+    and `graph_for_scope` take.
 
-    A hidden scope is 404, in the words a missing one would get, and a
-    collection's hidden member franchises are dropped. The caller has already
-    checked that exactly one of the two ids is given.
+    A series resolves against series_id directly rather than widening to its
+    franchise, so `series_ids` is None for the other two tiers and a
+    one-element list for a series. A hidden scope is 404, in the words a
+    missing one would get, and a collection's hidden member franchises are
+    dropped. The caller has already checked that exactly one id is given.
     """
-    scope_id = franchise_id or collection_id
+    scope_id = franchise_id or collection_id or series_id
     if not tier_visible(db, viewer, scope_id):
         raise HTTPException(status_code=404, detail="Scope not found.")
+    if series_id:
+        return [], [series_id]
     if franchise_id:
-        return [franchise_id]
+        return [franchise_id], None
     query = db.query(models.Franchise.system_id).filter(
         models.Franchise.collection_id == collection_id
     )
-    return [row[0] for row in apply_franchise_visibility(query, db, viewer).all()]
+    return [row[0] for row in apply_franchise_visibility(query, db, viewer).all()], None
 
 
 def apply_entry_visibility(

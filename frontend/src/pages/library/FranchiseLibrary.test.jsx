@@ -232,3 +232,130 @@ describe("FranchiseLibrary heading", () => {
     expect(screen.queryByText("Library")).toBeNull();
   });
 });
+
+// Each franchise's belonging entries, with the viewer's own status on each.
+// Every type's status field is a different one, so each status below sits on
+// the field its type carries.
+const PROGRESS_FRANCHISES = [
+  { system_id: "p1", public_id: 21, franchise_name_en: "Finished One", franchise_type: "Anime" },
+  { system_id: "p2", public_id: 22, franchise_name_en: "Reading One", franchise_type: "Manga" },
+  { system_id: "p3", public_id: 23, franchise_name_en: "Planned One", franchise_type: "Anime" },
+  { system_id: "p4", public_id: 24, franchise_name_en: "Dropped One", franchise_type: "Game" },
+  { system_id: "p5", public_id: 25, franchise_name_en: "Empty One", franchise_type: "Book" },
+];
+const PROGRESS_BODIES = {
+  "/api/anime/": [
+    { system_id: "pa1", franchise_id: "p1", watching_status: "Completed (解說)" },
+    { system_id: "pa2", franchise_id: "p2", watching_status: "Plan to Watch" },
+    { system_id: "pa3", franchise_id: "p3", watching_status: "Watch When Airs" },
+  ],
+  "/api/manga/": [
+    { system_id: "pm1", franchise_id: "p2", reading_status: "Active Reading" },
+    { system_id: "pm2", franchise_id: "p3", reading_status: "Might Read" },
+  ],
+  "/api/game/": [
+    { system_id: "pg1", franchise_id: "p3", playing_status: "Won't Play" },
+    { system_id: "pg2", franchise_id: "p4", playing_status: "Dropped" },
+  ],
+  "/api/franchise/": PROGRESS_FRANCHISES,
+};
+
+describe("FranchiseLibrary Progress filter", () => {
+  beforeEach(() => {
+    global.fetch = vi.fn((url) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(PROGRESS_BODIES[url.split("?")[0]] ?? []),
+      }),
+    );
+  });
+
+  async function renderWithFilters() {
+    render(
+      <MemoryRouter>
+        <FranchiseLibrary />
+      </MemoryRouter>,
+    );
+    await screen.findByText("Finished One");
+    await userEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+  }
+
+  const shown = () =>
+    PROGRESS_FRANCHISES.map((f) => f.franchise_name_en).filter((n) => screen.queryByText(n));
+
+  it("keeps the franchises with a completed entry, explained completion included", async () => {
+    await renderWithFilters();
+    await userEvent.click(screen.getByRole("button", { name: "Any completed" }));
+    expect(shown()).toEqual(["Finished One"]);
+  });
+
+  it("keeps the franchises with a started entry: not planned, not Won't", async () => {
+    await renderWithFilters();
+    await userEvent.click(screen.getByRole("button", { name: "Any started" }));
+    // Planned One holds only Watch When Airs, Might Read and Won't Play;
+    // Empty One holds nothing. Dropped counts as started.
+    expect(shown()).toEqual(["Finished One", "Reading One", "Dropped One"]);
+  });
+
+  it("combines its two chips as either", async () => {
+    await renderWithFilters();
+    await userEvent.click(screen.getByRole("button", { name: "Any completed" }));
+    await userEvent.click(screen.getByRole("button", { name: "Any started" }));
+    expect(shown()).toEqual(["Finished One", "Reading One", "Dropped One"]);
+  });
+
+  it("is not offered to a viewer without a list of its own", async () => {
+    scope.ownData = false;
+    await renderWithFilters();
+    expect(screen.queryByText("Progress")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Any started" })).toBeNull();
+  });
+});
+
+describe("FranchiseLibrary Type filter", () => {
+  beforeEach(() => {
+    global.fetch = vi.fn((url) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(PROGRESS_BODIES[url.split("?")[0]] ?? []),
+      }),
+    );
+  });
+
+  async function renderWithFilters() {
+    render(
+      <MemoryRouter>
+        <FranchiseLibrary />
+      </MemoryRouter>,
+    );
+    await screen.findByText("Finished One");
+    await userEvent.click(screen.getByRole("button", { name: /^Filters/ }));
+  }
+
+  it("offers Game after Comic and before Other", async () => {
+    await renderWithFilters();
+    const names = screen.getAllByRole("button").map((b) => b.textContent);
+    const at = (n) => names.indexOf(n);
+    expect(at("Comic")).toBeGreaterThan(-1);
+    expect(at("Game")).toBe(at("Comic") + 1);
+    expect(at("Other")).toBe(at("Game") + 1);
+  });
+
+  it("keeps the franchises typed Game", async () => {
+    await renderWithFilters();
+    await userEvent.click(screen.getByRole("button", { name: "Game" }));
+    expect(screen.getByText("Dropped One")).toBeInTheDocument();
+    expect(screen.queryByText("Finished One")).toBeNull();
+  });
+
+  it("clears every group with Clear all", async () => {
+    await renderWithFilters();
+    expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Game" }));
+    await userEvent.click(screen.getByRole("button", { name: "Any completed" }));
+    expect(screen.queryByText("Dropped One")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.getByText("Dropped One")).toBeInTheDocument();
+    expect(screen.getByText("Empty One")).toBeInTheDocument();
+  });
+});

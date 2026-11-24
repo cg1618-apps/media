@@ -2,7 +2,7 @@
 //
 // A game can be filed under a series, so the series page has to fetch and show
 // them; without the tab the entry exists but is invisible from its own series.
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -10,6 +10,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import SeriesPage from "./SeriesPage";
 import { ToastProvider } from "../../hooks/useToast";
 import { AuthProvider } from "../../contexts/AuthContext";
+
+// The canvas needs a real layout engine, and the Relations tab is tested here
+// only for the link above it.
+vi.mock("../../components/relations/RelationGraph", () => ({
+  default: () => null,
+}));
 
 const SERIES = {
   system_id: "SR001",
@@ -24,6 +30,7 @@ const GAMES = [
     game_name_cn: "艾爾登法環",
     game_type: "Base Game",
     playing_status: "Completed",
+    completion_level: "Main Story",
     release_date: "2022-02-25",
     my_rating: "S",
   },
@@ -93,15 +100,43 @@ describe("SeriesPage games", () => {
     expect(screen.getByText("黃金樹幽影")).toBeInTheDocument();
   });
 
-  it("filters the list by playing status", async () => {
+  // A game is narrowed by how deep its finish went, not by a Completed
+  // filter; the DLC has no level, so it sits under "Not completed".
+  it("filters the list by completion level, and Clear all undoes it", async () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(await screen.findByRole("button", { name: gameTab }));
-    await user.click(await screen.findByRole("button", { name: "Completed" }));
+    expect(screen.queryByRole("group", { name: "Completed" })).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "Main Story" }));
     await waitFor(() =>
       expect(screen.queryByText("黃金樹幽影")).not.toBeInTheDocument(),
     );
     expect(screen.getByText("艾爾登法環")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Main Story" }));
+    await user.click(screen.getByRole("button", { name: "Not completed" }));
+    await waitFor(() =>
+      expect(screen.queryByText("艾爾登法環")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText("黃金樹幽影")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(await screen.findByText("艾爾登法環")).toBeInTheDocument();
+    expect(screen.getByText("黃金樹幽影")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
+  });
+
+  it("sorts by Metacritic, and offers no playing-status pills", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: gameTab }));
+    const sort = await screen.findByRole("combobox", { name: "Sort" });
+    expect(
+      Array.from(sort.options).map((o) => o.textContent),
+    ).toEqual(
+      expect.arrayContaining(["Sort: Metacritic", "Sort: Metacritic user"]),
+    );
+    expect(screen.queryByRole("button", { name: "Playing" })).toBeNull();
   });
 });
 
@@ -124,9 +159,10 @@ describe("SeriesPage tab counts", () => {
     ).toBeInTheDocument();
   });
 
-  // The header's entry total and completion are taken over every listed tab,
-  // each type judged by its own status field: one of two games and one of
-  // two comics is completed.
+  // The header's entry total and the cover's completion are taken over every
+  // listed tab, each type judged by its own status field: one of two games
+  // and one of two comics is completed. The line above the name carries the
+  // total only.
   it("counts the comics and games in the header totals", async () => {
     global.fetch.mockImplementation((url) => {
       if (String(url).startsWith("/api/series/")) return jsonRes(SERIES);
@@ -139,9 +175,9 @@ describe("SeriesPage tab counts", () => {
       return jsonRes([]);
     });
     renderPage();
-    expect(
-      await screen.findByText(/4 entries\s+·\s+50% completed/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/·\s+4 entries$/)).toBeInTheDocument();
+    expect(screen.queryByText(/% completed/)).toBeNull();
+    expect(screen.getByText("2 / 4 · 50%")).toBeInTheDocument();
   });
 
   it("counts the Game tab", async () => {
@@ -314,5 +350,69 @@ describe("SeriesPage media tab order", () => {
       .filter((n) => /^(Movies|Cartoons|Game)\s*\d+$/.test(n))
       .map((n) => n.replace(/\s*\d+$/, ""));
     expect(names).toEqual(["Movies", "Cartoons", "Game"]);
+  });
+});
+
+// The Completed filter: one segmented Yes / No / All in place of the status
+// pills, on every tab but the games. One comic of two is finished, so each
+// side of the filter has something to drop.
+describe("SeriesPage Completed filter", () => {
+  it("narrows the comics to the finished or the unfinished ones", async () => {
+    global.fetch.mockImplementation((url) => {
+      if (String(url).startsWith("/api/series/")) return jsonRes(SERIES);
+      if (String(url).startsWith("/api/comic/"))
+        return jsonRes([
+          { system_id: "CM001", comic_name_en: "Finished Run", reading_status: "Completed" },
+          { system_id: "CM002", comic_name_en: "Open Run", reading_status: "Plan to Read" },
+        ]);
+      return jsonRes([]);
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: /^Comic\s*2$/ }));
+    const completed = await screen.findByRole("group", { name: "Completed" });
+    expect(screen.queryByRole("button", { name: "Reading" })).toBeNull();
+
+    await user.click(within(completed).getByRole("button", { name: "Yes" }));
+    expect(screen.queryByText("Open Run")).toBeNull();
+    expect(screen.getByText("Finished Run")).toBeInTheDocument();
+
+    await user.click(within(completed).getByRole("button", { name: "No" }));
+    expect(screen.queryByText("Finished Run")).toBeNull();
+    expect(screen.getByText("Open Run")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.getByText("Finished Run")).toBeInTheDocument();
+    expect(
+      within(completed).getByRole("button", { name: "All" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+});
+
+// The hub's graph is read-only; an admin reaches the editor through a link
+// already scoped to this series, which /relations reads from ?owner=.
+describe("SeriesPage relations link", () => {
+  const EDITOR = { is_admin: true, username: "cg1618", role: "super", permissions: ["manage.catalog"] };
+
+  it("links a catalogue editor to /relations scoped to this series", async () => {
+    global.fetch.mockImplementation((url) => {
+      const u = String(url);
+      if (u.startsWith("/api/auth/me")) return jsonRes(EDITOR);
+      if (u.startsWith("/api/series/")) return jsonRes(SERIES);
+      return jsonRes([]);
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Relations" }));
+    expect(
+      (await screen.findByRole("link", { name: "Edit relations" })).getAttribute("href"),
+    ).toBe("/relations?owner=series:SR001");
+  });
+
+  it("draws no link for a guest", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole("button", { name: "Relations" }));
+    expect(screen.queryByRole("link", { name: "Edit relations" })).toBeNull();
   });
 });
