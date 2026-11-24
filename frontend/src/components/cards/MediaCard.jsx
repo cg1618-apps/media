@@ -11,7 +11,11 @@ import { useToast } from "../../hooks/useToast";
 import { useStatusToggle } from "../../hooks/useStatusToggle";
 import MarkAiringModal from "../modals/MarkAiringModal";
 import { entityPath } from "../../lib/entityPath";
-import { releaseYear } from "../../lib/releaseDate";
+import {
+  formatReleaseDate,
+  primaryReleaseValue,
+  releaseYear,
+} from "../../lib/releaseDate";
 import { effectiveProgressDisplay } from "../../lib/bookUnits";
 import { progressFor } from "../../lib/hComicRegion";
 import {
@@ -133,6 +137,11 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
     );
   }
 
+  // The hub variant moves the outside score off the cover and onto the meta
+  // line, drops a region the tab's filter already says, and puts the TV
+  // show's region and the game's type where the score was.
+  const hub = variant === "hub";
+
   return (
     <>
       <RatingStamp
@@ -145,7 +154,7 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           {data.airing_type}
         </div>
       )}
-      {type === "anime-movie" && data[scoreField] && (
+      {!hub && type === "anime-movie" && data[scoreField] && (
         <div
           className={`absolute top-1 left-1 ${OVERLAY_CLS}`}
           title={SCORE_LABEL[scoreField]}
@@ -153,7 +162,8 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           {data[scoreField]}
         </div>
       )}
-      {(type === "movie" || type === "tv-show") &&
+      {!hub &&
+        (type === "movie" || type === "tv-show") &&
         data.imdb_rating &&
         data.imdb_rating !== "N/A" && (
           <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`} title="IMDb score">
@@ -161,11 +171,19 @@ function PosterBadges({ type, variant, data, franchiseDict, scoreField }) {
           </div>
         )}
       {type === "tv-show" && data.region && (
-        <div className={`absolute bottom-1 right-1 ${OVERLAY_CLS}`}>
+        <div
+          className={`absolute ${hub ? "top-1 left-1" : "bottom-1 right-1"} ${OVERLAY_CLS}`}
+        >
           {data.region}
         </div>
       )}
-      {(type === "manga" || type === "book" || type === "h-comic") &&
+      {hub && (type === "game" || type === "h-game") && data.game_type && (
+        <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
+          {data.game_type}
+        </div>
+      )}
+      {!hub &&
+        (type === "manga" || type === "book" || type === "h-comic") &&
         data.region && (
         <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>
           {data.region}
@@ -361,6 +379,68 @@ function LibraryMeta({ type, data, scoreField }) {
   }
 
   return null;
+}
+
+// The hub variant's meta for the types it lays out differently; every other
+// type reads as it does in its library.
+function HubMeta({ type, data, scoreField }) {
+  // The films: the release date with the score beside it, as on an anime
+  // card, and the runtime under the date. The date is the type's own first
+  // pick - JP for an anime movie, TW for a movie.
+  if (type === "anime-movie" || type === "movie") {
+    const field = type === "movie" ? "imdb_rating" : scoreField;
+    const score = data[field] && data[field] !== "N/A" ? data[field] : "—";
+    const length = formatLength(data.length_min);
+    return (
+      <div className="mb-3">
+        <MetaLine className="mb-1">
+          <span className="truncate pr-1">
+            {formatReleaseDate(primaryReleaseValue(type, data))}
+          </span>
+          <Score value={score} label={SCORE_LABEL[field]} />
+        </MetaLine>
+        {length && (
+          <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-text-faint">
+            {length}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (type === "tv-show") {
+    return (
+      <MetaLine>
+        <span className="truncate pr-1">{data.release_date || "TBD"}</span>
+        {data.imdb_rating && data.imdb_rating !== "N/A" && (
+          <Score value={data.imdb_rating} label={SCORE_LABEL.imdb_rating} />
+        )}
+      </MetaLine>
+    );
+  }
+
+  // The release date above the play hours (the progress row), and the two
+  // Metacritic figures stacked at the right: critics over users. An h-game
+  // carries neither figure.
+  if (type === "game" || type === "h-game") {
+    const critic = data.metacritic_score;
+    const user = data.metacritic_user_score;
+    return (
+      <MetaLine className="items-start">
+        <span className="truncate pr-1">{formatReleaseDate(data.release_date)}</span>
+        {(critic != null || user != null) && (
+          <span className="flex flex-col items-end gap-0.5 shrink-0">
+            {critic != null && <Score value={critic} label="Metacritic score" />}
+            {user != null && (
+              <Score value={Number(user).toFixed(1)} label="Metacritic user score" />
+            )}
+          </span>
+        )}
+      </MetaLine>
+    );
+  }
+
+  return <LibraryMeta type={type} data={data} scoreField={scoreField} />;
 }
 
 const COUNT_CLS = "font-mono text-[11px] text-text-muted tabular-nums";
@@ -800,7 +880,11 @@ export default function MediaCard({
           </>
         ) : (
           <>
-            <LibraryMeta type={type} data={data} scoreField={scoreField} />
+            {variant === "hub" ? (
+              <HubMeta type={type} data={data} scoreField={scoreField} />
+            ) : (
+              <LibraryMeta type={type} data={data} scoreField={scoreField} />
+            )}
             <div
               className="relative z-10 mt-auto flex items-center justify-between gap-1 border-t border-border pt-2.5"
             >

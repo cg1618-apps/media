@@ -32,8 +32,7 @@ from app.services.domain.order import list_candidate_entries
 from app.services.rbac.enforcement import (
     entry_visible,
     filter_visible_pairs,
-    tier_visible,
-    visible_scope_franchise_ids,
+    visible_scope,
 )
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
 from app.utils.data_control_utils import log_deleted_record
@@ -63,6 +62,15 @@ def _get_relation_or_404(db: Session, system_id: str) -> models.MediaRelation:
     if not row:
         raise HTTPException(status_code=404, detail="Relation not found.")
     return row
+
+
+def _require_one_scope(franchise_id, collection_id, series_id) -> None:
+    """A scope is exactly one tier: 400 for none, or for two at once."""
+    if sum(1 for value in (franchise_id, collection_id, series_id) if value) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly one of franchise_id, collection_id or series_id.",
+        )
 
 
 def _validate_kind(value: str) -> None:
@@ -234,6 +242,7 @@ def get_relations_for_entry(
 def list_relations_in_scope(
     franchise_id: Optional[str] = None,
     collection_id: Optional[str] = None,
+    series_id: Optional[str] = None,
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
@@ -242,20 +251,22 @@ def list_relations_in_scope(
 
     One request backs the admin page's per-entry count badges, instead of one
     /for-entry call per row. A collection resolves to its member franchises
-    first, exactly as the order candidates endpoint does.
+    first, exactly as the order candidates endpoint does; a series resolves
+    against series_id directly, as /graph does.
     """
-    if bool(franchise_id) == bool(collection_id):
-        raise HTTPException(
-            status_code=400,
-            detail="Provide exactly one of franchise_id or collection_id.",
-        )
+    _require_one_scope(franchise_id, collection_id, series_id)
 
-    franchise_ids = visible_scope_franchise_ids(
-        db, viewer, franchise_id=franchise_id, collection_id=collection_id
+    franchise_ids, series_ids = visible_scope(
+        db,
+        viewer,
+        franchise_id=franchise_id,
+        collection_id=collection_id,
+        series_id=series_id,
     )
 
     entry_ids = [
-        c["entry_id"] for c in list_candidate_entries(db, franchise_ids)
+        c["entry_id"]
+        for c in list_candidate_entries(db, franchise_ids, series_ids=series_ids)
     ]
     if not entry_ids:
         return []
@@ -306,26 +317,17 @@ def get_relation_graph(
     carries no series_id, so an anime movie can only ever appear on a series
     graph as a ghost.
     """
-    scopes = [franchise_id, collection_id, series_id]
-    if sum(1 for value in scopes if value) != 1:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Provide exactly one of franchise_id, collection_id or series_id."
-            ),
-        )
+    _require_one_scope(franchise_id, collection_id, series_id)
 
     # A hidden scope answers as a missing one, whichever tier it is.
-    if series_id:
-        if not tier_visible(db, viewer, series_id):
-            raise HTTPException(status_code=404, detail="Scope not found.")
-        return graph_for_scope(db, [], series_ids=[series_id], viewer=viewer)
-
-    franchise_ids = visible_scope_franchise_ids(
-        db, viewer, franchise_id=franchise_id, collection_id=collection_id
+    franchise_ids, series_ids = visible_scope(
+        db,
+        viewer,
+        franchise_id=franchise_id,
+        collection_id=collection_id,
+        series_id=series_id,
     )
-
-    return graph_for_scope(db, franchise_ids, viewer=viewer)
+    return graph_for_scope(db, franchise_ids, series_ids=series_ids, viewer=viewer)
 
 
 # ==========================================
@@ -470,14 +472,7 @@ def reset_scope(
     where a reset pressed by mistake is recovered from - it is deliberately
     not undoable on the page.
     """
-    scopes = [franchise_id, collection_id, series_id]
-    if sum(1 for value in scopes if value) != 1:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Provide exactly one of franchise_id, collection_id or series_id."
-            ),
-        )
+    _require_one_scope(franchise_id, collection_id, series_id)
 
     if series_id:
         candidates = list_candidate_entries(db, [], series_ids=[series_id])

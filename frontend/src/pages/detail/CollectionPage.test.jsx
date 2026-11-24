@@ -22,6 +22,14 @@ const COLLECTION = {
   collection_expectation: "High",
 };
 
+// Three members whose title, rating and expectation orders all differ, so
+// each sort is told apart from the others.
+const MEMBERS = [
+  { system_id: "F1", public_id: 11, franchise_name_en: "Alpha", my_rating: "C", franchise_expectation: "Medium" },
+  { system_id: "F2", public_id: 12, franchise_name_en: "Bravo", my_rating: "A+", franchise_expectation: "Low" },
+  { system_id: "F3", public_id: 13, franchise_name_en: "Charlie", my_rating: "A", franchise_expectation: "Highest" },
+];
+
 function jsonRes(body) {
   return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
 }
@@ -46,6 +54,7 @@ beforeEach(() => {
         });
       }
       if (u.startsWith("/api/collection/")) return jsonRes(COLLECTION);
+      if (u.startsWith("/api/franchise/")) return jsonRes(MEMBERS);
       return jsonRes([]);
     }),
   );
@@ -72,7 +81,9 @@ describe("CollectionPage own rating and expectation", () => {
     const held = [...VIEW_KEYS, "self.list"];
     auth = { isAdmin: false, has: (p) => held.includes(p) };
     renderPage();
-    expect(await screen.findByText(/Expectation · High/)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Type-Moon" }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Rating S")).toBeInTheDocument();
 
     await userEvent.selectOptions(ratingSelect(), "");
@@ -90,6 +101,54 @@ describe("CollectionPage own rating and expectation", () => {
     ).toBeInTheDocument();
     expect(ratingSelect()).toBeFalsy();
     expect(screen.queryByLabelText("Rating S")).toBeNull();
-    expect(screen.queryByText(/Expectation · High/)).toBeNull();
+    expect(screen.queryByText("High")).toBeNull();
+  });
+});
+
+const VIEWER = [...VIEW_KEYS, "self.list"];
+const memberOrder = () =>
+  screen
+    .getAllByRole("heading", { level: 3 })
+    .map((h) => h.textContent)
+    .filter((t) => MEMBERS.some((m) => m.franchise_name_en === t));
+const sortSelect = () =>
+  screen.getByRole("option", { name: "Sort: title" }).closest("select");
+
+describe("CollectionPage header", () => {
+  it("reads just 'Collection' above the title, with no franchise count or expectation chip", async () => {
+    auth = { isAdmin: false, has: (p) => VIEWER.includes(p) };
+    renderPage();
+    await screen.findByRole("heading", { level: 1, name: "Type-Moon" });
+    const header = screen.getByRole("banner");
+    expect(header.textContent).not.toMatch(/franchise/i);
+    expect(header.textContent).not.toMatch(/Expectation/);
+    expect(screen.getAllByText("Collection").length).toBeGreaterThan(0);
+    expect(header.textContent.startsWith("Collection")).toBe(true);
+    expect(header.textContent.startsWith("Collection  ·")).toBe(false);
+  });
+});
+
+describe("CollectionPage member sort", () => {
+  it("sorts by title by default, and by my rating or expectation on request", async () => {
+    auth = { isAdmin: false, has: (p) => VIEWER.includes(p) };
+    renderPage();
+    await screen.findByText("Charlie");
+    expect(sortSelect().value).toBe("title");
+    expect(memberOrder()).toEqual(["Alpha", "Bravo", "Charlie"]);
+
+    await userEvent.selectOptions(sortSelect(), "my_rating");
+    expect(memberOrder()).toEqual(["Bravo", "Charlie", "Alpha"]);
+
+    await userEvent.selectOptions(sortSelect(), "expectation");
+    expect(memberOrder()).toEqual(["Charlie", "Alpha", "Bravo"]);
+  });
+
+  it("offers only the title sort to a viewer without own data", async () => {
+    auth = { isAdmin: false, has: (p) => VIEW_KEYS.includes(p) };
+    renderPage();
+    await screen.findByText("Charlie");
+    const options = [...sortSelect().options].map((o) => o.value);
+    expect(options).toEqual(["title"]);
+    expect(memberOrder()).toEqual(["Alpha", "Bravo", "Charlie"]);
   });
 });

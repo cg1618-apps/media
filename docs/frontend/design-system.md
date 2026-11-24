@@ -319,6 +319,17 @@ border darkens on hover.
 Library and list pages: the filter bar is a flat strip on the canvas;
 tables use hairline rows with mono headers.
 
+Filters: **every filter set has a "Clear all"** that resets the whole set
+at once — the one `ClearAllButton` (`components/ui/primitives.jsx`), a mono
+caption drawn only while something in the set is on. `FilterPanel` draws it
+itself; a hand-built strip (the group libraries, the hub tabs) places it at
+the strip's end.
+
+A yes / no question about a list (Completed, 小說) is the tri-state
+`TriStateFilter` (`components/hub/TriStateFilter.jsx`): a labelled All / Yes /
+No segmented control at pill size, `aria-pressed` on each option, All by
+default.
+
 Dropdowns: every list that opens under an input is the one `SuggestList`
 (`components/forms/SuggestList.jsx`) — a `surface` panel on a hairline
 `border`, `rounded-md`, `shadow-lg` (a popover, so it may be elevated), options

@@ -292,7 +292,9 @@ columns.
   line is the play style and language; a hentai, one entry being one
   episode, has no progress line, and its meta line is the release year and
   airing status; a TV show's meta line is its release date (`TBD` without
-  one) and airing status - the season is not on the card. On `variant="future"` the status
+  one) and airing status - the season is not on the card. `variant="hub"` is the
+  franchise and series hubs' card, whose per-type differences are tabled in
+  [pages.md](pages.md#hubs--franchiseid-seriesid-collectionid). On `variant="future"` the status
   select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
   bolt from `BOLT_RELEASE`, which names the column that says a title is still
   unreleased — `airing_status` for the airing types, `release_status` for a

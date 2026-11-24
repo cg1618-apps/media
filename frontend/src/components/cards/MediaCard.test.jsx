@@ -563,3 +563,133 @@ describe("MediaCard spine", () => {
     expect(container.querySelector('[style*="vertical-rl"]')).toBeNull();
   });
 });
+
+// The hub variant: the franchise and series hubs' tabs. Every case mounts the
+// same entry in the library variant too, so a pass shows the hub variant did
+// the moving and the library card is untouched.
+describe("MediaCard - the hub variant", () => {
+  const atTopLeft = (el) =>
+    el.className.includes("top-1") && el.className.includes("left-1");
+
+  it("puts a movie's IMDb score on the meta line and the runtime under the TW date", async () => {
+    mockAuthFetch();
+    const movie = {
+      system_id: "mv1",
+      movie_name_en: "Film",
+      imdb_rating: "7.4",
+      length_min: 125,
+      release_date_tw: "2024-03-01",
+      release_date_usa: "2024-02-20",
+    };
+    mount(movie, "movie", false, "hub");
+    const score = await screen.findByTitle("IMDb score");
+    expect(score).toHaveTextContent("7.4");
+    expect(atTopLeft(score)).toBe(false);
+    expect(screen.getByText("2024-03-01")).toBeInTheDocument();
+    expect(screen.getByText("2hr 5min")).toBeInTheDocument();
+  });
+
+  it("leaves the library movie card's IMDb stamp on the cover", async () => {
+    mockAuthFetch();
+    mount({ system_id: "mv1", movie_name_en: "Film", imdb_rating: "7.4" }, "movie");
+    expect(atTopLeft(await screen.findByTitle("IMDb score"))).toBe(true);
+  });
+
+  it("shows an anime movie's JP date first, its MAL score and its runtime", async () => {
+    mockAuthFetch();
+    mount(
+      {
+        system_id: "am1",
+        anime_movie_name_en: "Anime Film",
+        mal_rating: "8.2",
+        length_min: 90,
+        release_date_jp: "2023-07-14",
+        release_date_tw: "2023-09-01",
+      },
+      "anime-movie",
+      false,
+      "hub",
+    );
+    const score = await screen.findByTitle("MAL score");
+    expect(score).toHaveTextContent("8.2");
+    expect(atTopLeft(score)).toBe(false);
+    expect(screen.getByText("2023-07-14")).toBeInTheDocument();
+    expect(screen.queryByText("2023-09-01")).toBeNull();
+    expect(screen.getByText("1hr 30min")).toBeInTheDocument();
+  });
+
+  it("puts a TV show's region top left and its score beside the date, with no airing status", async () => {
+    mockAuthFetch();
+    mount(
+      {
+        system_id: "t1",
+        tv_name_cn: "劇",
+        region: "US",
+        imdb_rating: "8.8",
+        release_date: "2026-01-18",
+        airing_status: "Finished Airing",
+      },
+      "tv-show",
+      false,
+      "hub",
+    );
+    expect(atTopLeft(await screen.findByText("US"))).toBe(true);
+    expect(atTopLeft(screen.getByTitle("IMDb score"))).toBe(false);
+    expect(screen.getByText("2026-01-18")).toBeInTheDocument();
+    expect(screen.queryByText("Finished Airing")).toBeNull();
+  });
+
+  it.each([
+    ["manga", { manga_name_en: "Comic", region: "日漫" }],
+    ["h-comic", { h_comic_name_en: "Doujin", region: "日漫" }],
+    ["book", { book_name_en: "Novel", region: "日漫" }],
+  ])("draws no region on a %s cover", async (type, fields) => {
+    mockAuthFetch();
+    mount({ system_id: "x1", ...fields }, type, false, "hub");
+    await screen.findByRole("link");
+    expect(screen.queryByText("日漫")).toBeNull();
+  });
+
+  it("still draws the region on a library manga cover", async () => {
+    mockAuthFetch();
+    mount({ system_id: "x1", manga_name_en: "Comic", region: "日漫" }, "manga");
+    expect(await screen.findByText("日漫")).toBeInTheDocument();
+  });
+
+  it("puts a game's type top left, its date over the hours, and both Metacritic figures", async () => {
+    mockAuthFetch();
+    mount(
+      {
+        system_id: "g1",
+        game_name_en: "Game",
+        game_type: "DLC",
+        release_date: "2024-06-21",
+        hours_played: 12,
+        metacritic_score: 94,
+        metacritic_user_score: 8.1,
+      },
+      "game",
+      false,
+      "hub",
+    );
+    expect(atTopLeft(await screen.findByText("DLC"))).toBe(true);
+    const date = screen.getByText("2024-06-21");
+    const critic = screen.getByTitle("Metacritic score");
+    const user = screen.getByTitle("Metacritic user score");
+    expect(critic).toHaveTextContent("94");
+    expect(user).toHaveTextContent("8.1");
+    // Critics over users, in one column.
+    expect(critic.parentElement).toBe(user.parentElement);
+    expect(critic.compareDocumentPosition(user) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The date line sits above the hours row.
+    const hours = screen.getByText(/^h$/i);
+    expect(date.compareDocumentPosition(hours) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("draws no game type on a library game cover", async () => {
+    mockAuthFetch();
+    mount({ system_id: "g1", game_name_en: "Game", game_type: "DLC" }, "game");
+    await screen.findByText("Game");
+    expect(screen.queryByText("DLC")).toBeNull();
+  });
+});

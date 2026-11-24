@@ -1,19 +1,23 @@
 // Frontend: admin page for curating media relations.
 //
-// Left: pick a franchise or collection, then one of its entries. Right: the
-// scope's relations as a canvas - where connecting, inspecting and deleting
+// Left: pick a franchise, series or collection, then one of its entries.
+// Right: the scope's relations as a canvas - where connecting, inspecting and deleting
 // are done by hand - and under it the same three writes as a form, for the
 // selected entry. The page holds one selection, which the left list and a
 // click on the canvas both set, and both the canvas and the form read.
 //
-// The franchise/collection picker is a browsing lens, not ownership: unlike a
-// order, a relation belongs to no tier - it links two entries. Collection
-// works as the wider lens because it sits strictly above Franchise, which is
-// also where most cross-franchise relations live.
+// The tier picker is a browsing lens, not ownership: unlike an order, a
+// relation belongs to no tier - it links two entries, so the same relation
+// shows at every tier holding either end. Collection works as the wider lens
+// because it sits strictly above Franchise, which is also where most
+// cross-franchise relations live; Series is the narrowest, and resolves
+// against the entry's own series_id rather than widening to its franchise -
+// so an anime movie, which carries no series, only ever appears there as a
+// ghost.
 //
 // The picked scope lives in the URL as ?owner=<tier>:<system_id>, the key
 // /orders uses, so a reload, a shared link or a hub's "Edit relations"
-// lands on that franchise or collection rather than at square one.
+// lands on that franchise, series or collection rather than at square one.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -26,7 +30,20 @@ import FittedName from "../../components/layout/FittedName";
 import RelationGraph from "../../components/relations/RelationGraph";
 import RelationForm from "../../components/relations/RelationForm";
 
-const SCOPE_TYPES = ["franchise", "collection"];
+// tier -> its toggle label, and the plural that keys its list in `owners`
+// and names it in the picker's placeholder.
+const SCOPE_TIERS = {
+  franchise: { label: "Franchise", plural: "franchises" },
+  series: { label: "Series", plural: "series" },
+  collection: { label: "Collection", plural: "collections" },
+};
+const SCOPE_TYPES = Object.keys(SCOPE_TIERS);
+
+// The query parameter each tier's scoped reads take; the server refuses more
+// than one, so exactly one key is ever sent.
+function scopeParams(scopeType, scopeId) {
+  return { [`${scopeType}_id`]: scopeId };
+}
 
 // "franchise:FR001" -> { type, id }; anything else -> null, so a hand-edited
 // or stale link opens the page empty instead of on a tier it cannot show.
@@ -45,7 +62,11 @@ export default function Relations() {
   const [pickedType, setPickedType] = useState("franchise");
   const scopeType = owner?.type ?? pickedType;
   const scopeId = owner?.id ?? null;
-  const [owners, setOwners] = useState({ franchises: [], collections: [] });
+  const [owners, setOwners] = useState({
+    franchises: [],
+    series: [],
+    collections: [],
+  });
 
   const [kinds, setKinds] = useState([]);
   const [candidates, setCandidates] = useState([]);
@@ -66,31 +87,29 @@ export default function Relations() {
     // limit=2000 (the endpoint's ceiling), not the default 500: there are
     // already ~600 franchises, and a truncated list would silently hide owners
     // from the picker. Same reasoning as Orders.jsx.
-    Promise.all([
-      fetch(buildUrl(endpoints.resource("franchise").list(), { limit: 2000 }), {
+    const fetchAll = (type) =>
+      fetch(buildUrl(endpoints.resource(type).list(), { limit: 2000 }), {
         credentials: "include",
-      }).then((r) => (r.ok ? r.json() : [])),
-      fetch(buildUrl(endpoints.resource("collection").list(), { limit: 2000 }), {
-        credentials: "include",
-      }).then((r) => (r.ok ? r.json() : [])),
-    ]).then(([franchises, collections]) =>
-      setOwners({ franchises, collections })
+      }).then((r) => (r.ok ? r.json() : []));
+    Promise.all(SCOPE_TYPES.map(fetchAll)).then((lists) =>
+      setOwners(
+        Object.fromEntries(
+          SCOPE_TYPES.map((type, i) => [SCOPE_TIERS[type].plural, lists[i]])
+        )
+      )
     );
   }, []);
 
   const ownerItems = useMemo(() => {
-    const source =
-      scopeType === "franchise" ? owners.franchises : owners.collections;
-    const prefix = scopeType === "franchise" ? "franchise" : "collection";
-    return source.map((o) => ({
+    return owners[SCOPE_TIERS[scopeType].plural].map((o) => ({
       id: o.system_id,
       label: getDisplayName(o, scopeType),
       searchText: [
-        o[`${prefix}_name_cn`],
-        o[`${prefix}_name_en`],
-        o[`${prefix}_name_alt`],
-        o[`${prefix}_name_roman`],
-        o[`${prefix}_name_jp`],
+        o[`${scopeType}_name_cn`],
+        o[`${scopeType}_name_en`],
+        o[`${scopeType}_name_alt`],
+        o[`${scopeType}_name_roman`],
+        o[`${scopeType}_name_jp`],
       ]
         .filter(Boolean)
         .join(" "),
@@ -104,10 +123,7 @@ export default function Relations() {
       setCounts({});
       return;
     }
-    const scopeParam =
-      scopeType === "franchise"
-        ? { franchise_id: scopeId }
-        : { collection_id: scopeId };
+    const scopeParam = scopeParams(scopeType, scopeId);
 
     const [entries, rows] = await Promise.all([
       fetch(buildUrl(endpoints.order.candidates(), scopeParam), {
@@ -216,10 +232,7 @@ export default function Relations() {
         {/* Left: pick a scope, then an entry */}
         <div className="flex flex-col gap-3">
           <div className="flex gap-1 p-0.5 rounded-lg bg-surface-3/70">
-            {[
-              ["franchise", "Franchise"],
-              ["collection", "Collection"],
-            ].map(([value, label]) => (
+            {SCOPE_TYPES.map((value) => (
               <button
                 key={value}
                 type="button"
@@ -230,7 +243,7 @@ export default function Relations() {
                     : "text-text-faint"
                 }`}
               >
-                {label}
+                {SCOPE_TIERS[value].label}
               </button>
             ))}
           </div>
@@ -240,7 +253,7 @@ export default function Relations() {
             selectedId={scopeId}
             onSelect={(id) => setScope(scopeType, id)}
             onClear={() => setScope(scopeType, null)}
-            placeholder={`Search ${scopeType}s…`}
+            placeholder={`Search ${SCOPE_TIERS[scopeType].plural}…`}
           />
 
           <input

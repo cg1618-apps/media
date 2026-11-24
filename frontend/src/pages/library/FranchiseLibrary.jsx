@@ -6,7 +6,8 @@ import { compareGroups, expectationTone } from "../../lib/groupSort";
 import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import FranchiseCard from "../../components/cards/FranchiseCard";
-import { Chip, Eyebrow } from "../../components/ui/primitives";
+import { ClearAllButton, Chip, Eyebrow } from "../../components/ui/primitives";
+import { COMPLETED_STATUSES } from "../../config/statusGroups";
 import { useAuth } from "../../contexts/AuthContext";
 import { useViewScope } from "../../hooks/useViewScope";
 import { canSeeGatedType } from "../../lib/gatedTypes";
@@ -23,6 +24,7 @@ function getFilterCategories(franchise) {
   if (types.includes("TV")) cats.push("TV");
   if (types.includes("Cartoon")) cats.push("Cartoon");
   if (types.includes("Comic")) cats.push("Comic");
+  if (types.includes("Game")) cats.push("Game");
   if (types.includes("H-Comic")) cats.push("H-Comic");
   if (types.includes("H-Game")) cats.push("H-Game");
   if (types.includes("Hentai")) cats.push("Hentai");
@@ -35,7 +37,68 @@ function getFilterCategories(franchise) {
 export const HAS_RELATIONS = "Has relation";
 export const NO_RELATIONS = "No relation";
 
-const EMPTY_FILTERS = { franchiseType: new Set(), relation: new Set() };
+// The Progress group reads the viewer's own status on each belonging entry,
+// so it exists only for a viewer with a list (useViewScope().ownData).
+export const ANY_COMPLETED = "Any completed";
+export const ANY_STARTED = "Any started";
+
+// Which status field each media type's list row carries.
+const STATUS_FIELD = {
+  anime: "watching_status",
+  "anime-movie": "watching_status",
+  movie: "watching_status",
+  "tv-show": "watching_status",
+  cartoon: "watching_status",
+  hentai: "watching_status",
+  manga: "reading_status",
+  book: "reading_status",
+  comic: "reading_status",
+  "h-comic": "reading_status",
+  game: "playing_status",
+  "h-game": "playing_status",
+};
+
+// Not started: the statuses of a work the viewer has not begun - might,
+// plans to, or waits for its release - and the Won't statuses, a decision
+// not to start. Anything else - under way, paused, completed, dropped - has
+// been started. An entry with no status has not.
+const NOT_STARTED_STATUSES = new Set([
+  "Might Watch",
+  "Plan to Watch",
+  "Watch When Airs",
+  "Watch When Released",
+  "Might Read",
+  "Plan to Read",
+  "Might Play",
+  "Plan to Play",
+  "Play When Released",
+  "Won't Watch",
+  "Won't Read",
+  "Won't Play",
+]);
+
+/** The viewer's status on an entry, read from its type's status field. */
+function entryStatus(entry) {
+  return entry[STATUS_FIELD[entry.media_type]] ?? null;
+}
+
+/** The Progress chips a franchise's entries satisfy. */
+function progressOf(entries = []) {
+  const progress = new Set();
+  for (const e of entries) {
+    const status = entryStatus(e);
+    if (!status) continue;
+    if (COMPLETED_STATUSES.includes(status)) progress.add(ANY_COMPLETED);
+    if (!NOT_STARTED_STATUSES.has(status)) progress.add(ANY_STARTED);
+  }
+  return progress;
+}
+
+const EMPTY_FILTERS = {
+  franchiseType: new Set(),
+  relation: new Set(),
+  progress: new Set(),
+};
 
 const PILL_ON = "bg-brand text-on-brand border-brand";
 const PILL_OFF =
@@ -309,7 +372,11 @@ export default function FranchiseLibrary() {
     setFilters(EMPTY_FILTERS);
   }
 
-  const activeFilterCount = filters.franchiseType.size + filters.relation.size;
+  // A Progress chip left on by a viewer who cannot see statuses would filter
+  // by values that never arrive; it is ignored instead.
+  const progressFilter = showPersonal ? filters.progress : EMPTY_FILTERS.progress;
+  const activeFilterCount =
+    filters.franchiseType.size + filters.relation.size + progressFilter.size;
 
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);
@@ -338,6 +405,11 @@ export default function FranchiseLibrary() {
         return false;
       }
 
+      if (progressFilter.size > 0) {
+        const progress = progressOf(allEntriesByFranchise[f.system_id]);
+        if (![...progressFilter].some((p) => progress.has(p))) return false;
+      }
+
       return true;
     });
 
@@ -347,7 +419,15 @@ export default function FranchiseLibrary() {
     result.sort((a, b) => compareGroups(a, b, sort, "franchise"));
 
     return result;
-  }, [allFranchises, searchQuery, currentSort, showPersonal, filters]);
+  }, [
+    allFranchises,
+    allEntriesByFranchise,
+    searchQuery,
+    currentSort,
+    showPersonal,
+    filters,
+    progressFilter,
+  ]);
 
   if (loading) {
     return (
@@ -484,6 +564,7 @@ export default function FranchiseLibrary() {
                 {tag("TV", "TV")}
                 {tag("Cartoon", "Cartoon")}
                 {tag("Comic", "Comic")}
+                {tag("Game", "Game")}
                 {canSeeHComic && tag("H-Comic", "H-Comic")}
                 {canSeeHGame && tag("H-Game", "H-Game")}
                 {canSeeHentai && tag("Hentai", "Hentai")}
@@ -494,14 +575,20 @@ export default function FranchiseLibrary() {
                 {tag(HAS_RELATIONS, "Has relation", "relation")}
                 {tag(NO_RELATIONS, "No relation", "relation")}
               </div>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={clearFilters}
-                  className="ml-auto font-mono text-[11px] uppercase tracking-[0.12em] text-text-faint hover:text-text transition"
-                >
-                  Clear
-                </button>
+              {showPersonal && (
+                <>
+                  <Eyebrow className="shrink-0">Progress</Eyebrow>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tag(ANY_COMPLETED, "Any completed", "progress")}
+                    {tag(ANY_STARTED, "Any started", "progress")}
+                  </div>
+                </>
               )}
+              <ClearAllButton
+                active={activeFilterCount > 0}
+                onClick={clearFilters}
+                className="ml-auto"
+              />
             </div>
           )}
         </div>
