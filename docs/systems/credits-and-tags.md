@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-11-23
+Last verified: 2026-11-24
 
 ## What this is for
 
@@ -149,7 +149,7 @@ that names a credit which does not exist.
 | `genre_sub` | Genre Sub | Genre Sub | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic |
 | `label` | 標籤 Label | Label | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game |
 | `original_source` | Original Source (labelled Exclusive Source on movie) | Platform | tv-show, cartoon, movie, h-comic (the KR official source) |
-| `exclusive_source` | Exclusive Source | Platform | anime, anime-movie |
+| `exclusive_source` | Exclusive Source (single-valued; needs an available `main` access row on the same platform - [business-rules.md](../business-rules.md#an-exclusive-source-is-one-of-the-main-sources)) | Platform | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | Serialization Platform | manga, book |
 | `comic_imprint` | Imprint | Comic Imprint | comic |
 | `comic_continuity` | Continuity | Comic Continuity | comic |

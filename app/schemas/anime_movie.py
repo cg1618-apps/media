@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 from app.schemas.image_focus import ImageFocus
 from app.schemas.link_fields import AnimeMovieLinkFields
 from app.schemas.release_date_field import release_date_validator
-from app.schemas.sources import SourceWriteFields
+from app.schemas.sources import ExclusiveSourceWriteFields, SourceWriteFields
 
 
 class AnimeMovieBase(BaseModel):
@@ -55,11 +55,11 @@ class AnimeMovieBase(BaseModel):
     _validate_release_dates = release_date_validator("release_date_jp", "release_date_tw")
 
 
-class AnimeMovieCreate(AnimeMovieBase, SourceWriteFields):
+class AnimeMovieCreate(AnimeMovieBase, SourceWriteFields, ExclusiveSourceWriteFields):
     pass
 
 
-class AnimeMovieUpdate(AnimeMovieBase, SourceWriteFields):
+class AnimeMovieUpdate(AnimeMovieBase, SourceWriteFields, ExclusiveSourceWriteFields):
     pass
 
 

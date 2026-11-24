@@ -251,6 +251,16 @@ def make_media_router(spec) -> APIRouter:
         if spec.progress_hook:
             spec.progress_hook(db, entry)
 
+    def _check_write(db: Session, entry, nested: dict) -> None:
+        # Rolled back before raising, so a refused write leaves nothing
+        # behind even on a session that outlives the request.
+        if not spec.write_check:
+            return
+        problem = spec.write_check(db, entry, nested.keys())
+        if problem:
+            db.rollback()
+            raise HTTPException(status_code=422, detail=problem)
+
     # ------------------------------------------------------------------
     # Public read
     # ------------------------------------------------------------------
@@ -356,6 +366,7 @@ def make_media_router(spec) -> APIRouter:
             db.flush()
         _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
+        _check_write(db, entry, nested)
         if spec.pre_commit_hook:
             spec.pre_commit_hook(db, entry)
         # After the pre-commit hook: the list row's FK points at `media`, and
@@ -406,6 +417,7 @@ def make_media_router(spec) -> APIRouter:
             setattr(entry, key, value)
         _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
+        _check_write(db, entry, nested)
         for kind, planned in plan_flags:
             set_entry_flag(
                 db,
@@ -447,6 +459,7 @@ def make_media_router(spec) -> APIRouter:
         apply_column_patch(entry, payload)
         _write_nested(db, entry, nested, viewer)
         _derive(db, entry)
+        _check_write(db, entry, nested)
         for kind, planned in plan_flags:
             set_entry_flag(
                 db,

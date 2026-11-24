@@ -244,3 +244,85 @@ def media_sources_writer(media_type: str):
         replace_sources(db, entry.system_id, value or [], viewer=viewer)
 
     return write
+
+
+# The media types whose exclusive_source must be backed by a source row: the
+# platform an entry is exclusive to is a platform it can be watched on, so the
+# tag needs a `main` access row for that same platform, marked available.
+# Every type that carries the tag (TAG_FIELDS["exclusive_source"]).
+EXCLUSIVE_SOURCE_TYPES: tuple[str, ...] = ("anime", "anime-movie")
+EXCLUSIVE_SOURCE_FIELD = "exclusive_source"
+
+
+def exclusive_source_problem(db: Session, media_id: UUID) -> str | None:
+    """
+    Why the entry's stored exclusive_source breaks the rule, or None.
+
+    Reads what is stored (flushed) now, so a caller checks after writing its
+    own half. The tag and a `main` access row draw from the same Platform
+    vocabulary, so they are matched by option_id rather than by name: an
+    `other` row typed "Netflix" is not the Netflix platform.
+    """
+    db.flush()
+    tags = (
+        db.query(models.MediaTag, models.SystemOption)
+        .join(
+            models.SystemOption,
+            models.SystemOption.system_id == models.MediaTag.option_id,
+        )
+        .filter(
+            models.MediaTag.media_id == media_id,
+            models.MediaTag.field == EXCLUSIVE_SOURCE_FIELD,
+        )
+        .all()
+    )
+    for tag, option in tags:
+        backed = (
+            db.query(models.MediaSource)
+            .filter_by(
+                media_id=media_id,
+                kind="access",
+                bucket="main",
+                option_id=tag.option_id,
+                available=True,
+            )
+            .first()
+        )
+        if backed is None:
+            return (
+                f"Exclusive source {option.value} needs a {option.value} row "
+                f"under Main Sources marked Available."
+            )
+    return None
+
+
+def exclusive_source_writer():
+    """
+    The `nested_collections` adapter for an entry payload's exclusive_source.
+
+    Lets one entry write carry both halves of the rule - the sources and the
+    tag - so a save that swaps the platform and its row together is checked
+    once, on the state it leaves behind. A blank value clears the tag.
+    """
+
+    def write(db: Session, entry, value, viewer=None) -> None:
+        from app.services.domain.credits import replace_tags
+
+        value = (value or "").strip()
+        replace_tags(
+            db, entry.system_id, EXCLUSIVE_SOURCE_FIELD, [value] if value else []
+        )
+
+    return write
+
+
+def check_exclusive_source_write(db: Session, entry, touched) -> str | None:
+    """
+    The entry write's check: run only when the write touched either half.
+
+    A write that changes neither - a toolbar PATCH of the airing status -
+    must not be refused for a row stored before the rule existed.
+    """
+    if not {"sources", EXCLUSIVE_SOURCE_FIELD} & set(touched):
+        return None
+    return exclusive_source_problem(db, entry.system_id)
