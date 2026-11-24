@@ -25,6 +25,22 @@ describe("NamingCard", () => {
     expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 
+  it.each(["anime", "anime-movie", "manga", "book", "game", "h-game", "hentai", "collection"])(
+    "lists the Japanese name above the Romaji on %s",
+    (type) => {
+      const prefix = type.replace("-", "_");
+      render(
+        <NamingCard
+          type={type}
+          item={{ [`${prefix}_name_roman`]: "Shingeki no Kyojin", [`${prefix}_name_jp`]: "進撃の巨人" }}
+        />,
+      );
+      const jp = screen.getByText("進撃の巨人");
+      const roman = screen.getByText("Shingeki no Kyojin");
+      expect(jp.compareDocumentPosition(roman) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    },
+  );
+
   it("renders nothing when no name is set", () => {
     const { container } = render(
       <NamingCard type="anime" item={{ anime_name_en: null }} />,
