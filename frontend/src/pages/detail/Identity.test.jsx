@@ -7,7 +7,7 @@ import Identity from "./Identity";
 // Reassigned per test: a guest by default, an admin where a test says so.
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
-// The remark list and personal notes are NotesTemplate's to test; here only
+// The remark list, resources and personal notes are NotesTemplate's to test; here only
 // that the page hands it this record as the owner.
 vi.mock("../notes/NotesTemplate", () => ({
   default: ({ ownerType, ownerId }) => (
@@ -71,7 +71,7 @@ const ENTRIES = {
 };
 
 // The character the identity is of: an identity IS that character, so the
-// page shows its role, tags, rating and MAL link. Its gender differs from the
+// page shows its role, tags, rating and links. Its gender differs from the
 // identity's on purpose, to prove which one the page shows.
 const CHARACTER = {
   system_id: "c1",
@@ -193,35 +193,41 @@ describe("Identity detail page", () => {
     );
   });
 
-  it("shows the character's role, tags and MAL with the identity's gender", async () => {
+  it("shows the character's role and tags with the identity's gender", async () => {
     renderPage();
     const profile = (await screen.findByText("Profile")).closest("section");
     await waitFor(() => expect(within(profile).getByText("Main")).toBeInTheDocument());
     expect(within(profile).getByText("Glasses")).toBeInTheDocument();
     expect(within(profile).getByText("Bow Tie")).toBeInTheDocument();
     expect(within(profile).getByText("Genius")).toBeInTheDocument();
-    expect(within(profile).getByRole("link", { name: "Character #1" })).toHaveAttribute(
-      "href",
-      CHARACTER.mal_link,
-    );
+    expect(within(profile).queryByText("MAL")).toBeNull();
     expect(within(profile).getByText("男")).toBeInTheDocument();
     expect(within(profile).queryByText("女")).toBeNull();
   });
 
-  // The remark list and personal notes are this identity's notes block.
-  it("draws the remark list and personal notes for this identity", async () => {
+  // The remark list, resources and personal notes are this identity's notes block.
+  it("draws the remark list, resources and personal notes for this identity", async () => {
     renderPage();
     const notes = await screen.findByTestId("entity-notes");
     expect(notes).toHaveAttribute("data-owner-type", "identity");
     expect(notes.getAttribute("data-owner-id")).toBeTruthy();
   });
 
-  it("links the character's MyAnimeList page beside the name", async () => {
+  it("lists the character's MyAnimeList page in the links card, not beside the name", async () => {
     renderPage();
-    expect(await screen.findByRole("link", { name: "Open on MyAnimeList" })).toHaveAttribute(
+    const links = await screen.findByRole("region", { name: "Links" });
+    expect(within(links).getByRole("link", { name: "MyAnimeList" })).toHaveAttribute(
       "href",
       CHARACTER.mal_link,
     );
+    expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
+  });
+
+  it("sets the appearance count on the kind line above the name", async () => {
+    renderPage();
+    await screen.findByRole("heading", { level: 1, name: "Edogawa Conan" });
+    const count = screen.getByText(/^\d+ appearances?$/);
+    expect(count.parentElement).toHaveTextContent(/^Identity/);
   });
 
   it("stamps the character's rating on the photo, read-only", async () => {

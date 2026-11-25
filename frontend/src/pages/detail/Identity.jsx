@@ -10,15 +10,16 @@
 //
 // An identity IS its character under another name, so the page shows what
 // the character page does: the character's role, appearance and trait tags,
-// rating and MAL link come from GET /api/character/{id}, read beside the
-// entries; the names, photo, gender, firsts and notes are the identity's own. A
+// rating and links (MAL, AniList - the left column's links card,
+// components/info/EntityLinksCard.jsx) come from GET /api/character/{id},
+// read beside the entries; the names, photo, gender, firsts and notes are the identity's own. A
 // Character section links back to the character and to its other identities.
 //
 // Like Character.jsx it reads the API with plain fetch. Unlike it, nothing is
 // edited in place: an identity has no PATCH route, and the rating is the
 // character's (set on its page), so the admin gets only the jump to the
-// Modify editor. Its remark list and personal notes are a notes block of its
-// own (NotesTemplate, owner type "identity").
+// Modify editor. Its remark list, resources and personal notes are a notes
+// block of its own (NotesTemplate, owner type "identity").
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
@@ -30,7 +31,8 @@ import CastingCard from "../../components/info/CastingCard";
 import IdentityCard from "../../components/info/IdentityCard";
 import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
-import MalButton from "../../components/info/MalButton";
+import EntityHeading, { appearances } from "../../components/info/EntityHeading";
+import EntityLinksCard, { ENTITY_LINKS } from "../../components/info/EntityLinksCard";
 import NamingCard from "../../components/info/NamingCard";
 import { tagChips } from "../../components/info/tagChips";
 import { firstsRows } from "../../lib/characterForm";
@@ -199,23 +201,15 @@ export default function Identity() {
             </div>
           </div>
 
+          {/* The character's links: an identity is the same character. */}
+          <EntityLinksCard item={character} links={ENTITY_LINKS.character} />
+
           <NamingCard type="identity" item={identity} />
         </div>
 
         {/* ========== RIGHT COLUMN: facts, then the castings ========== */}
         <div className="lg:col-span-3 space-y-6">
-          <div>
-            <Eyebrow className="mb-1">Identity</Eyebrow>
-            <h1 className="font-display text-4xl font-semibold text-text leading-tight">
-              {name}
-            </h1>
-            <div className="flex flex-wrap items-center gap-3 mt-2">
-              <p className="font-mono text-[11px] text-text-faint">
-                {castingTotal} appearance{castingTotal === 1 ? "" : "s"}
-              </p>
-              <MalButton href={character?.mal_link} />
-            </div>
-          </div>
+          <EntityHeading kind="Identity" count={appearances(castingTotal)} name={name} />
 
           <div className="space-y-1.5">
             <InfoCard
@@ -229,29 +223,16 @@ export default function Identity() {
                 ],
                 { label: "Appearance", value: tagChips(character?.appearance) },
                 { label: "Trait", value: tagChips(character?.trait) },
-                {
-                  label: "MAL",
-                  value: character?.mal_link ? (
-                    <a
-                      href={character.mal_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-brand hover:underline break-all"
-                    >
-                      {character.mal_id ? `Character #${character.mal_id}` : "MyAnimeList"}
-                    </a>
-                  ) : null,
-                },
               ]}
             />
             <p className="text-[10px] text-text-faint">
-              Role, tags, rating and MAL are {characterName}&apos;s.
+              Role, tags, rating and links are {characterName}&apos;s.
             </p>
           </div>
 
           {firsts.length > 0 && <InfoCard title="First Appearances" fields={firsts} />}
 
-          {/* The identity's own remark list and personal notes. */}
+          {/* The identity's own remark list, resources and personal notes. */}
           <NotesTemplate ownerType="identity" ownerId={identity.system_id} />
 
           <section>
