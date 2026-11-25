@@ -394,6 +394,33 @@ describe("SourcesCard", () => {
     });
   });
 
+  // A game's exclusive platform is a section of its own, above Where to
+  // Play: the platform's icon and name.
+  describe("a game's exclusive source", () => {
+    it("leads the card in its own section, above Where to Play, with its icon", () => {
+      render(
+        <SourcesCard sources={[]} mediaType="game" steamLink="https://store.test" gameExclusive="Nintendo" />,
+      );
+      const sections = screen.getAllByRole("region").map((r) => r.getAttribute("aria-label"));
+      expect(sections.slice(0, 2)).toEqual(["Exclusive Source", "Where to Play"]);
+      const exclusive = screen.getByRole("region", { name: "Exclusive Source" });
+      expect(within(exclusive).getByText("Nintendo")).toBeInTheDocument();
+      expect(exclusive.querySelector(".fa-nintendo-switch")).not.toBeNull();
+    });
+
+    it("gives PC a computer icon and draws the card for it alone", () => {
+      render(<SourcesCard sources={[]} mediaType="game" gameExclusive="PC" />);
+      const exclusive = screen.getByRole("region", { name: "Exclusive Source" });
+      expect(exclusive.querySelector(".fa-desktop")).not.toBeNull();
+      expect(screen.queryByText("No sources recorded.")).toBeNull();
+    });
+
+    it("draws no such section for a game that is not exclusive", () => {
+      render(<SourcesCard sources={[]} mediaType="game" steamLink="https://store.test" />);
+      expect(screen.queryByRole("region", { name: "Exclusive Source" })).toBeNull();
+    });
+  });
+
   it("says so when there is nothing at all", () => {
     render(<SourcesCard sources={[]} mediaType="anime" />);
     expect(screen.getByText(/no sources recorded/i)).toBeInTheDocument();

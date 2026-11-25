@@ -437,6 +437,7 @@ export default function Game() {
               mediaType="game"
               igdbLink={game.igdb_link}
               steamLink={game.steam_link}
+              gameExclusive={game.exclusive_platform}
             />
           </div>
 

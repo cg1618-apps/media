@@ -244,3 +244,11 @@ describe("GameAddTab developer and publisher", () => {
     expect(screen.getByText(/add it on the Publisher tab first/)).toBeInTheDocument();
   });
 });
+
+// Exclusive Source: one of the five platform families, or none.
+it("offers Exclusive Source as a single choice of the five platforms", () => {
+  renderTab();
+  const select = screen.getByLabelText("Exclusive Source");
+  const values = [...select.querySelectorAll("option")].map((o) => o.value).filter(Boolean);
+  expect(values).toEqual(["Nintendo", "PlayStation", "Xbox", "PC", "Mobile"]);
+});
