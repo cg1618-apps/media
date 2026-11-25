@@ -2,7 +2,7 @@
 // type), People & companies (people, studios, publishers) and Characters,
 // each counted, each hidden while empty, the active one held in `?tab=`.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -430,7 +430,7 @@ describe("Search page — every type", () => {
       ),
     };
     renderPage();
-    await screen.findByText("Collections");
+    await screen.findByRole("heading", { level: 2, name: "Collections" });
     expect(h2s()).toEqual([
       "Collections",
       "Franchises",
@@ -465,5 +465,75 @@ describe("Search page — scopes", () => {
     renderPage("/search?q=ghibli&tab=people");
     const link = (await screen.findByText("Ghibli Publishing")).closest("a");
     expect(link).toHaveAttribute("href", "/publisher/pb1/ghibli-publishing");
+  });
+});
+
+// The contents column on the right (TableOfContents) and its chip bar below
+// xl (ContentsBar) list the sections the active tab draws, in page order.
+describe("Search page — table of contents", () => {
+  function rows(name) {
+    return within(screen.getByRole("navigation", { name }))
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+  }
+
+  it("lists the Media tab's sections in the contents column and the chip bar", async () => {
+    renderPage();
+    await screen.findByText("Ghibli Anime");
+    expect(rows("Contents")).toEqual(["Anime", "Game"]);
+    expect(rows("Sections")).toEqual(["Anime", "Game"]);
+  });
+
+  it("lists the active tab's sections only", async () => {
+    renderPage("/search?q=ghibli&tab=people");
+    await screen.findByText("Studio Ghibli");
+    expect(rows("Contents")).toEqual(["People", "Studios", "Publishers"]);
+  });
+
+  it("anchors each row to its section", async () => {
+    renderPage();
+    await screen.findByText("Ghibli Anime");
+    const anime = screen.getByRole("heading", { level: 2, name: "Anime" });
+    expect(anime.closest("section")).toHaveAttribute("data-toc", "Anime");
+  });
+
+  it("draws no contents when nothing matches", async () => {
+    searchPayload = { ...RESULTS, results: EMPTY_BUCKETS };
+    renderPage();
+    await screen.findByText(/Nothing matches/);
+    expect(screen.queryByRole("navigation", { name: "Contents" })).toBeNull();
+  });
+});
+
+// The Characters tab draws the character library's cards: the character,
+// then a dashed card for each of its other identities, linking to the
+// identity's own page.
+describe("Search page — character identities", () => {
+  it("draws an identity card after its character, as the library does", async () => {
+    searchPayload = {
+      ...RESULTS,
+      results: {
+        ...EMPTY_BUCKETS,
+        character: [
+          {
+            ...RESULTS.results.character[0],
+            identities: [
+              { system_id: "i1", public_id: "i1", display_name: "Black Cat" },
+            ],
+          },
+        ],
+      },
+    };
+    renderPage("/search?q=ghibli&tab=characters");
+    const identity = (await screen.findByText("Black Cat")).closest("a");
+    expect(identity).toHaveAttribute("href", "/identity/i1/black-cat");
+    expect(identity).toHaveAttribute("data-identity-card");
+    // The character's own card comes first; the identity card's footer
+    // names the character again.
+    const [character, footer] = screen.getAllByText("Kiki");
+    expect(character.closest("a")).toHaveAttribute("href", "/character/c1/kiki");
+    expect(footer.closest("a")).toBe(identity);
+    // The counts are of characters found, not of cards drawn.
+    expect(tabButton("Characters")).toHaveTextContent("Characters1");
   });
 });
