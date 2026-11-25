@@ -1,4 +1,4 @@
-// The five detail pages that set Genre (Main), Genre (Sub) and Label in
+// The seven detail pages that set Genre (Main), Genre (Sub) and Label in
 // a Genres card of their own (GenresCard) rather than inside the Information
 // card: the tags sit in the Genres card and not in Information, and with no
 // tag set there is no Genres card at all.
@@ -10,6 +10,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { AuthProvider } from "../../contexts/AuthContext";
 import { ToastProvider } from "../../hooks/useToast";
+import Anime from "./Anime";
+import AnimeMovie from "./AnimeMovie";
 import Cartoon from "./Cartoon";
 import Manga from "./Manga";
 import Movie from "./Movie";
@@ -17,6 +19,8 @@ import Book from "./Book";
 import TV from "./TV";
 
 const PAGES = [
+  { name: "Anime", type: "anime", Page: Anime },
+  { name: "Anime Movie", type: "anime-movie", Page: AnimeMovie },
   { name: "Manga", type: "manga", Page: Manga },
   { name: "Book", type: "book", Page: Book, entry: { units: [] } },
   { name: "Movie", type: "movie", Page: Movie },
@@ -84,6 +88,17 @@ describe.each(PAGES)("$name detail page — Genres card", ({ type, Page, entry }
     const info = card("Information");
     expect(within(info).queryByText("Genre (Main)")).not.toBeInTheDocument();
     expect(within(info).queryByText("Label")).not.toBeInTheDocument();
+  });
+
+  it("draws the Genres card directly below the Information card", async () => {
+    mockFetch(type, { ...base, ...TAGS });
+    mount(type, Page);
+    await screen.findByRole("heading", { name: "Information" });
+    const info = card("Information");
+    const genres = card("Genres");
+    // Each card sits in its own contents section; the Genres one is next.
+    const infoBlock = info.parentElement;
+    expect(infoBlock.nextElementSibling).toBe(genres.parentElement);
   });
 
   it("renders no Genres card when no tag is set", async () => {
