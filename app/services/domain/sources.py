@@ -107,7 +107,11 @@ def attach_sources(
 
 
 def replace_sources(
-    db: Session, media_id: UUID, payload: list[dict], viewer=None
+    db: Session,
+    media_id: UUID,
+    payload: list[dict],
+    viewer=None,
+    media_type: str | None = None,
 ) -> None:
     """
     Make the entry's sources exactly `payload`, in that order.
@@ -121,6 +125,9 @@ def replace_sources(
     saw, so a whole-set replace would otherwise delete exactly the rows the
     saver was never shown. `viewer=None` means an internal caller with no
     gating, and replaces everything.
+
+    `media_type` picks the vocabulary a main access row resolves against
+    (category_for_kind): a manga's or book's is Serialization Platform.
     """
     from app.services.domain.credits import resolve_option
     from app.services.rbac.field_gate import gated_source_buckets
@@ -145,7 +152,7 @@ def replace_sources(
         option_id = None
         stored_name = name
         if bucket not in FREE_FORM_BUCKETS:
-            option = resolve_option(db, category_for_kind(kind), name)
+            option = resolve_option(db, category_for_kind(kind, media_type), name)
             option_id = option.system_id
             stored_name = None
 
@@ -234,14 +241,16 @@ def media_sources_writer(media_type: str):
     """
     Build the `nested_collections` adapter for one media type.
 
-    Kept as a factory even though media_type is no longer needed to write a
-    row: the registry declares one writer per spec, and the signature the
-    factory produces is what nested_collections expects.
+    The media type picks the vocabulary a main access row resolves against -
+    Serialization Platform on manga and book, Platform elsewhere. The
+    signature the factory produces is what nested_collections expects.
     See app/routers/_factory.py:83-96.
     """
 
     def write(db: Session, entry, value, viewer=None) -> None:
-        replace_sources(db, entry.system_id, value or [], viewer=viewer)
+        replace_sources(
+            db, entry.system_id, value or [], viewer=viewer, media_type=media_type
+        )
 
     return write
 
