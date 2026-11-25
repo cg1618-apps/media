@@ -124,8 +124,8 @@ def convert_stashed_remarks(db: Session) -> int:
 
 def move_entity_notes(db: Session, owner_type: str, keep_id, drop_id) -> None:
     """
-    A merge's loser's notes - its Remark rows and every viewer's personal
-    notes - onto the survivor, after the survivor's own rows in each section,
+    A merge's loser's notes - its Remark and Resources rows and every viewer's
+    personal rows - onto the survivor, after the survivor's own rows in each section,
     before the loser's delete would cascade them away. Does not commit.
     """
     column = ENTITY_NOTE_COLUMNS.get(owner_type)

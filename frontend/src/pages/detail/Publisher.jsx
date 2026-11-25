@@ -6,24 +6,31 @@
 // credited on, grouped by media type as GET /api/publisher/{id}/entries
 // returns them.
 //
-// Two divergences from Studio: no MAL row in the profile - MAL has no record
-// of a games publisher or a Taiwanese distributor, so a publisher carries no
-// mal_id/mal_link at all - and a Types row naming the media types it is
-// offered on (`scopes`).
+// As on Studio, each entry is drawn as its type's library card without the
+// tracker (components/info/CompanyCredits.jsx) under one shared credit sort,
+// and the left column holds the logo, My rating, the links card
+// (components/info/EntityLinksCard.jsx), then the Related companies.
+//
+// Two divergences from Studio: the links card carries the website alone - MAL
+// has no record of a games publisher or a Taiwanese distributor, so a
+// publisher carries no mal_id/mal_link at all - and the Profile is one row of
+// country, the media types it is offered on (`scopes`), and active span.
 //
 // An admin gets the controls Person.jsx has (EntityProfileControls): the jump
-// to the full editor. The remark list and personal notes are a notes block
-// (NotesTemplate, owner type "publisher"). My rating is the viewer's own, set
-// by a holder of self.list through PUT /api/me/ratings.
+// to the full editor. The remark list, resources and personal notes are a
+// notes block (NotesTemplate, owner type "publisher"). My rating is the
+// viewer's own, set by a holder of self.list through PUT /api/me/ratings.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
-import { releaseYear } from "../../lib/releaseDate";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
 import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
+import CompanyCredits from "../../components/info/CompanyCredits";
+import EntityHeading, { creditedEntries } from "../../components/info/EntityHeading";
+import EntityLinksCard, { ENTITY_LINKS } from "../../components/info/EntityLinksCard";
 import RelatedRecords from "../../components/info/RelatedRecords";
 import NamingCard from "../../components/info/NamingCard";
 import {
@@ -31,7 +38,7 @@ import {
   RatingSelect,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
-import { Eyebrow, RatingStamp, eyebrowCls } from "../../components/ui/primitives";
+import { RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePageTitle } from "../../contexts/PageTitleContext";
@@ -177,51 +184,7 @@ export default function Publisher() {
             />
           )}
 
-          <NamingCard type="publisher" item={publisher} />
-        </div>
-
-        {/* ========== RIGHT COLUMN: facts, then the credits ========== */}
-        <div className="lg:col-span-3 space-y-6">
-          <div>
-            <Eyebrow className="mb-1">Publisher</Eyebrow>
-            <h1 className="font-display text-4xl font-semibold text-text leading-tight">
-              {name}
-            </h1>
-            <p className="font-mono text-[11px] text-text-faint mt-2">
-              {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
-            </p>
-          </div>
-
-          <InfoCard
-            title="Profile"
-            fields={[
-              [
-                { label: "Country", value: publisher.country },
-                { label: "Active", value: span },
-              ],
-              {
-                label: "Types",
-                value:
-                  (publisher.scopes || []).map(mediaTypeLabel).join(", ") || null,
-              },
-              {
-                label: "Website",
-                value: publisher.website_url ? (
-                  <a
-                    href={publisher.website_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-brand hover:underline break-all"
-                  >
-                    {publisher.website_url}
-                  </a>
-                ) : null,
-              },
-            ]}
-          />
-
-          {/* The remark list and personal notes (app/utils/note_sections.py). */}
-          <NotesTemplate ownerType="publisher" ownerId={publisher.system_id} />
+          <EntityLinksCard item={publisher} links={ENTITY_LINKS.publisher} />
 
           <RelatedRecords
             type="publisher"
@@ -229,85 +192,39 @@ export default function Publisher() {
             isAdmin={isAdmin}
           />
 
-          {groups.length === 0 ? (
-            <section className="border border-dashed border-border-strong px-4 py-10 text-center">
-              <Eyebrow className="mb-1">Empty</Eyebrow>
-              <p className="text-sm text-text-muted">No credited entries</p>
-            </section>
-          ) : (
-            groups.map((group) => (
-              <section key={group.media_type}>
-                <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] text-text-muted">
-                  {group.label}
-                  <span className="text-text-faint">{group.entries.length}</span>
-                  <span className="flex-1 border-t border-dotted border-border-strong/60" />
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {group.entries.map((entry) => (
-                    <CreditCard
-                      key={entry.system_id}
-                      entry={entry}
-                      navPath={group.nav_path}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))
-          )}
+          <NamingCard type="publisher" item={publisher} />
+        </div>
+
+        {/* ========== RIGHT COLUMN: facts, then the credits ========== */}
+        <div className="lg:col-span-3 space-y-6">
+          <EntityHeading
+            kind="Publisher"
+            count={creditedEntries(creditTotal)}
+            name={name}
+          />
+
+          <InfoCard
+            title="Profile"
+            fields={[
+              [
+                { label: "Country", value: publisher.country },
+                {
+                  label: "Types",
+                  value:
+                    (publisher.scopes || []).map(mediaTypeLabel).join(", ") || null,
+                },
+                { label: "Active", value: span },
+              ],
+            ]}
+          />
+
+          {/* The remark list, resources and personal notes
+              (app/utils/note_sections.py). */}
+          <NotesTemplate ownerType="publisher" ownerId={publisher.system_id} />
+
+          <CompanyCredits groups={groups} />
         </div>
       </div>
     </div>
-  );
-}
-
-// A minimal cover-and-title card, the same one Studio.jsx draws. MediaCard is
-// deliberately not reused: it reads a full media payload (status fields,
-// franchise dict, admin toggles) and resolves its title through
-// getDisplayName, none of which the four keys the entries endpoint returns
-// can satisfy.
-function CreditCard({ entry, navPath }) {
-  const title = entry.display_name || "Untitled";
-  const year = releaseYear(entry.release_date);
-  const card = (
-    <>
-      <div
-        className="bg-surface-2 overflow-hidden"
-        style={{ aspectRatio: "2/3" }}
-      >
-        <LazyImage
-          src={getCoverUrl(entry.cover_image_file)}
-          alt=""
-          className="w-full h-full object-cover"
-          style={focusStyle(entry.cover_image_focus)}
-          onError={(e) => {
-            e.target.src = FALLBACK_SVG;
-          }}
-        />
-      </div>
-      <div className="p-2.5 flex flex-col gap-1 border-t border-border">
-        <h3
-          className="font-display font-semibold text-text text-sm line-clamp-2 leading-tight"
-          title={title}
-        >
-          {title}
-        </h3>
-        <span className={eyebrowCls}>
-          {year || "Undated"}
-        </span>
-      </div>
-    </>
-  );
-
-  // An unresolved entry has no nav_path; it is shown but not linked.
-  if (!navPath) {
-    return <div className="bg-surface border border-border">{card}</div>;
-  }
-  return (
-    <Link
-      to={`${navPath}/${entry.system_id}`}
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col"
-    >
-      {card}
-    </Link>
   );
 }

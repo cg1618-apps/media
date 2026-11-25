@@ -10,10 +10,14 @@
 // character in that entry, since (unlike a person's own credits) knowing who
 // played the part is the point of looking a character up.
 //
+// Its MAL and AniList pages are the links card in the left column, under My
+// rating (components/info/EntityLinksCard.jsx).
+//
 // Like Person.jsx it reads the API with plain fetch. An admin can jump to the
-// full editor (components/info/EntityProfileControls.jsx). The remark list and
-// personal notes are a notes block (NotesTemplate, owner type "character"). My rating is the viewer's own: a holder of self.list sets
-// it through PUT /api/me/ratings (api/mutations/useMyRatingMutations.js).
+// full editor (components/info/EntityProfileControls.jsx). The remark list,
+// resources and personal notes are a notes block (NotesTemplate, owner type
+// "character"). My rating is the viewer's own: a holder of self.list sets it
+// through PUT /api/me/ratings (api/mutations/useMyRatingMutations.js).
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
@@ -25,7 +29,8 @@ import CastingCard from "../../components/info/CastingCard";
 import IdentityCard from "../../components/info/IdentityCard";
 import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
-import MalButton from "../../components/info/MalButton";
+import EntityHeading, { appearances } from "../../components/info/EntityHeading";
+import EntityLinksCard, { ENTITY_LINKS } from "../../components/info/EntityLinksCard";
 import NamingCard from "../../components/info/NamingCard";
 import { tagChips } from "../../components/info/tagChips";
 import { firstsRows } from "../../lib/characterForm";
@@ -181,25 +186,14 @@ export default function Character() {
             />
           )}
 
+          <EntityLinksCard item={character} links={ENTITY_LINKS.character} />
+
           <NamingCard type="character" item={character} />
         </div>
 
         {/* ========== RIGHT COLUMN: facts, then the castings ========== */}
         <div className="lg:col-span-3 space-y-6">
-          <div>
-            <Eyebrow className="mb-1">Character</Eyebrow>
-            <h1 className="font-display text-4xl font-semibold text-text leading-tight">
-              {name}
-            </h1>
-            <div className="flex flex-wrap items-center gap-3 mt-2">
-              <p className="font-mono text-[11px] text-text-faint">
-                {castingTotal} appearance{castingTotal === 1 ? "" : "s"}
-              </p>
-              {/* The way out to MAL, by the name rather than only in the
-                  Profile card - it is where a character is looked up. */}
-              <MalButton href={character.mal_link} />
-            </div>
-          </div>
+          <EntityHeading kind="Character" count={appearances(castingTotal)} name={name} />
 
           <InfoCard
             title="Profile"
@@ -213,25 +207,13 @@ export default function Character() {
               // reads "—" like every other unset row.
               { label: "Appearance", value: tagChips(character.appearance) },
               { label: "Trait", value: tagChips(character.trait) },
-              {
-                label: "MAL",
-                value: character.mal_link ? (
-                  <a
-                    href={character.mal_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-brand hover:underline break-all"
-                  >
-                    {character.mal_id ? `Character #${character.mal_id}` : "MyAnimeList"}
-                  </a>
-                ) : null,
-              },
             ]}
           />
 
           {firsts.length > 0 && <InfoCard title="First Appearances" fields={firsts} />}
 
-          {/* The remark list and personal notes (app/utils/note_sections.py). */}
+          {/* The remark list, resources and personal notes
+              (app/utils/note_sections.py). */}
           <NotesTemplate ownerType="character" ownerId={character.system_id} />
 
           {character.identities?.length > 0 && (

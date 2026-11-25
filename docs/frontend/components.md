@@ -362,7 +362,14 @@ columns.
   Released` to `Active Watching`, any other status left alone. Its outside-score slot — the meta-line figure on anime, manga,
   book and anime movie — reads whichever column
   `scoreField` names, defaulting to `mal_rating`, so a library sorted by an
-  AniList figure can point every card at `anilist_rating` instead),
+  AniList figure can point every card at `anilist_rating` instead.
+  `variant="credit"` is the library card without the tracker - no progress,
+  no status button - drawn by `CompanyCredits` for each entry a studio or
+  publisher is credited on: it reads the credit payload
+  (`app/services/domain/credit_cards.py`), titles itself by `display_name`,
+  and per type (`CREDIT_META`, `CREDIT_CORNER`) shows the cover-corner label
+  and the meta line [pages.md](pages.md#studio--studiosystem_id) tables; a
+  type not listed there reads the library card's meta line),
   `PlatformIcons` (an entry's available `main` access platforms — 動畫瘋,
   Netflix, Disney+ and the rest — drawn as their `lib/sourceIcons.js` icons on
   `MediaCard`'s poster and `DashboardCard`'s chip row; a row with a url links
@@ -534,10 +541,14 @@ columns.
   fields it draws from are an h-comic's own region's name only (JP or KR),
   and a character's, person's, studio's or publisher's four unprefixed
   names — the displayed one included — (`NAMING_CONFIGS.character` /
-  `.person` / `.studio` / `.publisher`).
+  `.person` / `.studio` / `.publisher`). Its named export `namingRows(type,
+  item)` is the same list as `InfoCard` rows, for the person page, which
+  leads its Profile card with the names instead of drawing a Naming card.
   `TimeToBeatCard` is the game and h-game pages' **Time to Beat** card: one
   row of the recorded figures from `timeToBeatFields` (`lib/gameHours.js`),
   and nothing at all when none is recorded.
+  `SourcesCard` exports its link row, `SourceLink` (icon, name, external-link
+  mark), which `EntityLinksCard` draws its rows with.
   `SourcesCard` reads the entry's `sources` array (server-ordered — access
   rows in `sort_order`/insertion order, never re-sorted client-side), splits
   it into `access`/`reference` sections by `row.kind`, titles the access
@@ -1570,7 +1581,11 @@ content-label endpoints refuse (422) a set that drops it.
 | `info/VoicedPartCard.jsx` | One part a seiyuu voiced, on the person page's seiyuu groups - the part leads and the entry follows. The picture is the server-resolved `display_photo_file` (casting, else identity, else character) and links, outside the tab order, to the part's page; beneath it the role chip (the casting's `character_role`) and, on an identity, a dashed **Identity** chip and a dashed frame on the picture; then the name, worded as `CastSection`'s rows are - the credited name when the casting has one, linking to the identity's page (else the character's), with the identity's (else the character's) own name beneath it, "identity of <character>" as a sibling link on an identity, the voice remark in brackets, and the casting's own `casting_remark` beneath it, clamped to two lines (`data-cast-remark`). The foot is the entry: a small cover, title and year, linking to it. Keyed by `casting_id`, since one entry can hold several parts. |
 | `info/CastingCard.jsx` | One appearance on the character and identity pages: cover and title linking to the entry, an "as <identity>" line when the row names an identity - "as <credited name>" instead when the casting has one, followed by "· <identity>" when it also names an identity - the casting's own `remark` clamped to two lines (`data-cast-remark`), the year (or "Undated"), and every seiyuu of that row beneath as a sibling person link with its remark in brackets. `hideIdentity` drops the identity from that line, for the identity page, where every row is that identity; a credited name is still shown. |
 | `info/IdentityCard.jsx` | A card for one identity: photo (`display_photo_file` / `display_photo_focus`), display name, every other non-empty name and `display_gender`, linking to `/identity/<public_id>/<slug>` (plain markup with no `public_id`). `to` overrides the link and `label` puts a small caption above the name. The character page's Identities section uses it plain; the identity page's Character section uses it for the character (`label="Character"`, `to` the character's page) and for the other identities (`label="Identity"`). |
-| `info/MalButton.jsx` | The **MyAnimeList** button beside a character's, a person's or a studio's name, on the character page, (the character's link) the identity page, the person page and the studio page: the MAL icon and label, opening `href` in a new tab; renders nothing without one. Its named export `ImdbButton` is the **IMDb** button the person page draws after it, the same control with the IMDb icon and label; both are drawn by `SiteButton`, so they cannot drift apart. `SiteButton` is exported too, for the person's Twitter, Instagram and pixiv buttons: `site` names the label and the `lib/sourceIcons.js` key, and a site with no bundled icon shows its label alone. |
+| `info/EntityHeading.jsx` | The head of every entity detail page: one mono line with the kind (`kind`: Person, Studio, …) and beside it `count`, then the name as the page's `h1`. `creditedEntries(n)` ("3 credited entries") and `appearances(n)` ("1 appearance") word the count. |
+| `info/EntityLinksCard.jsx` | The **Links** slip in an entity page's left column, under My rating: one `SourceLink` row per set field of `links` (`[{ field, site }]`), the site's icon and name with the external-link mark, in the list's order; nothing at all when no field is set. `ENTITY_LINKS` holds each type's list - person IMDb, MyAnimeList, AniList, Twitter, Instagram, pixiv; studio MyAnimeList, AniList, Website; publisher Website; character (and an identity, reading its character) MyAnimeList, AniList. |
+| `info/CompanyCredits.jsx` | A studio's or publisher's credits: the credit sort, then one section per `/entries` group, each entry a `MediaCard variant="credit"`; "No credited entries" for no groups. Its named export `CreditSortControl({ creditSort })` is the `SortControl` for a `useCreditSort()` state, which the person page draws above its own groups too. |
+| `hooks/useCreditSort.js` | The credit lists' one sort and direction (`useSortState`), with `options` (`creditSortOptions(ownData)`) and `sorted(entries, mediaType)`. |
+| `lib/creditSorts.js` | `creditSortOptions(ownData)`: Release date (the default, newest first), My rating (best first, only with `ownData`), Public rating (highest first). `publicRating(type, entry)`: Metacritic on a game and an h-game, MAL on every other type. `sortCredits(entries, type, sort, reversed)`: a sorted copy, an entry with no value for the sort last in both directions - so not `directed`, which would bring the blanks to the top - and a tie by release date, newest first. |
 | `info/GenresCard.jsx` | `GenresCard({ item })`: the **Genres** `InfoCard` of the anime, anime movie, movie, TV, cartoon, manga, book and comic detail pages - directly below Information, on manga and book below Production, and on comic after its Events card - Genre (Main) and Genre (Sub) side by side, Label below, the same card shape the game page uses for its Genre / Theme / Label. Each page renders it directly after its Information card, which no longer carries the three. Renders nothing when none of `genre_main`, `genre_sub` or `label` holds a value (`hasGenreTags(item)`); one set and another not gives the unset one the card's "—". Content labels are not these and stay with `ContentLabelChips`. |
 | `info/BookUnitParts.jsx` | How a book unit is drawn wherever units are listed - the book detail page's Units slip and Future Releases' Books tab: `unitName(unit)` (`name_cn` / `name_en` joined, else `display_key`), `UnitCoverThumb` (the unit's `cover_image_file` at thumbnail size through `LazyImage`, alt "Cover of <display_key>"; nothing without a cover) and `UnitReleaseDates` ("JP 2027-03 · TW 2027-09-15", leaving out an unset date; nothing with neither). |
 | `info/tagChips.jsx` | `tagChips(values)`: an appearance or trait list as a row of `Chip`s, or null for an empty list so the `InfoCard` row shows its "—". Used by the character and identity pages. |
@@ -1578,7 +1593,8 @@ content-label endpoints refuse (422) a set that drops it.
 | `info/WorkGallery.jsx` | An author's or illustrator's gallery of works on the person page, from `GET /api/person/{id}/work-images`: a **Works** slip with the count, then a 2-4 column grid of square library thumbnails (`data-focus="none"`: a gallery picture has no focal point), each with its caption under it. The app has no lightbox, so a tile links to the full picture in a new tab. Asks only for a person whose `roles` hold `author` or `illustrator`; draws nothing while loading or for an empty gallery, and "Works could not be loaded." in the slip if the read fails. Edited in the person form (`WorkImagesEditor`). |
 | `info/ClubMembership.jsx` | Club membership on the person page, over `GET`/`PUT /api/person/{id}/clubs` and `/members`. A club (a person holding the `club` role) lists its **Members** in the club's order; an admin edits them with a drag grip per member (a draft until Save), remove and a search to add, and Save PUTs the whole ordered `member_ids`. A person lists the **Clubs** they belong to (ordered by name, so no grips); an admin is offered that editor on anyone holding an `h-comic`-scoped role. Renders and fetches nothing for a session that cannot see h-comic. |
 
-Neither entity detail page reuses `MediaCard`: it resolves its title through
-`getDisplayName(data, type)` and reads status, franchise and admin props, none
-of which the four keys an `/entries` endpoint returns can satisfy — the title
-would render blank. Both pages carry a small local card instead.
+The studio and publisher pages draw their credits as `MediaCard`s
+(`variant="credit"`), from the card fields their `/entries` endpoints carry.
+The person page keeps a small local card - cover, title and media type - and
+the character and identity pages `CastingCard`, because what they list is a
+work credited or a part cast, not the work's library card.

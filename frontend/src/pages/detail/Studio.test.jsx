@@ -8,7 +8,7 @@ import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
-// The remark list and personal notes are NotesTemplate's to test; here only
+// The remark list, resources and personal notes are NotesTemplate's to test; here only
 // that the page hands it this record as the owner.
 vi.mock("../notes/NotesTemplate", () => ({
   default: ({ ownerType, ownerId }) => (
@@ -66,7 +66,7 @@ const ENTRIES = {
   ],
 };
 
-function mockFetch({ studio = STUDIO, entries = ENTRIES, studioOk = true } = {}) {
+function mockFetch({ studio = STUDIO, entries = ENTRIES, studioOk = true, related = [] } = {}) {
   global.fetch = vi.fn((url, init = {}) => {
     if (init.method === "PUT") {
       const body = JSON.parse(init.body);
@@ -91,6 +91,9 @@ function mockFetch({ studio = STUDIO, entries = ENTRIES, studioOk = true } = {})
     }
     if (String(url).endsWith("/entries")) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(entries) });
+    }
+    if (String(url).endsWith("/related")) {
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(related) });
     }
     return Promise.resolve({
       ok: studioOk,
@@ -209,33 +212,122 @@ describe("Studio detail page", () => {
     expect(screen.queryByText(/–/)).not.toBeInTheDocument();
   });
 
-  it("renders the website link and the MAL producer link", async () => {
+  it("lists the website, MAL and AniList in the links card, and not in the profile", async () => {
+    mockFetch({ studio: { ...STUDIO, anilist_link: "https://anilist.co/studio/2" } });
     renderPage();
-
-    expect(
-      await screen.findByRole("link", { name: STUDIO.website_url }),
-    ).toHaveAttribute("href", STUDIO.website_url);
-    expect(
-      screen.getByRole("link", { name: `Producer #${STUDIO.mal_id}` }),
-    ).toHaveAttribute("href", STUDIO.mal_link);
+    const links = await screen.findByRole("region", { name: "Links" });
+    expect(within(links).getByRole("link", { name: "MyAnimeList" })).toHaveAttribute(
+      "href",
+      STUDIO.mal_link,
+    );
+    expect(within(links).getByRole("link", { name: "AniList" })).toHaveAttribute(
+      "href",
+      "https://anilist.co/studio/2",
+    );
+    expect(within(links).getByRole("link", { name: "Website" })).toHaveAttribute(
+      "href",
+      STUDIO.website_url,
+    );
+    const profile = screen.getByText("Profile").closest("section");
+    expect(within(profile).queryByRole("link")).toBeNull();
   });
 
-  it("links MyAnimeList beside the name when the studio has a MAL link", async () => {
-    renderPage();
-    const button = await screen.findByRole("link", { name: "Open on MyAnimeList" });
-    expect(button).toHaveAttribute("href", STUDIO.mal_link);
-    expect(button).toHaveAttribute("target", "_blank");
-  });
-
-  it("draws no MyAnimeList button for a studio without a MAL link", async () => {
-    mockFetch({ studio: { ...STUDIO, mal_id: null, mal_link: null } });
+  it("draws no link buttons beside the name", async () => {
     renderPage();
     await screen.findByRole("heading", { name: STUDIO.display_name });
     expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
   });
 
-  // The remark list and personal notes are this studio's notes block.
-  it("draws the remark list and personal notes for this studio", async () => {
+  it("sets the credited-entry count on the kind line above the name", async () => {
+    renderPage();
+    const heading = await screen.findByRole("heading", { level: 1, name: "KyoAni" });
+    const count = screen.getByText("2 credited entries");
+    expect(count.parentElement).toHaveTextContent(/^Studio/);
+    expect(
+      count.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("puts Related companies in the left column, under the links card", async () => {
+    mockFetch({
+      related: [{ kind: "publisher", system_id: "p9", display_name: "Kadokawa", remark: null }],
+    });
+    renderPage();
+    const links = await screen.findByRole("region", { name: "Links" });
+    const related = await screen.findByText("Related companies");
+    expect(links.parentElement).toContainElement(related);
+    expect(
+      links.compareDocumentPosition(related) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("draws a credit as its library card without the tracker", async () => {
+    mockFetch({
+      entries: {
+        groups: [
+          {
+            ...ENTRIES.groups[0],
+            entries: [
+              {
+                ...ENTRIES.groups[0].entries[0],
+                airing_type: "TV",
+                release_season: "Winter",
+                release_date_jp: "2018-01-11",
+                mal_rating: 8.7,
+                my_rating: "S",
+              },
+            ],
+          },
+        ],
+      },
+    });
+    renderPage();
+    expect(await screen.findByText("Winter 2018")).toBeInTheDocument();
+    expect(screen.getByText("TV")).toBeInTheDocument();
+    expect(screen.getByTitle("MAL score")).toHaveTextContent("8.7");
+    expect(screen.getByLabelText("Rating S")).toBeInTheDocument();
+  });
+
+  it("sorts the credits newest first, and old to new when reversed", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await screen.findByRole("link", { name: /Violet Evergarden/ });
+    const titles = () =>
+      screen
+        .getAllByRole("link", { name: /Violet Evergarden|Hyouka/ })
+        .map((a) => a.textContent);
+    expect(titles()).toEqual(["Violet Evergarden", "Hyouka"]);
+    await user.click(screen.getByRole("button", { name: "Reverse order" }));
+    expect(titles()).toEqual(["Hyouka", "Violet Evergarden"]);
+  });
+
+  it("sorts the credits by the public rating", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      entries: {
+        groups: [
+          {
+            ...ENTRIES.groups[0],
+            entries: [
+              { ...ENTRIES.groups[0].entries[0], mal_rating: 8.1 },
+              { ...ENTRIES.groups[0].entries[1], mal_rating: 8.9 },
+            ],
+          },
+        ],
+      },
+    });
+    renderPage();
+    await screen.findByRole("link", { name: /Violet Evergarden/ });
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sort" }), "public_rating");
+    expect(
+      screen
+        .getAllByRole("link", { name: /Violet Evergarden|Hyouka/ })
+        .map((a) => a.textContent),
+    ).toEqual(["Hyouka", "Violet Evergarden"]);
+  });
+
+  // The remark list, resources and personal notes are this studio's notes block.
+  it("draws the remark list, resources and personal notes for this studio", async () => {
     renderPage();
     const notes = await screen.findByTestId("entity-notes");
     expect(notes).toHaveAttribute("data-owner-type", "studio");

@@ -3,6 +3,14 @@
 // An archive card: the cover across the full width with the rating stamp
 // top-right, then the title in the display face and one mono line of
 // metadata. No grid card names its type in a spine; the page it sits on does. Flat, no hover zoom - the border darkens.
+//
+// Three variants. `library` is the library's card, with the tracker (progress
+// and the status button) along its foot; `future` is the upcoming card, with
+// the status select and the release bolt; `credit` is the library card
+// without the tracker, drawn for each entry a studio or publisher is credited
+// on (components/info/CompanyCredits.jsx). A credit card reads the credit
+// payload (app/services/domain/credit_cards.py): `display_name` is its title
+// and `release_date` is already the type's primary release value.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -88,6 +96,7 @@ const SCORE_LABEL = {
   mal_rating: "MAL score",
   anilist_rating: "AniList score",
   imdb_rating: "IMDb score",
+  metacritic_score: "Metacritic score",
 };
 
 function imdbValue(value) {
@@ -122,6 +131,49 @@ function MetaLine({ children, className = "" }) {
 // The tile the platform icons sit on over cover art.
 const PLATFORM_BOX_CLS = "bg-surface/95 px-1 py-0.5 border border-border";
 
+// What a credit card says, per type: `release` is the release line - the
+// anime's season line, a full date, or the year alone - and `score` the
+// public rating at its right. The gated types read as their counterparts
+// (Hentai as Anime, H-Comic as Manga, H-Game as Game), with what they carry:
+// a hentai has no season, so it reads its date. A type not listed draws the
+// library card's meta line instead.
+const CREDIT_META = {
+  anime: { release: "season", score: "mal_rating" },
+  hentai: { release: "date", score: "mal_rating" },
+  "anime-movie": { release: "date", score: "mal_rating" },
+  manga: { release: "date", score: "mal_rating" },
+  "h-comic": { release: "date", score: "mal_rating" },
+  book: { release: "date", score: "mal_rating" },
+  comic: { release: "year" },
+  game: { release: "year", score: "metacritic_score" },
+  "h-game": { release: "year", score: "metacritic_score" },
+};
+
+// The label a credit card lays over its cover's top-left corner: an anime's
+// airing type, an anime movie's release type (Cinema, ONA).
+const CREDIT_CORNER = {
+  anime: "airing_type",
+  hentai: "airing_type",
+  "anime-movie": "release_type",
+};
+
+function CreditMeta({ type, data }) {
+  const { release, score } = CREDIT_META[type];
+  const line =
+    release === "season"
+      ? getReleaseFallback(data)
+      : release === "year"
+        ? releaseYear(data.release_date) || "?"
+        : formatReleaseDate(data.release_date);
+  const value = score ? data[score] : null;
+  return (
+    <MetaLine className="mb-0">
+      <span className="truncate pr-1">{line}</span>
+      {value != null && value !== "" && <Score value={value} label={SCORE_LABEL[score]} />}
+    </MetaLine>
+  );
+}
+
 function PosterBadges({ type, variant, data, franchiseDict }) {
   const franchise = franchiseDict?.[data.franchise_id];
   // The franchise's expectation is the viewer's own (self.list). The
@@ -129,6 +181,20 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
   // viewer without a list simply does not have.
   const { ownData: showPersonal } = useViewScope();
   const expectation = showPersonal ? franchise?.franchise_expectation : null;
+
+  if (variant === "credit" && CREDIT_META[type]) {
+    const corner = CREDIT_CORNER[type] ? data[CREDIT_CORNER[type]] : null;
+    return (
+      <>
+        <RatingStamp
+          rating={data.my_rating}
+          size="sm"
+          className="absolute top-1.5 right-1.5 z-10"
+        />
+        {corner && <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>{corner}</div>}
+      </>
+    );
+  }
 
   if (variant === "future") {
     return (
@@ -609,7 +675,8 @@ export default function MediaCard({
   const config = MEDIA_CONFIG[type];
   const { statusField, navPath, statusType } = config;
 
-  const title = getDisplayName(data, type);
+  const title =
+    variant === "credit" && data.display_name ? data.display_name : getDisplayName(data, type);
   // Prefer the pretty /anime/47/slug form every other Link on the site uses.
   // Rows that predate public_id, or a payload that omits it, still resolve:
   // the backend's entry-ref parser takes a UUID too.
@@ -764,7 +831,13 @@ export default function MediaCard({
           )}
         </h3>
 
-        {variant === "future" ? (
+        {variant === "credit" ? (
+          CREDIT_META[type] ? (
+            <CreditMeta type={type} data={data} />
+          ) : (
+            <CardMeta type={type} data={data} scoreField={scoreField} />
+          )
+        ) : variant === "future" ? (
           <>
             <FutureMeta type={type} data={data} />
             <div className="relative z-10 mt-auto flex items-center gap-1 border-t border-border pt-2.5">

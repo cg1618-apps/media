@@ -35,9 +35,13 @@ def test_every_owner_is_a_real_owner_table():
             assert owner in NOTE_OWNER_TABLES, f"{sec.key} names unknown owner {owner}"
 
 
-def test_an_entity_owns_the_remark_list_and_personal_notes_only():
+def test_an_entity_owns_the_remark_list_personal_notes_and_resources_only():
     for owner in ns.ENTITY_OWNERS:
-        assert [s.key for s in ns.NOTE_SECTIONS if owner in s.owners] == ["remark", "personal_notes"]
+        assert [s.key for s in ns.NOTE_SECTIONS if owner in s.owners] == [
+            "remark",
+            "personal_notes",
+            "resources",
+        ]
 
 
 def test_no_section_is_a_singleton():

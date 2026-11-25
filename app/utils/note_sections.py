@@ -111,7 +111,9 @@ ENTRY_OWNERS = MEDIA_TYPE_KEYS
 ALL_OWNERS = tuple(OWNER_TYPE_KEYS)
 
 # The five entities - studio, publisher, person, character, identity. Their
-# pages carry the remark list and personal notes and nothing else.
+# pages carry the remark list, personal notes and 資源 Resources, and nothing
+# else: the review and analysis sections are about a work, and an entity is
+# not one.
 ENTITY_OWNERS: tuple[str, ...] = tuple(ENTITY_TABLES)
 
 # The owners every game-shaped section serves: game, and h-game, which reuses
@@ -2248,7 +2250,10 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="resources",
         shape=SHAPE_NAME_LINKS,
         label="資源 Resources",
-        owners=ALL_OWNERS,
+        # Every entry and group, and the five entities: a studio's or a
+        # seiyuu's wiki, interviews and fan sites are lists of links as much
+        # as a work's are.
+        owners=ALL_OWNERS + ENTITY_OWNERS,
         scope=SCOPE_CATALOG,
         mixed=True,
         # Its own card everywhere but on a game or an h-game, where it is the last
