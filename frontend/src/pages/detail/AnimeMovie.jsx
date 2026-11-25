@@ -12,6 +12,7 @@ import { useToast } from "../../hooks/useToast";
 import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import {
   publisherLabel,
   publisherValue,
@@ -372,11 +373,11 @@ export default function AnimeMovie() {
                           { label: "Release Date TW", value: movie.release_date_tw },
                         ],
                       ]),
-                  { label: "Genre (Main)", value: movie.genre_main },
-                  { label: "Genre (Sub)", value: movie.genre_sub },
-                  { label: "Label", value: movie.label },
                 ]}
               />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={movie} />
             </TocSection>
             <TocSection id="production" label="Production">
               <InfoCard

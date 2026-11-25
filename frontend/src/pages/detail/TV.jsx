@@ -281,6 +281,7 @@ export default function TV() {
             mediaType="tv-show"
             imdbLink={show.imdb_link}
             originalSource={show.source_official}
+            originalSourceAsAccess
           />
 
           {/* Related Entries */}

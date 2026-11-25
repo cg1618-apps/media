@@ -32,12 +32,12 @@ const ENTRY = {
 const ok = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
 
 // A member with a list of their own (self.list), so the tracker is drawn.
-function mockFetch() {
+function mockFetch(entry = ENTRY) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => {
       const u = String(url);
-      if (u.startsWith("/api/cartoon/")) return ok(ENTRY);
+      if (u.startsWith("/api/cartoon/")) return ok(entry);
       if (u.startsWith("/api/auth/me")) {
         return ok({
           username: "reader",
@@ -102,4 +102,47 @@ it("draws nothing above the title", async () => {
   const title = await screen.findByRole("heading", { level: 1 });
   const header = title.closest("header");
   expect(header.firstElementChild.contains(title)).toBe(true);
+});
+
+// 本傳 / 外傳, Airing Type and Season; then Airing Status and Release Date;
+// then Total Ep and Runtime. Season is left out when it is unset.
+describe("Cartoon detail page - Information card", () => {
+  const FULL = {
+    ...ENTRY,
+    is_main: "本傳",
+    airing_type: "TV",
+    season_part: "Season 2",
+    airing_status: "Airing",
+    release_date: "2024-04-01",
+    ep_total: 12,
+    runtime_min: 22,
+  };
+  const LABELS = [
+    "本傳 / 外傳", "Airing Type", "Season", "Airing Status", "Release Date",
+    "Total Ep", "Runtime Per Ep (min)",
+  ];
+
+  async function card() {
+    const heading = await screen.findByRole("heading", { level: 3, name: "Information" });
+    return within(heading.closest("section"));
+  }
+
+  it("lays the card out in three rows", async () => {
+    mockFetch(FULL);
+    mount();
+    const c = await card();
+    const rowOf = (label) => c.getByText(label).closest(".grid");
+    const labelsIn = (row) => LABELS.filter((l) => row.contains(c.getByText(l)));
+    expect(labelsIn(rowOf("本傳 / 外傳"))).toEqual(["本傳 / 外傳", "Airing Type", "Season"]);
+    expect(labelsIn(rowOf("Airing Status"))).toEqual(["Airing Status", "Release Date"]);
+    expect(labelsIn(rowOf("Total Ep"))).toEqual(["Total Ep", "Runtime Per Ep (min)"]);
+  });
+
+  it("leaves Season out when it is unset", async () => {
+    mockFetch({ ...FULL, season_part: null });
+    mount();
+    const c = await card();
+    expect(c.queryByText("Season")).toBeNull();
+    expect(c.getByText("Airing Type")).toBeInTheDocument();
+  });
 });

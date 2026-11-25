@@ -243,7 +243,10 @@ counts). `h1` is display by default.
   Enter. A Button that submits its form says `type="submit"`.
 
 Shared detail-page pieces built on these: `InfoCard` (a slip of
-label/value fields), `ScoreBlock` (display figures on hairlines),
+label/value fields; every row of one card shares a column grid as wide as its
+widest row and fills it from the left, so a field lines up under the field
+above it - an anime movie's Release Date TW under Release Type - instead of
+each row dividing the width among its own fields), `ScoreBlock` (display figures on hairlines),
 `SourcesCard`, `MyTrackerCard`, `RelationsSection`.
 
 Two of those flex rather than fork for a type that does not fit the shape:

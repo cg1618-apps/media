@@ -16,6 +16,7 @@ import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import AdminActions from "../../components/layout/AdminActions";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import {
   publisherLabel,
   publisherValue,
@@ -451,11 +452,11 @@ export default function Anime() {
                     { label: "Release Date JP", value: anime.release_date_jp || null },
                     { label: "Release Date TW", value: anime.release_date_tw || null },
                   ],
-                  { label: "Genre (Main)", value: anime.genre_main },
-                  { label: "Genre (Sub)", value: anime.genre_sub },
-                  { label: "Label", value: anime.label },
                 ]}
               />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={anime} />
             </TocSection>
             <TocSection id="production" label="Production">
               <InfoCard
