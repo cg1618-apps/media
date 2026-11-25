@@ -1758,8 +1758,8 @@ rows per owner - written under `manage.catalog` and read by everyone who can
 see the owner, a logged-out visitor included. A member's own notes on an
 entry, a group or an entity go in 個人筆記 `personal_notes`, which is
 personal; there is no per-account remark route. An entity - studio,
-publisher, person, character, identity - owns these two sections and no
-other, and is seen as its own page is: its view permission (an identity's is
+publisher, person, character, identity - owns these two sections and 資源
+Resources (`resources`), and no other, and is seen as its own page is: its view permission (an identity's is
 `view.character`) and `shared_record_visible`; anything else is **404 "Owner
 not found."**
 

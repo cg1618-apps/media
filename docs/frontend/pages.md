@@ -1089,8 +1089,9 @@ the page.
 
 **Notes** (`NotesTemplate ownerType="person"`, `ownerId` the person's
 `system_id`) sit under the Profile card: the 備註 Remark list and 個人筆記
-Personal Notes, the only two sections an entity owns, read and written as on
-any notes page ([systems/notes.md](../systems/notes.md)); a guest sees no personal section.
+Personal Notes in the Notes card, then 資源 Resources as a card of its own -
+the only three sections an entity owns - read and written as on any notes
+page ([systems/notes.md](../systems/notes.md)); a guest sees no personal section.
 
 The admin controls are `components/info/EntityProfileControls.jsx`, shared
 with the character, studio and publisher pages. The rating select is the
@@ -1158,8 +1159,8 @@ page's, as is the Naming card in place of a list of other names. The photo
 is `display_photo_file`: the photo, else a casting photo (the chosen entry's,
 then the newest visible), else an entry cover (the same order), else
 `FALLBACK_SVG`. Under the First Appearances card, the character's **Notes**
-(`NotesTemplate ownerType="character"`) hold its Remark list and Personal
-Notes, as on the person page.
+(`NotesTemplate ownerType="character"`) hold its Remark list, Personal
+Notes and Resources, as on the person page.
 
 The one structural difference from the person page: `GET
 /api/character/{id}/entries` groups **by media type only**, because a
@@ -1219,7 +1220,7 @@ with a faint line under it,
 Appearances** `InfoCard` lists the identity's own firsts, only those set, and
 is left out when none is; the character's firsts never show here. Then the
 identity's own **Notes** (`NotesTemplate ownerType="identity"`, its Remark
-list and Personal Notes - never the character's), then a **Character** section:
+list, Personal Notes and Resources - never the character's), then a **Character** section:
 the character's own card, labelled **Character** and linking to its page, then
 its other identities, labelled **Identity**, this one left out — all
 `IdentityCard`s.
@@ -1246,7 +1247,7 @@ strip with Edit to `/modify?id=<system_id>&type=publisher`, the
 logo-plus-rating left column with the viewer's own My rating select
 (`self.list`, `PUT /api/me/ratings/publisher/{system_id}`) and the Naming
 card, the **Notes** block (`NotesTemplate ownerType="publisher"`, the Remark
-list and Personal Notes), the **Related companies** slip
+list, Personal Notes and Resources), the **Related companies** slip
 (`RelatedRecords type="publisher"`), and one section per group the entries
 endpoint returned rendered as the same local `CreditCard`.
 
@@ -1290,8 +1291,8 @@ Layout:
    `InfoCard` (countries, comma-joined in order; `founded – defunct`, or `Since founded` while the
    studio is still working, and no invented span when both are empty;
    website and MAL — `Producer #<mal_id>` — as external links), the
-   **Notes** block (`NotesTemplate ownerType="studio"`: the Remark list and
-   Personal Notes, a guest seeing no personal section), the **Related
+   **Notes** block (`NotesTemplate ownerType="studio"`: the Remark list,
+   Personal Notes and Resources, a guest seeing no personal section), the **Related
    companies** slip (`RelatedRecords type="studio"`: studios and publishers,
    each marked with its kind), the **People** slip (`AffiliatedPeople`, the
    people affiliated with the studio; none drawn when there are none), then

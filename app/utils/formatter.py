@@ -1764,6 +1764,17 @@ def parse_system_option_from_sheet(raw: dict) -> dict:
     }
 
 
+def _anilist_link_from_sheet(raw: dict) -> dict:
+    """
+    A studio's, person's or character's anilist_link, only when the sheet has
+    the column: a backup from before it existed leaves the local value as it
+    is rather than clearing it, as _firsts_from_sheet does.
+    """
+    if "anilist_link" not in raw:
+        return {}
+    return {"anilist_link": parse_from_sheet(raw.get("anilist_link"), str)}
+
+
 def parse_person_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Person sheet into typed data ready for
@@ -1790,6 +1801,7 @@ def parse_person_from_sheet(raw: dict) -> dict:
         "remark": parse_from_sheet(raw.get("remark"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        **_anilist_link_from_sheet(raw),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "twitter_link": parse_from_sheet(raw.get("twitter_link"), str),
@@ -1846,6 +1858,7 @@ def parse_character_from_sheet(raw: dict) -> dict:
         **_firsts_from_sheet(raw),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        **_anilist_link_from_sheet(raw),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -1966,6 +1979,7 @@ def parse_studio_from_sheet(raw: dict) -> dict:
         "website_url": parse_from_sheet(raw.get("website_url"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        **_anilist_link_from_sheet(raw),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

@@ -217,4 +217,37 @@ describe("Add page — Person tab image attach", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("carries the AniList link, trimmed, in the create payload", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch({ system_id: "person-5", display_name: "Kana Hanazawa" }),
+    );
+    const user = userEvent.setup();
+
+    mount();
+    await goToPersonTab(user);
+
+    await user.type(firstNameInput(), "Kana Hanazawa");
+    await user.type(
+      screen.getByPlaceholderText("https://anilist.co/staff/..."),
+      " https://anilist.co/staff/95185 ",
+    );
+    await user.click(screen.getByRole("button", { name: /append entry/i }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/person/",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const [, init] = fetch.mock.calls.find(
+      ([u, o]) => u === "/api/person/" && o?.method === "POST",
+    );
+    expect(JSON.parse(init.body)).toMatchObject({
+      anilist_link: "https://anilist.co/staff/95185",
+    });
+
+    vi.unstubAllGlobals();
+  });
 });

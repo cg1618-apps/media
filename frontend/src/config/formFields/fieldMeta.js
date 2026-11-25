@@ -263,6 +263,7 @@ export const COMMON_FIELD_META = {
   // ---- Links -----------------------------------------------------------
   mal_id: { label: "MAL ID", control: "number", group: "Links" },
   mal_link: { label: "MAL Link", control: "url", group: "Links" },
+  anilist_link: { label: "AniList Link", control: "url", group: "Links" },
   imdb_id: { label: "IMDb ID", group: "Links" },
   imdb_link: { label: "IMDb Link", control: "url", group: "Links" },
 
@@ -1629,10 +1630,12 @@ export const TYPE_FIELD_META = {
     },
     mal_id: { autofillable: false },
     mal_link: { autofillable: false },
+    // Entered by hand; no source fills it.
+    anilist_link: { autofillable: false },
     remark: { autofillable: false },
   },
 
-  // The studio block minus mal_id/mal_link: a publisher has no MAL record.
+  // The studio block minus mal_id/mal_link/anilist_link: a publisher has no MAL record.
   publisher: {
     name_en: { label: "Name (EN)", group: "Names", autofillable: false },
     name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
@@ -1716,6 +1719,8 @@ export const TYPE_FIELD_META = {
       autofillable: false,
       group: "Media",
     },
+    // Entered by hand; no source fills it.
+    anilist_link: { autofillable: false },
     remark: { autofillable: false },
   },
 
@@ -1775,6 +1780,8 @@ export const TYPE_FIELD_META = {
       autofillable: false,
       group: "Media",
     },
+    // Entered by hand; no source fills it.
+    anilist_link: { autofillable: false },
     remark: { autofillable: false },
     // Where the character first turns up, in the work's own notation. Each
     // character's own, so never auto-filled from another record.

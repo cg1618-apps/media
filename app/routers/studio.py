@@ -105,6 +105,7 @@ def _to_response(
         website_url=studio.website_url,
         mal_id=studio.mal_id,
         mal_link=studio.mal_link,
+        anilist_link=studio.anilist_link,
         credit_count=summary.count,
         media_types=summary.media_types,
         restricted=summary.restricted,

@@ -87,6 +87,8 @@ class PersonBase(BaseModel):
     # MAL's people record; mal_id is derived from mal_link on every write.
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
+    # The AniList staff page, stored as given - nothing is derived from it.
+    anilist_link: Optional[str] = None
     # IMDb's name page; imdb_id (nm...) is derived from imdb_link on every
     # write.
     imdb_id: Optional[str] = None
@@ -226,6 +228,8 @@ class StudioBase(BaseModel):
     website_url: Optional[str] = None
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
+    # The AniList studio page, stored as given - nothing is derived from it.
+    anilist_link: Optional[str] = None
 
     @field_validator("countries", mode="before")
     @classmethod

@@ -642,6 +642,7 @@ export const defaultStudio = () => ({
   defunct_date: "",
   mal_id: "",
   mal_link: "",
+  anilist_link: "",
 });
 
 // A publisher carries the same shape as a studio minus the two MAL columns:
@@ -676,6 +677,7 @@ export const defaultPerson = () => ({
   photo_focus: null,
   pending_image_id: null,
   mal_link: "",
+  anilist_link: "",
   imdb_link: "",
   twitter_link: "",
   ig_link: "",
@@ -700,6 +702,7 @@ export const defaultCharacter = () => ({
   photo_focus: null,
   pending_image_id: null,
   mal_link: "",
+  anilist_link: "",
   // Free text; lib/characterForm.js's firstsPayload sends a blank one as null.
   first_mention: "",
   first_appearance: "",

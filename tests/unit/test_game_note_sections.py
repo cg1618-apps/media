@@ -261,7 +261,8 @@ def test_the_site_wide_resources_section_is_untouched():
     """It is a peer of guide_resources, not a replacement for it."""
     section = ns.section_by_key("resources")
     assert section.shape == ns.SHAPE_NAME_LINKS
-    assert section.owners == ns.ALL_OWNERS
+    # Every entry and group, and the five entities too.
+    assert section.owners == ns.ALL_OWNERS + ns.ENTITY_OWNERS
     assert section.standalone is True
 
 

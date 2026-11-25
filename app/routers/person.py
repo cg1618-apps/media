@@ -145,6 +145,7 @@ def _to_response(
         photo_fallback_entry_id=media.photo_fallback_entry_id,
         mal_id=person.mal_id,
         mal_link=person.mal_link,
+        anilist_link=person.anilist_link,
         imdb_id=person.imdb_id,
         imdb_link=person.imdb_link,
         twitter_link=person.twitter_link,
