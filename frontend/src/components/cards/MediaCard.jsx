@@ -91,6 +91,25 @@ const SCORE_LABEL = {
   imdb_rating: "IMDb score",
 };
 
+function imdbValue(value) {
+  return value && value !== "N/A" ? value : null;
+}
+
+// A TV show's or cartoon's IMDb figure. The show's own rating leads and the
+// season's - the average of its episodes' ratings - follows in brackets:
+// "9.5 (avg 9.4)". With no show rating (a cartoon movie, or a show OMDb has
+// no figure for) the entry's own rating stands alone, as on a movie card.
+function ImdbShowScore({ data }) {
+  const show = imdbValue(data.imdb_series_rating);
+  const season = imdbValue(data.imdb_rating);
+  if (show && season) {
+    return <Score value={`${show} (avg ${season})`} label="IMDb rating (avg: this season's)" />;
+  }
+  if (show) return <Score value={show} label="IMDb rating" />;
+  if (season) return <Score value={season} label={SCORE_LABEL.imdb_rating} />;
+  return null;
+}
+
 function MetaLine({ children, className = "" }) {
   return (
     <div
@@ -201,9 +220,7 @@ function LibraryMeta({ type, data, scoreField }) {
     return (
       <MetaLine>
         <span className="truncate pr-1">{data.release_date || "TBD"}</span>
-        {data.imdb_rating && data.imdb_rating !== "N/A" && (
-          <Score value={data.imdb_rating} />
-        )}
+        <ImdbShowScore data={data} />
       </MetaLine>
     );
   }
@@ -340,9 +357,7 @@ function CardMeta({ type, data, scoreField }) {
     return (
       <MetaLine>
         <span className="truncate pr-1">{data.release_date || "TBD"}</span>
-        {data.imdb_rating && data.imdb_rating !== "N/A" && (
-          <Score value={data.imdb_rating} label={SCORE_LABEL.imdb_rating} />
-        )}
+        <ImdbShowScore data={data} />
       </MetaLine>
     );
   }

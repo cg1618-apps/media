@@ -374,7 +374,7 @@ export default function AnimeMovie() {
                       ]),
                   { label: "Genre (Main)", value: movie.genre_main },
                   { label: "Genre (Sub)", value: movie.genre_sub },
-                  { label: "標籤 Label", value: movie.label },
+                  { label: "Label", value: movie.label },
                 ]}
               />
             </TocSection>

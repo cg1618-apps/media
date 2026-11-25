@@ -1,4 +1,4 @@
-// Frontend: a content label and its 標籤 Label tag, kept in step on the Add
+// Frontend: a content label and its Label tag, kept in step on the Add
 // and Modify forms - the browser half of app/services/domain/label_tags.py.
 //
 // Three labels have a tag: `nsfw` NSFW, `ecchi` 輕微色情, `erotica` 擦邊肉番.

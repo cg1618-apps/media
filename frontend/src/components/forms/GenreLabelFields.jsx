@@ -1,4 +1,4 @@
-// Frontend: the Genre Main, Genre Sub and 標籤 Label pickers, as one section of
+// Frontend: the Genre Main, Genre Sub and Label pickers, as one section of
 // the Add and Modify tabs of every type in GENRE_LABEL_TYPES
 // (lib/genreLabelFields.js). Each picker offers the values of its category
 // scoped to `mediaType` or to no type at all - getSourceValues does the

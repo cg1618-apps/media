@@ -220,7 +220,7 @@ def test_every_role_has_a_label_on_every_media_type_it_serves():
 def test_manga_illustrator_uses_the_traditional_form():
     """
     作畫, not the Japanese 作画 the pre-collapse label carried. Matches the
-    site's other CJK labels (標籤 Label).
+    site's other Traditional Chinese labels.
     """
     assert cr.credit_label("illustrator", "manga") == "作畫"
     assert "作画" not in cr.credit_label("illustrator", "manga")

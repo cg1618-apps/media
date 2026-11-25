@@ -1,5 +1,5 @@
 """
-A content label and its 標籤 Label tag, kept in step on an entry, both ways.
+A content label and its Label tag, kept in step on an entry, both ways.
 
 Three labels have a tag (app/services/rbac/labels.py, `tag`): `nsfw` NSFW,
 `ecchi` 輕微色情, `erotica` 擦邊肉番. On an entry of a type with the Label field

@@ -1,4 +1,4 @@
-// Frontend: on Modify, the 標籤 Label field and the content-label picker move
+// Frontend: on Modify, the Label field and the content-label picker move
 // together (hooks/useLabelTagSync.js), and after a save the form shows what
 // the server stored: the labels the label PUT answered with, and the tags
 // read again after that write, which rewrites them.
@@ -84,7 +84,7 @@ function mount() {
 }
 
 function labelField() {
-  return screen.getByText("標籤 Label").parentElement;
+  return screen.getByText("Label").parentElement;
 }
 
 function labelTags() {

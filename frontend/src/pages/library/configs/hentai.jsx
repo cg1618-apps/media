@@ -10,6 +10,7 @@ import {
 import { releaseScore } from "../../../lib/releaseDate";
 import { compareTitles, getDisplayName, getSortName } from "../../../lib/naming";
 import {
+  airingStatusFilter,
   hGenreFilters,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
@@ -69,7 +70,7 @@ const HENTAI_LIBRARY_CONFIG = {
 
   filterDefs: [
     watchStatusFilter("hentai"),
-    setFilter("airingStatus", "Airing Status", "airing_status"),
+    airingStatusFilter(),
     setFilter("sourceMaterial", "Source Material", "source_material"),
     setFilter("originality", "Originality", "originality"),
     { ...setFilter("usefulness", "Usefulness", "usefulness"), personal: true },

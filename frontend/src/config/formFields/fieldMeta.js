@@ -310,7 +310,7 @@ export const COMMON_FIELD_META = {
 // The manga Anime Studio field names the anime adaptation's studio, so it is
 // counted and scoped as an anime studio field is (lib/suggestionOrder.js),
 // not under manga - no studio is ever credited on a manga.
-// Genre Main, Genre Sub and 標籤 Label (lib/genreLabelFields.js), each scoped
+// Genre Main, Genre Sub and Label (lib/genreLabelFields.js), each scoped
 // to its own media type, for the GENRE_LABEL_TYPES other than anime. Anime
 // keeps its own three entries below, game its own Label.
 function genreLabelMeta(mediaType) {
@@ -382,7 +382,7 @@ export const TYPE_FIELD_META = {
       group: "Classification",
     },
     label: {
-      label: "標籤 Label",
+      label: "Label",
       control: "tags",
       source: { kind: "option", category: "Label", scope: "anime" },
       group: "Classification",

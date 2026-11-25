@@ -295,7 +295,7 @@ export default function Add() {
   const upubf = (k, v) => setPublisherForm((p) => ({ ...p, [k]: v }));
   const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
 
-  // The 標籤 Label field and the content-label picker, kept in step on every
+  // The Label field and the content-label picker, kept in step on every
   // type with that field (hooks/useLabelTagSync.js). A tab switch or a reset
   // after a create brings the labels to the open form's tags, so the picker
   // shows what this tab will save.
