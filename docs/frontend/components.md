@@ -519,7 +519,7 @@ columns.
   for a `steamLink` alone, so a game whose only place to play is its Steam
   page still gets one; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
   beside it the same way, as "DLsite (JP)" / "DLsite (TW)" — and the tag-field props (`originalSource`,
-  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — except
+  `exclusiveSource`) as `Tag` chips above them — except
   an `exclusiveSource` that names one of the `main` access rows, which moves that
   row to the head of its section as "Netflix (Exclusive)" (the icon still looked
   up by the bare name) and is not drawn as a chip too; one no row matches keeps
@@ -529,7 +529,11 @@ columns.
   `main` row, marked, when there is one, and otherwise a plain source row of
   its own with the platform's icon, since the original source vocabulary is
   much wider than the main sources. A movie's and an h-comic's
-  `originalSource` stay chips — one
+  `originalSource` stay chips. A manga's and a book's `serializationPlatform`
+  is read the same way and is never a chip: each value leads Where to Read,
+  marked "週刊少年Jump (連載平台)" - the matching `main` row (its main sources
+  draw from the Serialization Platform vocabulary, so a platform normally has
+  one) or a row of its own; an entry may name several — one
   component composing from both the `media_source` table and the surviving
   columns/tag fields, per the guiding rule in
   [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).
