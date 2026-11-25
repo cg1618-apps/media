@@ -628,9 +628,6 @@ export default function Book() {
                 ]}
               />
             </TocSection>
-            <TocSection id="genres" label="Genres">
-              <GenresCard item={book} />
-            </TocSection>
             {/* Production Card */}
             <TocSection id="production" label="Production">
               {(book.author ||
@@ -667,6 +664,10 @@ export default function Book() {
                   ]}
                 />
               )}
+            </TocSection>
+            {/* Genres under Production, as on a manga. */}
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={book} />
             </TocSection>
           </div>
 
