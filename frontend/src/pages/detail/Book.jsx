@@ -345,6 +345,15 @@ export default function Book() {
       : null;
 
   const imageUrl = getCoverUrl(book.cover_image_file);
+  // The Information card's totals, only those set.
+  const bookTotals = [
+    { label: "Total Volumes (JP/KR)", value: book.vol_total_original },
+    { label: "Vol Total (TW)", value: book.vol_total_tw },
+    { label: "Arc Total", value: book.arc_total },
+    { label: "Chapter Total", value: book.ch_total },
+  ]
+    .filter((field) => field.value != null)
+    .map((field) => ({ ...field, value: String(field.value) }));
 
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
@@ -595,103 +604,70 @@ export default function Book() {
               <InfoCard
                 title="Information"
                 fields={[
+                  // Version, the JP date and each total are shown only when
+                  // set. Dates are shown verbatim: a year-only date must not
+                  // be dressed up as a month.
                   [
                     { label: "Region", value: book.region },
                     { label: "Type", value: book.type },
-                    { label: "Version", value: book.version },
+                    { label: "本傳 / 外傳", value: book.is_main },
+                    ...(book.version ? [{ label: "Version", value: book.version }] : []),
                   ],
                   [
-                    { label: "本傳 / 外傳", value: book.is_main },
                     {
                       label: "Serialization Status",
                       value: book.serialization_status,
                     },
-                  ],
-                  // Shown verbatim: a year-only date must not be dressed up
-                  // as a month.
-                  [
-                    { label: "Release Date JP", value: book.release_date_jp || null },
+                    ...(book.release_date_jp
+                      ? [{ label: "Release Date JP", value: book.release_date_jp }]
+                      : []),
                     { label: "Release Date TW", value: book.release_date_tw || null },
                     { label: "End Date", value: book.end_date || null },
                   ],
-                  [
-                    {
-                      label: "Total Volumes (JP/KR)",
-                      value:
-                        book.vol_total_original != null
-                          ? String(book.vol_total_original)
-                          : null,
-                    },
-                    {
-                      label: "Vol Total (TW)",
-                      value:
-                        book.vol_total_tw != null
-                          ? String(book.vol_total_tw)
-                          : null,
-                    },
-                  ],
-                  [
-                    {
-                      label: "Arc Total",
-                      value:
-                        book.arc_total != null ? String(book.arc_total) : null,
-                    },
-                    {
-                      label: "Chapter Total",
-                      value:
-                        book.ch_total != null ? String(book.ch_total) : null,
-                    },
-                  ],
+                  ...(bookTotals.length > 0 ? [bookTotals] : []),
                 ]}
               />
-            </TocSection>
-            <TocSection id="genres" label="Genres">
-              <GenresCard item={book} />
             </TocSection>
             {/* Production Card */}
             <TocSection id="production" label="Production">
               {(book.author ||
                 book.illustrator ||
+                book.anime_studio ||
                 book.publisher_tw ||
                 book.publisher_refs?.length > 0) && (
                 <InfoCard
                   title="Production"
                   fields={[
-                    ...(book.author
-                      ? [
-                          {
-                            label: creditLabel(book, "author", "Author"),
-                            value: creditValue(book, "author", book.author),
-                          },
-                        ]
-                      : []),
-                    ...(book.illustrator
-                      ? [
-                          {
-                            label: creditLabel(
-                              book,
-                              "illustrator",
-                              "Illustrator",
-                            ),
-                            value: creditValue(
-                              book,
-                              "illustrator",
-                              book.illustrator,
-                            ),
-                          },
-                        ]
-                      : []),
-                    ...(book.publisher_tw || book.publisher_refs?.length
-                      ? [
-                          {
-                            label: publisherLabel(book, "台灣出版社"),
-                            value: publisherValue(book),
-                          },
-                        ]
-                      : []),
+                    // Author, and Illustrator when set; then the Taiwanese
+                    // publisher and the adaptation's studio, as on a manga.
+                    [
+                      {
+                        label: creditLabel(book, "author", "Author"),
+                        value: book.author ? creditValue(book, "author", book.author) : null,
+                      },
+                      ...(book.illustrator
+                        ? [
+                            {
+                              label: creditLabel(book, "illustrator", "Illustrator"),
+                              value: creditValue(book, "illustrator", book.illustrator),
+                            },
+                          ]
+                        : []),
+                    ],
+                    [
+                      {
+                        label: publisherLabel(book, "台灣出版社"),
+                        value: publisherValue(book),
+                      },
+                      { label: "Anime Studio", value: book.anime_studio },
+                    ],
                   ]}
                 />
               )}
+            </TocSection>
+            {/* Genres under Production, as on a manga. */}
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={book} />
             </TocSection>
           </div>
 

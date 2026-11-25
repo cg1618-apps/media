@@ -519,7 +519,7 @@ columns.
   for a `steamLink` alone, so a game whose only place to play is its Steam
   page still gets one; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
   beside it the same way, as "DLsite (JP)" / "DLsite (TW)" — and the tag-field props (`originalSource`,
-  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — except
+  `exclusiveSource`) as `Tag` chips above them — except
   an `exclusiveSource` that names one of the `main` access rows, which moves that
   row to the head of its section as "Netflix (Exclusive)" (the icon still looked
   up by the bare name) and is not drawn as a chip too; one no row matches keeps
@@ -529,7 +529,11 @@ columns.
   `main` row, marked, when there is one, and otherwise a plain source row of
   its own with the platform's icon, since the original source vocabulary is
   much wider than the main sources. A movie's and an h-comic's
-  `originalSource` stay chips — one
+  `originalSource` stay chips. A manga's and a book's `serializationPlatform`
+  is read the same way and is never a chip: each value leads Where to Read,
+  marked "週刊少年Jump (連載平台)" - the matching `main` row (its main sources
+  draw from the Serialization Platform vocabulary, so a platform normally has
+  one) or a row of its own; an entry may name several — one
   component composing from both the `media_source` table and the surviving
   columns/tag fields, per the guiding rule in
   [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).
@@ -638,7 +642,11 @@ columns.
   `aria-invalid` when not `YYYY` / `YYYY-MM` / `YYYY-MM-DD`, on every kind)
   and its cover - a `compact` `ImagePicker` with `ownerType="book-unit"` and
   the unit's `system_id`, which attaches through the image library at once,
-  so a row not saved yet shows "Cover after saving" instead. No rating or
+  so a row not saved yet shows "Cover after saving" instead. A new row's key
+  is prefilled as its kind's next key, counted within that kind - "Vol 1",
+  "Arc 3" (`nextUnitKey` in `lib/bookUnits.js`) - and a key still in that
+  shape follows the row when its kind is changed ("Vol 1" becomes "Story 1");
+  a typed key never does. No rating or
   remark, which are each reader's own and set on the detail page;
   `bookUnitPayload` (`lib/payloads.js`) sends a row's own fields only, its
   two dates included and its cover never (the library writes it), and
@@ -1520,7 +1528,7 @@ content-label endpoints refuse (422) a set that drops it.
 | `info/CastingCard.jsx` | One appearance on the character and identity pages: cover and title linking to the entry, an "as <identity>" line when the row names an identity - "as <credited name>" instead when the casting has one, followed by "· <identity>" when it also names an identity - the casting's own `remark` clamped to two lines (`data-cast-remark`), the year (or "Undated"), and every seiyuu of that row beneath as a sibling person link with its remark in brackets. `hideIdentity` drops the identity from that line, for the identity page, where every row is that identity; a credited name is still shown. |
 | `info/IdentityCard.jsx` | A card for one identity: photo (`display_photo_file` / `display_photo_focus`), display name, every other non-empty name, `display_gender` and remark, linking to `/identity/<public_id>/<slug>` (plain markup with no `public_id`). `to` overrides the link and `label` puts a small caption above the name. The character page's Identities section uses it plain; the identity page's Character section uses it for the character (`label="Character"`, `to` the character's page) and for the other identities (`label="Identity"`). |
 | `info/MalButton.jsx` | The **MyAnimeList** button beside a character's, a person's or a studio's name, on the character page, (the character's link) the identity page, the person page and the studio page: the MAL icon and label, opening `href` in a new tab; renders nothing without one. Its named export `ImdbButton` is the **IMDb** button the person page draws after it, the same control with the IMDb icon and label; both are drawn by `SiteButton`, so they cannot drift apart. `SiteButton` is exported too, for the person's Twitter, Instagram and pixiv buttons: `site` names the label and the `lib/sourceIcons.js` key, and a site with no bundled icon shows its label alone. |
-| `info/GenresCard.jsx` | `GenresCard({ item })`: the **Genres** `InfoCard` of the anime, anime movie, movie, TV, cartoon, manga and book detail pages, directly below Information - Genre (Main) and Genre (Sub) side by side, Label below, the same card shape the game page uses for its Genre / Theme / Label. Each page renders it directly after its Information card, which no longer carries the three. Renders nothing when none of `genre_main`, `genre_sub` or `label` holds a value (`hasGenreTags(item)`); one set and another not gives the unset one the card's "—". Content labels are not these and stay with `ContentLabelChips`. |
+| `info/GenresCard.jsx` | `GenresCard({ item })`: the **Genres** `InfoCard` of the anime, anime movie, movie, TV, cartoon, manga and book detail pages - directly below Information, and on book below Production - Genre (Main) and Genre (Sub) side by side, Label below, the same card shape the game page uses for its Genre / Theme / Label. Each page renders it directly after its Information card, which no longer carries the three. Renders nothing when none of `genre_main`, `genre_sub` or `label` holds a value (`hasGenreTags(item)`); one set and another not gives the unset one the card's "—". Content labels are not these and stay with `ContentLabelChips`. |
 | `info/BookUnitParts.jsx` | How a book unit is drawn wherever units are listed - the book detail page's Units slip and Future Releases' Books tab: `unitName(unit)` (`name_cn` / `name_en` joined, else `display_key`), `UnitCoverThumb` (the unit's `cover_image_file` at thumbnail size through `LazyImage`, alt "Cover of <display_key>"; nothing without a cover) and `UnitReleaseDates` ("JP 2027-03 · TW 2027-09-15", leaving out an unset date; nothing with neither). |
 | `info/tagChips.jsx` | `tagChips(values)`: an appearance or trait list as a row of `Chip`s, or null for an empty list so the `InfoCard` row shows its "—". Used by the character and identity pages. |
 | `info/CastSection.jsx` | The read-only **Cast** slip every AniManga detail page draws — Anime, AnimeMovie, Manga, Book, HComic and Hentai — from the `useCasting` rows; renders nothing for an empty cast. Rows sort by `sortCast` (`lib/castOrder.js`: Main, Core, Important Supporting, Supporting, Other, then no role, then `position`). Each row is a thumbnail (the row's `display_photo_file` / `display_photo_focus`, the resolved pair), a role chip, the character link - for a row that names an identity, a dashed frame on the thumbnail (`data-identity-thumb`) and a dashed **Identity** chip (`Chip dashed`) after the role chip, then the identity's name as the headline linking to the identity's page (`/identity/<identity_public_id>/<slug>`), then "identity of <character>" with the character's name as a sibling link to its page - and, when the casting has a `credited_name` (what this entry calls the character), that name as the link's text, with the identity's (else the character's) own name in small faint text beneath it (`data-real-name`) - and, when the casting has voices, "voiced by" and every seiyuu as a person link, separated by "·", each with its voice remark in brackets - and, when the casting has a `remark`, that remark on a line of its own beneath (`data-cast-remark`). Every character, identity and seiyuu name goes through `EntityName`: a link when `useEntityHref` gives a path, a plain `<span>` when it does not, as for a viewer without `view.character` (characters and identities) or `view.person` (seiyuu). Collapsed it shows every Main character; **Show core cast (+N)** expands to Main and Core and **Show main cast only** collapses back; **Show full cast (N)** opens a dialog (`FullCastModal`, closed by Escape, Close or a press that starts on the backdrop) listing every row. With no Main character the collapsed view starts at Core; a cast with no Main or Core character is shown whole, with no tier controls. Identity rows of a character that also has a main row in the cast are **hidden by default** (`hideableIdentities`); **Show identities (N)** / **Hide identities** (`IdentityToggle`) toggles them, one state shared by the slip and the dialog, not persisted. An identity row whose character has no main row is always shown and not counted in N, and the tiers and their counts are worked out over the rows the toggle leaves visible. |

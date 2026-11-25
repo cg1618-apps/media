@@ -305,6 +305,7 @@ export const defaultBook = () => ({
   end_date: "",
   serialization_platform: "",
   publisher_tw: "",
+  anime_studio: "",
   units: [],
   mal_id: "",
   mal_link: "",

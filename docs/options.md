@@ -779,7 +779,7 @@ ones in `OPTION_CATEGORIES`:
 | `Label` | per value, among the eight mainstream types and game | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
 | `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie, h-comic) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
 | `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; every `game`-scoped value and `Twitter` also carry `h-game` (below); `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
-| `Serialization Platform` | manga, book | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
+| `Serialization Platform` | manga, book | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values. Also the vocabulary of a manga's and a book's **Main Sources** - their `main` access `media_source` rows (`category_for_kind` in `app/utils/source_fields.py`, `SERIALIZATION_ACCESS_TYPES`): the picker offers every value, whatever it is scoped to, and no `Platform` value |
 | `Comic Imprint` | comic | tag field `comic_imprint` |
 | `Comic Continuity` | comic | tag field `comic_continuity` |
 | `Comic Era` | comic | tag field `comic_era` |

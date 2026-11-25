@@ -87,6 +87,15 @@ _CATEGORY_BY_KIND: dict[str, str] = {
 }
 
 
-def category_for_kind(kind: str) -> str:
+# The media types whose "where to read" is where the work is serialized: their
+# main access rows draw from Serialization Platform - the vocabulary their
+# serialization_platform tag field reads - rather than from Platform, which
+# holds streaming services and no magazine.
+SERIALIZATION_ACCESS_TYPES: tuple[str, ...] = ("manga", "book")
+
+
+def category_for_kind(kind: str, media_type: str | None = None) -> str:
     """The system_option category a main row of this kind draws from."""
+    if kind == "access" and media_type in SERIALIZATION_ACCESS_TYPES:
+        return SERIALIZATION_CATEGORY
     return _CATEGORY_BY_KIND[kind]
