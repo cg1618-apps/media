@@ -63,7 +63,6 @@ function characterToForm(c) {
     photo_file: c.photo_file || "",
     photo_focus: c.photo_focus || null,
     mal_link: c.mal_link || "",
-    remark: c.remark || "",
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: c.my_rating || "",
     ...firstsToForm(c),
@@ -187,7 +186,6 @@ export default function CharacterModifyTab({
             photo_file: characterForm.photo_file || null,
             photo_focus: characterForm.photo_focus || null,
             mal_link: characterForm.mal_link?.trim() || null,
-            remark: characterForm.remark || null,
             ...firstsPayload(characterForm),
             photo_fallback_entry_id: characterForm.photo_fallback_entry_id || null,
             ...characterTagsPayload(characterForm),
@@ -338,9 +336,10 @@ function castRowLabel(entry) {
 }
 
 /**
- * "Sync from cast": one of this character's cast rows replaces the role,
- * remark and photo of the record it casts - the character, or the identity
- * the row names (the server keeps the character's role then). A value the row
+ * "Sync from cast": one of this character's cast rows replaces the role and
+ * photo of the record it casts - the character, or the identity the row
+ * names (the server keeps the character's role then) - and adds its remark
+ * to that record's Remark list. A value the row
  * does not hold leaves the record's alone. It writes straight to the server,
  * so it is offered only while the form holds no unsaved edits, which the
  * reload would otherwise discard. The rows come from the /entries query the
@@ -388,7 +387,7 @@ function SyncFromCast({ characterId, dirty, onSynced }) {
         hint={
           dirty
             ? "Save or discard your edits first - syncing reloads the form."
-            : "Replace the role, remark and photo with this cast row's (an identity's row updates that identity). What the row leaves blank is kept."
+            : "Replace the role and photo with this cast row's, and add its remark to the Remark list (an identity's row updates that identity). What the row leaves blank is kept."
         }
       >
         <div className="flex flex-wrap items-center gap-2">

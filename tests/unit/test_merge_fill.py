@@ -35,11 +35,11 @@ def test_a_blank_column_is_filled_from_the_merged_record():
 
 
 def test_a_column_the_survivor_holds_is_never_overwritten():
-    keep = _character(name_cn="小明", remark="mine")
-    drop = _character(name_cn="明", remark="theirs")
+    keep = _character(name_cn="小明", name_alt="mine")
+    drop = _character(name_cn="明", name_alt="theirs")
     fill_blank_columns(keep, drop)
     assert keep.name_cn == "小明"
-    assert keep.remark == "mine"
+    assert keep.name_alt == "mine"
 
 
 def test_a_whitespace_value_counts_as_blank_on_both_sides():

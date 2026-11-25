@@ -32,7 +32,7 @@ from app.utils.constants import (
     MUSIC_TYPE_STATUS_DEFAULT,
     MUSIC_TYPE_STATUSES,
 )
-from app.utils.media_resolver import MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
+from app.utils.media_resolver import ENTITY_TABLES, MEDIA_TYPE_KEYS, OWNER_TYPE_KEYS
 
 # --- Shapes ---------------------------------------------------------------
 # Each shape names which of `note`'s content columns a section uses. Columns a
@@ -109,6 +109,10 @@ SCOPE_PERSONAL = "personal"  # one set per user
 # type must not silently leave a group here stale.
 ENTRY_OWNERS = MEDIA_TYPE_KEYS
 ALL_OWNERS = tuple(OWNER_TYPE_KEYS)
+
+# The five entities - studio, publisher, person, character, identity. Their
+# pages carry the remark list and personal notes and nothing else.
+ENTITY_OWNERS: tuple[str, ...] = tuple(ENTITY_TABLES)
 
 # The owners every game-shaped section serves: game, and h-game, which reuses
 # game's notes wholesale. A section written for games names this rather than
@@ -855,7 +859,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="remark",
         shape=SHAPE_TEXT_LINKS,
         label="備註 Remark",
-        owners=ALL_OWNERS,
+        owners=ALL_OWNERS + ENTITY_OWNERS,
         scope=SCOPE_CATALOG,
     ),
     NoteSection(
@@ -865,7 +869,7 @@ NOTE_SECTIONS: tuple[NoteSection, ...] = (
         key="personal_notes",
         shape=SHAPE_TEXT_LINKS,
         label="個人筆記 Personal Notes",
-        owners=ALL_OWNERS,
+        owners=ALL_OWNERS + ENTITY_OWNERS,
         scope=SCOPE_PERSONAL,
     ),
     NoteSection(

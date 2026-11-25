@@ -49,7 +49,6 @@ function publisherToForm(p) {
     website_url: p.website_url || "",
     founded_date: p.founded_date || "",
     defunct_date: p.defunct_date || "",
-    remark: p.remark || "",
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: p.my_rating || "",
     // PUT replaces the scope set wholesale, so the form has to hold the
@@ -151,7 +150,6 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
           website_url: publisherForm.website_url || null,
           founded_date: publisherForm.founded_date || null,
           defunct_date: publisherForm.defunct_date || null,
-          remark: publisherForm.remark || null,
           scopes: publisherForm.scopes || [],
         }),
       });

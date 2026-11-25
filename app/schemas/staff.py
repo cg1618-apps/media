@@ -84,7 +84,6 @@ class PersonBase(BaseModel):
     # app/services/domain/entity_photos.py. A write must name an entry this
     # person is credited or cast on (the router checks; 422 otherwise).
     photo_fallback_entry_id: Optional[UUID] = None
-    remark: Optional[str] = None
     # MAL's people record; mal_id is derived from mal_link on every write.
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
@@ -219,7 +218,6 @@ class StudioBase(BaseModel):
     display_name_field: Optional[str] = None
     logo_file: Optional[str] = None
     logo_focus: ImageFocus = None
-    remark: Optional[str] = None
     founded_date: Optional[str] = None
     defunct_date: Optional[str] = None
     # Every country the studio is from, in the order given. Each is trimmed,

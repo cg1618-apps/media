@@ -126,14 +126,6 @@ export function StudioFields({ studioForm, usf, ownerId }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <MyRatingFields kind="studio" form={studioForm} update={usf} />
       </div>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={2}
-          value={studioForm.remark ?? ""}
-          onChange={(e) => usf("remark", e.target.value)}
-        />
-      </Field>
     </div>
   );
 }

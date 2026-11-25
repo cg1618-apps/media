@@ -70,7 +70,6 @@ def character_response(
         role=character.role,
         mal_id=character.mal_id,
         mal_link=character.mal_link,
-        remark=character.remark,
         first_mention=character.first_mention,
         first_appearance=character.first_appearance,
         first_encounter=character.first_encounter,

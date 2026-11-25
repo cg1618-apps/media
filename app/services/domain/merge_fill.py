@@ -24,6 +24,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import models
+from app.services.domain.entity_remarks import move_entity_notes
 from app.services.domain.user_rating import merge_user_ratings
 from app.services.integrations import image_manager
 
@@ -167,7 +168,8 @@ def finish_merge(db: Session, owner_type: str, keep, drop) -> None:
     """
     The end of every merge, once the links are repointed: move the accounts'
     ratings of the loser onto the survivor (user_rating.merge_user_ratings -
-    the delete would cascade them away), delete the loser, fill the
+    the delete would cascade them away) and its notes (move_entity_notes, for
+    the same reason), delete the loser, fill the
     survivor's blanks from it, commit, and rename a carried picture.
 
     The loser is deleted and FLUSHED before the fill. Person, studio and
@@ -181,6 +183,9 @@ def finish_merge(db: Session, owner_type: str, keep, drop) -> None:
     clash, and a 409 naming it, with nothing changed.
     """
     merge_user_ratings(db, owner_type, keep.system_id, drop.system_id)
+    # Its notes too - the remark list and personal notes - which the delete
+    # would also cascade away.
+    move_entity_notes(db, owner_type, keep.system_id, drop.system_id)
     db.delete(drop)
     db.flush()
     rename = merge_fill(db, owner_type, keep, drop)

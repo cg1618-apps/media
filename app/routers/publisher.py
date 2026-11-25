@@ -109,7 +109,6 @@ def _to_response(
         logo_focus=publisher.logo_focus,
         display_logo_file=display_logo_file,
         display_logo_focus=display_logo_focus,
-        remark=publisher.remark,
         founded_date=publisher.founded_date,
         defunct_date=publisher.defunct_date,
         country=publisher.country,
@@ -442,7 +441,7 @@ def patch_publisher(
 ):
     """
     Partially updates a publisher's own columns - the detail page's inline
-    remark edit. Only the keys sent change; scopes are not a column and are
+    inline edit. Only the keys sent change; scopes are not a column and are
     edited through PUT. The viewer's rating is written through
     PUT /api/me/ratings/publisher/{id}.
 

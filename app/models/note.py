@@ -20,6 +20,16 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
 
+# An entity owner type -> its note column. The tiers' columns live in the
+# note router; the media owner is media_id.
+ENTITY_NOTE_COLUMNS: dict[str, str] = {
+    "studio": "studio_id",
+    "publisher": "publisher_id",
+    "person": "person_id",
+    "character": "character_id",
+    "identity": "identity_id",
+}
+
 
 class Note(Base):
     """
@@ -83,6 +93,39 @@ class Note(Base):
     series_id = Column(
         UUID(as_uuid=True),
         ForeignKey("series.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    # The five entities - each a detail page of its own - own a note too, but
+    # only the remark list and personal notes (their sections' `owners`). One
+    # column each, as the tiers have, so a deleted entity takes its notes.
+    studio_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("studio.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    publisher_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("publisher.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    person_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("person.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    character_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("character.system_id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    identity_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("character_identity.system_id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
@@ -187,15 +230,28 @@ class Note(Base):
             return "franchise"
         if self.series_id is not None:
             return "series"
+        for owner_type, column in ENTITY_NOTE_COLUMNS.items():
+            if getattr(self, column) is not None:
+                return owner_type
         return None
 
     @property
     def owner_id(self):
-        return self.media_id or self.collection_id or self.franchise_id or self.series_id
+        return (
+            self.media_id
+            or self.collection_id
+            or self.franchise_id
+            or self.series_id
+            or next(
+                (getattr(self, c) for c in ENTITY_NOTE_COLUMNS.values() if getattr(self, c)),
+                None,
+            )
+        )
 
     __table_args__ = (
         CheckConstraint(
-            "num_nonnulls(media_id, collection_id, franchise_id, series_id) = 1",
+            "num_nonnulls(media_id, collection_id, franchise_id, series_id, "
+            "studio_id, publisher_id, person_id, character_id, identity_id) = 1",
             name="ck_note_one_owner",
         ),
         # The only read path the notes page uses.

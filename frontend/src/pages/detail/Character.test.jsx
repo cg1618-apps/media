@@ -9,6 +9,13 @@ import { ToastProvider } from "../../hooks/useToast";
 // Reassigned per test: a guest by default, an admin where a test says so.
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// The remark list and personal notes are NotesTemplate's to test; here only
+// that the page hands it this record as the owner.
+vi.mock("../notes/NotesTemplate", () => ({
+  default: ({ ownerType, ownerId }) => (
+    <div data-testid="entity-notes" data-owner-type={ownerType} data-owner-id={ownerId} />
+  ),
+}));
 // Toasts are recorded rather than rendered: ToastProvider draws nothing.
 const toast = vi.hoisted(() => ({ showToast: vi.fn() }));
 vi.mock("../../hooks/useToast", () => ({
@@ -288,7 +295,6 @@ describe("Character detail page", () => {
       public_id: 3,
       display_name: "Edogawa Conan",
       display_gender: "男",
-      remark: "glasses",
       display_photo_file: null,
     };
     const IDENTITY_ENTRIES = {
@@ -311,7 +317,6 @@ describe("Character detail page", () => {
       });
       renderPage();
       expect(await screen.findByRole("heading", { name: /identities/i })).toBeInTheDocument();
-      expect(screen.getByText("glasses")).toBeInTheDocument();
       expect(screen.getAllByText("Detective Conan")).toHaveLength(2);
       expect(screen.getByText("as Edogawa Conan")).toBeInTheDocument();
     });
@@ -366,14 +371,13 @@ describe("Character detail page", () => {
   });
 
   describe("as a guest", () => {
-    it("shows no admin controls, and the remark and rating as text", async () => {
+    it("shows no admin controls, and the rating as text", async () => {
       mockFetch({ character: { ...CHARACTER, my_rating: "A", remark: "Quiet." } });
       renderPage();
       await screen.findByRole("heading", { name: "Yuki Nagato" });
       expect(screen.queryByRole("button", { name: "Edit this character" })).not.toBeInTheDocument();
       expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
       expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
-      expect(screen.getByText("Quiet.")).toBeInTheDocument();
       expect(screen.getByLabelText("Rating A")).toBeInTheDocument();
     });
   });
@@ -442,31 +446,15 @@ describe("Character detail page", () => {
 
 
 
-    it("saves the remark on blur, and an emptied remark as null", async () => {
-      const user = userEvent.setup();
-      mockFetch({ character: { ...CHARACTER, remark: "Old." } });
-      renderPage();
-      const box = await screen.findByLabelText("Remark");
-
-      await user.clear(box);
-      await user.type(box, "Reads a lot.");
-      fireEvent.blur(box);
-      await waitFor(() => expect(patchCalls()).toHaveLength(1));
-      expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ remark: "Reads a lot." });
-
-      await user.clear(box);
-      fireEvent.blur(box);
-      await waitFor(() => expect(patchCalls()).toHaveLength(2));
-      expect(JSON.parse(patchCalls()[1][1].body)).toEqual({ remark: null });
-    });
-
-    it("does not PATCH a remark left as it was", async () => {
-      mockFetch({ character: { ...CHARACTER, remark: "Old." } });
-      renderPage();
-      fireEvent.blur(await screen.findByLabelText("Remark"));
-      expect(patchCalls()).toHaveLength(0);
-    });
   });
+});
+
+// The remark list and personal notes are this character's notes block.
+it("draws the remark list and personal notes for this character", async () => {
+  renderPage();
+  const notes = await screen.findByTestId("entity-notes");
+  expect(notes).toHaveAttribute("data-owner-type", "character");
+  expect(notes.getAttribute("data-owner-id")).toBeTruthy();
 });
 
 describe("the character's firsts", () => {

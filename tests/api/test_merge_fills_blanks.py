@@ -41,7 +41,7 @@ def test_a_character_merge_fills_the_blanks_and_keeps_the_rest(
 ):
     keep = _add(
         db_session,
-        models.Character(system_id=uuid.uuid4(), name_cn="一花", remark="mine"),
+        models.Character(system_id=uuid.uuid4(), name_cn="一花", name_alt="mine"),
     )
     drop = _add(
         db_session,
@@ -49,7 +49,7 @@ def test_a_character_merge_fills_the_blanks_and_keeps_the_rest(
             system_id=uuid.uuid4(),
             name_en="Ichika",
             name_cn="一華",
-            remark="theirs",
+            name_alt="theirs",
             gender="女",
             mal_id=42,
         ),
@@ -59,7 +59,7 @@ def test_a_character_merge_fills_the_blanks_and_keeps_the_rest(
     db_session.expire_all()
     merged = db_session.get(models.Character, keep.system_id)
     assert (merged.name_en, merged.gender, merged.mal_id) == ("Ichika", "女", 42)
-    assert (merged.name_cn, merged.remark) == ("一花", "mine")
+    assert (merged.name_cn, merged.name_alt) == ("一花", "mine")
 
 
 def test_a_person_merge_fills_the_blanks(owner_client, db_session):

@@ -42,7 +42,7 @@ def test_the_tab_is_registered():
 def test_identities_and_cast_identity_round_trip(db, sheets, monkeypatch, character, anime):
     identity = models.CharacterIdentity(
         system_id=uuid.uuid4(), character_id=character.system_id,
-        name_en="Conan", gender="男", remark="glasses", position=0,
+        name_en="Conan", gender="男", name_alt="glasses", position=0,
     )
     db.add(identity)
     db.flush()
@@ -69,7 +69,7 @@ def test_identities_and_cast_identity_round_trip(db, sheets, monkeypatch, charac
     db.execute(text("SET CONSTRAINTS ALL IMMEDIATE"))
 
     restored = db.get(models.CharacterIdentity, identity.system_id)
-    assert (restored.name_en, restored.remark, restored.character_id) == (
+    assert (restored.name_en, restored.name_alt, restored.character_id) == (
         "Conan", "glasses", character.system_id,
     )
     # The identity page's URL survives the trip.

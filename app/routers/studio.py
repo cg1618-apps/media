@@ -99,7 +99,6 @@ def _to_response(
         logo_focus=studio.logo_focus,
         display_logo_file=display_logo_file,
         display_logo_focus=display_logo_focus,
-        remark=studio.remark,
         founded_date=studio.founded_date,
         defunct_date=studio.defunct_date,
         countries=studio.countries,

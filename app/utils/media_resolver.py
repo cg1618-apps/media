@@ -102,6 +102,10 @@ ENTITY_TABLES: dict[str, MediaRef] = {
 # entity. Used by app/services/domain/requests.py and nothing else.
 REQUEST_TARGET_TABLES: dict[str, MediaRef] = {**OWNER_TABLES, **ENTITY_TABLES}
 
+# What a note may hang off: an entry, a grouping tier, or - for the remark
+# list and personal notes alone (their sections' `owners`) - an entity.
+NOTE_OWNER_TABLES: dict[str, MediaRef] = {**OWNER_TABLES, **ENTITY_TABLES}
+
 
 @dataclass
 class EntryRef:

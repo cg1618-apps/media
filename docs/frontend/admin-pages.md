@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -85,7 +85,7 @@ label reference and the RBAC pages — never the catalogue editors.
   `endpoints.dataControl.syncCast`) runs Calculate All's cast step on its own -
   the fill-only sync between cast rows and the characters and identities
   they cast, both ways except a remark, which only goes up to the
-  character, and a credited name, which belongs to its entry and goes
+  original - as the first row of an empty Remark list - and a credited name, which belongs to its entry and goes
   nowhere - through the same `runCalc` as Calculate All: a
   spinner while it runs, the server's `message` as the toast, then the log
   reloads. Its tile carries the one-line description "Fill empty cast and
@@ -663,7 +663,7 @@ as an error toast.
 **My Rating** select (`MY_RATINGS`) and an **Expectation** select
 (`FRANCHISE_EXPECTATIONS`, the one vocabulary all three tiers share), under
 Other Information; the Person, Character, Studio and Publisher tabs draw
-**My Rating** alone, above Remark - an entity has no expectation. Both come
+**My Rating** alone - an entity has no expectation. Both come
 from `MyRatingFields`, and only for a viewer who keeps a list
 (`useViewScope().ownData`, `self.list`). They are the viewer's own, not
 columns of the record, so the create call never carries them: once it has
@@ -861,7 +861,7 @@ way; unset saves as null). Then a **MAL Link** (`mal_link`; the server reads the
 its `myanimelist.net/people/<id>` path, so there is no id field), the IMDb
 link, then **Twitter Link**, **Instagram Link** and **pixiv Link**
 (`twitter_link`, `ig_link`, `pixiv_link`, `PERSON_SOCIAL_LINKS`; stored as
-typed, a blank one as null), the photo and the remark. Ticking a type holds it
+typed, a blank one as null) and the photo. Ticking a type holds it
 with **no media type selected** - `{role, scope: null}`, listed under the type
 and offered in no dropdown; ticking a media type replaces that with scoped
 rows, and unticking the last one goes back to it. The legal types per role come
@@ -874,7 +874,7 @@ scope cannot be unticked, because the API refuses an unscoped club. Submit is bl
 `ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
 `PersonFields` is exported so the Modify tab renders the same inputs.
 
-**Identity tab (Entity).** `IdentityAddTab.jsx`, self-contained: it saves through its own button, and `Add.jsx`'s page-wide submit is hidden on it. An identity is always created under an existing character, so the tab opens with a required **Character** picker (a `ComboBox` over `GET /api/character/?name=`; the character is fixed once the identity is saved), then `IdentityFields`: the four names, **Display Name**, **Gender** (an empty choice means the same as the character), **Photo**, **Remark** and the identity's own **First Appearances** (`CharacterFirstsFields`: First Mention, First Appearance, First Encounter, free text, a blank one sent as null). Picking a character prefills the four names and **Display Name** from it, as a starting point (`prefillFromCharacter`): a field is filled only while it is empty or still holds what the previous pick filled in, so nothing typed is overwritten and picking another character re-fills the untouched ones; clearing the character leaves the fields as they are, and gender, photo, remark and the firsts are never prefilled. At least one name is required. The photo is attached after the create, as for characters, and Enter in a text input submits. `IdentityFields` is exported for the Modify tab. It has no `/defaults` tab (`identity` is outside `FORM_TABS`). Saves `POST /api/character-identity/`.
+**Identity tab (Entity).** `IdentityAddTab.jsx`, self-contained: it saves through its own button, and `Add.jsx`'s page-wide submit is hidden on it. An identity is always created under an existing character, so the tab opens with a required **Character** picker (a `ComboBox` over `GET /api/character/?name=`; the character is fixed once the identity is saved), then `IdentityFields`: the four names, **Display Name**, **Gender** (an empty choice means the same as the character), **Photo** and the identity's own **First Appearances** (`CharacterFirstsFields`: First Mention, First Appearance, First Encounter, free text, a blank one sent as null). Picking a character prefills the four names and **Display Name** from it, as a starting point (`prefillFromCharacter`): a field is filled only while it is empty or still holds what the previous pick filled in, so nothing typed is overwritten and picking another character re-fills the untouched ones; clearing the character leaves the fields as they are, and gender, photo and the firsts are never prefilled. At least one name is required. The photo is attached after the create, as for characters, and Enter in a text input submits. `IdentityFields` is exported for the Modify tab. It has no `/defaults` tab (`identity` is outside `FORM_TABS`). Saves `POST /api/character-identity/`.
 
 **Character tab (Entity).** `CharacterAddTab.jsx`. Its only search box is the
 MAL `ExternalSearchBox`, over the form. `CharacterFields` is the
@@ -891,7 +891,7 @@ vocabulary lacks is created by the character write itself, so the tab runs no
 `ensureSourceValues`; the sources are refetched after the save), a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
 page; the server reads the MAL id from it and, on save, fills the blank names
 and the photo from MAL — see [api.md](../api.md#character--apicharacter)),
-the photo, the remark, and a **First Appearances** section
+the photo, and a **First Appearances** section
 (`CharacterFirstsFields`): **First Mention**, **First Appearance** and
 **First Encounter**, free text in the work's own notation (placeholder
 `第1卷 第13章, 1-13, S1 ep 8`), a blank one sent as null. The Role is the character's own. Left blank, it
@@ -1007,8 +1007,8 @@ Chinese, Japanese, Alternative) with a "Display name" select naming which one
 to show, plus logo key, countries (`CountryInput`: any number, a `MultiSelect`
 suggesting the `Country` common options as it is typed into; a country not
 in the list is kept as typed and never added to it), founded/defunct dates
-(`ReleaseDateInput`, so partial precision is allowed), website, MAL id/link
-and remark, with **My Rating** above it for a list keeper (see "The viewer's
+(`ReleaseDateInput`, so partial precision is allowed), website and MAL
+id/link, with **My Rating** for a list keeper (see "The viewer's
 own rating" above). Submit is blocked client-side until at least one name is filled,
 matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
 find-or-create: posting a name that already exists returns the existing
@@ -1024,7 +1024,7 @@ fields with the "Display name" select — it is the third consumer of the shared
 logo key, country (one, free text: a `SuggestInput` suggesting the
 `Country` common options the studio Countries field reads, with no chip
 picks; what is typed is stored, and never added to the list),
-founded/defunct `ReleaseDateInput`s, website and remark. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
+founded/defunct `ReleaseDateInput`s and website. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
 carries no MAL columns, because MAL has no record of a games publisher or a
 Taiwanese distributor. Submit is blocked until at least one name is filled,
 matching `ck_publisher_has_a_name`. Below the name fields sits
@@ -1310,9 +1310,12 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   same `/entries` query (query key `["character-entries", id]`), each as
   entry, year, "as <identity>" when the row names one, and type. Picking one
   and pressing **Sync** `POST`s `{casting_id}` to
-  `/api/character/{id}/sync-from-cast`: the row's role, remark and photo
-  replace the character's — or, on an identity's row, that identity's remark
-  and photo — and what the row leaves blank is kept. The form then reloads
+  `/api/character/{id}/sync-from-cast`: the row's role and photo replace
+  the character's — or, on an identity's row, that identity's photo — its
+  remark is added to that record's Remark list (never twice), and what the
+  row leaves blank is kept. The hint reads "Replace the role and photo with
+  this cast row's, and add its remark to the Remark list (an identity's row
+  updates that identity). What the row leaves blank is kept." The form then reloads
   from the returned character and `["characters-admin"]` is invalidated;
   outcomes are toasts. The sync writes straight to the server and reloads the
   form, so while the form differs from what was last loaded or saved the
