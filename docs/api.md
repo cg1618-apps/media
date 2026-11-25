@@ -1812,11 +1812,17 @@ are keyed by the pair:
 {"groups": [
   {"media_type": "manga", "role": "author", "label": "原作",
    "nav_path": "/manga",
-   "entries": [{"system_id": "...", "display_name": "...",
+   "entries": [{"system_id": "...", "display_name": "...", "public_id": 3,
                 "cover_image_file": "...", "cover_image_focus": "50% 20%",
-                "release_date": "2013-04-06"}]}
+                "release_date": "2013-04-06", "my_rating": "A",
+                "mal_rating": 8.5}]}
 ]}
 ```
+
+Each entry is a credit card, as on the studio endpoint below: the cover and
+name, the primary `release_date`, the viewer's own `my_rating` and the
+type's card columns (`mal_rating`, `metacritic_score`, …) that the person
+page sorts by.
 
 `label` is `credit_label(role, media_type)`, so the heading reads 原作 on a
 manga and Writer on a comic without the page knowing the vocabulary. Entries
@@ -1966,15 +1972,34 @@ The reverse of `GET /api/credits/{media_type}/{entry_id}`.
         {
           "system_id": "…",
           "display_name": "Violet Evergarden",
+          "public_id": 12,
           "cover_image_file": "…",
           "cover_image_focus": null,
-          "release_date": "2018-01-11"
+          "release_date": "2018-01-11",
+          "my_rating": "S",
+          "airing_type": "TV",
+          "release_season": "Winter",
+          "release_date_jp": "2018-01-11",
+          "release_date_tw": null,
+          "mal_rating": 8.7
         }
       ]
     }
   ]
 }
 ```
+
+Each entry is a **credit card** (`credit_cards`,
+`app/services/domain/credit_cards.py`): what the page's card and its sort
+read, not the whole entry. Every entry carries `system_id`, `display_name`,
+`public_id`, `cover_image_file`, `cover_image_focus`, `release_date` (the
+type's primary release value, `primary_release_value`) and `my_rating` — the
+viewer's own, from their list row, null for a viewer who has not rated it or
+for nobody signed in; never another account's. Beside them, each of
+`airing_type`, `release_type`, `release_season`, `release_date_jp`,
+`release_date_tw`, `mal_rating` and `metacritic_score` that the entry's type
+has as a column (`CARD_COLUMNS`); a type without one leaves the key out, and
+so does a column the viewer's access mode withholds (`gated_columns`).
 
 Groups follow `MEDIA_TABLES` order and a group with no visible entries is
 omitted; entries are newest first, with an undated entry last. A studio is a
@@ -1995,7 +2020,7 @@ uses. `app/routers/publisher.py` mirrors `/api/studio` endpoint for endpoint,
 | -------- | --------------------- | ------ | ------------------------------------------------------------------------------------ |
 | `GET`    | `/?scope=`            | `view.publisher` | List publishers, sorted by `display_name` case-insensitively (in Python — the display name is a per-row choice among four nullable columns). `scope` is a hyphenated media-type key and narrows the list to publishers offered on that type; omitted, it returns **everything, including publishers holding no scope at all** — the admin list page must be able to see a publisher in order to give it one. There is no `/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
 | `GET`    | `/{system_id}`        | `view.publisher` | Get one publisher by UUID. 404 if absent or hidden.                              |
-| `GET`    | `/{system_id}/entries`| `view.publisher` | The entries this publisher is credited on, grouped by media type. 404 if the publisher is absent or hidden. |
+| `GET`    | `/{system_id}/entries`| `view.publisher` | The entries this publisher is credited on, grouped by media type, each a credit card - the shape and rules of [`GET /api/studio/{system_id}/entries`](#get-apistudiosystem_identries) (`company_credit_groups`). 404 if the publisher is absent or hidden. |
 | `GET`    | `/{system_id}/related`| `view.publisher` | The related companies - studios and publishers - the viewer may see, as the studio route answers them (`PeerRelationRef[]`, each with its `kind`), with this publisher's side's remark. 404 if the publisher is absent or hidden. Takes a public_id or UUID. |
 | `PUT`    | `/{system_id}/related`| Admin  | Replace this side's related companies, with the studio route's body and rules; an item's `kind` defaults to `publisher` here. Answers as `GET`. |
 | `POST`   | `/`                   | Admin  | Create a publisher, **or return the existing one** under that name — find-or-create for the same reason as studio: the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list (every publisher field but a game's, which is pick-only), so a second row would split the credits. Matching is on the normalized name (`find_publisher`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries; metadata on an existing row is left untouched. Body: `PublisherCreate`. |

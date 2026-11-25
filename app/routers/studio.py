@@ -22,12 +22,12 @@ from app.routers._patching import apply_column_patch
 from app.services.domain.affiliation import merge_affiliations, people_of
 from app.services.domain.autofill import autofill_studio_from_mal
 from app.services.domain.checking import has_missing_values_studio
+from app.services.domain.credit_cards import company_credit_groups
 from app.services.domain.credits import CreditSummary, credit_summaries, find_studio
 from app.services.domain.derivation import apply_extract_mal_id_studio
 from app.services.domain.merge_fill import finish_merge
 from app.services.domain.peer_relation import COMPANY_RELATIONS
 from app.services.domain.user_rating import ratings_by_owner
-from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
@@ -39,9 +39,7 @@ from app.services.rbac.shared_visibility import (
     require_visible_shared,
 )
 from app.utils.entity_ref import find_entity
-from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.name_normalize import names_of
-from app.utils.release_date import primary_release_value
 
 logger = logging.getLogger(__name__)
 
@@ -254,6 +252,8 @@ def get_studio_entries(
 ):
     """
     The entries this studio is credited on, grouped by media type.
+    Each entry is the card the page draws - the type's library card
+    without the tracker - built by services/domain/credit_cards.py.
 
     The reverse of GET /api/credits/{media_type}/{entry_id}. A studio hidden
     from this viewer - every credit on a label-hidden entry - answers 404, as
@@ -267,46 +267,7 @@ def get_studio_entries(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, viewer, models.Studio, system_id, NOT_FOUND)
 
-    rows = (
-        db.query(models.Media.media_type, models.MediaCredit.media_id)
-        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
-        .filter(models.MediaCredit.studio_id == system_id)
-        .all()
-    )
-    visible = filter_visible_pairs(
-        db, viewer, [(mt, eid) for mt, eid in rows if mt and eid]
-    )
-
-    groups = []
-    for media_type, ref in MEDIA_TABLES.items():
-        ids = [eid for mt, eid in visible if mt == media_type]
-        if not ids:
-            continue
-        entries = (
-            db.query(ref.model).filter(ref.model.system_id.in_(ids)).all()
-        )
-        payload = [
-            {
-                "system_id": str(entry.system_id),
-                "display_name": entry.display_name,
-                "public_id": entry.public_id,
-                "cover_image_file": getattr(entry, "cover_image_file", None),
-                "cover_image_focus": getattr(entry, "cover_image_focus", None),
-                "release_date": primary_release_value(media_type, entry),
-            }
-            for entry in entries
-        ]
-        # Newest first; an undated entry sorts last, as UNDATED does elsewhere.
-        payload.sort(key=lambda e: e["release_date"] or "", reverse=True)
-        groups.append(
-            {
-                "media_type": media_type,
-                "label": ref.label,
-                "nav_path": ref.nav_path,
-                "entries": payload,
-            }
-        )
-    return {"groups": groups}
+    return {"groups": company_credit_groups(db, viewer, models.MediaCredit.studio_id, system_id)}
 
 
 # ==========================================

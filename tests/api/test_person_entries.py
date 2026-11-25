@@ -126,6 +126,34 @@ def test_entries_are_grouped_by_media_type_and_role(guest_reader, person_with_cr
     assert "cover_image_file" in manga["entries"][0]
 
 
+def test_an_entry_carries_the_sort_fields(
+    owner_client, db_session, person_with_credits, manga_entry, list_row
+):
+    """The page sorts its credits by my rating and by the public rating, so
+    each entry carries both - the viewer's own rating, and MAL's."""
+    manga_entry.mal_rating = 8.7
+    list_row(manga_entry, status="Completed", my_rating="A")
+    db_session.commit()
+    body = owner_client.get(f"/api/person/{person_with_credits.system_id}/entries").json()
+    entry = next(g for g in body["groups"] if g["media_type"] == "manga")["entries"][0]
+    assert entry["mal_rating"] == 8.7
+    assert entry["my_rating"] == "A"
+
+
+def test_a_seiyuu_entry_carries_the_sort_fields(
+    owner_client, db_session, seiyuu_with_one_casting, anime
+):
+    anime.mal_rating = 7.9
+    db_session.commit()
+    groups = owner_client.get(
+        f"/api/person/{seiyuu_with_one_casting.system_id}/entries"
+    ).json()["groups"]
+    entry = next(g for g in groups if g["role"] == "seiyuu")["entries"][0]
+    assert entry["mal_rating"] == 7.9
+    # The part voiced is still there beside the card fields.
+    assert entry["character_name"]
+
+
 def test_an_unknown_person_is_404(guest_reader):
     r = guest_reader.get(f"/api/person/{uuid.uuid4()}/entries")
     assert r.status_code == 404

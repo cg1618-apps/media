@@ -41,6 +41,7 @@ from app.services.domain.checking import (
     has_missing_values_person,
     has_missing_values_person_tmdb,
 )
+from app.services.domain.credit_cards import credit_cards
 from app.services.domain.credit_counts import person_role_counts
 from app.services.domain.credits import find_person
 from app.services.domain.derivation import apply_extract_person_ids
@@ -84,7 +85,6 @@ from app.utils.entity_ref import find_entity
 from app.utils.entity_vocab import check_person_gender
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.name_normalize import name_slot_for, names_of
-from app.utils.release_date import primary_release_value
 
 logger = logging.getLogger(__name__)
 
@@ -426,6 +426,13 @@ def get_person_entries(
             .filter(ref.model.system_id.in_(ids))
             .all()
         }
+    # Each loaded entry as the card the page draws and sorts by - one list
+    # lookup per media type, not per row. Copied per row below: one entry can
+    # sit in several groups.
+    cards: dict[str, dict[UUID, dict]] = {
+        media_type: credit_cards(db, viewer, media_type, entries.values())
+        for media_type, entries in loaded.items()
+    }
 
     # character_id -> Character and identity_id -> CharacterIdentity, for the
     # part each seiyuu entry names. One bulk query each, not one per row.
@@ -463,16 +470,7 @@ def get_person_entries(
         entry = loaded.get(media_type, {}).get(row.media_id)
         if entry is None:
             continue
-        payload.append(
-            {
-                "system_id": str(entry.system_id),
-                "display_name": entry.display_name,
-                "public_id": entry.public_id,
-                "cover_image_file": getattr(entry, "cover_image_file", None),
-                "cover_image_focus": getattr(entry, "cover_image_focus", None),
-                "release_date": primary_release_value(media_type, entry),
-            }
-        )
+        payload.append(dict(cards[media_type][entry.system_id]))
 
     for row in casting_rows:
         if row.media_type not in MEDIA_TABLES:
@@ -492,12 +490,7 @@ def get_person_entries(
             photo_file, photo_focus = fallback_photo(identity, character)
         payload.append(
             {
-                "system_id": str(entry.system_id),
-                "display_name": entry.display_name,
-                "public_id": entry.public_id,
-                "cover_image_file": getattr(entry, "cover_image_file", None),
-                "cover_image_focus": getattr(entry, "cover_image_focus", None),
-                "release_date": primary_release_value(row.media_type, entry),
+                **cards[row.media_type][entry.system_id],
                 # One entry appears once per part voiced in it, so the
                 # casting - not the entry - is what tells two rows apart.
                 "casting_id": str(row.system_id),
