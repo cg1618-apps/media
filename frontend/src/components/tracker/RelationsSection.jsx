@@ -28,6 +28,12 @@ import { focusStyle, thumbUrl } from "../../lib/covers";
 // labels themselves arrive already resolved for the side being viewed.
 const FAMILY_ORDER = ["timeline", "equivalence", "branch", "derivation"];
 
+// Within the timeline family, Prequel above Sequel. Both are stored as
+// `sequel` rows; read from the row's `from` side ("forward") the far entry is
+// the Prequel. Every other row keeps the server's order.
+const timelineRank = (row) =>
+  row.relation_type === "sequel" ? (row.direction === "forward" ? 0 : 1) : 2;
+
 // A derived row stands for no stored row, so system_id is null on it and the
 // pair plus the kind is the only identity it has.
 const rowKey = (row) =>
@@ -70,7 +76,9 @@ export default function RelationsSection({ mediaType, entryId, onRows }) {
   if (rows.length === 0) return null;
 
   const ordered = [...rows].sort(
-    (a, b) => FAMILY_ORDER.indexOf(a.family) - FAMILY_ORDER.indexOf(b.family)
+    (a, b) =>
+      FAMILY_ORDER.indexOf(a.family) - FAMILY_ORDER.indexOf(b.family) ||
+      timelineRank(a) - timelineRank(b)
   );
 
   return (

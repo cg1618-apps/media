@@ -151,7 +151,7 @@ Dependencies: `@xyflow/react` (React Flow 12) is the only graph library in `fron
 | --- | --- | --- |
 | Admin `/relations` (`frontend/src/pages/admin/Relations.jsx`) | `RelationGraph` + `RelationForm` | editable. The lens is `?owner=franchise:<system_id>`, `?owner=series:<system_id>` or `?owner=collection:<system_id>` (tier toggle Franchise | Series | Collection); a series lens holds the entries whose own `series_id` is that series, so an anime movie appears on it only as a ghost; any other value opens the page with nothing picked. Picking, clearing, switching tier and following a ghost franchise all rewrite it (`replace`, so the back button leaves the page rather than stepping through picks) |
 | Collection / Franchise / Series hubs (`frontend/src/pages/detail/*Page.jsx`) | `<RelationGraph readOnly scopeType=… />` | read-only: handles inert, no drag/connect, no Undo/Tidy/Reset, inspector shows plain text. All three hubs give an admin an "Edit relations" link to `/relations` scoped to that group |
-| Every media detail page | `frontend/src/components/tracker/RelationsSection.jsx` "Related Entries" card, via `/for-entry` | read-only; the only place derived (transitive) rows appear |
+| Every media detail page | `frontend/src/components/tracker/RelationsSection.jsx` "Related Entries" card, via `/for-entry` | read-only; the only place derived (transitive) rows appear. Rows are grouped by family in `RELATION_FAMILIES` order, the Prequel above the Sequel within timeline, and otherwise in the server's order |
 
 ### Layout — `frontend/src/lib/relationLayout.js` (`layoutGraph`, `mergePositions`)
 
