@@ -5,7 +5,6 @@
 // episode/issue counter, so the tracker card carries no stepper and
 // GameProgress renders playtime and achievements instead.
 import { useState, useEffect, useMemo } from "react";
-import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
@@ -304,8 +303,6 @@ export default function Game() {
   const imageUrl = getCoverUrl(game.cover_image_file);
   const franchiseName = franchise ? getDisplayName(franchise, "franchise") : null;
 
-  const year = releaseYear(game.release_date);
-
   // The cover rule shows playtime, per the design: how far in you are is the
   // one number worth reading off the poster, against Main + Extra.
   const estimate = progressEstimate(game);
@@ -314,9 +311,6 @@ export default function Game() {
       ? Math.min(1, Number(game.hours_played) / estimate)
       : 0;
 
-  const eyebrow = ["Game", game.game_type, game.release_status, game.completion_level, year]
-    .filter(Boolean)
-    .join("  ·  ");
 
   return (
     // One provider around the whole page, because the notes are rendered in
@@ -448,10 +442,9 @@ export default function Game() {
 
           {/* ========== RIGHT COLUMN ========== */}
           <div className="lg:col-span-3 space-y-10">
+            {/* No eyebrow above the title: what it repeated is on the Information
+                card, and the breadcrumb names the type. */}
             <header>
-              <div className="font-mono text-[11px] text-text-muted mb-3">
-                {eyebrow}
-              </div>
               <div className="flex items-baseline gap-4 flex-wrap mb-2">
                 <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95]">
                   {titleMain}

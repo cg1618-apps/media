@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -1471,8 +1471,7 @@ Top to bottom:
 
    **A film's release.** Movie and Anime Movie show **Release Status**
    (`Not Released` / `Released` / `Canceled`) where the airing types show
-   Airing Status, in the Information card - neither page draws an eyebrow
-   line above the title - and their
+   Airing Status, in the Information card, and their
    status picker offers **Watch When Released** where the airing types offer
    Watch When Airs. Anime Movie also shows **Release Type** (Cinema / ONA), directly below Watch Status.
    An ONA has one release date: its Information card shows one **Release
@@ -1492,8 +1491,9 @@ Top to bottom:
    `/api/media-relation/for-entry?media_type=&entry_id=`, hidden when empty,
    "Related Entries" sorted by relation family; omitted on Comic), and an
    admin-only **System Info** card with the system id.
-4. **Right column**: header chips (status / type), h1 title (cn → en →
-   roman), h2 subtitle, `ContentLabelChips` — the entry's OWN content labels,
+4. **Right column**: nothing above the title - no eyebrow line; type,
+   status and dates are on the Information card and the breadcrumb names
+   the type - then the h1 title (cn → en → roman), h2 subtitle, `ContentLabelChips` — the entry's OWN content labels,
    rendered only when it has some, and never its franchise's, which are shown
    on the franchise where they can be changed — franchise/series bar linking
    to the hubs,
@@ -1598,7 +1598,7 @@ status select, which goes through `/api/me/list`.
 |---|---|---|---|
 | Anime | in rows: 本傳/外傳, Airing Type, Season Part, and Original / Remake for a remake alone (an original says nothing); Airing Status, Total Episodes (with cumulative), Runtime (min); Release Season, Release Date JP/TW; then Genre main, Genre sub and Label a row each. Season Part carries a special's episode after it - `Season 2 第13集` from `season_part` and `ep_special`, `第13集` alone when there is no season part - and there is no Special Episodes row | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
 | AnimeMovie | in rows: Release Status, Release Type, Runtime; Release Date (an ONA) or Release Date JP/TW; then Genre main, Genre sub and 標籤 Label a row each | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder; no eyebrow line above the title; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
-| Movie | 本傳/外傳 and Movie Type; Director and Runtime; Release Status, Release Date TW and USA - three rows | — | **Genres** card (`GenresCard`); inline IMDb score block; no eyebrow line above the title |
+| Movie | 本傳/外傳 and Movie Type; Director and Runtime; Release Status, Release Date TW and USA - three rows | — | **Genres** card (`GenresCard`); inline IMDb score block |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Type/Status, Release Date, Runtime (min) | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
 | Cartoon | + Airing Type, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版社 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
