@@ -638,7 +638,11 @@ columns.
   `aria-invalid` when not `YYYY` / `YYYY-MM` / `YYYY-MM-DD`, on every kind)
   and its cover - a `compact` `ImagePicker` with `ownerType="book-unit"` and
   the unit's `system_id`, which attaches through the image library at once,
-  so a row not saved yet shows "Cover after saving" instead. No rating or
+  so a row not saved yet shows "Cover after saving" instead. A new row's key
+  is prefilled as its kind's next key, counted within that kind - "Vol 1",
+  "Arc 3" (`nextUnitKey` in `lib/bookUnits.js`) - and a key still in that
+  shape follows the row when its kind is changed ("Vol 1" becomes "Story 1");
+  a typed key never does. No rating or
   remark, which are each reader's own and set on the detail page;
   `bookUnitPayload` (`lib/payloads.js`) sends a row's own fields only, its
   two dates included and its cover never (the library writes it), and
