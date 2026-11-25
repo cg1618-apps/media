@@ -429,30 +429,31 @@ export default function Cartoon() {
               <InfoCard
                 title="Information"
                 fields={[
+                  // Season is shown only when the entry has one.
                   [
                     { label: "本傳 / 外傳", value: cartoon.is_main },
-                    { label: "Season", value: cartoon.season_part },
-                  ],
-                  [
                     { label: "Airing Type", value: cartoon.airing_type },
+                    ...(cartoon.season_part
+                      ? [{ label: "Season", value: cartoon.season_part }]
+                      : []),
+                  ],
+                  [
                     { label: "Airing Status", value: cartoon.airing_status },
-                  ],
-                  [
-                    {
-                      label: "Runtime Per Ep (min)",
-                      value:
-                        cartoon.runtime_min != null
-                          ? String(cartoon.runtime_min)
-                          : null,
-                    },
-                  ],
-                  [
                     { label: "Release Date", value: cartoon.release_date },
+                  ],
+                  [
                     {
                       label: "Total Ep",
                       value:
                         cartoon.ep_total != null
                           ? String(cartoon.ep_total)
+                          : null,
+                    },
+                    {
+                      label: "Runtime Per Ep (min)",
+                      value:
+                        cartoon.runtime_min != null
+                          ? String(cartoon.runtime_min)
                           : null,
                     },
                   ],

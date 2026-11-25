@@ -649,7 +649,8 @@ export const TYPE_FIELD_META = {
     serialization_status: {
       label: "Serialization Status",
       control: "select",
-      options: MANGA_SERIALIZATION_STATUSES,
+      // Manga shares book's list; comic and h-comic keep the shorter one.
+      options: BOOK_SERIALIZATION_STATUSES,
       group: "Status",
     },
     vol_total: { label: "Total Volumes", control: "number", group: "Progress" },

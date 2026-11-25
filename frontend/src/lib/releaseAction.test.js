@@ -128,18 +128,24 @@ describe("releaseAction", () => {
       },
     );
 
-    it("book: 未出 -> Mark serializing", () => {
-      const a = releaseAction("book", { serialization_status: "未出" });
+    // Manga shares book's serialization statuses, so it has 未出 and the
+    // 連載中 variants too.
+    it.each(["book", "manga"])("%s: 未出 -> Mark serializing", (type) => {
+      const a = releaseAction(type, { serialization_status: "未出" });
       expect(a.label).toBe("Mark serializing");
       expect(a.payload).toEqual({ serialization_status: "連載中" });
     });
 
-    it("book: every 連載中 variant can finish", () => {
+    it.each(["book", "manga"])("%s: every 連載中 variant can finish", (type) => {
       for (const s of ["連載中 (不穩定)", "連載中 (有生之年)"]) {
         expect(
-          releaseAction("book", { serialization_status: s }).payload,
+          releaseAction(type, { serialization_status: s }).payload,
         ).toEqual({ serialization_status: "完結" });
       }
+    });
+
+    it.each(["comic", "h-comic"])("%s has no 未出 step", (type) => {
+      expect(releaseAction(type, { serialization_status: "未出" })).toBeNull();
     });
 
     it("leaves hiatus and cancelled alone", () => {
