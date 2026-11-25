@@ -1,22 +1,45 @@
 // Frontend: the FilterDef machinery the library pages and the random picker
 // share. The FilterDef shape itself is documented in hooks/useLibraryState.js.
 
-/** A fresh, empty filter state for `filterDefs`: a Set per def, false for booleans. */
+/** An empty range: neither bound set. */
+export const EMPTY_RANGE = Object.freeze({ min: "", max: "" });
+
+function emptyValue(fd) {
+  if (fd.type === "boolean") return false;
+  if (fd.type === "range") return { ...EMPTY_RANGE };
+  return new Set();
+}
+
+/** A fresh, empty filter state for `filterDefs`: a Set per set def, false for
+ *  a boolean, an empty { min, max } for a range. */
 export function initialFilters(filterDefs) {
-  return Object.fromEntries(
-    filterDefs.map((fd) => [fd.key, fd.type === "boolean" ? false : new Set()]),
-  );
+  return Object.fromEntries(filterDefs.map((fd) => [fd.key, emptyValue(fd)]));
 }
 
-/** True when a filter value narrows anything: a non-empty Set or a true boolean. */
+/** A range filter's state: an object with `min`/`max`, not a Set. */
+export function isRangeValue(value) {
+  return value != null && typeof value === "object" && !(value instanceof Set) && "min" in value;
+}
+
+/** One bound as a number, or null when it is blank or not a number. */
+export function rangeBound(text) {
+  if (text === "" || text == null) return null;
+  const n = Number(text);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** True when a filter value narrows anything: a non-empty Set, a true boolean,
+ *  or a range with at least one numeric bound. */
 export function isFilterActive(value) {
-  return value instanceof Set ? value.size > 0 : !!value;
+  if (value instanceof Set) return value.size > 0;
+  if (isRangeValue(value)) return rangeBound(value.min) != null || rangeBound(value.max) != null;
+  return !!value;
 }
 
-/** How many chips and toggles are on across the whole filter state. */
+/** How many chips, toggles and ranges are on across the whole filter state. */
 export function countActiveFilters(filters) {
   return Object.values(filters).reduce(
-    (n, v) => n + (v instanceof Set ? v.size : v ? 1 : 0),
+    (n, v) => n + (v instanceof Set ? v.size : isFilterActive(v) ? 1 : 0),
     0,
   );
 }
@@ -30,6 +53,11 @@ export function sameFilters(a, b) {
     if (x instanceof Set || y instanceof Set) {
       if (!(x instanceof Set && y instanceof Set) || x.size !== y.size) return false;
       for (const v of x) if (!y.has(v)) return false;
+    } else if (isRangeValue(x) || isRangeValue(y)) {
+      const bounds = (r) => (isRangeValue(r) ? [rangeBound(r.min), rangeBound(r.max)] : [null, null]);
+      const [a1, a2] = bounds(x);
+      const [b1, b2] = bounds(y);
+      if (a1 !== b1 || a2 !== b2) return false;
     } else if (!!x !== !!y) {
       return false;
     }

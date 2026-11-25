@@ -334,3 +334,15 @@ export const imdbSeriesRatingSort = {
   label: "IMDb Rating",
   compare: numericDesc((x) => parseFloat(imdbValue(x, "imdb_series_rating") ?? -1)),
 };
+
+/**
+ * A Runtime sort over one minutes column - an anime's runtime per episode,
+ * an anime movie's length - longest first, unknown last.
+ */
+export function runtimeSort(field) {
+  const minutes = (x) => {
+    const n = x[field] == null || x[field] === "" ? NaN : Number(x[field]);
+    return Number.isFinite(n) ? n : -1;
+  };
+  return { key: field, label: "Runtime", compare: (a, b) => minutes(b) - minutes(a) };
+}

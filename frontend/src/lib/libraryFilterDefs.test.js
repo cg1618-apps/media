@@ -41,7 +41,8 @@ describe("the genre filters", () => {
   });
 
   it("give a game Genre, Theme and Label", () => {
+    // The genre-related three close its advanced section.
     const advanced = LIBRARY_CONFIGS.game.filterDefs.filter((fd) => fd.advanced);
-    expect(advanced.map((fd) => fd.label)).toEqual(["Genre", "Theme", "Label"]);
+    expect(advanced.slice(-3).map((fd) => fd.label)).toEqual(["Genre", "Theme", "Label"]);
   });
 });

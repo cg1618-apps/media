@@ -2,8 +2,18 @@
 // watch-status and airing-status filters and the tag filters of the advanced
 // section. The
 // FilterDef shape itself is documented in hooks/useLibraryState.js.
-import { AIRING_STATUSES, READING_STATUSES, watchingStatusesFor } from "../config/fieldOptions";
-import { READING_STATUS_GROUP, WATCHING_STATUS_GROUP } from "../config/statusGroups";
+import {
+  AIRING_STATUSES,
+  PLAYING_STATUSES,
+  READING_STATUSES,
+  watchingStatusesFor,
+} from "../config/fieldOptions";
+import {
+  PLAYING_STATUS_GROUP,
+  READING_STATUS_GROUP,
+  WATCHING_STATUS_GROUP,
+} from "../config/statusGroups";
+import { rangeBound } from "./libraryFilters";
 
 // ---------------------------------------------------------------------------
 // Watch status
@@ -59,44 +69,89 @@ export function watchStatusFilter(type) {
 }
 
 // ---------------------------------------------------------------------------
-// Read status
+// Read and play status
 // ---------------------------------------------------------------------------
 
-// The read-status chips, in the order a title moves through them.
-export const READ_STATUS_FILTER_GROUPS = [
-  "Might Read",
-  "Planned",
-  "Reading",
-  "Completed",
-  "Dropped",
-];
-
-// A row with no status counts as Might Read, so its chip says so.
-const NO_READ_STATUS_GROUP = "Might Read";
-
-/** The hover hint of one read-status chip: the statuses it includes. */
-export function readStatusHint(group) {
-  const statuses = READING_STATUSES.filter((s) => READING_STATUS_GROUP[s] === group).join(", ");
-  return group === NO_READ_STATUS_GROUP
-    ? `Includes: ${statuses}, and no status`
-    : `Includes: ${statuses}`;
-}
-
 /**
- * The Read Status filter of manga and book. Personal: it reads the viewer's
- * own list row. Each chip's hint - and the circled ? after the label that
- * lists them all - is computed on hover, as the watch libraries' is.
+ * A grouped status filter: chips are `groups`, each standing for the stored
+ * `statuses` that `groupMap` puts in it, with a row of no status (or an
+ * unknown one) counted in `noStatusGroup`. Each chip's hint lists what it
+ * includes, and FilterPanel's circled ? lists them all. Personal: it reads the
+ * viewer's own list row.
  */
-export function readStatusFilter() {
+function statusGroupFilter({ key, label, field, groups, statuses, groupMap, noStatusGroup }) {
+  const hint = (group) => {
+    const included = statuses.filter((s) => groupMap[s] === group).join(", ");
+    return group === noStatusGroup ? `Includes: ${included}, and no status` : `Includes: ${included}`;
+  };
   return {
-    key: "readingStatus",
-    label: "Read Status",
+    key,
+    label,
     personal: true,
     type: "set-grouped",
-    groupOptions: READ_STATUS_FILTER_GROUPS,
-    optionHint: readStatusHint,
-    match: (item, active) =>
-      active.has(READING_STATUS_GROUP[item.reading_status] ?? NO_READ_STATUS_GROUP),
+    groupOptions: groups,
+    optionHint: hint,
+    match: (item, active) => active.has(groupMap[item[field]] ?? noStatusGroup),
+  };
+}
+
+// The read-status chips, in the order a title moves through them.
+export const READ_STATUS_FILTER_GROUPS = ["Might Read", "Planned", "Reading", "Completed", "Dropped"];
+
+/** The Read Status filter of manga and book. */
+export function readStatusFilter() {
+  return statusGroupFilter({
+    key: "readingStatus",
+    label: "Read Status",
+    field: "reading_status",
+    groups: READ_STATUS_FILTER_GROUPS,
+    statuses: READING_STATUSES,
+    groupMap: READING_STATUS_GROUP,
+    noStatusGroup: "Might Read",
+  });
+}
+
+// The play-status chips, in the order a game moves through them.
+export const PLAY_STATUS_FILTER_GROUPS = ["Might Play", "Planned", "Playing", "Completed", "Dropped"];
+
+/** The Play Status filter of the game library. */
+export function playStatusFilter() {
+  return statusGroupFilter({
+    key: "playingStatus",
+    label: "Play Status",
+    field: "playing_status",
+    groups: PLAY_STATUS_FILTER_GROUPS,
+    statuses: PLAYING_STATUSES,
+    groupMap: PLAYING_STATUS_GROUP,
+    noStatusGroup: "Might Play",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Range filters
+// ---------------------------------------------------------------------------
+
+/**
+ * A minimum/maximum filter over one number (`read(item)`): either bound alone
+ * narrows, both bounds are inclusive, and an item with no number never
+ * matches a set range. FilterPanel draws it as two number inputs; `unit` is
+ * the label after them ("h", "min").
+ */
+export function rangeFilter(key, label, read, { unit = "", advanced = true } = {}) {
+  return {
+    key,
+    label,
+    type: "range",
+    unit,
+    advanced,
+    match: (item, range) => {
+      const raw = read(item);
+      const value = raw == null || raw === "" ? null : Number(raw);
+      if (value == null || !Number.isFinite(value)) return false;
+      const min = rangeBound(range.min);
+      const max = rangeBound(range.max);
+      return (min == null || value >= min) && (max == null || value <= max);
+    },
   };
 }
 
