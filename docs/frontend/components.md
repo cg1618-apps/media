@@ -514,7 +514,13 @@ columns.
   an `exclusiveSource` that names one of the `main` access rows, which moves that
   row to the head of its section as "Netflix (Exclusive)" (the icon still looked
   up by the bare name) and is not drawn as a chip too; one no row matches keeps
-  its chip — one
+  its chip. A TV show and a cartoon pass `originalSourceAsAccess`, and their
+  `originalSource` is then never a chip: each of its values leads the access
+  section after any exclusive row, as "Disney+ (Original)" - the matching
+  `main` row, marked, when there is one, and otherwise a plain source row of
+  its own with the platform's icon, since the original source vocabulary is
+  much wider than the main sources. A movie's and an h-comic's
+  `originalSource` stay chips — one
   component composing from both the `media_source` table and the surviving
   columns/tag fields, per the guiding rule in
   [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).

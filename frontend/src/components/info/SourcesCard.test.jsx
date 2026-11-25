@@ -250,11 +250,13 @@ describe("SourcesCard", () => {
     });
   });
 
+  // A movie's and an h-comic's original source stay tags; a TV show's and a
+  // cartoon's are drawn as rows (originalSourceAsAccess, below).
   it("splits a joined original source and gives each platform its icon", () => {
     render(
       <SourcesCard
         sources={[]}
-        mediaType="tv-show"
+        mediaType="movie"
         originalSource="Netflix, Cinema"
       />,
     );
@@ -304,6 +306,54 @@ describe("SourcesCard", () => {
       const names = screen.getAllByTestId("source-name").map((n) => n.textContent);
       expect(names).toEqual(["動畫瘋", "Netflix", "Crunchyroll"]);
       expect(screen.getByTestId("source-tag")).toHaveTextContent("Crunchyroll");
+    });
+  });
+
+  // A TV show's or cartoon's original source reads like an exclusive one: a
+  // value with a main access row marks that row "(Original)" and leads the
+  // section; a value with none is still a row at the top of the section, in
+  // the same row style, never a boxed tag. The original source vocabulary is
+  // far wider than the main sources, so the second case is the common one.
+  describe("the original source of a TV show or cartoon", () => {
+    const watch = [
+      { system_id: "1", kind: "access", bucket: "main", name: "動畫瘋", url: "https://b.test", available: true },
+      { system_id: "2", kind: "access", bucket: "main", name: "Disney+", url: "https://d.test", available: true },
+      { system_id: "3", kind: "access", bucket: "other", name: "DramasQ", url: "https://q.test", available: null },
+    ];
+
+    it("marks a matching main row (Original) and puts it first", () => {
+      render(
+        <SourcesCard sources={watch} mediaType="tv-show" originalSource="Disney+" originalSourceAsAccess />,
+      );
+      const section = screen.getByRole("region", { name: "Where to Watch" });
+      const names = within(section).getAllByTestId("source-name").map((n) => n.textContent);
+      expect(names).toEqual(["Disney+ (Original)", "動畫瘋", "DramasQ"]);
+      expect(screen.getByRole("link", { name: /disney\+ \(original\)/i })).toHaveAttribute(
+        "href",
+        "https://d.test",
+      );
+      expect(screen.queryByTestId("source-tag")).toBeNull();
+    });
+
+    it("draws a value with no main row as a row of its own, first, with its icon", () => {
+      const { container } = render(
+        <SourcesCard sources={watch} mediaType="cartoon" originalSource="Netflix, HBO Max" originalSourceAsAccess />,
+      );
+      const section = screen.getByRole("region", { name: "Where to Watch" });
+      const names = within(section).getAllByTestId("source-name").map((n) => n.textContent);
+      expect(names).toEqual(["Netflix (Original)", "HBO Max (Original)", "動畫瘋", "Disney+", "DramasQ"]);
+      expect(screen.queryByTestId("source-tag")).toBeNull();
+      // Same row style as a source: an icon slot, no box.
+      const netflixRow = within(section).getByText("Netflix (Original)").closest("div");
+      expect(netflixRow.querySelector("img")).not.toBeNull();
+      expect(container.querySelector(".border-dashed, [data-testid='source-tag']")).toBeNull();
+    });
+
+    it("opens the Where to Watch section on its own when there are no access rows", () => {
+      render(<SourcesCard sources={[]} mediaType="tv-show" originalSource="Netflix" originalSourceAsAccess />);
+      const section = screen.getByRole("region", { name: "Where to Watch" });
+      expect(within(section).getByText("Netflix (Original)")).toBeInTheDocument();
+      expect(screen.queryByText("No sources recorded.")).toBeNull();
     });
   });
 

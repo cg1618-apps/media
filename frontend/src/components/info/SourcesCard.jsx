@@ -137,13 +137,13 @@ export function accessHeading(mediaType) {
 // with no cover leaves the slot empty rather than shrinking the "No Image"
 // placeholder into it.
 //
-// `exclusive` marks the row the entry's exclusive source names. The mark is
-// appended to the shown name only, so the icon is still looked up by the
-// vocabulary value.
-function SourceEntry({ row, coverUrl, exclusive = false }) {
+// `mark` names the row the entry's exclusive or original source points at -
+// "Exclusive" or "Original". It is appended to the shown name only, so the
+// icon is still looked up by the vocabulary value.
+function SourceEntry({ row, coverUrl, mark = null }) {
   const name = (
     <span data-testid="source-name">
-      {exclusive ? `${row.name} (Exclusive)` : row.name}
+      {mark ? `${row.name} (${mark})` : row.name}
     </span>
   );
   const isMain = row.bucket === "main";
@@ -206,14 +206,15 @@ export default function SourcesCard({
   dlsiteLinkJp,
   dlsiteLinkTw,
   originalSource,
+  originalSourceAsAccess = false,
   exclusiveSource,
   serializationPlatform,
   coverUrl,
 }) {
   // Never re-sort - the server already ordered these by `position`
   // (vocabulary sort_order for `main` rows, insertion order for `other`/
-  // `restricted` rows). The one exception is the main access row the
-  // exclusive source names, which leads its section.
+  // `restricted` rows). The exceptions are the main access rows the exclusive
+  // and original sources name, which lead their section.
   const allAccessRows = sources.filter((row) => row.kind === "access");
   const referenceRows = sources.filter((row) => row.kind === "reference");
 
@@ -223,14 +224,30 @@ export default function SourcesCard({
         (row) => row.bucket === "main" && row.name === exclusiveName,
       ) || null
     : null;
-  const accessRows = exclusiveRow
-    ? [exclusiveRow, ...allAccessRows.filter((row) => row !== exclusiveRow)]
-    : allAccessRows;
+  // A TV show's or cartoon's original source (`originalSourceAsAccess`) is
+  // read the same way, and leads the section after any exclusive row. A value
+  // with a main access row marks that row; a value with none - the common
+  // case, since the original source vocabulary is far wider than the main
+  // sources - is drawn as a row of its own in the same place. Each is the
+  // platform's own vocabulary value, so it wears the platform's icon.
+  const originals = originalSourceAsAccess ? tagValues(originalSource) : [];
+  const originalEntries = originals.map((name) => ({
+    name,
+    row:
+      allAccessRows.find((row) => row.bucket === "main" && row.name === name) || null,
+  }));
+  const originalRows = new Set(originalEntries.map((o) => o.row).filter(Boolean));
+  // The rest, in the server's order.
+  const accessRows = allAccessRows.filter(
+    (row) => row !== exclusiveRow && !originalRows.has(row),
+  );
+  const hasAccess = Boolean(exclusiveRow) || originalEntries.length > 0 || accessRows.length > 0;
 
   // A matched exclusive source is said by its row, so it is not a tag too.
-  // One with no row - stored before the rule required one - stays a tag.
+  // One with no row - stored before the rule required one - stays a tag. An
+  // original source drawn as rows is never a tag.
   const tags = tagValues(
-    originalSource,
+    originalSourceAsAccess ? null : originalSource,
     exclusiveRow ? null : exclusiveSource,
     serializationPlatform,
   );
@@ -240,7 +257,7 @@ export default function SourcesCard({
   const hasStorefront = Boolean(steamLink || dlsiteLinkJp || dlsiteLinkTw);
 
   const hasAny =
-    accessRows.length > 0 ||
+    hasAccess ||
     hasStorefront ||
     referenceRows.length > 0 ||
     Boolean(malLink) ||
@@ -271,18 +288,25 @@ export default function SourcesCard({
           ))}
         </div>
       )}
-      {(accessRows.length > 0 || hasStorefront) && (
+      {(hasAccess || hasStorefront) && (
         <section aria-label={accessHeading(mediaType)}>
           <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] text-text-faint">
             {accessHeading(mediaType)}
           </div>
+          {exclusiveRow && (
+            <SourceEntry row={exclusiveRow} coverUrl={coverUrl} mark="Exclusive" />
+          )}
+          {originalEntries.map(({ name, row }) =>
+            row ? (
+              <SourceEntry key={row.system_id} row={row} coverUrl={coverUrl} mark="Original" />
+            ) : (
+              <SourceRow key={name} icon={sourceIconUrl(name)}>
+                <span data-testid="source-name">{`${name} (Original)`}</span>
+              </SourceRow>
+            ),
+          )}
           {accessRows.map((row) => (
-            <SourceEntry
-              key={row.system_id}
-              row={row}
-              coverUrl={coverUrl}
-              exclusive={row === exclusiveRow}
-            />
+            <SourceEntry key={row.system_id} row={row} coverUrl={coverUrl} />
           ))}
           {/* A storefront, not a reference database - so it sits with the
               access rows rather than beside IGDB. It is column-backed
