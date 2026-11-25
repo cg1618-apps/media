@@ -374,6 +374,8 @@ export const endpoints = {
   // behind manage.pipelines, and the read has to be open to any member who
   // can open /statistics.
   planNext: {
+    // Every one of the caller's own plan rows.
+    list: () => "/api/plan-next/",
     // One of the caller's own plan rows: a PATCH of `{platform_group}`.
     row: (systemId) => `/api/plan-next/${systemId}`,
   },

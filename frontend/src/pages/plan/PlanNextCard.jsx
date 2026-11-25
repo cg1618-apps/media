@@ -4,36 +4,21 @@
 // scopes now sit side by side in the same bucket and would otherwise be
 // indistinguishable.
 //
-// A game queued to play next also carries a platform picker under its title:
-// the group it is filed under on the Do next tab (PLATFORM_GROUPS), or none.
+// The name takes up to two lines, and every card reserves both, so the cards
+// in a row line up whether a title wraps or not.
+//
+// A game or an h-game queued to play next also carries a platform picker
+// under its title: the group it is filed under on the Do next tab
+// (PLATFORM_GROUPS), or none. The game's detail page offers the same picker.
 // It sits outside the card's link, so picking does not open the game.
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, entryCover, focusStyle, thumbUrl } from "../../lib/covers";
-import { PLATFORM_GROUPS, SCOPE_LABELS } from "../../config/planNextGroups";
+import { PLATFORM_GROUP_TYPES, SCOPE_LABELS } from "../../config/planNextGroups";
 import LazyImage from "../../components/ui/LazyImage";
-import { usePlanPlatformGroup } from "../../api/mutations/usePlanPlatformGroup";
+import PlatformGroupSelect from "../../components/plan/PlatformGroupSelect";
 
-function PlatformGroupSelect({ row }) {
-  const { mutate, isPending } = usePlanPlatformGroup();
-  return (
-    <select
-      value={row.platform_group || ""}
-      disabled={isPending}
-      onChange={(e) =>
-        mutate({ systemId: row.system_id, platformGroup: e.target.value || null })
-      }
-      aria-label={`Platform group for ${row.display_name || "this game"}`}
-      className="w-full px-2 py-1 border-t border-border bg-surface text-xs text-text-muted focus:outline-none focus:ring-2 focus:ring-brand"
-    >
-      <option value="">Ungrouped</option>
-      {PLATFORM_GROUPS.map((group) => (
-        <option key={group} value={group}>
-          {group}
-        </option>
-      ))}
-    </select>
-  );
-}
+const PICKER_CLS =
+  "w-full px-2 py-1 border-t border-border bg-surface text-xs text-text-muted focus:outline-none focus:ring-2 focus:ring-brand";
 
 export default function PlanNextCard({ row }) {
   if (row.missing) {
@@ -69,7 +54,10 @@ export default function PlanNextCard({ row }) {
           </span>
         )}
       </div>
-      <p className="font-display text-sm text-text leading-tight truncate px-2 py-1.5 border-t border-border">
+      <p
+        className="font-display text-sm text-text leading-tight line-clamp-2 min-h-[2.5em] box-content px-2 py-1.5 border-t border-border"
+        title={row.display_name}
+      >
         {row.display_name}
       </p>
     </>
@@ -85,11 +73,11 @@ export default function PlanNextCard({ row }) {
   ) : (
     <div className={className}>{body}</div>
   );
-  if (row.media_type !== "game" || row.kind !== "next") return card;
+  if (!PLATFORM_GROUP_TYPES.includes(row.media_type) || row.kind !== "next") return card;
   return (
     <div className="flex flex-col border border-border [&>*:first-child]:border-0">
       {card}
-      <PlatformGroupSelect row={row} />
+      <PlatformGroupSelect row={row} className={PICKER_CLS} />
     </div>
   );
 }

@@ -449,6 +449,16 @@ declare, **silently**. `GameBase` therefore declares `play_next` and
 are deliberately unbucketed for now: length is hours, not a count of
 episodes or issues, and no threshold has been agreed.
 
+`PLATFORM_GROUPS` - `PC`, `Console`, `Handheld Console`, `Switch` - is the
+vocabulary of `plan_next.platform_group`, taken by a game's or an h-game's
+`next` row only (`PLATFORM_GROUP_MEDIA_TYPES`).
+
+The Plan page's anime tab adds two groups after the size buckets, **Movie**
+(`movie`) and **Others** (`others`), read off the entry's `airing_type` at
+display time (`ANIME_AIRING_GROUPS` in `frontend/src/config/planNextGroups.js`).
+They are not size buckets: they are not in `SIZE_GROUPS`, Calculate never
+derives them and the size override cannot set them.
+
 ### Credit roles and tag fields (`app/utils/credit_roles.py`)
 
 `CREDIT_ROLES` is the vocabulary of `media_credit.role`, and since the collapse
@@ -1173,7 +1183,7 @@ anime-movie, manga, book) and comic.
 |---|---|---|
 | `frontend/src/config/fieldOptions.js` | every `/api/constants` list (`WATCHING_STATUSES`, `FRANCHISE_TYPES`, `PERSON_ROLES`, `MEDIA_TYPES`, ...) plus `CONSTANTS_FALLBACK` | a pre-fetch **fallback only**. `frontend/src/config/useConstants.js` fetches `/api/constants` once and `applyConstants()` overwrites each array's contents in place, so every Add/Modify `<select>` shows API values after the first paint. `App.jsx` calls the hook at the root to force that re-render. |
 | `frontend/src/config/weekdays.js` | `WEEKDAYS` | same in-place overwrite via `day_of_week` |
-| `frontend/src/config/planNextGroups.js` | `SIZE_GROUPS`, `ALLOWED_SCOPES`, `KINDS` from `plan_next_kinds.py` | **hand-maintained**; `GET /api/plan-next/kinds` is not called. `planNext.test.js` guards `ALLOWED_SCOPES`/`KINDS` against drift; `SIZE_GROUPS` has no guard. It also adds two frontend-only groupings: manga by `serialization_status` (`完結`, `連載中`, `腰斬`, `停更`, ungrouped label `其他`) and book by `type` (`網路小說` first, then `輕小說`, `小說`, `短篇集`, `指南/設定集`, `其他`; an empty type falls into `其他`). |
+| `frontend/src/config/planNextGroups.js` | `SIZE_GROUPS`, `ALLOWED_SCOPES`, `KINDS`, `PLATFORM_GROUPS` and `PLATFORM_GROUP_MEDIA_TYPES` (as `PLATFORM_GROUP_TYPES`) from `plan_next_kinds.py` | **hand-maintained**; `GET /api/plan-next/kinds` is not called. `planNext.test.js` guards `ALLOWED_SCOPES`, `KINDS`, the five types' `SIZE_GROUPS` keys and `PLATFORM_GROUP_TYPES` against drift. It also adds three frontend-only groupings: manga by `serialization_status` (`完結`, `連載中`, `腰斬`, `停更`, ungrouped label `其他`), book by `type` (`網路小說` first, then `輕小說`, `小說`, `短篇集`, `指南/設定集`, `其他`; an empty type falls into `其他`), and anime's `movie` "Movie" and `others` "Others" by `airing_type`, after its size buckets (`planNextGroups(mediaType)` returns a tab's whole list). |
 | `frontend/src/utils/planNext.js` | `COMIC_BANDS` (a copy of the comic `SIZE_THRESHOLDS`) | hand-maintained |
 | `frontend/src/config/statusGroups.js` | `COMPLETED_STATUSES`; `WATCHING_STATUS_GROUP` / `READING_STATUS_GROUP` filter buckets (`Might Watch`/`Might Read`, `Planned`, `Watching`/`Reading`, `Completed`, `Dropped`); `STATUS_PICKER_GROUP` / `groupStatusOptions()` picker groups (`Not Released`, `On-Going`, `Done`) | hand-maintained; both groupings exist only in the frontend. The picker groups are a **display aid only** - `components/ui/StatusOptions.jsx` renders them as `<optgroup>`s in every Add/Modify and detail-page status `<select>`, and nothing filters, sorts or counts by them. A status the map does not know still renders, ungrouped, at the end of the list. |
 | `frontend/src/components/tracker/OrderEditor.jsx` | `ITEM_IMPORTANCE` | hand-maintained mirror |

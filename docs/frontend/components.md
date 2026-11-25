@@ -337,8 +337,25 @@ columns.
   `pillCls`) and `HubStates`: the franchise/series/collection hub chrome in
   the archive look. `HeroCover` takes `cover`, the `{ url, focus }` a group
   resolver in `lib/covers.js` returns.
-- **`components/cards`** — `MediaCard` (one card for all twelve types,
-  `variant="future"`; its status button - drawn for a holder of `self.list`
+- **`components/cards`** — `FutureReleaseCard`, the card for a title not
+  released yet, drawn by the Plan page's future-releases section and by
+  Future Releases so the two cannot drift. It fills `MediaCard`'s
+  `variant="future"` frame through its `coverBadges` and `meta` props: the
+  type at the cover's top left (`futureTypeLabel` - the airing type on
+  anime, TV show and cartoon, "Movie" on an anime movie, the type's label on
+  the rest, so a hentai reads "Hentai"), the viewer's own franchise
+  expectation at the top right for a holder of `self.list` only, Highest in
+  the brand tone (`expectationTone`), and the linked platform icons at the
+  bottom left. Under the title: the studio on an anime; the exact date and
+  the runtime on a movie or an anime movie; the date alone on a TV show (no
+  region), a cartoon, a comic or a hentai; the game type and date on a game
+  or an h-game; the author and illustrator (`author_plot` / `author_draw`,
+  named once when they are one person) and "Next vol." with its JP and TW
+  dates - or the release date when no volume is announced - on a manga; the
+  author and illustrator with the date on an h-comic; the book type and its
+  own upcoming date, else its first release, on a book. An undated title
+  reads TBD. `MediaCard` (one card for all twelve types,
+  `variant="future"` being the frame above; its status button - drawn for a holder of `self.list`
   (`useViewScope().ownData`), movies included, and absent without a list,
   chip and all - comes from `getCardStatusConfig(type, status)`, which dispatches on the watch / read / **play** axis, and its
   progress line for a game is `hours_played` against `progressEstimate`
@@ -356,7 +373,8 @@ columns.
   select comes from `FUTURE_STATUS_OPTIONS`, keyed on the same axis, and the
   bolt from `BOLT_RELEASE`, which names the column that says a title is still
   unreleased — `airing_status` for the airing types, `release_status` for a
-  movie, an anime movie or a game. A film's select offers Watch When Released
+  movie, an anime movie or a game. A type on neither (a book, a manga) keeps
+  the status button in place of the select and draws no bolt. A film's select offers Watch When Released
   where the airing types offer Watch When Airs, and its bolt writes
   `release_status: "Released"` and moves the viewer's own `Watch When
   Released` to `Active Watching`, any other status left alone. Its outside-score slot — the meta-line figure on anime, manga,
@@ -900,7 +918,15 @@ columns.
     typed country outside the list is kept as typed. A publisher's single
     Country field (`PublisherFields` in `pages/add-tabs/PublisherAddTab.jsx`)
     is a `SuggestInput` over the same values, storing what is typed.
-- **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`.
+- **`components/plan`** — `PlanKindToggles`, `SizeGroupControls`,
+  `PlatformGroupSelect` (the picker that files a queued game or h-game under
+  a platform group, PATCHing its plan row through `usePlanPlatformGroup`;
+  the Plan page's card and the detail pages draw this one control) and
+  `PlanPlatformGroupField` (the game and h-game detail pages' "Platform
+  group" field: the viewer's own `next` row found in `usePlanNextRows`,
+  drawn only while the entry is queued and the row is loaded). The detail
+  page passes it to `MyTrackerCard` as `watchNextGroup`, which the card
+  draws after its Play Next toggle.
 - **`components/resources`** — `ResourceTree` (the `/resources` tree: nested
   collapsible groups, items, and for a manage.catalog holder every add, edit,
   delete and move control, sharing drag state through a context) and
@@ -1383,6 +1409,11 @@ under sticky division headers and the filter bar.
   non-empty sections, from its `SECTIONS` list, each a `TocSection` with id
   `search-<bucket>`. Its offset is the nav plus its own sticky header, and
   its `ContentsBar` sits inside that header, which pins it.
+- **The Plan page** writes its rows down (`planTocItems` in
+  `pages/public/Plan.jsx`): Do next, To redo and Future releases, then a
+  level-2 row per year group of the future-releases section, from the same
+  `usePlanFuture` the section draws. Its `ContentsBar` is pinned under the
+  nav, as on a detail page, and the offset is the nav plus that bar.
 - **Notes** list at card level only. `NotesBlocks` wraps the Notes card
   (`#notes`), each group card (`#notes-<group key>`) and each standalone
   section (`#notes-<section key>`) in a `TocSection`, labelled with only the

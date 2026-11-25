@@ -922,9 +922,9 @@ business-rules.md.
 
 | Method   | Path           | Description |
 | -------- | -------------- | ----------- |
-| `GET`    | `/kinds`       | The vocabulary: `scopes`, `kinds`, `allowed_scopes` per kind and media type, `size_groups`, and `platform_groups` (`{"game": ["PC", "Console", "Handheld Console", "Switch"]}`). |
+| `GET`    | `/kinds`       | The vocabulary: `scopes`, `kinds`, `allowed_scopes` per kind and media type, `size_groups`, and `platform_groups` (`{"game": [...], "h-game": [...]}`, each `["PC", "Console", "Handheld Console", "Switch"]`). |
 | `GET`    | `/`            | The caller's rows. Optional `media_type`, `scope`, `kind`. A row whose entry is hidden from the caller is left out; one whose target was deleted reads `missing: true`. |
-| `POST`   | `/`            | Plan something. Body: `media_type`, `scope`, `target_id`, optional `remark`, `kind` (default `next`) and `platform_group`. 409 when already planned under that kind; 422 for an unknown kind, or a `platform_group` that is not one of `platform_groups` or sits on anything but a game's `next` row. |
+| `POST`   | `/`            | Plan something. Body: `media_type`, `scope`, `target_id`, optional `remark`, `kind` (default `next`) and `platform_group`. 409 when already planned under that kind; 422 for an unknown kind, or a `platform_group` that is not one of `platform_groups` or sits on anything but a game's or an h-game's `next` row. |
 | `PATCH`  | `/{system_id}` | Body `{platform_group}`: files one of the caller's own rows under a group, or `null` back under none. Same 422s as create; 404 for another user's row or a hidden target. |
 | `DELETE` | `/target`      | Un-plan by `scope`, `media_type`, `target_id` and `kind`. |
 | `DELETE` | `/{system_id}` | Un-plan by row id. |

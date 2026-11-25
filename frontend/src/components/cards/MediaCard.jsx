@@ -3,6 +3,11 @@
 // An archive card: the cover across the full width with the rating stamp
 // top-right, then the title in the display face and one mono line of
 // metadata. No grid card names its type in a spine; the page it sits on does. Flat, no hover zoom - the border darkens.
+//
+// The "future" variant is the frame FutureReleaseCard fills: what sits on its
+// cover and under its title comes in as `coverBadges` and `meta`, so the
+// future-release content lives in that one component. The frame keeps the
+// footer - the status select and the release bolt.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -36,7 +41,6 @@ import PlatformIcons from "./PlatformIcons";
 import LazyImage from "../ui/LazyImage";
 import { formatProgress, parseProgressTotal } from "../../lib/progressStep";
 import { progressEstimate } from "../../lib/gameHours";
-import { expectationTone } from "../../lib/groupSort";
 
 // The statuses the future variant's select offers, per status axis. A game
 // is on the play axis, so it must not be offered the watch vocabulary, and a
@@ -61,11 +65,11 @@ const BOLT_RELEASE = {
 };
 
 // Small ink label laid over cover art.
-const OVERLAY_CLS =
+export const OVERLAY_CLS =
   "bg-black/60 text-white px-1.5 py-0.5 font-mono text-[9px] leading-none z-10";
 // The same label in the brand fill: a Highest expectation, and only that,
 // stands out from the rest (lib/groupSort.js, expectationTone).
-const OVERLAY_BRAND_CLS =
+export const OVERLAY_BRAND_CLS =
   "bg-brand text-on-brand px-1.5 py-0.5 font-mono text-[9px] leading-none z-10";
 
 // Score figure on a mono meta line (MAL / AniList / IMDb).
@@ -109,7 +113,7 @@ function ImdbShowScore({ data }) {
   return null;
 }
 
-function MetaLine({ children, className = "" }) {
+export function MetaLine({ children, className = "" }) {
   return (
     <div
       className={`font-mono text-[10px] text-text-faint mb-3 flex items-center justify-between gap-1 ${className}`}
@@ -120,45 +124,14 @@ function MetaLine({ children, className = "" }) {
 }
 
 // The tile the platform icons sit on over cover art.
-const PLATFORM_BOX_CLS = "bg-surface/95 px-1 py-0.5 border border-border";
+export const PLATFORM_BOX_CLS = "bg-surface/95 px-1 py-0.5 border border-border";
 
-function PosterBadges({ type, variant, data, franchiseDict }) {
-  const franchise = franchiseDict?.[data.franchise_id];
-  // The franchise's expectation is the viewer's own (self.list). The
-  // entry's own rating stamp below is the viewer's own list rating, which a
-  // viewer without a list simply does not have.
-  const { ownData: showPersonal } = useViewScope();
-  const expectation = showPersonal ? franchise?.franchise_expectation : null;
-
-  if (variant === "future") {
-    return (
-      <>
-        {expectation && (type === "anime" || type === "cartoon") && (
-          <div
-            className={`absolute top-1 left-1 ${
-              expectationTone(expectation) === "brand" ? OVERLAY_BRAND_CLS : OVERLAY_CLS
-            }`}
-          >
-            {expectation}
-          </div>
-        )}
-        {(type === "anime" || type === "cartoon") && data.airing_type && (
-          <div className={`absolute top-1 right-1 ${OVERLAY_CLS}`}>
-            {data.airing_type}
-          </div>
-        )}
-        <PlatformIcons
-          sources={data.sources}
-          className={`absolute bottom-1 left-1 z-10 ${PLATFORM_BOX_CLS}`}
-        />
-      </>
-    );
-  }
-
-  // Every card but the future one: the outside score sits on the meta line,
-  // not the cover, and the TV show's region and the game's, book's and
-  // comic's type take the cover's top-left corner, opposite the rating stamp.
-  // One look on the libraries and on a franchise's entries.
+// Every card but the future one: the outside score sits on the meta line,
+// not the cover, and the TV show's region and the game's, book's and comic's
+// type take the cover's top-left corner, opposite the rating stamp. One look
+// on the libraries and on a franchise's entries. The rating stamp is the
+// viewer's own list rating, which a viewer without a list does not have.
+function PosterBadges({ type, data }) {
   return (
     <>
       <RatingStamp
@@ -504,62 +477,6 @@ function ProgressDisplay({ type, data, showVol, onToggleVol }) {
   return null;
 }
 
-function FutureMeta({ type, data }) {
-  if (type === "anime") {
-    return data.studio ? (
-      <p className="font-mono text-[10px] text-text-faint truncate mt-0.5">
-        {data.studio}
-      </p>
-    ) : null;
-  }
-  if (type === "anime-movie") {
-    const length = formatLength(data.length_min);
-    const year = releaseYear(data.release_date_jp || data.release_date_tw);
-    return (
-      <MetaLine className="mt-1 mb-0">
-        {length && <span className="shrink-0">{length}</span>}
-        {year ? <span className="truncate">{year}</span> : null}
-      </MetaLine>
-    );
-  }
-  if (type === "movie") {
-    const length = formatLength(data.length_min);
-    const d = data.release_date_tw || data.release_date_usa || "";
-    const year = releaseYear(d);
-    const shownYear = year || "TBD";
-    return (
-      <MetaLine className="mt-1 mb-0">
-        {length && <span className="shrink-0">{length}</span>}
-        <span className="truncate">{shownYear}</span>
-      </MetaLine>
-    );
-  }
-  if (type === "tv-show") {
-    return (
-      <MetaLine className="mt-1 mb-0">
-        {data.region && <span className="shrink-0">{data.region}</span>}
-        <span className="truncate">{data.release_date || "TBD"}</span>
-      </MetaLine>
-    );
-  }
-  if (type === "cartoon") {
-    return (
-      <div className="font-mono text-[10px] text-text-faint mt-1 truncate">
-        {data.release_date || "TBD"}
-      </div>
-    );
-  }
-  if (type === "game") {
-    return (
-      <MetaLine className="mt-1 mb-0">
-        {data.game_type && <span className="shrink-0">{data.game_type}</span>}
-        <span className="truncate">{data.release_date || "TBD"}</span>
-      </MetaLine>
-    );
-  }
-  return null;
-}
-
 // Types whose bolt action also offers to move the watching status along.
 const BOLT_PROMPTS_WATCHING = new Set(["anime", "tv-show", "cartoon"]);
 
@@ -586,10 +503,11 @@ export default function MediaCard({
   type,
   variant = "library",
   data,
-  franchiseDict = {},
   isAdmin: isAdminProp,
   onUpdated,
   scoreField = "mal_rating",
+  coverBadges = null,
+  meta = null,
 }) {
   // Two different questions. The status controls write the viewer's own list
   // (/api/me), so they ask for a list (ownData, self.list). The bolt also
@@ -724,12 +642,7 @@ export default function MediaCard({
     >
       <div className="flex">
         <div className="flex-1 min-w-0 aspect-[3/4] bg-surface-2 relative overflow-hidden">
-          <PosterBadges
-            type={type}
-            variant={variant}
-            data={data}
-            franchiseDict={franchiseDict}
-          />
+          {variant === "future" ? coverBadges : <PosterBadges type={type} data={data} />}
           <LazyImage
             src={thumbUrl(imageUrl)}
             alt={title}
@@ -766,9 +679,15 @@ export default function MediaCard({
 
         {variant === "future" ? (
           <>
-            <FutureMeta type={type} data={data} />
+            {meta}
             <div className="relative z-10 mt-auto flex items-center gap-1 border-t border-border pt-2.5">
-              {ownData && (
+              {/* A type with no release to wait on (a book, a manga) has no
+                  waiting status to pick: it keeps the library's status
+                  button instead of the select. */}
+              {ownData && futureOptions.length === 0 && (
+                <div className="ml-auto shrink-0">{statusBtn}</div>
+              )}
+              {ownData && futureOptions.length > 0 && (
                 <select
                   value={currentStatus}
                   onChange={handleStatusChange}
@@ -787,7 +706,7 @@ export default function MediaCard({
                   ))}
                 </select>
               )}
-              {canEditCatalogue && (
+              {canEditCatalogue && boltRelease && (
                 <button
                   onClick={handleBoltAction}
                   className="w-6 h-6 flex items-center justify-center border border-border-strong bg-surface text-text-muted hover:border-brand hover:text-brand transition-colors text-[10px] shrink-0"

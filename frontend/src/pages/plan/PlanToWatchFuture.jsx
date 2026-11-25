@@ -1,20 +1,42 @@
-// Frontend: plan page file for PlanToWatchFuture.
-import { useState, useEffect, useMemo } from "react";
+// Frontend: the Plan page's "Plan to do for future releases" section.
+//
+// Two filters over the five watching types: "Do when released" holds what
+// the viewer is waiting on in either spelling - Watch When Airs on the airing
+// types, Watch When Released on the two films - and "Plan to do" holds
+// planned entries that are not out yet. Each is grouped by release year, TBD
+// last.
+//
+// The grouping is a hook (usePlanFuture) the Plan page calls rather than state
+// held here, because the page's table of contents lists one row per year
+// group and has to see the same groups this section draws. Every card is
+// FutureReleaseCard, the one the Future releases page draws too.
+import { useMemo, useState } from "react";
 import { releaseYear } from "../../lib/releaseDate";
 import { useAuth } from "../../contexts/AuthContext";
-import MediaCard from "../../components/cards/MediaCard";
+import { useApiQuery } from "../../hooks/useApiQuery";
+import FutureReleaseCard from "../../components/cards/FutureReleaseCard";
 import { Eyebrow } from "../../components/ui/primitives";
 import { WAIT_FOR_RELEASE_STATUSES } from "../../config/fieldOptions";
 
-// The first tab holds both waiting spellings: Watch When Airs on the airing
-// types, Watch When Released on the two films.
-const MAIN_TABS = [
-  { key: "waiting", label: "Watch when airs / released", statuses: WAIT_FOR_RELEASE_STATUSES },
-  { key: "planned", label: "Plan to watch", statuses: ["Plan to Watch"] },
+export const FUTURE_TABS = [
+  { key: "waiting", label: "Do when released", statuses: WAIT_FOR_RELEASE_STATUSES },
+  { key: "planned", label: "Plan to do", statuses: ["Plan to Watch"] },
 ];
 
 const TYPE_ORDER = ["anime", "anime_movie", "movie", "tv_show", "cartoon"];
+const TYPE_MAP = {
+  anime: "anime",
+  anime_movie: "anime-movie",
+  movie: "movie",
+  tv_show: "tv-show",
+  cartoon: "cartoon",
+};
 const SEASON_ORDER = { WIN: 0, SPR: 1, SUM: 2, FAL: 3 };
+
+/** The anchor of one year group, as the page's table of contents names it. */
+export function futureYearAnchor(year) {
+  return `plan-future-${year}`;
+}
 
 function seasonRawToKey(raw) {
   if (!raw || raw === "Not Set") return null;
@@ -96,26 +118,21 @@ function getEntryName(entry) {
   return "";
 }
 
-export default function PlanToWatchFuture({
-  allAnime,
-  allAnimeMovies,
-  allMovies,
-  allTVShows,
-  allCartoons,
-  franchiseMap,
-  onUpdated,
-}) {
-  const { isAdmin } = useAuth();
+/**
+ * The section's filter and its year groups: `{ activeTab, setActiveTab, tab,
+ * grouped }`, `grouped` being `[{ year, entries }]` in year order, TBD last.
+ */
+export function usePlanFuture({ allAnime, allAnimeMovies, allMovies, allTVShows, allCartoons }) {
   const [activeTab, setActiveTab] = useState("waiting");
-  const tab = MAIN_TABS.find((t) => t.key === activeTab);
-  const [currentSeasonKey, setCurrentSeasonKey] = useState(null);
-
-  useEffect(() => {
-    fetch("/api/system/config/current_season", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : {}))
-      .then((data) => setCurrentSeasonKey(seasonRawToKey(data.current_season || "")))
-      .catch(() => {});
-  }, []);
+  const tab = FUTURE_TABS.find((t) => t.key === activeTab);
+  // The open read every catalogue reader may ask, as the Future releases page
+  // reads it - not the Control Center's manage.pipelines route, which a
+  // member would be refused.
+  const seasonQuery = useApiQuery(
+    ["api", "seasonal", "current-season"],
+    "/api/seasonal/current-season",
+  );
+  const currentSeasonKey = seasonRawToKey(seasonQuery.data?.current_season || "");
 
   const combined = useMemo(
     () => [
@@ -155,45 +172,33 @@ export default function PlanToWatchFuture({
     return sortedYears.map((year) => ({ year, entries: groups[year] }));
   }, [combined, activeTab, tab, currentSeasonKey]);
 
+  return { activeTab, setActiveTab, tab, grouped };
+}
+
+export default function PlanToWatchFuture({ id, future, franchiseMap, onUpdated }) {
+  const { isAdmin } = useAuth();
+  const { activeTab, setActiveTab, tab, grouped } = future;
   const totalCount = grouped.reduce((sum, g) => sum + g.entries.length, 0);
 
-  const TYPE_MAP = { anime: "anime", anime_movie: "anime-movie", movie: "movie", tv_show: "tv-show", cartoon: "cartoon" };
-
-  function renderCard(entry) {
-    const type = TYPE_MAP[entry._type];
-    if (!type) return null;
-    return (
-      <MediaCard
-        key={entry.system_id}
-        type={type}
-        variant="future"
-        data={entry}
-        franchiseDict={franchiseMap}
-        isAdmin={isAdmin}
-        onUpdated={onUpdated}
-      />
-    );
-  }
-
   return (
-    <section>
+    <section id={id}>
       <h2 className="font-display text-3xl font-semibold text-text leading-none mb-4 pb-3 border-b border-border">
-        Plan to watch for future releases
+        Plan to do for future releases
       </h2>
 
-      {/* Tab bar */}
+      {/* Filter */}
       <div className="flex flex-wrap gap-1.5 mb-6">
-        {MAIN_TABS.map((tab) => (
+        {FUTURE_TABS.map((t) => (
           <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            key={t.key}
+            onClick={() => setActiveTab(t.key)}
             className={`px-3 py-1 text-xs font-medium border transition-colors whitespace-nowrap ${
-              activeTab === tab.key
+              activeTab === t.key
                 ? "bg-brand text-on-brand border-brand"
                 : "bg-surface border-border-strong text-text-muted hover:border-text hover:text-text"
             }`}
           >
-            {tab.label}
+            {t.label}
           </button>
         ))}
       </div>
@@ -202,9 +207,7 @@ export default function PlanToWatchFuture({
       {totalCount === 0 ? (
         <div className="text-center py-12 border border-dashed border-border-strong">
           <Eyebrow className="mb-1">Empty</Eyebrow>
-          <p className="text-text-muted text-sm">
-            No entries with &ldquo;{tab.label}&rdquo; status.
-          </p>
+          <p className="text-text-muted text-sm">Nothing in &ldquo;{tab.label}&rdquo; yet.</p>
           <p className="text-text-faint text-xs mt-1">
             Set watching status on an entry to see it here.
           </p>
@@ -212,7 +215,7 @@ export default function PlanToWatchFuture({
       ) : (
         <div className="space-y-8">
           {grouped.map(({ year, entries }) => (
-            <div key={year}>
+            <div key={year} id={futureYearAnchor(year)}>
               <div className="flex items-baseline gap-3 mb-3 pb-1 border-b border-border">
                 <span className="font-display text-xl text-text leading-none tabular-nums">
                   {year}
@@ -222,7 +225,16 @@ export default function PlanToWatchFuture({
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {entries.map((entry) => renderCard(entry))}
+                {entries.map((entry) => (
+                  <FutureReleaseCard
+                    key={entry.system_id}
+                    type={TYPE_MAP[entry._type]}
+                    data={entry}
+                    franchiseDict={franchiseMap}
+                    isAdmin={isAdmin}
+                    onUpdated={onUpdated}
+                  />
+                ))}
               </div>
             </div>
           ))}
@@ -231,4 +243,3 @@ export default function PlanToWatchFuture({
     </section>
   );
 }
-

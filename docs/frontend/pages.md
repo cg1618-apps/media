@@ -1711,9 +1711,13 @@ Watch/Read Next and To Rewatch/Reread checkboxes) on Anime, TV (`watch_next`
 + `to_rewatch`), Cartoon (`watch_next`), AnimeMovie and Movie (no stepper,
 `watch_next` + `to_rewatch`, Paused at placeholder `1:10:00`) - those five
 pass `onTimeFinChange` - Comic (`issue_fin`, `reading_status`, `to_reread`),
-Game and H-Game (`playing_status`, `to_replay`). Game and H-Game pass **no**
+Game and H-Game (`playing_status`, `play_next`, `to_replay`). Game and H-Game pass **no**
 `onEpChange`, which is what drops the stepper: a game has no unit to count
-off, and playtime lives in its own Progress slip instead.
+off, and playtime lives in its own Progress slip instead. Both pass
+`watchNextGroup`: while the entry is queued to play next, a **Platform
+group** select after the Play Next toggle (`PlanPlatformGroupField`) files
+the viewer's own plan row under PC, Console, Handheld Console or Switch, the
+same picker the Plan page's card carries.
 Game also renders `components/tracker/GameCompletionBlock` directly below the
 tracker: `completion_level` plus the three completion axes as four selects -
 `all_endings` and `all_collected` over `GAME_COMPLETION_FLAGS`,
@@ -1799,7 +1803,8 @@ ordinary group grips, pending the owner's design for a per-user order
 
 **H-Game** (`pages/detail/HGame.jsx`) is the second gated type's page, routed
 the same way. It is Game's page for what `h_game` holds: one `NotesProvider`
-around the page, `MyTrackerCard` (playing status, rating, To Replay), a
+around the page, `MyTrackerCard` (playing status, rating, Play Next with the
+platform group picker while queued, To Replay), a
 Progress and Todo slip, the 分歧 Choices card (`ChoiceGraphCard`), the Prices card, the read-only Copies slip
 (`GameCopiesSection`, imported from `Game.jsx`) and an Autofill button (Game's
 IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
@@ -2171,8 +2176,12 @@ Anime keeps `Not Yet Aired` from the current season onward, grouped
 year; TV also includes "Airing". Games keep `release_status`
 `Unreleased` — `Early Access` is already out and `Cancelled` is never coming —
 grouped by the year of `release_date` with TBD last, and sorted inside a year
-by that date, so a full date precedes a bare year. Cards are `MediaCard`: the status select
-is drawn for a holder of `self.list` and the release bolt for an editor
+by that date, so a full date precedes a bare year. Every card, on every tab,
+is `FutureReleaseCard` - the card the Plan page's future-releases section
+draws too (see [components.md](components.md)): the type at the cover's top
+left, the viewer's own franchise expectation at its top right (each tab hands
+it the franchise list), and each type's dates under the title. The status
+select is drawn for a holder of `self.list` and the release bolt for an editor
 (`isAdmin`); `onUpdated` patches the `["media-list", type]` caches.
 **With a list**, anime and anime-movie groups are ordered by the viewer's
 status (Watch When Airs or Watch When Released, Plan to Watch, Might Watch) and then franchise
@@ -2191,20 +2200,20 @@ counts. A date that has passed drops off; the detail page still shows it.
 
 - **Books** lists a book whose own `release_date_jp` or `release_date_tw` is
   upcoming, and a book with a unit whose `release_date_jp` or
-  `release_date_tw` is. The units come in the book list's own payload. Under
-  the card are the book's own dates when one of them is upcoming, then each
-  upcoming unit by its name (`name_cn` / `name_en`, else its `display_key`),
-  its cover thumbnail and its dates (`components/info/BookUnitParts.jsx`). A
-  unit already out is not listed, though its book is.
+  `release_date_tw` is. The units come in the book list's own payload. The
+  card carries the book's type and date; under it is each upcoming unit by
+  its name (`name_cn` / `name_en`, else its `display_key`), its cover
+  thumbnail and its dates (`components/info/BookUnitParts.jsx`). A unit
+  already out is not listed, though its book is.
 - **Manga** lists a manga whose `next_vol_release_date_jp` or
-  `next_vol_release_date_tw` is upcoming, with "Next vol." and both dates
-  under the card.
+  `next_vol_release_date_tw` is upcoming; its card carries "Next vol." with
+  both dates.
 
 Both group by the year of the row's earliest upcoming date - the book's own
 or a unit's, whichever comes first - and order a year by that date, then by
-name; every row is dated, so there is no TBD group. The cards are the
-library's `MediaCard` (its reading-status button), not the future variant,
-whose status select and release bolt are the watch and play axes'.
+name; every row is dated, so there is no TBD group. A book or a manga has
+no waiting status and no release status, so its card keeps the
+reading-status button and draws no bolt.
 
 ### RandomPicker — `/random` · `/random/:type`
 
@@ -2337,24 +2346,54 @@ Files `pages/public/Plan.jsx`, `pages/plan/usePlanData.js`, `PlanWatchNext.jsx`,
 `PlanToRewatch.jsx`, `PlanToWatchFuture.jsx`, `PlanNextCard.jsx`.
 `usePlanData` runs a `useMediaList` for franchise, series and each of the twelve
 entry types (`h-comic`, `h-game` and `hentai` each enabled only for a session that can see it)
-and `useQuery({ queryKey: ["plan-next"], queryFn: () => fetchJson("/api/plan-next/") })`
-— deliberately not a media-list key. Rows are decorated with a `bucket`
-(`utils/planNext.js` `entryBucket`) and a cover for franchise/series scopes.
-Sections: **Do next** (`PLAN_TABS`, `kind === "next"`, grouped by
-`SIZE_GROUPS` with manga's empties under "其他"; the **Game** tab groups by
-the plan row's own `platform_group` - PC, Console, Handheld Console, Switch
-(`PLATFORM_GROUPS`), then the rows with none under "Ungrouped" - and each game
-card carries a picker beneath it, outside the card's link, that PATCHes
-`/api/plan-next/{id}` (`usePlanPlatformGroup`) and refetches `["plan-next"]`;
-**H-Comic**,
-**H-Game** and **Hentai** are ungrouped the same way and each drawn only for a session that can see the type; hentai is queued at entry scope only), **To redo**
-(`REWATCH_TABS`, scopes Franchise → Series → Entries via `scopesFor`; h-comic and hentai at entry scope only, h-game at all three as game),
-**Plan to Watch for Future Releases** (Watch when airs / released - both
-statuses - / Plan to Watch,
-grouped by year, `MediaCard variant="future"`; an update bumps `reloadKey`
-which invalidates `["media-list"]` and `["plan-next"]`). Toggling plan flags
-happens on hubs, detail pages and Modify, not here; a game's platform group
-is the one thing set here. See systems/plan-next.md.
+and `usePlanNextRows` (`hooks/usePlanNextRows.js`, the query `["plan-next"]`
+on `GET /api/plan-next/`) — deliberately not a media-list key. Rows are
+decorated with a `bucket` (`utils/planNext.js`: `entryBucket` for an entry
+row, `groupRowBucket` for a series or franchise row) and a cover for
+franchise/series scopes.
+
+The page is the three sections with a **table of contents** on the right on
+xl+ screens (`TableOfContents`) and, below xl, the same main rows as a line of
+chips pinned under the nav (`ContentsBar`), as on a detail page; an anchor's
+offset is the nav plus the pinned bar. The rows are **Do next**, **To redo**
+and **Future releases**, then one level-2 row per year group the
+future-releases section draws (`planTocItems`); Do next and To redo list
+nothing under them, since their groups change with the tab.
+
+Every card's name takes up to two lines (`line-clamp-2`) and reserves both,
+so a row of cards lines up. A series or franchise row carries a **Series** or
+**Franchise** badge at the cover's top left (`SCOPE_LABELS`); an entry row
+carries none.
+
+- **Do next** (`PLAN_TABS`, `kind === "next"`, grouped by `planNextGroups`,
+  with manga's empties under "其他"). The **Anime** tab draws its size buckets
+  (12 EP, 24 EP, 30+ EP) for TV-airing rows, then **Movie** (an entry whose
+  `airing_type` is Movie) and **Others** (any other non-TV airing type - OVA,
+  ONA, Special - and a series or franchise row with no size bucket), then
+  "Ungrouped" for a TV entry whose group has no bucket. The **Game** and
+  **H-Game** tabs group by the plan row's own `platform_group` - PC, Console,
+  Handheld Console, Switch (`PLATFORM_GROUPS`), then the rows with none under
+  "Ungrouped" - and each such card carries a picker beneath it, outside the
+  card's link (`components/plan/PlatformGroupSelect.jsx`), that PATCHes
+  `/api/plan-next/{id}` (`usePlanPlatformGroup`) and refetches `["plan-next"]`;
+  the game's or h-game's detail page offers the same picker. **H-Comic** and
+  **Hentai** are ungrouped; each gated tab is drawn only for a session that
+  can see the type, and hentai is queued at entry scope only.
+- **To redo** (`REWATCH_TABS`, scopes Franchise → Series → Entries via
+  `scopesFor`; h-comic and hentai at entry scope only, h-game at all three as
+  game).
+- **Plan to do for future releases** (filters **Do when released** - Watch
+  When Airs and Watch When Released - and **Plan to do** - Plan to Watch on a
+  title not out yet -, grouped by year, TBD last, each group anchored for the
+  contents). The grouping is `usePlanFuture`, called by the page so the
+  contents and the section read the same groups; the current season comes
+  from the open `/api/seasonal/current-season`. Every card is
+  `FutureReleaseCard`, the one Future Releases draws. An update bumps
+  `reloadKey`, which invalidates `["media-list"]` and `["plan-next"]`.
+
+Toggling plan flags happens on hubs, detail pages and Modify, not here; a
+game's platform group is the one thing set here as well as on its detail
+page. See systems/plan-next.md.
 
 ### Quotes — `/quote` · Memes — `/meme`
 

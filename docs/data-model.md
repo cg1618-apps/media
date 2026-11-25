@@ -2239,7 +2239,7 @@ Model: `PlanNext` (`app/models/plan_next.py`).
 | `franchise_id` | UUID | yes | | Franchise-scope owner. FK `fk_plan_next_franchise` `ON DELETE CASCADE` |
 | `series_id` | UUID | yes | | Series-scope owner. FK `fk_plan_next_series` `ON DELETE CASCADE` |
 | `remark` | Text | yes | | e.g. "after the movie" |
-| `platform_group` | String | yes | | The group a queued game is filed under on the Plan page's Do next tab: one of `PLATFORM_GROUPS` (`PC`, `Console`, `Handheld Console`, `Switch`) in `app/utils/plan_next_kinds.py`, or NULL for ungrouped. Only a game's `kind = next` row may hold one; the router refuses it (422) anywhere else. Validated in the API layer, not a DB enum. Travels in the Plan Next sheet tab; a sheet backed up before the column existed restores every row ungrouped |
+| `platform_group` | String | yes | | The group a queued game or h-game is filed under on the Plan page's Do next tab: one of `PLATFORM_GROUPS` (`PC`, `Console`, `Handheld Console`, `Switch`) in `app/utils/plan_next_kinds.py`, or NULL for ungrouped. Only a game's or an h-game's `kind = next` row may hold one (`PLATFORM_GROUP_MEDIA_TYPES`); the router refuses it (422) anywhere else. Validated in the API layer, not a DB enum. Travels in the Plan Next sheet tab; a sheet backed up before the column existed restores every row ungrouped |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Exactly one owner column is set: `ck_plan_next_one_owner` is
