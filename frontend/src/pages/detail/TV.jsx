@@ -421,9 +421,18 @@ export default function TV() {
               <InfoCard
                 title="Information"
                 fields={[
+                  // Season is shown only when the entry has one.
                   [
+                    { label: "Region", value: show.region },
                     { label: "本傳 / 外傳", value: show.is_main },
-                    { label: "Season", value: show.season_part },
+                    ...(show.season_part
+                      ? [{ label: "Season", value: show.season_part }]
+                      : []),
+                  ],
+                  [
+                    { label: "Airing Type", value: show.airing_type },
+                    { label: "Airing Status", value: show.airing_status },
+                    { label: "Release Date", value: show.release_date },
                   ],
                   [
                     {
@@ -434,11 +443,6 @@ export default function TV() {
                       label: "Runtime (min)",
                       value: show.runtime_min != null ? String(show.runtime_min) : null,
                     },
-                  ],
-                  [
-                    { label: "Airing Type", value: show.airing_type },
-                    { label: "Airing Status", value: show.airing_status },
-                    { label: "Release Date", value: show.release_date },
                   ],
                 ]}
               />
