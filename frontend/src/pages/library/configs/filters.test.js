@@ -111,8 +111,8 @@ const ADVANCED_KEYS = {
   movie: ["exclusiveSource", "genreMain", "genreSub", "label"],
   "tv-show": ["originalSource", "genreMain", "genreSub", "label"],
   cartoon: ["genreMain", "genreSub", "label"],
-  manga: ["genreMain", "genreSub", "label"],
-  book: ["genreMain", "genreSub", "label"],
+  manga: ["publisherTw", "genreMain", "genreSub", "label"],
+  book: ["publisherTw", "genreMain", "genreSub", "label"],
   comic: ["genreMain", "genreSub", "label", "era", "events"],
   game: ["gameGenre", "gameTheme", "label"],
   "h-game": ["gameGenre", "gameTheme", "hGenrePlot", "hGenreAppearance", "hGenreRelation"],
@@ -258,4 +258,63 @@ it("filters a comic by era and by any of its events, most-carried first", () => 
   expect(byKey("era").deriveOptions(items)).toEqual(["Modern", "Silver"]);
   expect(byKey("events").deriveOptions(items)).toEqual(["Secret Wars", "Civil War"]);
   expect(applyFilterDefs(items, defs, active(defs, "events", ["Civil War"])).map((i) => i.system_id)).toEqual(["a"]);
+});
+
+// Manga and book: chips in each vocabulary's own order (only the values the
+// library holds, any value outside the vocabulary after them), Read Status
+// grouped might, planned, reading, completed, dropped with a hint per chip,
+// and Publisher TW in the advanced section ahead of the genres.
+describe.each(["manga", "book"])("the %s library's filters", (type) => {
+  const defs = LIBRARY_CONFIGS[type].filterDefs;
+  const byKey = (key) => defs.find((fd) => fd.key === key);
+  const options = (key, values, field) =>
+    byKey(key).deriveOptions([...values].reverse().map((v) => ({ [field]: v })));
+
+  it("orders Serialization Status the way a run moves", () => {
+    const ORDER = ["未出", "連載中", "連載中 (不穩定)", "連載中 (有生之年)", "停更", "可能更多", "完結", "腰斬"];
+    expect(options("serializationStatus", [...ORDER, "Legacy"], "serialization_status")).toEqual([
+      ...ORDER,
+      "Legacy",
+    ]);
+    expect(options("serializationStatus", ["完結", "未出"], "serialization_status")).toEqual(["未出", "完結"]);
+  });
+
+  it("groups Read Status might, planned, reading, completed, dropped, each with its statuses as a hint", () => {
+    const read = byKey("readingStatus");
+    expect(read.groupOptions).toEqual(["Might Read", "Planned", "Reading", "Completed", "Dropped"]);
+    expect(read.optionHint("Reading")).toBe("Includes: Active Reading, Passive Reading, Paused");
+    expect(read.optionHint("Might Read")).toMatch(/no status/);
+    const items = [
+      { system_id: "a", reading_status: "Paused" },
+      { system_id: "b", reading_status: null },
+    ];
+    expect(applyFilterDefs(items, defs, active(defs, "readingStatus", ["Reading"])).map((i) => i.system_id)).toEqual(["a"]);
+    expect(applyFilterDefs(items, defs, active(defs, "readingStatus", ["Might Read"])).map((i) => i.system_id)).toEqual(["b"]);
+  });
+
+  it("puts Publisher TW, most-carried first, ahead of the genres", () => {
+    const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
+    expect(advanced).toEqual(["publisherTw", "genreMain", "genreSub", "label"]);
+    expect(byKey("publisherTw").label).toBe("Publisher TW");
+    const rows = [{ publisher_tw: "東立, 青文" }, { publisher_tw: "青文" }, { publisher_tw: null }];
+    expect(byKey("publisherTw").deriveOptions(rows)).toEqual(["青文", "東立"]);
+  });
+});
+
+it("orders the manga regions 日 韓 國 台 其他", () => {
+  const def = LIBRARY_CONFIGS.manga.filterDefs.find((fd) => fd.key === "region");
+  const ORDER = ["日漫", "韓漫", "國漫", "台漫", "其他"];
+  expect(def.deriveOptions([...ORDER].reverse().map((region) => ({ region })))).toEqual(ORDER);
+});
+
+it("puts a book's Type above Region, each in its vocabulary's order", () => {
+  const defs = LIBRARY_CONFIGS.book.filterDefs;
+  const keys = defs.map((fd) => fd.key);
+  expect(keys.indexOf("type")).toBe(keys.indexOf("region") - 1);
+  const derive = (key, field, values) =>
+    defs.find((fd) => fd.key === key).deriveOptions([...values].reverse().map((v) => ({ [field]: v })));
+  const TYPES = ["小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他"];
+  expect(derive("type", "type", TYPES)).toEqual(TYPES);
+  const REGIONS = ["Western", "JP", "CN", "KR", "TW"];
+  expect(derive("region", "region", REGIONS)).toEqual(REGIONS);
 });
