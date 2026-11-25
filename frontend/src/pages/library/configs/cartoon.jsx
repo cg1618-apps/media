@@ -2,6 +2,7 @@ import {
   airingStatusColumn,
   franchiseColumn,
   imdbRatingColumn,
+  imdbAvgRatingSort,
   imdbRatingSort,
   imdbSeriesRatingSort,
   myRatingColumn,
@@ -9,7 +10,9 @@ import {
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { compareTitles } from "../../../lib/naming";
+import { CARTOON_AIRING_TYPES } from "../../../config/fieldOptions";
 import {
+  airingStatusFilter,
   genreFilters,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
@@ -43,19 +46,12 @@ const CARTOON_LIBRARY_CONFIG = {
   },
 
   filterDefs: [
-    {
-      key: "airingStatus",
-      label: "Airing Status",
-      type: "set",
-      options: ["Finished Airing", "Airing", "Not Yet Aired", "Canceled"],
-      match: (item, active) => active.has(item.airing_status),
-    },
+    airingStatusFilter(),
     {
       key: "airingType",
       label: "Airing Type",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.airing_type).filter(Boolean))].sort(),
+      type: "set",
+      options: CARTOON_AIRING_TYPES,
       match: (item, active) => active.has(item.airing_type),
     },
     watchStatusFilter("cartoon"),
@@ -83,8 +79,8 @@ const CARTOON_LIBRARY_CONFIG = {
       compare: (a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime(),
     },
     myRatingSort({ publicScore: imdbRatingSort, title: compareTitle }),
-    imdbRatingSort,
     imdbSeriesRatingSort,
+    imdbAvgRatingSort,
   ],
 
   tableColumns: [

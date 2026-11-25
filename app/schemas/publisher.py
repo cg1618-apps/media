@@ -22,7 +22,6 @@ class PublisherBase(BaseModel):
     display_name_field: Optional[str] = None
     logo_file: Optional[str] = None
     logo_focus: ImageFocus = None
-    remark: Optional[str] = None
     founded_date: Optional[str] = None
     defunct_date: Optional[str] = None
     country: Optional[str] = None

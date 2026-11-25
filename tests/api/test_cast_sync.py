@@ -12,6 +12,7 @@ import pytest
 
 from app import models
 from app.services.domain.casting_sync import fill_cast_and_characters
+from app.services.domain.entity_remarks import _remark_rows, add_remark
 from tests.api.conftest import hidden_anime, nsfw_label  # noqa: F401
 
 
@@ -54,6 +55,17 @@ def _cast(db, entry, character, *, media_type="anime", people=(), age_days=0, **
     return casting
 
 
+def _remarks(db, kind, owner):
+    """The contents of an entity's Remark list, in order."""
+    rows = _remark_rows(db, kind, owner.system_id).order_by(models.Note.sort_index)
+    return [n.content for n in rows]
+
+
+def _give_remark(db, kind, owner, text, author):
+    assert add_remark(db, kind, owner.system_id, text, author.id)
+    db.flush()
+
+
 @pytest.fixture
 def seasons(db_session, sample_franchise):
     return [_anime(db_session, sample_franchise, f"Season {n}") for n in (1, 2, 3, 4)]
@@ -73,10 +85,10 @@ def ayane(db_session):
 
 
 def test_originals_carry_the_characters_role_but_never_its_remark(
-    owner_client, db_session, seasons, character
+    owner_client, owner_user, db_session, seasons, character
 ):
     character.role = "Main"
-    character.remark = "The lead."
+    _give_remark(db_session, "character", character, "The lead.", owner_user)
     db_session.flush()
 
     r = owner_client.post("/api/casting/originals", json={
@@ -95,15 +107,14 @@ def test_originals_carry_the_characters_role_but_never_its_remark(
 
 
 def test_an_identity_rows_original_is_the_identity_with_the_characters_role(
-    owner_client, db_session, seasons, character
+    owner_client, owner_user, db_session, seasons, character
 ):
     character.role = "Main"
-    character.remark = "The character's remark."
-    identity = models.CharacterIdentity(
-        character_id=character.system_id, name_en="Masked", remark="The disguise."
-    )
+    _give_remark(db_session, "character", character, "The character's remark.", owner_user)
+    identity = models.CharacterIdentity(character_id=character.system_id, name_en="Masked")
     db_session.add(identity)
     db_session.flush()
+    _give_remark(db_session, "identity", identity, "The disguise.", owner_user)
 
     r = owner_client.post("/api/casting/originals", json={
         "media_type": "anime",
@@ -234,11 +245,11 @@ def test_originals_need_manage_catalog(client, character):
 # -- /api/character/{id}/sync-from-cast --------------------------------------
 
 
-def test_sync_from_cast_replaces_role_remark_and_photo(
-    owner_client, db_session, seasons, character
+def test_sync_from_cast_replaces_role_and_photo_and_adds_the_remark(
+    owner_client, owner_user, db_session, seasons, character
 ):
     character.role = "Supporting"
-    character.remark = "Old remark."
+    _give_remark(db_session, "character", character, "Old remark.", owner_user)
     casting = _cast(
         db_session, seasons[0], character,
         role="Main", remark="New remark.", photo_file="anime/s1-ichika.jpg",
@@ -253,16 +264,17 @@ def test_sync_from_cast_replaces_role_remark_and_photo(
     assert r.status_code == 200
     db_session.refresh(character)
     assert character.role == "Main"
-    assert character.remark == "New remark."
+    # Added to the Remark list, after what it already held.
+    assert _remarks(db_session, "character", character) == ["Old remark.", "New remark."]
     assert character.photo_file == "anime/s1-ichika.jpg"
     assert character.photo_focus == "20% 30%"
 
 
 def test_sync_from_cast_keeps_what_the_cast_row_does_not_hold(
-    owner_client, db_session, seasons, character
+    owner_client, owner_user, db_session, seasons, character
 ):
     character.role = "Supporting"
-    character.remark = "Kept."
+    _give_remark(db_session, "character", character, "Kept.", owner_user)
     casting = _cast(db_session, seasons[0], character)
 
     r = owner_client.post(
@@ -273,14 +285,14 @@ def test_sync_from_cast_keeps_what_the_cast_row_does_not_hold(
     assert r.status_code == 200
     db_session.refresh(character)
     assert character.role == "Supporting"
-    assert character.remark == "Kept."
+    assert _remarks(db_session, "character", character) == ["Kept."]
     assert character.photo_file == "characters/ichika.jpg"
 
 
 def test_sync_from_an_identity_row_writes_the_identity(
-    owner_client, db_session, seasons, character
+    owner_client, owner_user, db_session, seasons, character
 ):
-    character.remark = "The character's."
+    _give_remark(db_session, "character", character, "The character's.", owner_user)
     identity = models.CharacterIdentity(character_id=character.system_id, name_en="Masked")
     db_session.add(identity)
     db_session.flush()
@@ -294,10 +306,8 @@ def test_sync_from_an_identity_row_writes_the_identity(
         json={"casting_id": str(casting.system_id)},
     )
 
-    db_session.refresh(character)
-    db_session.refresh(identity)
-    assert identity.remark == "Behind the mask."
-    assert character.remark == "The character's."
+    assert _remarks(db_session, "identity", identity) == ["Behind the mask."]
+    assert _remarks(db_session, "character", character) == ["The character's."]
 
 
 def test_sync_from_another_characters_cast_row_is_404(
@@ -311,8 +321,7 @@ def test_sync_from_another_characters_cast_row_is_404(
     )
 
     assert r.status_code == 404
-    db_session.refresh(character)
-    assert character.remark is None
+    assert _remarks(db_session, "character", character) == []
 
 
 def test_sync_from_a_cast_row_on_a_hidden_entry_is_404(
@@ -340,10 +349,10 @@ def test_sync_from_a_cast_row_on_a_hidden_entry_is_404(
 
 
 def test_fill_gives_empty_cast_rows_the_originals_values(
-    db_session, seasons, character, kana
+    db_session, owner_user, seasons, character, kana
 ):
     character.role = "Main"
-    character.remark = "The lead."
+    _give_remark(db_session, "character", character, "The lead.", owner_user)
     _cast(db_session, seasons[0], character, people=[kana], role="Main", remark="S1.")
     empty = _cast(db_session, seasons[1], character)
 
@@ -357,9 +366,9 @@ def test_fill_gives_empty_cast_rows_the_originals_values(
     assert empty.photo_file is None
 
 
-def test_fill_never_overwrites(db_session, seasons, character, kana, ayane):
+def test_fill_never_overwrites(db_session, owner_user, seasons, character, kana, ayane):
     character.role = "Main"
-    character.remark = "The character's."
+    _give_remark(db_session, "character", character, "The character's.", owner_user)
     held = _cast(
         db_session, seasons[0], character, people=[ayane],
         role="Supporting", remark="The row's.",
@@ -375,12 +384,13 @@ def test_fill_never_overwrites(db_session, seasons, character, kana, ayane):
     assert held.remark == "The row's."
     assert [v.person_id for v in held.voices] == [ayane.system_id]
     assert character.role == "Main"
-    assert character.remark == "The character's."
+    # The Remark list is not empty, so no row's remark joins it.
+    assert _remarks(db_session, "character", character) == ["The character's."]
     assert character.photo_file == "characters/ichika.jpg"
 
 
 def test_fill_gives_an_empty_character_its_highest_ranked_rows_values(
-    db_session, seasons, second_character
+    db_session, owner_user, seasons, second_character
 ):
     _cast(
         db_session, seasons[0], second_character, role="Supporting",
@@ -395,11 +405,11 @@ def test_fill_gives_an_empty_character_its_highest_ranked_rows_values(
 
     db_session.refresh(second_character)
     assert second_character.role == "Main"
-    assert second_character.remark == "Main remark."
+    assert _remarks(db_session, "character", second_character) == ["Main remark."]
     assert second_character.photo_file == "anime/main.jpg"
 
 
-def test_fill_converges_in_one_run(db_session, seasons, second_character):
+def test_fill_converges_in_one_run(db_session, owner_user, seasons, second_character):
     # The character is empty and fills from the S1 row; the S2 row is empty
     # and then fills from the character - in the same run. The remark goes
     # up to the character and stops there.
@@ -411,7 +421,7 @@ def test_fill_converges_in_one_run(db_session, seasons, second_character):
 
     db_session.refresh(empty)
     db_session.refresh(second_character)
-    assert second_character.remark == "From S1."
+    assert _remarks(db_session, "character", second_character) == ["From S1."]
     assert empty.role == "Main"
     assert empty.remark is None
     assert first["cast_role"] == 1
@@ -432,10 +442,10 @@ def test_fill_leaves_unvoiced_rows_without_seiyuu(
 
 
 def test_calculate_sync_cast_endpoint_runs_the_fill(
-    owner_client, db_session, seasons, character
+    owner_client, owner_user, db_session, seasons, character
 ):
     character.role = "Main"
-    character.remark = "The lead."
+    _give_remark(db_session, "character", character, "The lead.", owner_user)
     empty = _cast(db_session, seasons[0], character)
 
     r = owner_client.post("/api/data-control/calculate/sync-cast")

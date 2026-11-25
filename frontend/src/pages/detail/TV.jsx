@@ -161,9 +161,6 @@ export default function TV() {
     epTotal ? epFin / epTotal : epFin > 0 ? 1 : 0;
   const progressPct = epTotal ? Math.round(progress * 100) : null;
 
-  const eyebrow = ["TV show", show.season_part, show.region, show.airing_status]
-    .filter(Boolean)
-    .join("  ·  ");
 
   const imdbScore =
     show.imdb_rating && show.imdb_rating !== "N/A" ? show.imdb_rating : "—";
@@ -284,6 +281,7 @@ export default function TV() {
             mediaType="tv-show"
             imdbLink={show.imdb_link}
             originalSource={show.source_official}
+            originalSourceAsAccess
           />
 
           {/* Related Entries */}
@@ -293,10 +291,9 @@ export default function TV() {
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
           {/* Header */}
+          {/* No eyebrow above the title: what it repeated is on the Information
+              card, and the breadcrumb names the type. */}
           <header>
-            <div className="font-mono text-[11px] text-text-muted mb-3">
-              {eyebrow}
-            </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
@@ -425,9 +422,18 @@ export default function TV() {
               <InfoCard
                 title="Information"
                 fields={[
+                  // Season is shown only when the entry has one.
                   [
+                    { label: "Region", value: show.region },
                     { label: "本傳 / 外傳", value: show.is_main },
-                    { label: "Season", value: show.season_part },
+                    ...(show.season_part
+                      ? [{ label: "Season", value: show.season_part }]
+                      : []),
+                  ],
+                  [
+                    { label: "Airing Type", value: show.airing_type },
+                    { label: "Airing Status", value: show.airing_status },
+                    { label: "Release Date", value: show.release_date },
                   ],
                   [
                     {
@@ -438,11 +444,6 @@ export default function TV() {
                       label: "Runtime (min)",
                       value: show.runtime_min != null ? String(show.runtime_min) : null,
                     },
-                  ],
-                  [
-                    { label: "Airing Type", value: show.airing_type },
-                    { label: "Airing Status", value: show.airing_status },
-                    { label: "Release Date", value: show.release_date },
                   ],
                 ]}
               />

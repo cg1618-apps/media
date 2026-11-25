@@ -214,6 +214,9 @@ function FreeTextRows({
 // is game_copy. It is a prop rather than a media-type check here because the
 // unscoped Platform values (Netflix, Prime Video) would otherwise still be
 // offered on a game, an empty vocabulary being no signal at all.
+// Mirrors SERIALIZATION_ACCESS_TYPES in app/utils/source_fields.py.
+const SERIALIZATION_ACCESS_TYPES = new Set(["manga", "book"]);
+
 export default function SourcesEditor({
   value,
   onChange,
@@ -242,12 +245,19 @@ export default function SourcesEditor({
     }
   });
 
-  const platforms = getSourceValues(sources, {
-    kind: "option",
-    category: "Platform",
-    scope: mediaType,
-    usage: "watch",
-  });
+  // A manga's or book's main sources are where it is serialized, so they
+  // draw from the Serialization Platform vocabulary - all of it, since its
+  // values are scoped to manga alone and book reads the same list - rather
+  // than from Platform. The server resolves them the same way
+  // (category_for_kind in app/utils/source_fields.py).
+  const platforms = SERIALIZATION_ACCESS_TYPES.has(mediaType)
+    ? getSourceValues(sources, { kind: "option", category: "Serialization Platform" })
+    : getSourceValues(sources, {
+        kind: "option",
+        category: "Platform",
+        scope: mediaType,
+        usage: "watch",
+      });
   // No `usage` here: usage is a Platform-only concept (watch vs origin).
   // Reference Source values carry no usage tag, so filtering on one would
   // wrongly exclude every reference option.

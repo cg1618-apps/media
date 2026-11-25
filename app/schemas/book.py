@@ -75,6 +75,7 @@ class BookBase(BaseModel):
     region: Optional[str] = None
     type: Optional[str] = None
     version: Optional[str] = None
+    anime_studio: Optional[str] = None
     is_main: Optional[str] = None
     serialization_status: Optional[str] = None
     reading_status: str = "Might Read"

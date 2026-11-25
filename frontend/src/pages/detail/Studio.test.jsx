@@ -8,6 +8,13 @@ import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// The remark list and personal notes are NotesTemplate's to test; here only
+// that the page hands it this record as the owner.
+vi.mock("../notes/NotesTemplate", () => ({
+  default: ({ ownerType, ownerId }) => (
+    <div data-testid="entity-notes" data-owner-type={ownerType} data-owner-id={ownerId} />
+  ),
+}));
 // Toasts are recorded rather than rendered: ToastProvider draws nothing.
 const toast = vi.hoisted(() => ({ showToast: vi.fn() }));
 vi.mock("../../hooks/useToast", () => ({
@@ -202,7 +209,7 @@ describe("Studio detail page", () => {
     expect(screen.queryByText(/–/)).not.toBeInTheDocument();
   });
 
-  it("renders the website link, the MAL producer link and the remark", async () => {
+  it("renders the website link and the MAL producer link", async () => {
     renderPage();
 
     expect(
@@ -211,7 +218,6 @@ describe("Studio detail page", () => {
     expect(
       screen.getByRole("link", { name: `Producer #${STUDIO.mal_id}` }),
     ).toHaveAttribute("href", STUDIO.mal_link);
-    expect(screen.getByText(STUDIO.remark)).toBeInTheDocument();
   });
 
   it("links MyAnimeList beside the name when the studio has a MAL link", async () => {
@@ -228,13 +234,20 @@ describe("Studio detail page", () => {
     expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
   });
 
-  it("shows a guest the remark and rating as text, with no admin controls", async () => {
+  // The remark list and personal notes are this studio's notes block.
+  it("draws the remark list and personal notes for this studio", async () => {
+    renderPage();
+    const notes = await screen.findByTestId("entity-notes");
+    expect(notes).toHaveAttribute("data-owner-type", "studio");
+    expect(notes.getAttribute("data-owner-id")).toBeTruthy();
+  });
+
+  it("shows a guest no admin controls", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "KyoAni" });
     expect(screen.queryByRole("button", { name: "Edit this studio" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
-    expect(screen.getByText(STUDIO.remark)).toBeInTheDocument();
   });
 
   describe("as a member holding self.list", () => {
@@ -280,6 +293,15 @@ describe("Studio detail page", () => {
       expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     });
 
+    it("puts Edit and Autofill at the left of the admin strip, with no Admin caption", async () => {
+      renderPage();
+      const edit = await screen.findByRole("button", { name: "Edit this studio" });
+      const group = screen.getByRole("group", { name: "Edit actions" });
+      expect(group).toContainElement(edit);
+      expect(group).toContainElement(screen.getByRole("button", { name: "Autofill & update" }));
+      expect(group.parentElement.textContent).not.toMatch(/admin/i);
+    });
+
     it("links Edit to this studio's Modify editor", async () => {
       const user = userEvent.setup();
       renderPage();
@@ -288,18 +310,6 @@ describe("Studio detail page", () => {
     });
 
 
-    it("edits the remark in place, and saves it on blur", async () => {
-      const user = userEvent.setup();
-      renderPage();
-      const box = await screen.findByLabelText("Remark");
-      // The Profile card drops its Remark row for an admin: the editor is it.
-      expect(screen.queryByText(STUDIO.remark, { selector: "div" })).not.toBeInTheDocument();
-      await user.clear(box);
-      await user.type(box, "Still pretty water.");
-      fireEvent.blur(box);
-      await waitFor(() => expect(patchCalls()).toHaveLength(1));
-      expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ remark: "Still pretty water." });
-    });
   });
 });
 

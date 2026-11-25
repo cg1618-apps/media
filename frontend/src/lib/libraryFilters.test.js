@@ -2,7 +2,15 @@
 // four rules, and that values outside the children are never touched.
 import { describe, expect, it } from "vitest";
 
-import { isParentActive, toggleParentValues } from "./libraryFilters";
+import {
+  applyFilterDefs,
+  countActiveFilters,
+  initialFilters,
+  isFilterActive,
+  isParentActive,
+  sameFilters,
+  toggleParentValues,
+} from "./libraryFilters";
 
 const CHILDREN = ["h-comic", "hentai"];
 
@@ -48,5 +56,46 @@ describe("isParentActive", () => {
   // under it is never active.
   it("is false for a parent with no children", () => {
     expect(isParentActive(new Set(["anime"]), [])).toBe(false);
+  });
+});
+
+// A "range" def: its state is { min, max }, either bound alone narrowing,
+// an item with no value never matching a set range.
+import { rangeFilter } from "./libraryFilterDefs";
+
+describe("range filters", () => {
+  const hltb = rangeFilter("hltb", "HLTB Main + Extra", (g) => g.hltb_main_extra, { unit: "h" });
+  const defs = [hltb];
+  const items = [
+    { id: "short", hltb_main_extra: 8 },
+    { id: "mid", hltb_main_extra: 30 },
+    { id: "long", hltb_main_extra: 90 },
+    { id: "unknown", hltb_main_extra: null },
+  ];
+  const run = (range) =>
+    applyFilterDefs(items, defs, { hltb: range }).map((i) => i.id);
+
+  it("starts empty and inactive", () => {
+    const state = initialFilters(defs);
+    expect(state.hltb).toEqual({ min: "", max: "" });
+    expect(isFilterActive(state.hltb)).toBe(false);
+    expect(countActiveFilters(state)).toBe(0);
+    expect(run(state.hltb)).toEqual(["short", "mid", "long", "unknown"]);
+  });
+
+  it("narrows by a minimum alone, a maximum alone, or both, inclusively", () => {
+    expect(run({ min: "30", max: "" })).toEqual(["mid", "long"]);
+    expect(run({ min: "", max: "30" })).toEqual(["short", "mid"]);
+    expect(run({ min: "10", max: "90" })).toEqual(["mid", "long"]);
+  });
+
+  it("counts as one active filter, and compares by its bounds", () => {
+    expect(countActiveFilters({ hltb: { min: "5", max: "9" } })).toBe(1);
+    expect(sameFilters({ hltb: { min: "5", max: "" } }, { hltb: { min: "5", max: "" } })).toBe(true);
+    expect(sameFilters({ hltb: { min: "5", max: "" } }, { hltb: { min: "6", max: "" } })).toBe(false);
+  });
+
+  it("ignores a bound that is not a number", () => {
+    expect(isFilterActive({ min: "abc", max: "" })).toBe(false);
   });
 });

@@ -9,10 +9,10 @@
 // media type. A seiyuu group is the exception in what it shows: its cards
 // lead with the part voiced (VoicedPartCard), the entry beneath it.
 //
-// Like Studio.jsx it reads the API with plain fetch. An admin can write the
-// remark in place and jump to the full editor, the same controls
-// Character.jsx has (components/info/EntityProfileControls.jsx): PATCH, then
-// the response becomes the page's state. My rating is the viewer's own, set
+// Like Studio.jsx it reads the API with plain fetch. An admin can jump to the
+// full editor, the same controls Character.jsx has
+// (components/info/EntityProfileControls.jsx), and the remark list and
+// personal notes are a notes block (NotesTemplate, owner type "person"). My rating is the viewer's own, set
 // by a holder of self.list through PUT /api/me/ratings. Club membership
 // (ClubMembership) is editable here too, through its own endpoints. An
 // author's or illustrator's gallery of works (WorkGallery) is shown under it;
@@ -29,14 +29,13 @@ import ClubMembership from "../../components/info/ClubMembership";
 import VoicedPartCard from "../../components/info/VoicedPartCard";
 import WorkGallery from "../../components/info/WorkGallery";
 import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
+import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
 import MalButton, { ImdbButton, SiteButton } from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
 import {
   AdminToolbar,
   RatingSelect,
-  RemarkEditor,
-  useEntityPatch,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp, eyebrowCls } from "../../components/ui/primitives";
@@ -93,7 +92,6 @@ export default function Person() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
-  const patch = useEntityPatch("person", person?.system_id, setPerson);
   // My rating is the viewer's own (self.list), saved through /api/me/ratings.
   const { ownData: canRate } = useViewScope();
   const saveMyRating = useMyRatingSaver("person", person?.system_id, setPerson);
@@ -308,17 +306,11 @@ export default function Person() {
                   </a>
                 ) : null,
               })),
-              ...(isAdmin ? [] : [{ label: "Remark", value: person.remark }]),
             ]}
           />
 
-          {isAdmin && (
-            <RemarkEditor
-              systemId={person.system_id}
-              remark={person.remark}
-              onSave={(v) => patch({ remark: v }, "Remark saved")}
-            />
-          )}
+          {/* The remark list and personal notes (app/utils/note_sections.py). */}
+          <NotesTemplate ownerType="person" ownerId={person.system_id} />
 
           <ClubMembership person={person} />
 

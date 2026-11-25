@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -456,7 +456,7 @@ Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
 | `manga_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
 | `region` | String | yes | | MANGA_REGIONS |
 | `is_main` | String | yes | | |
-| `serialization_status` | String | yes | | MANGA_SERIALIZATION_STATUSES |
+| `serialization_status` | String | yes | | BOOK_SERIALIZATION_STATUSES, shared with book (comic and h-comic keep MANGA_SERIALIZATION_STATUSES) |
 | `vol_total` | Float | yes | | |
 | `ch_total` | Float | yes | | |
 | `mal_rating` | Float | yes | | |
@@ -491,11 +491,12 @@ names live in `book_unit` rows, one per unit.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `book_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
-| `region` | String | yes | | BOOK_REGIONS |
-| `type` | String | yes | | BOOK_TYPES (輕小說 / 小說 / 網路小說 / 短篇集 / 指南/設定集 / 其他); also selects which `book_unit.unit_kind`s the editor offers - see `entry-types.md` - and which books Statistics' Novel section counts |
+| `region` | String | yes | | BOOK_REGIONS (歐美 / 日本 / 中國 / 韓國 / 台灣) |
+| `type` | String | yes | | BOOK_TYPES (小說 / 輕小說 / 網路小說 / 短篇集 / 指南/設定集 / 其他); also selects which `book_unit.unit_kind`s the editor offers - see `entry-types.md` - and which books Statistics' Novel section counts |
 | `version` | String | yes | | Edition (free text) |
 | `is_main` | String | yes | | |
-| `serialization_status` | String | yes | | BOOK_SERIALIZATION_STATUSES |
+| `anime_studio` | String | yes | | The studio that animated the book's adaptation, as `manga.anime_studio`: a plain column, not a credit |
+| `serialization_status` | String | yes | | BOOK_SERIALIZATION_STATUSES (未出 / 連載中 / 連載中 (不穩定) / 連載中 (有生之年) / 停更 / 可能更多 / 完結 / 腰斬), shared with manga |
 | `vol_total_original` | Float | yes | | Volumes in the original run (JP/KR). Not derived - `book_unit` volume rows are optional enrichment and never feed this column (Decision B, see business-rules.md) |
 | `vol_total_tw` | Float | yes | | Volumes published in Taiwan. Same rule: never derived from `book_unit` rows |
 | `arc_total` | Float | yes | | **Derived**: count of the book's `book_unit` rows with `unit_kind = 'arc'`, recomputed on every create/update/patch (`derive_book_catalog`, called unconditionally by the router). Still a stored column - null on a book with no arc rows, and null on every volume-only type (see below) |
@@ -932,7 +933,7 @@ Virtual: `watch_next`, `to_rewatch`, `display_name`, and the
 ## Virtual fields on media entries
 
 These appear in API responses but are not columns on the entry tables. An
-entry's or a group's 備註 remarks are not among them: they are `note` rows,
+entry's, a group's or an entity's 備註 remarks are not among them: they are `note` rows,
 read and written through the notes API like any other section.
 
 | Field | Where it comes from | Tables |
@@ -1179,7 +1180,6 @@ One human credited on a media entry (Tier 3 entity - see
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `staff/<system_id>.jpg`. Filled from MAL's people photo for any person with a `mal_id`, then from TMDB's profile photo for one with an `imdb_id` while it is still empty — see [external-apis.md](external-apis.md#mapping-for-person-mal--map_tenrai_to_person_data) |
 | `photo_focus` | String | yes | | `photo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
-| `remark` | Text | yes | | A real column here (not a note row) |
 | `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Person (MAL) Fill, or typed directly. Any person holding one is filled from MAL, whatever their role |
 | `mal_link` | String | yes | | `myanimelist.net/people/<id>/<slug>` |
 | `imdb_id` | String | yes | | IMDb name id, `nm<digits>`. Derived from `imdb_link` by `extract_imdb_id_person` on every write and on the Person (TMDB) Fill. Any person holding one is filled from TMDB's person record (through `/find`), after MAL |
@@ -1194,6 +1194,11 @@ Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,
 row and Postgres treats NULLs as distinct by default, so without this the
 constraint is inert; `ck_person_has_a_name` requires at least one name.
 Relationship: `roles` (cascade delete-orphan).
+
+A person's 備註 remarks are not a column: they are `note` rows of the
+`remark` section owned by the person (`note.person_id`), beside each
+account's personal notes. The same holds for `studio`, `publisher`,
+`character` and `character_identity` - see [`note`](#note).
 
 Same name shape as `studio`, and for the same reason: a person is known by
 whichever names they are known by, and requiring a specific one would force a
@@ -1338,7 +1343,6 @@ every type it applies to is not wrong in the way a distributor list offering
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `logo_file` | String | yes | | Storage key under `static/covers/`, `studio/<system_id>.jpg`. Filled from MAL's producer logo when `mal_id` is set — see [external-apis.md](external-apis.md#mapping-for-studio--map_tenrai_to_studio_data). When NULL, readers show a visible credited entry's cover instead (`display_logo_file`, resolved at read time - [systems/credits-and-tags.md](systems/credits-and-tags.md#logo-fallback)) |
 | `logo_focus` | String | yes | | `logo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
-| `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
 | `countries` | JSONB | yes | | Every country the studio is from, a list of free-text names in the order given; NULL when none is known, never `[]`. Each name trimmed, blanks and repeats dropped (`app/utils/countries.py`). Suggested from the `Country` common options, never added to them. The Studio sheet tab carries it as a JSON list; a backup from before a studio could name several carries one value under the old `country` header, which Pull reads as a one-name list |
 | `website_url` | String | yes | | |
@@ -1396,7 +1400,6 @@ mean something vaguer than it does.
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain |
 | `logo_file` | String | yes | | Storage key under `static/covers/`, `publisher/<system_id>.jpg`. Never autofilled - there is no MAL producer record for a games publisher or a TW distributor. When NULL, readers show a visible credited entry's cover instead (`display_logo_file` - [systems/credits-and-tags.md](systems/credits-and-tags.md#logo-fallback)) |
 | `logo_focus` | String | yes | | `logo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the logo changes — see [image focal points](#image-focal-points) |
-| `remark` | Text | yes | | |
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
 | `country` | String | yes | | One free-text country, suggested from the `Country` common options, never added to them |
 | `website_url` | String | yes | | |
@@ -1494,7 +1497,6 @@ with one intentional deviation - see the constraints note below.
 | `photo_focus` | String | yes | | `photo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset to NULL when the photo changes — see [image focal points](#image-focal-points) |
 | `role` | String | yes | | Optional: one of `CHARACTER_ROLES`, or NULL - what the character is to their story overall. While NULL it is filled from the highest-ranked `character_casting.role` (`CHARACTER_ROLES` order) on each cast save and by Calculate All; a set value is never overwritten |
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose picture stands in when `photo_file` is NULL; must be an entry the character is cast on. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
-| `remark` | Text | yes | | |
 | `first_mention` | Text | yes | | Free text, the work's own notation (`第1卷 第13章`, `1-13`, `S1 ep 8`): where the character is first talked about or named, before being seen |
 | `first_appearance` | Text | yes | | Free text: where the character is first shown at all, even a glimpse with no real part yet |
 | `first_encounter` | Text | yes | | Free text: where the main character first actually faces them — meets, talks, fights — whether or not the name is known by then |
@@ -1551,8 +1553,8 @@ visibility, so a value used only by characters stays visible to everyone
 One of a character's **other** identities - an alter ego, a disguise, a civilian
 name (Kudo Shinichi and Edogawa Conan are one character). Model:
 `CharacterIdentity` (`app/models/character.py`). The `character` row **is** the
-main identity; only the others are rows here, so a name, photo or remark is
-never held twice.
+main identity; only the others are rows here, so a name or photo is never
+held twice.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -1562,7 +1564,6 @@ never held twice.
 | `name_en` / `name_cn` / `name_jp` / `name_alt` | String | yes | | At least one is required |
 | `display_name_field` | String | yes | | `en` / `cn` / `jp` / `alt`, or NULL for the fallback chain - the same resolution, and the same NULL-to-`cn` rule, as `character.display_name_field` |
 | `gender` | String | yes | | GENDERS, or NULL meaning **the same as the character's**. Resolved on read (`display_gender` = `gender` or the character's), never copied, so editing the character's gender moves every identity that inherits it |
-| `remark` | Text | yes | | |
 | `first_mention` / `first_appearance` / `first_encounter` | Text | yes | | As on `character`, and the identity's own: NULL means unrecorded, never the character's |
 | `photo_file` | String | yes | | Storage key under `static/covers/`, `character-identity/<system_id>.jpg` (hyphenated, like the owner type). NULL shows the character's displayed picture |
 | `photo_focus` | String | yes | | `photo_file`'s focal point and zoom, `"X% Y%"`, optionally zoomed (`"X% Y% 1.5"`) or fitted (`"X% Y% fit"`); NULL centres it. Reset when the photo changes - see [image focal points](#image-focal-points) |
@@ -1830,6 +1831,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | `system_id` | UUID | no | uuid4 | PK |
 | `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - set when the owner is one of the twelve media types |
 | `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier |
+| `studio_id` / `publisher_id` / `person_id` / `character_id` / `identity_id` | UUID | yes | | FK to `studio`, `publisher`, `person`, `character` and `character_identity`, ON DELETE CASCADE, indexed - set when the owner is an entity. Created by `e1n2tremark3`. An entity owns only the `remark` and `personal_notes` sections. `ENTITY_NOTE_COLUMNS` (`app/models/note.py`) maps each owner type to its column |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed. Who wrote the row - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
 | `personal` | Boolean | **no** | false (server default) | A personal row of a mixed section (`NoteSection.mixed`): one account's own, read and written by its `author_id` alone, beside the section's catalogue rows. False on a catalogue row and on a row of a personal-scope section, which is personal by its section. Set by the server on create from `manage.catalog`; nothing changes it after. A catalogue row may not nest under a personal one (the router refuses it). In a section with `kind_choice` (優點, 缺點, 優缺點) its writer picks it, and an editor may switch it on a row it wrote |
@@ -1846,9 +1848,10 @@ its section's *shape* in `app/utils/note_sections.py`
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 `ck_note_one_owner` CHECKs `num_nonnulls(media_id, collection_id,
-franchise_id, series_id) = 1`, so exactly one owner is set. **`owner_type` and
-`owner_id` are not stored**: four real foreign keys replace the pair so every
-owner cascades. Both survive as read-only Python properties derived from
+franchise_id, series_id, studio_id, publisher_id, person_id, character_id,
+identity_id) = 1`, so exactly one owner is set. **`owner_type` and `owner_id`
+are not stored**: nine real foreign keys replace the pair so every owner
+cascades. The column order is the Note sheet tab's column order. Both survive as read-only Python properties derived from
 whichever column is set, which is how the API, the SPA and the Note sheet tab
 keep the pair's vocabulary. The API's `owner_type` / `owner_id` parameters are
 translated onto the columns in `app/routers/note.py`.
@@ -1858,7 +1861,8 @@ set per user) - which decides who may write a row and whose rows a read
 returns; see [systems/notes.md](systems/notes.md#scope) and
 [authorization.md](authorization.md#note-scope).
 
-Indexes: `ix_note_owner_section` (the four owner columns + `section`) - the
+Indexes: `ix_note_owner_section` (the four entry and tier owner columns +
+`section`), and one index on each entity owner column - the
 notes page's only read path; **`ix_note_one_music_status_per_kind`**
 - partial UNIQUE over `(media_id, kind)`, `WHERE section = 'music_status'`,
 because each song list of an anime has one row for its status to hang on
@@ -2765,7 +2769,7 @@ One item this account does NOT get, in any mode it uses.
 | `field_group_key` | String | yes | |
 
 `ck_denial_names_one_thing` — exactly one of `label_id` / `field_group_key` is
-set, mirroring the constraint already on `note`'s four owner columns. Plus
+set, mirroring the constraint already on `note`'s owner columns. Plus
 UNIQUE `(user_id, label_id)` and `(user_id, field_group_key)`.
 
 **Subtraction only.** There is no grant counterpart and there must not be one:
@@ -2895,9 +2899,11 @@ pair. `media_relation` keeps its two pairs, but each is a composite FK onto
 `media(system_id, media_type)`.
 
 `note` and `meme` store no pair either: an owner that may be a **grouping
-tier** cannot be one FK, so it is **four nullable FKs with a CHECK that
-exactly one is set** (`ck_note_one_owner`, `ck_meme_one_owner`) — `media_id`,
-`collection_id`, `franchise_id`, `series_id`, each `ON DELETE CASCADE`.
+tier** cannot be one FK, so it is **one nullable FK per owner kind with a
+CHECK that exactly one is set** (`ck_note_one_owner`, `ck_meme_one_owner`) —
+`media_id`, `collection_id`, `franchise_id`, `series_id`, each `ON DELETE
+CASCADE`, and on `note` also `studio_id`, `publisher_id`, `person_id`,
+`character_id` and `identity_id`.
 `owner_type` and `owner_id` survive as **read-only Python properties** derived
 from whichever column is set, so the API shape is the pair even though the
 storage is not; being properties rather than columns, they are absent from the
@@ -2912,7 +2918,8 @@ FK onto `media(system_id, media_type)`. They resolve at read time through
 | Registry | Keys | Still used by |
 |---|---|---|
 | `MEDIA_TABLES` | `anime`, `anime-movie`, `movie`, `tv-show`, `cartoon`, `manga`, `book`, `comic`, `game` (hyphenated - **not** the underscore keys of `app/registry.py`, which name router configs) | `media_relation` (both ends), `character_casting` and `character_casting_voice` (`CASTING_MEDIA_TYPES` only) |
-| `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | Nothing stores a pair here. `note` and `meme` read it to **resolve a row's display data** and to translate the API's `owner_type` / `owner_id` parameters onto their four owner columns; `plan_next` does the same over its three. |
+| `OWNER_TABLES` = `MEDIA_TABLES` + `TIER_TABLES` (`series`, `franchise`, `collection`) | | Nothing stores a pair here. `meme` reads it to **resolve a row's display data** and to translate the API's `owner_type` / `owner_id` parameters onto its four owner columns; `plan_next` does the same over its three, and `note` over the wider `NOTE_OWNER_TABLES`. |
+| `NOTE_OWNER_TABLES` = `OWNER_TABLES` + `ENTITY_TABLES` | | Nothing stores a pair here. `note` resolves its owner through it, the API's `owner_type` / `owner_id` included, onto its nine owner columns. |
 | `REQUEST_TARGET_TABLES` = `OWNER_TABLES` + `ENTITY_TABLES` (`studio`, `publisher`, `person`, `character`, `identity`) | | `user_request` (`target_type`, `target_id`). A deleted target resolves `missing`, and the request falls back to its stored `target_label`. |
 
 `resolve_entries()` issues at most one query per involved table. A pair whose

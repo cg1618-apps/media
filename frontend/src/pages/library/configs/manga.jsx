@@ -10,10 +10,13 @@ import {
   readButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
-import { READING_STATUS_GROUP } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
+import { BOOK_SERIALIZATION_STATUSES, MANGA_REGIONS } from "../../../config/fieldOptions";
 import {
   genreFilters,
+  publisherTwFilter,
+  readStatusFilter,
+  vocabularyFilter,
 } from "../../../lib/libraryFilterDefs";
 
 function getTitle(m)   {
@@ -51,32 +54,16 @@ const MANGA_LIBRARY_CONFIG = {
   },
 
   filterDefs: [
-    {
-      key: "serializationStatus",
-      label: "Serialization Status",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.serialization_status).filter(Boolean))].sort(),
-      match: (item, active) => active.has(item.serialization_status),
-    },
-    {
-      key: "readingStatus",
-      label: "Read Status",
-      personal: true,
-      type: "set-grouped",
-      groupOptions: ["Reading", "Planned", "Completed", "Dropped", "Might Read"],
-      match: (item, active) =>
-        active.has(READING_STATUS_GROUP[item.reading_status] ?? "Might Read"),
-    },
-    {
-      key: "region",
-      label: "Region",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.region).filter(Boolean))].sort(),
-      match: (item, active) => active.has(item.region),
-    },
+    vocabularyFilter(
+      "serializationStatus",
+      "Serialization Status",
+      "serialization_status",
+      BOOK_SERIALIZATION_STATUSES,
+    ),
+    readStatusFilter(),
+    vocabularyFilter("region", "Region", "region", MANGA_REGIONS),
     // Advanced section (FilterPanel draws it collapsed).
+    publisherTwFilter(),
     ...genreFilters(),
   ],
 

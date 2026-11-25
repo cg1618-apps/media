@@ -28,6 +28,8 @@ import {
 } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import { getSourceValues, parseTypes } from "../../utils/media";
+import { getIdleSourceValues } from "../../lib/formatters";
+import { ANIME_STUDIO_SOURCE } from "../../config/formFields/fieldMeta";
 import {
   IS_MAIN,
   MY_RATINGS,
@@ -292,6 +294,17 @@ export function BookFormBody({ f, u, sources, ownerId }) {
             onClear={() => u("publisher_tw", "")}
             placeholder="e.g. 台灣角川"
             allowNew
+          />
+        </Field>
+        {/* The studio that animated the adaptation, as on a manga: a plain
+            column, offered the anime studios. */}
+        <Field label="Anime Studio">
+          <MultiSelect
+            options={getSourceValues(sources, ANIME_STUDIO_SOURCE)}
+            idleOptions={getIdleSourceValues(sources, ANIME_STUDIO_SOURCE)}
+            value={f.anime_studio ?? ""}
+            onChange={(v) => u("anime_studio", v)}
+            placeholder="Select studio..."
           />
         </Field>
       </div>

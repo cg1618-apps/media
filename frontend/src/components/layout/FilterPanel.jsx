@@ -1,7 +1,7 @@
 // Frontend: the chip panel that renders a list of FilterDefs (the shape is
 // documented in hooks/useLibraryState.js). Used by LibraryLayout, the random
 // picker and the entity libraries (character, person, studio, publisher).
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { ClearAllButton, Eyebrow } from "../ui/primitives";
 import {
@@ -108,9 +108,96 @@ export function FilterToggleButton({ open, onToggle, activeFilterCount, classNam
 }
 
 // ---------------------------------------------------------------------------
+// OptionsHelp — the circled "?" after a hinted def's label
+// ---------------------------------------------------------------------------
+// Hovering or focusing it lists every option with its hint, so what each chip
+// stands for can be read at once rather than one chip title at a time.
+function OptionsHelp({ label, options, optionLabel, optionHint }) {
+  const [open, setOpen] = useState(false);
+  const tipId = useId();
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        aria-label={`What the ${label} options mean`}
+        aria-describedby={open ? tipId : undefined}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        className="text-text-faint hover:text-text focus-visible:outline-none focus-visible:text-text"
+      >
+        <i className="fas fa-circle-question text-[11px]" aria-hidden="true"></i>
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          id={tipId}
+          className="absolute left-0 top-full mt-1 z-20 w-72 border border-border-strong bg-surface px-3 py-2 shadow-lg font-sans"
+        >
+          <dl className="space-y-1.5 text-xs">
+            {options.map((v) => (
+              <div key={v}>
+                <dt className="font-medium text-text">{optionLabel ? optionLabel(v) : v}</dt>
+                <dd className="text-text-muted">{optionHint(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RangeGroup — a range def: a minimum and a maximum, either one enough
+// ---------------------------------------------------------------------------
+// The whole { min, max } goes through toggleFilter, which sets a range rather
+// than toggling it (hooks/useFilterState.js).
+const RANGE_INPUT_CLS =
+  "w-20 px-2 py-0.5 border border-border-strong bg-surface text-text font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-brand";
+
+function RangeGroup({ fd, value, toggleFilter }) {
+  const range = value || { min: "", max: "" };
+  const set = (bound) => (e) => toggleFilter(fd.key, { ...range, [bound]: e.target.value });
+  return (
+    <div>
+      <Eyebrow className="mb-1.5">{fd.label}</Eyebrow>
+      <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted">
+        <input
+          type="number"
+          min="0"
+          inputMode="decimal"
+          aria-label={`${fd.label} minimum`}
+          placeholder="Min"
+          value={range.min}
+          onChange={set("min")}
+          className={RANGE_INPUT_CLS}
+        />
+        <span aria-hidden="true">–</span>
+        <input
+          type="number"
+          min="0"
+          inputMode="decimal"
+          aria-label={`${fd.label} maximum`}
+          placeholder="Max"
+          value={range.max}
+          onChange={set("max")}
+          className={RANGE_INPUT_CLS}
+        />
+        {fd.unit && <span>{fd.unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // FilterGroup — one def: a checkbox for a boolean, else a labelled chip row
 // ---------------------------------------------------------------------------
 function FilterGroup({ fd, filters, toggleFilter, dynamicFilterOptions }) {
+  if (fd.type === "range") {
+    return <RangeGroup fd={fd} value={filters[fd.key]} toggleFilter={toggleFilter} />;
+  }
   if (fd.type === "boolean") {
     return (
       <label className="flex items-center gap-2 cursor-pointer">
@@ -138,7 +225,17 @@ function FilterGroup({ fd, filters, toggleFilter, dynamicFilterOptions }) {
 
   return (
     <div>
-      <Eyebrow className="mb-1.5">{fd.label}</Eyebrow>
+      <Eyebrow className="mb-1.5 flex items-center gap-1.5">
+        {fd.label}
+        {fd.optionHint && (
+          <OptionsHelp
+            label={fd.label}
+            options={options}
+            optionLabel={fd.optionLabel}
+            optionHint={fd.optionHint}
+          />
+        )}
+      </Eyebrow>
       <div className="flex flex-wrap gap-1.5">
         {options.map((v) => (
           <FilterTag
@@ -192,6 +289,29 @@ function AdvancedFilters({ defs, filters, groupProps }) {
 }
 
 // ---------------------------------------------------------------------------
+// FilterRows — the ordinary defs, consecutive defs sharing a `row` side by side
+// ---------------------------------------------------------------------------
+function FilterRows({ defs, groupProps }) {
+  const rows = [];
+  for (const fd of defs) {
+    const last = rows[rows.length - 1];
+    if (fd.row && last?.row === fd.row) last.defs.push(fd);
+    else rows.push({ row: fd.row, defs: [fd] });
+  }
+  return rows.map(({ row, defs: rowDefs }) =>
+    rowDefs.length === 1 ? (
+      <FilterGroup key={rowDefs[0].key} fd={rowDefs[0]} {...groupProps} />
+    ) : (
+      <div key={row} className="flex flex-wrap items-start gap-x-10 gap-y-3">
+        {rowDefs.map((fd) => (
+          <FilterGroup key={fd.key} fd={fd} {...groupProps} />
+        ))}
+      </div>
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // FilterPanel — renders all FilterDef groups for the current config
 // ---------------------------------------------------------------------------
 // `resetFilters` is optional: a caller that opens on a default other than
@@ -238,9 +358,7 @@ export default function FilterPanel({
         </div>
       </div>
 
-      {filterDefs.filter((fd) => !fd.advanced).map((fd) => (
-        <FilterGroup key={fd.key} fd={fd} {...groupProps} />
-      ))}
+      <FilterRows defs={filterDefs.filter((fd) => !fd.advanced)} groupProps={groupProps} />
 
       {advancedDefs.length > 0 && (
         <AdvancedFilters

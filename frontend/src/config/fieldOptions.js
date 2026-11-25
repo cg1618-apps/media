@@ -90,6 +90,10 @@ export const GAME_TYPES = ["Base Game", "DLC", "Expansion", "Bundle"];
 // to the Remake / Remaster relation kinds.
 export const GAME_IS_MAIN = ["Main", "Remake", "Remaster"];
 
+// The platform families a game may be exclusive to (EXCLUSIVE_PLATFORMS in
+// app/utils/game_vocabulary.py), in picker order.
+export const GAME_EXCLUSIVE_PLATFORMS = ["Nintendo", "PlayStation", "Xbox", "PC", "Mobile"];
+
 // Anime's original_or_remake (ANIME_ORIGINAL_OR_REMAKE in app/utils/constants.py).
 // A column beside anime's is_main, never empty: a new anime is the original.
 export const ANIME_ORIGINAL_OR_REMAKE = ["Original", "Remake"];
@@ -201,23 +205,27 @@ export const TV_REGIONS = ["歐美劇", "韓劇", "日劇", "陸劇", "台劇", 
 
 export const MANGA_REGIONS = ["日漫", "韓漫", "國漫", "台漫", "其他"];
 
-export const BOOK_REGIONS = ["JP", "CN", "TW", "KR", "Western"];
+// Named in Chinese; app/utils/constants.py is the authority.
+export const BOOK_REGIONS = ["歐美", "日本", "中國", "韓國", "台灣"];
 
-export const BOOK_TYPES = ["輕小說", "小說", "網路小說", "短篇集", "指南/設定集", "其他"];
+export const BOOK_TYPES = ["小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他"];
 
 export const COMIC_TYPES = ["Ongoing", "Limited", "One-Shot", "Annual"];
 
+// Comic's and h-comic's. Manga shares book's list below.
 export const MANGA_SERIALIZATION_STATUSES = ["連載中", "停更", "腰斬", "完結"];
 
+// Book's and manga's, in the order a run moves through them - the order the
+// forms and the library filters list them in.
 export const BOOK_SERIALIZATION_STATUSES = [
+  "未出",
   "連載中",
   "連載中 (不穩定)",
   "連載中 (有生之年)",
   "停更",
+  "可能更多",
   "完結",
   "腰斬",
-  "可能更多",
-  "未出",
 ];
 
 // Progress display uses {value, label} pairs — the stored value is a short code.

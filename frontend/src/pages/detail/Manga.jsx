@@ -391,6 +391,11 @@ export default function Manga() {
       : null;
 
   const imageUrl = getCoverUrl(manga.cover_image_file);
+  // The Information card's Next Volume dates, only those set.
+  const nextVolumes = [
+    { label: "Next Volume (JP)", value: manga.next_vol_release_date_jp },
+    { label: "Next Volume (TW)", value: manga.next_vol_release_date_tw },
+  ].filter((field) => field.value);
 
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
@@ -408,9 +413,6 @@ export default function Manga() {
   const progress = chTotal ? chFin / chTotal : chFin > 0 ? 1 : 0;
   const progressPct = chTotal ? Math.round(progress * 100) : null;
 
-  const eyebrow = ["Manga", manga.region, manga.serialization_status]
-    .filter(Boolean)
-    .join("  ·  ");
 
   return (
     <DetailContents>
@@ -530,10 +532,9 @@ export default function Manga() {
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
           {/* Header */}
+          {/* No eyebrow above the title: what it repeated is on the Information
+              card, and the breadcrumb names the type. */}
           <header>
-            <div className="font-mono text-[11px] text-text-muted mb-3">
-              {eyebrow}
-            </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
@@ -630,34 +631,24 @@ export default function Manga() {
                     { label: "Region", value: manga.region },
                     { label: "本傳 / 外傳", value: manga.is_main },
                   ],
+                  // End Date and each Next Volume date are shown only when
+                  // set, and the Next Volume row with them. A Next Volume
+                  // date is shown whatever it is: a passed one drops off
+                  // Future Releases, not off the entry, until it is edited.
                   [
                     {
                       label: "Serialization Status",
                       value: manga.serialization_status,
                     },
-                  ],
-                  [
                     {
                       label: "Release Date",
                       value: manga.release_date || null,
                     },
-                    {
-                      label: "End Date",
-                      value: manga.end_date || null,
-                    },
+                    ...(manga.end_date
+                      ? [{ label: "End Date", value: manga.end_date }]
+                      : []),
                   ],
-                  // Shown whatever the date: a passed one drops off Future
-                  // Releases, not off the entry, until it is edited.
-                  [
-                    {
-                      label: "Next Volume (JP)",
-                      value: manga.next_vol_release_date_jp || null,
-                    },
-                    {
-                      label: "Next Volume (TW)",
-                      value: manga.next_vol_release_date_tw || null,
-                    },
-                  ],
+                  ...(nextVolumes.length > 0 ? [nextVolumes] : []),
                   [
                     {
                       label: "Volume Total",
@@ -672,9 +663,6 @@ export default function Manga() {
                   ],
                 ]}
               />
-            </TocSection>
-            <TocSection id="genres" label="Genres">
-              <GenresCard item={manga} />
             </TocSection>
             {/* Production Card */}
             <TocSection id="production" label="Production">
@@ -737,6 +725,10 @@ export default function Manga() {
                   ]}
                 />
               )}
+            </TocSection>
+            {/* Genres under Production, as on a book. */}
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={manga} />
             </TocSection>
           </div>
 

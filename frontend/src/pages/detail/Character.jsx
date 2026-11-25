@@ -10,10 +10,9 @@
 // character in that entry, since (unlike a person's own credits) knowing who
 // played the part is the point of looking a character up.
 //
-// Like Person.jsx it reads the API with plain fetch. An admin can write the
-// remark in place and jump to the full editor; the remark goes through PATCH
-// (components/info/EntityProfileControls.jsx) and the page takes the response
-// as its new state. My rating is the viewer's own: a holder of self.list sets
+// Like Person.jsx it reads the API with plain fetch. An admin can jump to the
+// full editor (components/info/EntityProfileControls.jsx). The remark list and
+// personal notes are a notes block (NotesTemplate, owner type "character"). My rating is the viewer's own: a holder of self.list sets
 // it through PUT /api/me/ratings (api/mutations/useMyRatingMutations.js).
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -24,6 +23,7 @@ import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
 import CastingCard from "../../components/info/CastingCard";
 import IdentityCard from "../../components/info/IdentityCard";
+import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
 import MalButton from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
@@ -32,8 +32,6 @@ import { firstsRows } from "../../lib/characterForm";
 import {
   AdminToolbar,
   RatingSelect,
-  RemarkEditor,
-  useEntityPatch,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
@@ -51,7 +49,6 @@ export default function Character() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
-  const patch = useEntityPatch("character", character?.system_id, setCharacter);
   // My rating is the viewer's own (self.list), saved through /api/me/ratings.
   const { ownData: canRate } = useViewScope();
   const saveMyRating = useMyRatingSaver("character", character?.system_id, setCharacter);
@@ -229,19 +226,13 @@ export default function Character() {
                   </a>
                 ) : null,
               },
-              ...(isAdmin ? [] : [{ label: "Remark", value: character.remark }]),
             ]}
           />
 
           {firsts.length > 0 && <InfoCard title="First Appearances" fields={firsts} />}
 
-          {isAdmin && (
-            <RemarkEditor
-              systemId={character.system_id}
-              remark={character.remark}
-              onSave={(v) => patch({ remark: v }, "Remark saved")}
-            />
-          )}
+          {/* The remark list and personal notes (app/utils/note_sections.py). */}
+          <NotesTemplate ownerType="character" ownerId={character.system_id} />
 
           {character.identities?.length > 0 && (
             <section>

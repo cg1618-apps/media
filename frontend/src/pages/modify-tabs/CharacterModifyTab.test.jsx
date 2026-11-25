@@ -405,7 +405,7 @@ describe("sync from cast", () => {
         let body;
         if (u === "/api/character/c1/sync-from-cast" && options.method === "POST") {
           posts.push(JSON.parse(options.body));
-          body = { ...CHARACTERS[0], role: "Main", remark: "from the cast row" };
+          body = { ...CHARACTERS[0], role: "Main" };
         } else if (u === "/api/character/c1/entries") {
           body = CAST_ENTRIES;
         } else {
@@ -432,7 +432,11 @@ describe("sync from cast", () => {
     await user.click(screen.getByRole("button", { name: "Sync" }));
 
     await waitFor(() => expect(posts).toEqual([{ casting_id: "k2" }]));
-    expect(await screen.findByDisplayValue("from the cast row")).toBeInTheDocument();
+    // The form takes the returned character: its role is now the cast row's.
+    // (The row's remark is added to the Remark list server-side.)
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Main" })).toHaveAttribute("aria-pressed", "true"),
+    );
   });
 
   it("is disabled while the form holds unsaved edits", async () => {

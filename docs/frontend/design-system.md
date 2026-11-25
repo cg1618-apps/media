@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -243,7 +243,10 @@ counts). `h1` is display by default.
   Enter. A Button that submits its form says `type="submit"`.
 
 Shared detail-page pieces built on these: `InfoCard` (a slip of
-label/value fields), `ScoreBlock` (display figures on hairlines),
+label/value fields; every row of one card shares a column grid as wide as its
+widest row and fills it from the left, so a field lines up under the field
+above it - an anime movie's Release Date TW under Release Type - instead of
+each row dividing the width among its own fields), `ScoreBlock` (display figures on hairlines),
 `SourcesCard`, `MyTrackerCard`, `RelationsSection`.
 
 Two of those flex rather than fork for a type that does not fit the shape:
@@ -295,9 +298,9 @@ Detail page (`pages/detail/*.jsx`):
 ```
 Anime  /  <title>                Report a problem  ← Eyebrow breadcrumb; the report link for self.requests (provisional)
 [ Admin .... Edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
-┌─────────┐  Anime · TV · Finished Airing · SPR 2021    ← Eyebrow line
-│  cover  │  <Title in display face>
-│   [A]   │  subtitle (muted)
+┌─────────┐  <Title in display face>                   ← nothing above it
+│  cover  │  subtitle (muted)
+│   [A]   │
 │─────────│  ───────────────────────────────
 │ progress│  Franchise <link>   Series <link>
 └─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
@@ -319,11 +322,12 @@ filter chips, `brand` on the current one, scrolling sideways inside itself;
 pinned under the nav on a detail page, unpinned on the dashboard, whose own
 sticky headers already hold that strip.
 
-The anime movie page draws no eyebrow line: its type, release status, runtime
-and date are each on the Information card, and the breadcrumb names the type.
+No media detail page draws an eyebrow line above the title: the type,
+status and dates such a line would repeat are on the Information card, and
+the breadcrumb names the type. The title is the first thing in the header.
 
 A detail page's cover carries **no spine strip** - neither the type, which the
-breadcrumb (and the eyebrow line, where there is one) already names, nor the
+breadcrumb already names, nor the
 entry's id. That holds
 for every detail page: the twelve media types, the collection, franchise and
 series hubs (`HeroCover`), and the person, studio, publisher, character and

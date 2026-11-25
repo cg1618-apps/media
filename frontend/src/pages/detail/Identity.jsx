@@ -11,13 +11,14 @@
 // An identity IS its character under another name, so the page shows what
 // the character page does: the character's role, appearance and trait tags,
 // rating and MAL link come from GET /api/character/{id}, read beside the
-// entries; the names, photo, gender, remark and firsts are the identity's own. A
+// entries; the names, photo, gender, firsts and notes are the identity's own. A
 // Character section links back to the character and to its other identities.
 //
 // Like Character.jsx it reads the API with plain fetch. Unlike it, nothing is
 // edited in place: an identity has no PATCH route, and the rating is the
 // character's (set on its page), so the admin gets only the jump to the
-// Modify editor, and the remark is shown to everyone.
+// Modify editor. Its remark list and personal notes are a notes block of its
+// own (NotesTemplate, owner type "identity").
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
@@ -27,6 +28,7 @@ import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
 import CastingCard from "../../components/info/CastingCard";
 import IdentityCard from "../../components/info/IdentityCard";
+import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
 import MalButton from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
@@ -115,14 +117,12 @@ export default function Identity() {
     display_name: identity.character_display_name,
   });
   // The character's own card in the Character section. Built from the
-  // identity's fields until (or unless) the character itself loads; never
-  // the character's remark, which belongs to its own page.
+  // identity's fields until (or unless) the character itself loads.
   const characterCard = {
     ...(character || {}),
     public_id: identity.character_public_id,
     display_name: character?.display_name || characterName,
     display_gender: character?.gender,
-    remark: null,
   };
   const otherIdentities = (character?.identities || []).filter(
     (other) => other.system_id !== identity.system_id,
@@ -242,7 +242,6 @@ export default function Identity() {
                     </a>
                   ) : null,
                 },
-                { label: "Remark", value: identity.remark },
               ]}
             />
             <p className="text-[10px] text-text-faint">
@@ -251,6 +250,9 @@ export default function Identity() {
           </div>
 
           {firsts.length > 0 && <InfoCard title="First Appearances" fields={firsts} />}
+
+          {/* The identity's own remark list and personal notes. */}
+          <NotesTemplate ownerType="identity" ownerId={identity.system_id} />
 
           <section>
             <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] text-text-muted">

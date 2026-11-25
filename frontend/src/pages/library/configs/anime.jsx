@@ -7,6 +7,7 @@ import {
   malRatingSort,
   myRatingColumn,
   myRatingSort,
+  runtimeSort,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import LazyImage from "../../../components/ui/LazyImage";
@@ -20,7 +21,9 @@ import {
   isBaha,
 } from "../../../utils/media";
 import {
+  airingStatusFilter,
   exclusiveSourceFilter,
+  rangeFilter,
   genreFilters,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
@@ -81,16 +84,12 @@ const ANIME_LIBRARY_CONFIG = {
       options: ["TV", "Movie", "ONA", "OVA", "OAD", "Special"],
       match: (item, active) => active.has(item.airing_type),
     },
-    {
-      key: "airingStatus",
-      label: "Airing Status",
-      type: "set",
-      options: ["Not Yet Aired", "Airing", "Finished Airing", "Canceled"],
-      match: (item, active) => active.has(item.airing_status),
-    },
+    airingStatusFilter(),
     watchStatusFilter("anime"),
     // Advanced section (FilterPanel draws it collapsed).
     exclusiveSourceFilter(),
+    // Runtime in minutes: minutes per episode.
+    rangeFilter("runtime", "Runtime", (x) => x.runtime_min, { unit: "min" }),
     ...genreFilters(),
   ],
 
@@ -102,6 +101,7 @@ const ANIME_LIBRARY_CONFIG = {
     malRatingSort,
     anilistRatingSort,
     anilistPopularitySort,
+    runtimeSort("runtime_min"),
   ],
 
   // -- Table columns ---------------------------------------------------------

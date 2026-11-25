@@ -6,10 +6,10 @@
 // studio is credited on, grouped by media type exactly as
 // GET /api/studio/{id}/entries returns them.
 //
-// Like Person.jsx it reads the API with plain fetch. An admin can write the
-// remark in place and jump to the full editor, the controls Person.jsx and
-// Character.jsx have (components/info/EntityProfileControls.jsx): PATCH, then
-// the response becomes the page's state. My rating is the viewer's own, set
+// Like Person.jsx it reads the API with plain fetch. An admin can jump to the
+// full editor, the controls Person.jsx and Character.jsx have
+// (components/info/EntityProfileControls.jsx), and the remark list and
+// personal notes are a notes block (NotesTemplate, owner type "studio"). My rating is the viewer's own, set
 // by a holder of self.list through PUT /api/me/ratings.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -17,6 +17,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
+import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
 import MalButton from "../../components/info/MalButton";
 import NamingCard from "../../components/info/NamingCard";
@@ -25,8 +26,6 @@ import AffiliatedPeople from "../../components/info/AffiliatedPeople";
 import {
   AdminToolbar,
   RatingSelect,
-  RemarkEditor,
-  useEntityPatch,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp, eyebrowCls } from "../../components/ui/primitives";
@@ -55,7 +54,6 @@ export default function Studio() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
-  const patch = useEntityPatch("studio", studio?.system_id, setStudio);
   // My rating is the viewer's own (self.list), saved through /api/me/ratings.
   const { ownData: canRate } = useViewScope();
   const saveMyRating = useMyRatingSaver("studio", studio?.system_id, setStudio);
@@ -238,17 +236,11 @@ export default function Studio() {
                   ) : null,
                 },
               ],
-              ...(isAdmin ? [] : [{ label: "Remark", value: studio.remark }]),
             ]}
           />
 
-          {isAdmin && (
-            <RemarkEditor
-              systemId={studio.system_id}
-              remark={studio.remark}
-              onSave={(v) => patch({ remark: v }, "Remark saved")}
-            />
-          )}
+          {/* The remark list and personal notes (app/utils/note_sections.py). */}
+          <NotesTemplate ownerType="studio" ownerId={studio.system_id} />
 
           <RelatedRecords type="studio" recordId={studio.system_id} isAdmin={isAdmin} />
 

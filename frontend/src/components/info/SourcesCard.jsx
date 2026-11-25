@@ -60,6 +60,16 @@ function tagValues(...fields) {
   ];
 }
 
+// A game's exclusive platform family and its Font Awesome icon - the brand
+// marks for the three console makers, a computer and a phone for the rest.
+const GAME_EXCLUSIVE_ICONS = {
+  Nintendo: "fa-brands fa-nintendo-switch",
+  PlayStation: "fa-brands fa-playstation",
+  Xbox: "fa-brands fa-xbox",
+  PC: "fa-solid fa-desktop",
+  Mobile: "fa-solid fa-mobile-screen-button",
+};
+
 // A fixed 16px slot, empty when the source has no icon. The white tile keeps
 // the dark-on-transparent favicons (Wikipedia, FX, E-Hentai) legible in dark
 // mode. A cover fills the slot instead: it is a photo, not a transparent mark,
@@ -137,13 +147,13 @@ export function accessHeading(mediaType) {
 // with no cover leaves the slot empty rather than shrinking the "No Image"
 // placeholder into it.
 //
-// `exclusive` marks the row the entry's exclusive source names. The mark is
-// appended to the shown name only, so the icon is still looked up by the
-// vocabulary value.
-function SourceEntry({ row, coverUrl, exclusive = false }) {
+// `mark` names the row the entry's exclusive or original source points at -
+// "Exclusive" or "Original". It is appended to the shown name only, so the
+// icon is still looked up by the vocabulary value.
+function SourceEntry({ row, coverUrl, mark = null }) {
   const name = (
     <span data-testid="source-name">
-      {exclusive ? `${row.name} (Exclusive)` : row.name}
+      {mark ? `${row.name} (${mark})` : row.name}
     </span>
   );
   const isMain = row.bucket === "main";
@@ -206,14 +216,16 @@ export default function SourcesCard({
   dlsiteLinkJp,
   dlsiteLinkTw,
   originalSource,
+  originalSourceAsAccess = false,
   exclusiveSource,
   serializationPlatform,
+  gameExclusive,
   coverUrl,
 }) {
   // Never re-sort - the server already ordered these by `position`
   // (vocabulary sort_order for `main` rows, insertion order for `other`/
-  // `restricted` rows). The one exception is the main access row the
-  // exclusive source names, which leads its section.
+  // `restricted` rows). The exceptions are the main access rows the exclusive
+  // and original sources name, which lead their section.
   const allAccessRows = sources.filter((row) => row.kind === "access");
   const referenceRows = sources.filter((row) => row.kind === "reference");
 
@@ -223,24 +235,49 @@ export default function SourcesCard({
         (row) => row.bucket === "main" && row.name === exclusiveName,
       ) || null
     : null;
-  const accessRows = exclusiveRow
-    ? [exclusiveRow, ...allAccessRows.filter((row) => row !== exclusiveRow)]
-    : allAccessRows;
+  // A TV show's or cartoon's original source (`originalSourceAsAccess`) and a
+  // manga's or book's serialization platform are read the same way: each
+  // value leads the section after any exclusive row, marked "(Original)" or
+  // "(連載平台)". A value with a main access row marks that row; a value with
+  // none - the common case for an original source, whose vocabulary is far
+  // wider than the main sources - is drawn as a row of its own in the same
+  // place. Each is the platform's own vocabulary value, so it wears the
+  // platform's icon. An entry may name several.
+  const markedEntries = [
+    ...(originalSourceAsAccess ? tagValues(originalSource) : []).map((name) => ({
+      name,
+      mark: "Original",
+    })),
+    ...tagValues(serializationPlatform).map((name) => ({ name, mark: "連載平台" })),
+  ].map((entry) => ({
+    ...entry,
+    row:
+      allAccessRows.find((row) => row.bucket === "main" && row.name === entry.name) || null,
+  }));
+  const markedRows = new Set(markedEntries.map((o) => o.row).filter(Boolean));
+  // The rest, in the server's order.
+  const accessRows = allAccessRows.filter(
+    (row) => row !== exclusiveRow && !markedRows.has(row),
+  );
+  const hasAccess = Boolean(exclusiveRow) || markedEntries.length > 0 || accessRows.length > 0;
 
   // A matched exclusive source is said by its row, so it is not a tag too.
-  // One with no row - stored before the rule required one - stays a tag.
+  // One with no row - stored before the rule required one - stays a tag. An
+  // original source or serialization platform drawn as rows is never a tag.
   const tags = tagValues(
-    originalSource,
+    originalSourceAsAccess ? null : originalSource,
     exclusiveRow ? null : exclusiveSource,
-    serializationPlatform,
   );
 
   // The storefront links are column-backed rather than source rows: Steam on
   // games and h-games, and an h-game's two DLsite pages.
   const hasStorefront = Boolean(steamLink || dlsiteLinkJp || dlsiteLinkTw);
 
+  const exclusivePlatform = (gameExclusive || "").trim();
+
   const hasAny =
-    accessRows.length > 0 ||
+    Boolean(exclusivePlatform) ||
+    hasAccess ||
     hasStorefront ||
     referenceRows.length > 0 ||
     Boolean(malLink) ||
@@ -264,6 +301,25 @@ export default function SourcesCard({
 
   return (
     <Slip title="Sources" padded={false}>
+      {/* A game's exclusive platform: a section of its own, above Where to
+          Play. */}
+      {exclusivePlatform && (
+        <section aria-label="Exclusive Source">
+          <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] text-text-faint">
+            Exclusive Source
+          </div>
+          <div className={PLAIN_CLS}>
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="w-4 h-4 shrink-0 flex items-center justify-center text-text">
+                {GAME_EXCLUSIVE_ICONS[exclusivePlatform] && (
+                  <i className={GAME_EXCLUSIVE_ICONS[exclusivePlatform]} aria-hidden="true" />
+                )}
+              </span>
+              <span className="truncate text-text">{exclusivePlatform}</span>
+            </span>
+          </div>
+        </section>
+      )}
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-border">
           {tags.map((tag) => (
@@ -271,18 +327,25 @@ export default function SourcesCard({
           ))}
         </div>
       )}
-      {(accessRows.length > 0 || hasStorefront) && (
+      {(hasAccess || hasStorefront) && (
         <section aria-label={accessHeading(mediaType)}>
           <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] text-text-faint">
             {accessHeading(mediaType)}
           </div>
+          {exclusiveRow && (
+            <SourceEntry row={exclusiveRow} coverUrl={coverUrl} mark="Exclusive" />
+          )}
+          {markedEntries.map(({ name, mark, row }) =>
+            row ? (
+              <SourceEntry key={`${mark}:${row.system_id}`} row={row} coverUrl={coverUrl} mark={mark} />
+            ) : (
+              <SourceRow key={`${mark}:${name}`} icon={sourceIconUrl(name)}>
+                <span data-testid="source-name">{`${name} (${mark})`}</span>
+              </SourceRow>
+            ),
+          )}
           {accessRows.map((row) => (
-            <SourceEntry
-              key={row.system_id}
-              row={row}
-              coverUrl={coverUrl}
-              exclusive={row === exclusiveRow}
-            />
+            <SourceEntry key={row.system_id} row={row} coverUrl={coverUrl} />
           ))}
           {/* A storefront, not a reference database - so it sits with the
               access rows rather than beside IGDB. It is column-backed

@@ -5,7 +5,6 @@
 // episode/issue counter, so the tracker card carries no stepper and
 // GameProgress renders playtime and achievements instead.
 import { useState, useEffect, useMemo } from "react";
-import { releaseYear } from "../../lib/releaseDate";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
@@ -304,8 +303,6 @@ export default function Game() {
   const imageUrl = getCoverUrl(game.cover_image_file);
   const franchiseName = franchise ? getDisplayName(franchise, "franchise") : null;
 
-  const year = releaseYear(game.release_date);
-
   // The cover rule shows playtime, per the design: how far in you are is the
   // one number worth reading off the poster, against Main + Extra.
   const estimate = progressEstimate(game);
@@ -314,9 +311,6 @@ export default function Game() {
       ? Math.min(1, Number(game.hours_played) / estimate)
       : 0;
 
-  const eyebrow = ["Game", game.game_type, game.release_status, game.completion_level, year]
-    .filter(Boolean)
-    .join("  ·  ");
 
   return (
     // One provider around the whole page, because the notes are rendered in
@@ -443,15 +437,15 @@ export default function Game() {
               mediaType="game"
               igdbLink={game.igdb_link}
               steamLink={game.steam_link}
+              gameExclusive={game.exclusive_platform}
             />
           </div>
 
           {/* ========== RIGHT COLUMN ========== */}
           <div className="lg:col-span-3 space-y-10">
+            {/* No eyebrow above the title: what it repeated is on the Information
+                card, and the breadcrumb names the type. */}
             <header>
-              <div className="font-mono text-[11px] text-text-muted mb-3">
-                {eyebrow}
-              </div>
               <div className="flex items-baseline gap-4 flex-wrap mb-2">
                 <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95]">
                   {titleMain}
@@ -568,17 +562,22 @@ export default function Game() {
                     [
                       { label: "Type", value: game.game_type },
                       { label: "Main / Remake", value: game.is_main },
-                      {
-                        label: "Base Game",
-                        value: game.base_game ? (
-                          <Link
-                            to={entityPath("game", game.base_game)}
-                            className="text-brand hover:underline"
-                          >
-                            {game.base_game.display_name}
-                          </Link>
-                        ) : null,
-                      },
+                      // Shown only for a DLC or expansion that names one.
+                      ...(game.base_game
+                        ? [
+                            {
+                              label: "Base Game",
+                              value: (
+                                <Link
+                                  to={entityPath("game", game.base_game)}
+                                  className="text-brand hover:underline"
+                                >
+                                  {game.base_game.display_name}
+                                </Link>
+                              ),
+                            },
+                          ]
+                        : []),
                     ],
                     [
                       { label: "Platform", value: game.game_platform },
@@ -594,7 +593,7 @@ export default function Game() {
                   fields={[
                     { label: "Genre", value: game.game_genre },
                     { label: "Theme", value: game.game_theme },
-                    { label: "標籤 Label", value: game.label },
+                    { label: "Label", value: game.label },
                   ]}
                 />
               </TocSection>
@@ -686,7 +685,10 @@ export default function Game() {
                     // they are editable in My tracker and the Completion block
                     // above. This one is a fact about the source - whether Steam
                     // may write this entry's progress - so it sits with the copies.
-                    { label: "Steam Progress Sync", value: yesNo(game.steam_progress_sync) },
+                    // Shown only when set.
+                    ...(game.steam_progress_sync != null
+                      ? [{ label: "Steam Progress Sync", value: yesNo(game.steam_progress_sync) }]
+                      : []),
                   ]}
                 />
               </TocSection>

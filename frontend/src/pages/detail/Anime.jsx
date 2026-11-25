@@ -16,6 +16,7 @@ import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
 import AdminActions from "../../components/layout/AdminActions";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
+import GenresCard from "../../components/info/GenresCard";
 import {
   publisherLabel,
   publisherValue,
@@ -197,14 +198,6 @@ export default function Anime() {
       ? `${anime.release_season} ${releaseYear(anime.release_date_jp)}`
       : anime.release_season || null;
 
-  const eyebrow = [
-    "Anime",
-    anime.airing_type,
-    anime.airing_status,
-    releaseSeasonYear,
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
 
   return (
     <DetailContents>
@@ -325,10 +318,9 @@ export default function Anime() {
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
           {/* Header & Titles */}
+          {/* No eyebrow above the title: what it repeated is on the Information
+              card, and the breadcrumb names the type. */}
           <header>
-            <div className="font-mono text-[11px] text-text-muted mb-3">
-              {eyebrow}
-            </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>
@@ -460,11 +452,11 @@ export default function Anime() {
                     { label: "Release Date JP", value: anime.release_date_jp || null },
                     { label: "Release Date TW", value: anime.release_date_tw || null },
                   ],
-                  { label: "Genre (Main)", value: anime.genre_main },
-                  { label: "Genre (Sub)", value: anime.genre_sub },
-                  { label: "Label", value: anime.label },
                 ]}
               />
+            </TocSection>
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={anime} />
             </TocSection>
             <TocSection id="production" label="Production">
               <InfoCard

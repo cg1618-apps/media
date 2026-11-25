@@ -139,8 +139,8 @@ PERSON_ROLES: tuple[str, ...] = tuple(
 
 # Labels that differ by media type. One person type, three reader-facing words:
 # the same `author` is 原作 on a manga, Author on a book and Writer on a
-# comic. 作畫 is the traditional form, matching the site's other CJK labels
-# (標籤 Label); the pre-collapse label carried the Japanese 作画.
+# comic. 作畫 is the traditional form, matching the site's other Traditional
+# Chinese labels; the pre-collapse label carried the Japanese 作画.
 # Anything absent falls back to CreditRole.label.
 _LABEL_OVERRIDES: dict[tuple[str, str], str] = {
     ("author", "manga"): "原作",
@@ -221,7 +221,7 @@ TAG_FIELDS: dict[str, TagField] = {
     # LEGACY_SHEET_COLUMN entry: the sheet header is the key. The gated types
     # carry none of the three.
     "label": TagField(
-        "label", "標籤 Label", "Label", GENRE_MEDIA_TYPES + ("game",)
+        "label", "Label", "Label", GENRE_MEDIA_TYPES + ("game",)
     ),
     # Where a work FIRST appeared. Multi-value: a film can open in cinemas and
     # on a streaming service the same day.
@@ -264,6 +264,14 @@ TAG_FIELDS: dict[str, TagField] = {
         "game_theme", "Theme", "Game Theme", ("game", "h-game")
     ),
     "game_mode": TagField("game_mode", "Mode", "Game Mode", ("game",)),
+    # The one platform family a game is exclusive to - Nintendo, PlayStation,
+    # Xbox, PC or Mobile (game_vocabulary.EXCLUSIVE_PLATFORMS). A game's own
+    # field rather than anime's exclusive_source: that one draws from the
+    # streaming Platform vocabulary and must match a main access row, and a
+    # game has no access rows. Blank means not exclusive. Single-valued.
+    "exclusive_platform": TagField(
+        "exclusive_platform", "Exclusive Source", "Exclusive Platform", ("game",)
+    ),
     "combat_mode": TagField(
         "combat_mode", "Combat Mode", "Combat Mode", ("game",)
     ),

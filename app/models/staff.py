@@ -110,7 +110,6 @@ class Person(Base, NameFallbackMixin):
     # franchise.cover_entry_id - a stale id falls through to the automatic
     # choice (app/services/domain/entity_photos.py).
     photo_fallback_entry_id = Column(UUID(as_uuid=True), nullable=True)
-    remark = Column(Text, nullable=True)
     # MAL's people record, as Studio carries its producer record: mal_id is
     # derived from a pasted mal_link (/people/<id>/<slug>), and the Person
     # (MAL) Fill reads it (app/services/domain/autofill.py).
@@ -411,7 +410,6 @@ class Studio(Base, NameFallbackMixin):
     # NULL centres it. Reset whenever the
     # logo changes - see media.cover_image_focus.
     logo_focus = Column(String, nullable=True)
-    remark = Column(Text, nullable=True)
     # Truncated ISO-8601, the format owned by app/utils/release_date.py.
     founded_date = Column(String, nullable=True)
     defunct_date = Column(String, nullable=True)
@@ -642,7 +640,6 @@ class Publisher(Base, NameFallbackMixin):
     # NULL centres it. Reset whenever the
     # logo changes - see media.cover_image_focus.
     logo_focus = Column(String, nullable=True)
-    remark = Column(Text, nullable=True)
     # Truncated ISO-8601, the format owned by app/utils/release_date.py.
     founded_date = Column(String, nullable=True)
     defunct_date = Column(String, nullable=True)

@@ -1,5 +1,5 @@
 // Frontend: a card for one identity of a character - its photo, display
-// name, every other name it goes by, gender and remark - linking to its page.
+// name, every other name it goes by and gender - linking to its page.
 //
 // Shared by the character page's Identities section and the identity page's
 // Character section. `to` overrides the link (the identity page's card for
@@ -64,7 +64,6 @@ export default function IdentityCard({ identity, to, label }) {
             {identity.display_gender}
           </span>
         )}
-        {identity.remark && <p className="text-xs text-text-muted whitespace-pre-line">{identity.remark}</p>}
       </div>
     </Wrapper>
   );

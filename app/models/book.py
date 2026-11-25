@@ -81,6 +81,9 @@ class Book(Base, NameFallbackMixin):
     type = Column(String, nullable=True)
     version = Column(String, nullable=True)
     is_main = Column(String, nullable=True)
+    # The studio that animated the book's adaptation, as on a manga: a plain
+    # column, not a credit, since it names no one who made the book.
+    anime_studio = Column(String, nullable=True)
     serialization_status = Column(String, nullable=True)
 
     vol_total_original = Column(Float, nullable=True)

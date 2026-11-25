@@ -448,7 +448,7 @@ export default function Modify() {
   const [chgf, setChgf] = useState({});
   const [chtf, setChtf] = useState({});
 
-  // The 標籤 Label field and the content-label picker, kept in step on every
+  // The Label field and the content-label picker, kept in step on every
   // type with that field (hooks/useLabelTagSync.js). An opened entry's tags
   // and labels both arrive as stored, so only edits are carried across.
   const labelForms = {
@@ -953,6 +953,8 @@ export default function Modify() {
       type: n.type || "",
       version: n.version || "",
       is_main: n.is_main || "",
+      // A plain column, as manga's is - not a credit loaded separately.
+      anime_studio: n.anime_studio || "",
       serialization_status: n.serialization_status || "",
       reading_status: n.reading_status || md("book").reading_status,
       progress_display: n.progress_display || "",
@@ -1372,7 +1374,7 @@ export default function Modify() {
       else if (editingType === "hentai") await saveHentai();
       else if (editingType === "options") await saveOption();
       const labelled = await savePendingLabels();
-      // A label write rewrites the 標籤 Label tags, so the tags the save's
+      // A label write rewrites the Label tags, so the tags the save's
       // own reload read before it are read again (hooks/useLabelTagSync.js).
       if (labelled && hasLabelField(labelled.mediaType)) {
         loadCreditsIntoForm(

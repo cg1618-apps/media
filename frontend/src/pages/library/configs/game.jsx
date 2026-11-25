@@ -5,13 +5,17 @@ import {
   planFlagColumn,
   playButtonColumn,
 } from "../../../components/layout/libraryColumns";
-import { PLAYING_STATUS_GROUP } from "../../../config/statusGroups";
 import { releaseScore } from "../../../lib/releaseDate";
 import { compareTitles, getSortName } from "../../../lib/naming";
 import {
   gameGenreFilters,
+  labelFilter,
+  playStatusFilter,
+  rangeFilter,
   tagFilter,
+  vocabularyFilter,
 } from "../../../lib/libraryFilterDefs";
+import { GAME_IS_MAIN, GAME_RELEASE_STATUSES, GAME_TYPES } from "../../../config/fieldOptions";
 
 // CN leads, as everywhere but comic.
 function getTitle(g) {
@@ -36,6 +40,13 @@ function formatHours(hours) {
 
 function hoursValue(g) {
   const n = Number(g.hours_played);
+  return Number.isFinite(n) ? n : -1;
+}
+
+// -1 for a game with no such figure, so it sorts below a genuine zero.
+function numberOrLast(value) {
+  if (value == null || value === "") return -1;
+  const n = Number(value);
   return Number.isFinite(n) ? n : -1;
 }
 
@@ -80,45 +91,38 @@ const GAME_LIBRARY_CONFIG = {
   },
 
   filterDefs: [
+    // Type and Release share a line, Type at the left.
+    { ...vocabularyFilter("gameType", "Type", "game_type", GAME_TYPES), row: "kind" },
     {
-      key: "gameType",
-      label: "Type",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.game_type).filter(Boolean))].sort(),
-      match: (item, active) => active.has(item.game_type),
+      ...vocabularyFilter("releaseStatus", "Release", "release_status", GAME_RELEASE_STATUSES),
+      row: "kind",
     },
-    {
-      key: "playingStatus",
-      label: "Play Status",
-      personal: true,
-      type: "set-grouped",
-      groupOptions: ["Playing", "Planned", "Completed", "Dropped", "Might Play"],
-      match: (item, active) =>
-        active.has(PLAYING_STATUS_GROUP[item.playing_status] ?? "Might Play"),
-    },
+    playStatusFilter(),
+    // Mode and Combat Mode share a line. All three are multi-value tag
+    // fields, so tagFilter splits them; they stay in the ordinary section.
+    { ...tagFilter("gameMode", "Mode", "game_mode"), advanced: false, row: "mode" },
+    { ...tagFilter("combatMode", "Combat Mode", "combat_mode"), advanced: false, row: "mode" },
+    { ...tagFilter("gamePlatform", "Platform", "game_platform"), advanced: false },
+    // Advanced section (FilterPanel draws it collapsed).
+    { ...vocabularyFilter("isMain", "Main / Remake", "is_main", GAME_IS_MAIN), advanced: true },
     {
       // `ownership` is derived server-side from the game's copy rows, so it is
-      // a plain string here like any other column.
+      // a plain string here like any other column. The one personal filter in
+      // an advanced section.
       key: "ownership",
       label: "Ownership",
       personal: true,
+      advanced: true,
+      // Advanced in the library, but still offered by the random picker.
+      inPicker: true,
       type: "set-dynamic",
       deriveOptions: (data) =>
         [...new Set(data.map((d) => d.ownership).filter(Boolean))].sort(),
       match: (item, active) => active.has(item.ownership),
     },
-    {
-      key: "releaseStatus",
-      label: "Release",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.release_status).filter(Boolean))].sort(),
-      match: (item, active) => active.has(item.release_status),
-    },
-    // Advanced section (FilterPanel draws it collapsed).
+    rangeFilter("hltbMainExtra", "HLTB Main + Extra", (g) => g.hltb_main_extra, { unit: "h" }),
     ...gameGenreFilters(),
-    tagFilter("label", "標籤 Label", "label"),
+    labelFilter(),
   ],
 
   sortDefs: [
@@ -134,13 +138,24 @@ const GAME_LIBRARY_CONFIG = {
       label: "Release Date",
       compare: (a, b) => releaseScore(b.release_date) - releaseScore(a.release_date),
     },
+    myRatingSort({ publicScore: metacriticSort, title: compareTitle }),
+    metacriticSort,
+    {
+      key: "metacritic_user_score",
+      label: "Metacritic User",
+      compare: (a, b) => numberOrLast(b.metacritic_user_score) - numberOrLast(a.metacritic_user_score),
+    },
     {
       key: "hours_played",
       label: "Playtime",
       compare: (a, b) => hoursValue(b) - hoursValue(a),
     },
-    metacriticSort,
-    myRatingSort({ publicScore: metacriticSort, title: compareTitle }),
+    {
+      // The US list price, highest first; an unpriced game last.
+      key: "price_original_us",
+      label: "US Price",
+      compare: (a, b) => numberOrLast(b.price_original_us) - numberOrLast(a.price_original_us),
+    },
   ],
 
   tableColumns: [

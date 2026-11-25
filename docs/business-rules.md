@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -996,8 +996,10 @@ seasons with seasons.
 
 ## 11. Remark as a note
 
-`remark` is not a column on the owner tables: an entry's or a group's
-remarks are the `note` rows with `section = "remark"` for that owner.
+`remark` is not a column on the owner tables, nor on the five entity tables
+(studio, publisher, person, character, character_identity): an entry's, a
+group's or an entity's remarks are the `note` rows with `section = "remark"`
+for that owner.
 
 **A remark is the catalogue's, and there may be any number of them.** 備註
 is a catalogue-scope list section (`text_links`, like every other list): each
@@ -1006,9 +1008,16 @@ through the notes API and read by everyone who can see the owner, a
 logged-out visitor included. A viewer's own notes on an owner go in 個人筆記
 `personal_notes`, which is personal.
 
-An entry's and a group's own routes neither take nor return a `remark`: a
-`remark` key in their create, update or patch body is ignored, like any
-other key that is not a field.
+An entry's, a group's and an entity's own routes neither take nor return a
+`remark`: a `remark` key in their create, update or patch body is ignored,
+like any other key that is not a field. Three things write an entity's
+remarks besides the notes page: **Sync from cast** adds the cast row's
+remark to its original's list (never twice), Calculate's cast sync gives an
+original with an empty list its best cast row's remark as the first row, and
+a merge moves the loser's rows onto the survivor after the survivor's own -
+see [systems/credits-and-tags.md](systems/credits-and-tags.md#remarks-on-an-entity).
+A cast row's, a voice's, a company relation's, a person affiliation's and a
+membership's `remark` are columns of those link rows, unrelated.
 
 ## 12. Hierarchy resolution (`hierarchy.py`)
 
@@ -1444,5 +1453,5 @@ about; the live name is shown while it exists.
 | `to_rewatch` (franchise, series, anime_movies, movies, tv_shows, cartoons) and `to_reread` (manga, novel, comic) columns | `9b0bcb763e8c_add_plan_next_kind_and_drop_rewatch_.py` | `plan_next` rows with `kind="rewatch"` (section 14)                                             |
 | `director` (anime, anime_movies, movies), `writer` / `artist` / `publisher` (comic), `publisher_tw` (manga, novel, comic) text columns | `d1r2o3p4c5o6l_drop_legacy_credit_columns.py`                   | `media_credit` / `media_tag` link rows; Fill checks them through `*_LINK_FIELDS_TO_FILL` (section 5) |
 | `publisher_tw` and `comic_publisher` tag fields, and the `Publisher / Distributor TW` and `Comic Publisher` `system_option` categories | `pb2m3i4g5r8_publisher_entity_migration.py` | `media_credit` rows with `role="publisher"` pointing at the `publisher` table, plus `publisher_scope` rows saying where each is offered. One-way: the revision's `downgrade` raises. Sheet headers unchanged |
-| `remark` columns on `series` and `system_option` (and the other owner tables) | `f1a2b3c4d5e6_add_remark_to_series.py`, `so1p2t3i4o5n_reshape_system_option.py`, `r1e2m3a4r5k6…` | `note` rows with `section="remark"` (section 11)                                     |
+| `remark` columns on `series` and `system_option` (and the other owner tables), and on `studio`, `publisher`, `person`, `character` and `character_identity` | `f1a2b3c4d5e6_add_remark_to_series.py`, `so1p2t3i4o5n_reshape_system_option.py`, `r1e2m3a4r5k6…`, `e1n2tremark3` | `note` rows with `section="remark"` (section 11)                                     |
 | `"JUL 2001"` release-date format and integer `release_year` columns       | release-date migration                                          | truncated ISO strings (section 1); `normalize` still accepts the old shapes on read                |

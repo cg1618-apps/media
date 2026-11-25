@@ -202,6 +202,10 @@ def test_h_game_credits_and_tag_fields():
         assert cr.TAG_FIELDS[key].media_types == ("game", "h-game")
     for key in ("game_mode", "combat_mode", "game_platform"):
         assert cr.TAG_FIELDS[key].media_types == ("game",)
+    exclusive = cr.TAG_FIELDS["exclusive_platform"]
+    assert exclusive.media_types == ("game",)
+    assert exclusive.category == "Exclusive Platform"
+    assert exclusive.label == "Exclusive Source"
 
 
 def test_unoverridden_labels_fall_back_to_the_role_label():
@@ -220,7 +224,7 @@ def test_every_role_has_a_label_on_every_media_type_it_serves():
 def test_manga_illustrator_uses_the_traditional_form():
     """
     作畫, not the Japanese 作画 the pre-collapse label carried. Matches the
-    site's other CJK labels (標籤 Label).
+    site's other Traditional Chinese labels.
     """
     assert cr.credit_label("illustrator", "manga") == "作畫"
     assert "作画" not in cr.credit_label("illustrator", "manga")

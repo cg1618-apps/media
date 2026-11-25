@@ -84,9 +84,11 @@ describe("the anime library filters", () => {
     { system_id: "c", genre_main: "冒險", genre_sub: "校園, 異世界", label: "很多福利, 會跳OP" },
   ];
 
-  it("derives each tag filter's chips from the comma-joined values", () => {
-    expect(byKey("genreMain").deriveOptions(items)).toEqual(["冒險", "奇幻", "日常"].sort((a, b) => a.localeCompare(b)));
-    expect(byKey("genreSub").deriveOptions(items)).toEqual(["校園", "異世界"].sort((a, b) => a.localeCompare(b)));
+  // Most-carried first: 冒險 and 異世界 are on two entries each.
+  it("derives each tag filter's chips from the comma-joined values, most-carried first", () => {
+    expect(byKey("genreMain").deriveOptions(items)).toEqual(["冒險", ...["奇幻", "日常"].sort((a, b) => a.localeCompare(b))]);
+    expect(byKey("genreSub").deriveOptions(items)).toEqual(["異世界", "校園"]);
+    expect(byKey("label").deriveOptions(items)).toEqual(["會跳OP", "很多福利"]);
     expect(byKey("exclusiveSource").deriveOptions(items)).toEqual(["Netflix"]);
   });
 
@@ -100,18 +102,19 @@ describe("the anime library filters", () => {
   });
 });
 
-// Every media-type library has an advanced section: exclusive source first
-// where the type has one, then the type's own genre and label vocabularies.
+// Every media-type library has an advanced section: exclusive source (or a
+// TV show's original source) first where the type has one, then the type's
+// own genre and label vocabularies, which always close the section.
 const ADVANCED_KEYS = {
-  anime: ["exclusiveSource", "genreMain", "genreSub", "label"],
-  "anime-movie": ["exclusiveSource", "genreMain", "genreSub", "label"],
+  anime: ["exclusiveSource", "runtime", "genreMain", "genreSub", "label"],
+  "anime-movie": ["exclusiveSource", "runtime", "genreMain", "genreSub", "label"],
   movie: ["exclusiveSource", "genreMain", "genreSub", "label"],
-  "tv-show": ["genreMain", "genreSub", "label"],
+  "tv-show": ["originalSource", "genreMain", "genreSub", "label"],
   cartoon: ["genreMain", "genreSub", "label"],
-  manga: ["genreMain", "genreSub", "label"],
-  book: ["genreMain", "genreSub", "label"],
-  comic: ["genreMain", "genreSub", "label"],
-  game: ["gameGenre", "gameTheme", "label"],
+  manga: ["publisherTw", "genreMain", "genreSub", "label"],
+  book: ["publisherTw", "genreMain", "genreSub", "label"],
+  comic: ["genreMain", "genreSub", "label", "era", "events"],
+  game: ["isMain", "ownership", "hltbMainExtra", "gameGenre", "gameTheme", "label"],
   "h-game": ["gameGenre", "gameTheme", "hGenrePlot", "hGenreAppearance", "hGenreRelation"],
   "h-comic": ["hGenrePlot", "hGenreAppearance", "hGenreRelation"],
   hentai: ["hGenrePlot", "hGenreAppearance", "hGenreRelation"],
@@ -130,8 +133,29 @@ describe.each(Object.entries(ADVANCED_KEYS))("the %s advanced section", (type, k
     expect(defs.slice(firstAdvanced).every((fd) => fd.advanced)).toBe(true);
   });
 
+  // The one exception is comic, whose Era and Event filters follow its
+  // genres, at the owner's choice.
+  it("puts the genre-related filters at the bottom", () => {
+    const GENRE_KEYS = new Set([
+      "genreMain", "genreSub", "label", "gameGenre", "gameTheme",
+      "hGenrePlot", "hGenreAppearance", "hGenreRelation",
+    ]);
+    const AFTER_GENRES = { comic: ["era", "events"] };
+    const advanced = defs
+      .filter((fd) => fd.advanced)
+      .map((fd) => fd.key)
+      .filter((k) => !(AFTER_GENRES[type] || []).includes(k));
+    const firstGenre = advanced.findIndex((k) => GENRE_KEYS.has(k));
+    expect(firstGenre).toBeGreaterThan(-1);
+    expect(advanced.slice(firstGenre).every((k) => GENRE_KEYS.has(k))).toBe(true);
+  });
+
+  // The one exception is a game's Ownership, advanced at the owner's choice.
   it("keeps the advanced filters catalogue, not personal", () => {
-    for (const fd of defs.filter((d) => d.advanced)) expect(fd.personal).toBeFalsy();
+    const PERSONAL_ADVANCED = { game: ["ownership"] };
+    for (const fd of defs.filter((d) => d.advanced && !(PERSONAL_ADVANCED[type] || []).includes(d.key))) {
+      expect(fd.personal).toBeFalsy();
+    }
   });
 });
 
@@ -166,5 +190,160 @@ describe("the anime movie release type filter", () => {
     ];
     const kept = applyFilterDefs(items, defs, active(defs, "releaseType", ["ONA"]));
     expect(kept.map((i) => i.system_id)).toEqual(["o"]);
+  });
+});
+
+// Every airing library's Airing Status chips run in the order a title moves
+// through them: not yet, airing, finished, then canceled.
+describe.each(["anime", "tv-show", "cartoon", "hentai"])("the %s airing-status filter", (type) => {
+  const def = LIBRARY_CONFIGS[type].filterDefs.find((fd) => fd.key === "airingStatus");
+  const ORDER = ["Not Yet Aired", "Airing", "Finished Airing", "Canceled"];
+
+  it("orders its chips not yet, airing, finished, canceled", () => {
+    const options =
+      def.type === "set-dynamic"
+        ? // Fed every status in reverse, so an alphabetical or as-found order fails.
+          def.deriveOptions([...ORDER].reverse().map((airing_status) => ({ airing_status })))
+        : def.options;
+    expect(options).toEqual(ORDER);
+  });
+});
+
+// A TV show's Original Source is a multi-value tag field, served under its
+// sheet header source_official; Airing Type offers TV first, and shares a
+// row with Region, drawn to its left.
+describe("the TV show library's filters", () => {
+  const defs = LIBRARY_CONFIGS["tv-show"].filterDefs;
+  const byKey = (key) => defs.find((fd) => fd.key === key);
+
+  it("filters by original source, any chosen value", () => {
+    const items = [
+      { system_id: "t1", source_official: "Netflix, HBO" },
+      { system_id: "t2", source_official: "HBO" },
+      { system_id: "t3", source_official: null },
+    ];
+    expect(byKey("originalSource").label).toBe("Original Source");
+    expect(byKey("originalSource").deriveOptions(items)).toEqual(["HBO", "Netflix"]);
+    const picked = applyFilterDefs(items, defs, active(defs, "originalSource", ["Netflix"]));
+    expect(picked.map((i) => i.system_id)).toEqual(["t1"]);
+  });
+
+  it("offers Airing Type with TV first, on Region's row and left of it", () => {
+    const airing = byKey("airingType");
+    expect(airing.options[0]).toBe("TV");
+    expect(airing.options).toContain("Special");
+    const keys = defs.map((fd) => fd.key);
+    expect(keys.indexOf("region")).toBe(keys.indexOf("airingType") + 1);
+    expect(airing.row).toBeTruthy();
+    expect(byKey("region").row).toBe(airing.row);
+    const items = [
+      { system_id: "a", airing_type: "TV" },
+      { system_id: "b", airing_type: "Special" },
+    ];
+    expect(applyFilterDefs(items, defs, active(defs, "airingType", ["Special"])).map((i) => i.system_id)).toEqual(["b"]);
+  });
+});
+
+it("offers a cartoon's Airing Type in the order TV, Movie, Special", () => {
+  const def = LIBRARY_CONFIGS.cartoon.filterDefs.find((fd) => fd.key === "airingType");
+  expect(def.options).toEqual(["TV", "Movie", "Special"]);
+});
+
+it("filters a comic by era and by any of its events, most-carried first", () => {
+  const defs = LIBRARY_CONFIGS.comic.filterDefs;
+  const byKey = (key) => defs.find((fd) => fd.key === key);
+  const items = [
+    { system_id: "a", era: "Modern", events: "Civil War, Secret Wars" },
+    { system_id: "b", era: "Silver", events: "Secret Wars" },
+    { system_id: "c", era: "Modern", events: null },
+  ];
+  expect(byKey("era").advanced).toBe(true);
+  expect(byKey("events").advanced).toBe(true);
+  expect(byKey("era").deriveOptions(items)).toEqual(["Modern", "Silver"]);
+  expect(byKey("events").deriveOptions(items)).toEqual(["Secret Wars", "Civil War"]);
+  expect(applyFilterDefs(items, defs, active(defs, "events", ["Civil War"])).map((i) => i.system_id)).toEqual(["a"]);
+});
+
+// Manga and book: chips in each vocabulary's own order (only the values the
+// library holds, any value outside the vocabulary after them), Read Status
+// grouped might, planned, reading, completed, dropped with a hint per chip,
+// and Publisher TW in the advanced section ahead of the genres.
+describe.each(["manga", "book"])("the %s library's filters", (type) => {
+  const defs = LIBRARY_CONFIGS[type].filterDefs;
+  const byKey = (key) => defs.find((fd) => fd.key === key);
+  const options = (key, values, field) =>
+    byKey(key).deriveOptions([...values].reverse().map((v) => ({ [field]: v })));
+
+  it("orders Serialization Status the way a run moves", () => {
+    const ORDER = ["未出", "連載中", "連載中 (不穩定)", "連載中 (有生之年)", "停更", "可能更多", "完結", "腰斬"];
+    expect(options("serializationStatus", [...ORDER, "Legacy"], "serialization_status")).toEqual([
+      ...ORDER,
+      "Legacy",
+    ]);
+    expect(options("serializationStatus", ["完結", "未出"], "serialization_status")).toEqual(["未出", "完結"]);
+  });
+
+  it("groups Read Status might, planned, reading, completed, dropped, each with its statuses as a hint", () => {
+    const read = byKey("readingStatus");
+    expect(read.groupOptions).toEqual(["Might Read", "Planned", "Reading", "Completed", "Dropped"]);
+    expect(read.optionHint("Reading")).toBe("Includes: Active Reading, Passive Reading, Paused");
+    expect(read.optionHint("Might Read")).toMatch(/no status/);
+    const items = [
+      { system_id: "a", reading_status: "Paused" },
+      { system_id: "b", reading_status: null },
+    ];
+    expect(applyFilterDefs(items, defs, active(defs, "readingStatus", ["Reading"])).map((i) => i.system_id)).toEqual(["a"]);
+    expect(applyFilterDefs(items, defs, active(defs, "readingStatus", ["Might Read"])).map((i) => i.system_id)).toEqual(["b"]);
+  });
+
+  it("puts Publisher TW, most-carried first, ahead of the genres", () => {
+    const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
+    expect(advanced).toEqual(["publisherTw", "genreMain", "genreSub", "label"]);
+    expect(byKey("publisherTw").label).toBe("Publisher TW");
+    const rows = [{ publisher_tw: "東立, 青文" }, { publisher_tw: "青文" }, { publisher_tw: null }];
+    expect(byKey("publisherTw").deriveOptions(rows)).toEqual(["青文", "東立"]);
+  });
+});
+
+it("orders the manga regions 日 韓 國 台 其他", () => {
+  const def = LIBRARY_CONFIGS.manga.filterDefs.find((fd) => fd.key === "region");
+  const ORDER = ["日漫", "韓漫", "國漫", "台漫", "其他"];
+  expect(def.deriveOptions([...ORDER].reverse().map((region) => ({ region })))).toEqual(ORDER);
+});
+
+it("puts a book's Type above Region, each in its vocabulary's order", () => {
+  const defs = LIBRARY_CONFIGS.book.filterDefs;
+  const keys = defs.map((fd) => fd.key);
+  expect(keys.indexOf("type")).toBe(keys.indexOf("region") - 1);
+  const derive = (key, field, values) =>
+    defs.find((fd) => fd.key === key).deriveOptions([...values].reverse().map((v) => ({ [field]: v })));
+  const TYPES = ["小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他"];
+  expect(derive("type", "type", TYPES)).toEqual(TYPES);
+  const REGIONS = ["歐美", "日本", "中國", "韓國", "台灣"];
+  expect(derive("region", "region", REGIONS)).toEqual(REGIONS);
+});
+
+// Anime and anime movie: a Runtime range filter in the advanced section - the
+// minutes per episode on an anime, the film's length on an anime movie - and
+// a Runtime sort, longest first and listed last.
+describe.each([
+  ["anime", "runtime_min"],
+  ["anime-movie", "length_min"],
+])("the %s library's runtime", (type, field) => {
+  const config = LIBRARY_CONFIGS[type];
+  it("filters by a minimum and a maximum runtime", () => {
+    const runtime = config.filterDefs.find((fd) => fd.key === "runtime");
+    expect(runtime.type).toBe("range");
+    expect(runtime.match({ [field]: 24 }, { min: "20", max: "30" })).toBe(true);
+    expect(runtime.match({ [field]: 90 }, { min: "", max: "30" })).toBe(false);
+    expect(runtime.match({ [field]: null }, { min: "1", max: "" })).toBe(false);
+  });
+
+  it("sorts by runtime last in the list, longest first, unknown last", () => {
+    const sorts = config.sortDefs;
+    const sort = sorts[sorts.length - 1];
+    expect(sort.label).toBe("Runtime");
+    const rows = [{ id: "a", [field]: 24 }, { id: "b", [field]: null }, { id: "c", [field]: 120 }];
+    expect([...rows].sort(sort.compare).map((r) => r.id)).toEqual(["c", "a", "b"]);
   });
 });

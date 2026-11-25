@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 ## What this is for
 
@@ -285,7 +285,10 @@ kinds of older name onto the current ones before anything parses a row
   Voice, Media Relation (both ends), Person Role, Publisher Scope, System
   Option Scope, Note and Meme; a `novel/` cover path on Media and Book becomes
   `book/`; the Book tab's old `type` vocabulary maps `Light Novel` → `輕小說`,
-  `Novel` → `小說`, `Web` → `網路小說`, `Other` → `其他`; the Franchise tab's
+  `Novel` → `小說`, `Web` → `網路小說`, `Other` → `其他`, and its English
+  `region` codes their Chinese names, `Western` → `歐美`, `JP` → `日本`,
+  `CN` → `中國`, `KR` → `韓國`, `TW` → `台灣` (`BOOK_REGION_RENAMES`); the
+  Franchise tab's
   `Novel` franchise-type token becomes `Book` (token-wise, never listed twice)
   and a `type_covers` choice under `Novel` moves to `Book` unless one is
   already filed there; and System Configs' `form_defaults:novel` and
@@ -407,6 +410,10 @@ here are skipped and named in `unresolved_refs`
 (`_missing_relation_endpoint`): both ends are foreign keys onto `media`, so
 writing one would roll back every relation in the tab at its commit.
 
+**The Note tab's owner columns** are every owner column of `note`, the five
+entity columns (`studio_id`, `publisher_id`, `person_id`, `character_id`,
+`identity_id`) after `series_id`.
+
 **The Note tab carries `personal`**, after `section`, and a `public` column
 at its end. In 優點, 缺點 and 優缺點, whose writer picks each row's kind
 (`kind_choice`), the kind is read from `public` instead: Backup writes TRUE on
@@ -480,6 +487,16 @@ alone. With no installation owner the row still restores and its personal
 values are skipped: they are counted into the tab's one `no installation
 owner` line (`no_owner_message`), not named row by row. The header names live in that module rather than in
 `pull.py` because no pipeline module may name a personal column.
+
+**A backup taken before `e1n2tremark3` still Pulls its entity remarks.** Its
+Studio, Publisher, Person, Character and Character Identity tabs carry a
+`remark` header, which is not reported as unexpected. Each non-blank cell is
+held aside, stashed under the row's own id once the row exists
+(`stash_legacy_remark`, `app/services/domain/entity_remarks.py`), and turned
+into a Remark row of that entity when the entity's Remark list is still empty
+(`convert_stashed_remarks`) - after each entity tab, and again after Pull
+All's tab loop. The Note tab restores the lists themselves, so either order
+ends with each remark once.
 
 **`Needs Work`** is the 待補充 Needs Work marks (`needs_work`), every column
 as it stands. Its four owner columns are real foreign keys onto `media` and the
@@ -632,7 +649,7 @@ cells land on the restored vocabulary.
 tabs: `character_id` is a real FK, and `Character Casting`'s `identity_id` must
 find its identity when it restores. It carries every column of
 `character_identity` (`public_id`, names, `display_name_field`, `gender`,
-`remark`, `first_mention`, `first_appearance`, `first_encounter`, `photo_file`,
+`first_mention`, `first_appearance`, `first_encounter`, `photo_file`,
 `photo_focus`, `position`, timestamps), and
 `character_id` round-trips as a plain uuid
 (`formatter.parse_character_identity_from_sheet`). `public_id` restores
@@ -840,10 +857,11 @@ Returns a status dict; the route streams it as the last event, `"status": "error
    - **Old-shape music rows**: an `ost` row carrying a type comes from a backup taken while the OST was one row per anime (an OST song has no type); it is read as that anime's `music_status` row for `ost`, its status kept when it is one of `MUSIC_STATUSES` (Need, Pending, No Full Version, Done) and `Not Done` otherwise, and folded as above. Note links that arrive as URL strings, on any section, are read as titled links with no title, and a `fields` blob on a section that is not `structured` is dropped.
    - **Old-shape note rows**: a row of 操作 Controls, 職業 Classes, 地理 Geography, 各集評論, 主線劇情, 支線劇情, 角色劇情 or 小知識 from a backup taken before revision `n1l2inkpairs3` is reshaped as that revision reshaped the local rows - see [systems/notes.md](systems/notes.md), Google Sheets, "Old-shape note rows". A row already in the new shape pulls unchanged.
    - **Note twins under another uuid**: a `Note` row whose `system_id` is unknown locally is retargeted at a local row with the same owner, section and content (`parent_id`, `locator`, `kind`, `status`, `title`, `content`, `links`, `entries`, `fields`), keeping the local `system_id` (`_match_note_twin` in `pull.py`). It exists because the OP and ED rows were minted by a migration once per database, so the same row has a different uuid on every machine and would otherwise arrive as a second copy. Two guards keep genuinely separate identical rows apart: a local row whose own id is in the sheet is never a candidate, and each local row is claimed by at most one sheet row.
-   - **The Note and Meme tabs carry four owner columns**, not an
+   - **The Note and Meme tabs carry owner columns**, not an
      `owner_type` / `owner_id` pair: `media_id`, `collection_id`,
-     `franchise_id` and `series_id`, exactly one set per row and a CHECK
-     enforcing it. All three of `Note`, `Quote` and `Meme` carry `author_id`.
+     `franchise_id` and `series_id`, and on Note also `studio_id`,
+     `publisher_id`, `person_id`, `character_id` and `identity_id`, exactly
+     one set per row and a CHECK enforcing it. All three of `Note`, `Quote` and `Meme` carry `author_id`.
      Consequences for a round trip:
      - **A sheet carrying the old pair still Pulls.** `parse_note_from_sheet` and
        `parse_meme_from_sheet` read the old pair as `_legacy_owner_type` /
@@ -1157,7 +1175,7 @@ The manual route `POST /replace/{key}/{entry_id}` calls the same function with `
 | 1 | `run_post_processing` | `anime_post_processing` for every Anime, `anime_movie_post_processing` for every AnimeMovies, `tv_show_post_processing` for every TVShows, `cartoon_post_processing` for every Cartoon, `manga_post_processing` for every Manga; commit after each type. (Movies, Book and Comic have no post-processing.) |
 | 2 | `run_derive_ep_previous` | `derive_ep_previous_all_anime(db)` — anime is the only type with a franchise-wide derived field left |
 | 3 | `run_seed_sequel_relations` | `seed_sequel_relations(db)` + commit — in every Anime franchise no `media_relation` row touches yet, one `sequel` row per adjacent pair of TV/ONA anime in each series, ordered by season/part; a group with a tied season/part is skipped. A seeded franchise has rows, so later runs skip it ([systems/relations.md](systems/relations.md#sequel-seed--seed_sequel_relations-in-appservicesdomainmedia_relationpy)) |
-| 4 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_book`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), `run_sync_size_groups` (`derive_size_groups` + commit), then `run_sync_cast` (`fill_cast_and_characters`, `app/services/domain/casting_sync.py` - empty character and identity role, remark and photo from their cast rows, then empty cast role and seiyuu from their originals, never overwriting - a cast row's remark is never filled, since a remark travels from cast row to original and not back; see [systems/credits-and-tags.md](systems/credits-and-tags.md#a-cast-row-and-its-original) - and a commit), then `run_sync_character_display_names` (`prefer_cn_display_names`, `app/services/domain/character_display_names.py` - every character and identity with a NULL `display_name_field` and a filled `name_cn` is set to `cn`; an explicit choice is never changed - and a commit) |
+| 4 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_book`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), `run_sync_size_groups` (`derive_size_groups` + commit), then `run_sync_cast` (`fill_cast_and_characters`, `app/services/domain/casting_sync.py` - empty character and identity role and photo from their cast rows, and the first row of an empty Remark list from the highest-ranked cast row's remark, then empty cast role and seiyuu from their originals, never overwriting - a cast row's remark is never filled, since a remark travels from cast row to original and not back; see [systems/credits-and-tags.md](systems/credits-and-tags.md#a-cast-row-and-its-original) - and a commit), then `run_sync_character_display_names` (`prefer_cn_display_names`, `app/services/domain/character_display_names.py` - every character and identity with a NULL `display_name_field` and a filled `name_cn` is set to `cn`; an explicit choice is never changed - and a commit) |
 | 5 | `bulk_check_cover_image(db)` | runs the cover check; its result is discarded |
 | 6 | log | `Calculate` / `Calculate All` / `Manual` / `Success` |
 
@@ -1406,7 +1424,7 @@ All routes require `manage.pipelines`, declared on the router; the access mode i
 | GET | `/clean/scan` | — | JSON `{tabs, totals, last_backup_at, anomalies}`; **503** when the sheet is unreadable or a tab is empty | find rows the sheet no longer mentions; read-only, logs nothing |
 | POST | `/clean/apply` | body `{"items": [{"tab", "system_id"}]}` | JSON `{deleted, per_tab, skipped}`; **503** as above, and nothing is deleted | re-scan, then delete only the named ids that are still orphans |
 | POST | `/calculate/all` | — | JSON `{"status", "message"}`; 500 on failure | Calculate All |
-| POST | `/calculate/sync-cast` | — | `{"status", "message", "counts"}`, `counts` keyed `character_role`, `character_remark`, `character_photo`, `identity_remark`, `identity_photo`, `cast_role`, `cast_seiyuu` (no `cast_remark`: a cast row's remark is never filled); logged `Calculate` / `Sync Cast` | Calculate All's `run_sync_cast` step on its own |
+| POST | `/calculate/sync-cast` | — | `{"status", "message", "counts"}`, `counts` keyed `character_role`, `character_remark`, `character_photo`, `identity_remark`, `identity_photo`, `cast_role`, `cast_seiyuu` (`character_remark` / `identity_remark` count originals whose empty Remark list took its first row; no `cast_remark`: a cast row's remark is never filled); logged `Calculate` / `Sync Cast` | Calculate All's `run_sync_cast` step on its own |
 | POST | `/calculate/sync-display-names` | — | `{"status", "message", "counts"}`, `counts` keyed `character`, `identity`; logged `Calculate` / `Sync Display Names` | Calculate All's `run_sync_character_display_names` step on its own |
 | GET | `/calculate/check-cover-image` | query `entry_type` (optional, an Anime `airing_type`) | JSON, see section 7 | cover check |
 | DELETE | `/calculate/delete-orphaned-covers` | — | `{"status", "deleted_count"}` | delete orphaned cover files |

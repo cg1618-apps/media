@@ -12,6 +12,7 @@ import {
   countActiveFilters,
   deriveDynamicOptions,
   initialFilters,
+  isRangeValue,
   sameFilters,
 } from "../lib/libraryFilters";
 
@@ -23,6 +24,10 @@ export function useFilterState(filterDefs, data, initial = null) {
       const current = prev[group];
       if (typeof current === "boolean") {
         return { ...prev, [group]: !current };
+      }
+      // A range filter is set whole: `value` is its new { min, max }.
+      if (isRangeValue(current)) {
+        return { ...prev, [group]: value };
       }
       const next = new Set(current);
       next.has(value) ? next.delete(value) : next.add(value);

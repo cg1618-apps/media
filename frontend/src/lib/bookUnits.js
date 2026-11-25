@@ -36,6 +36,22 @@ export function unitDisplayKey(kind, position, unitKey) {
   return `${prefix} ${pos}`;
 }
 
+/**
+ * The key a new unit of `kind` is prefilled with: its kind's prefix and the
+ * next number among the rows of that kind - "Vol 1", "Arc 3" - so a volume
+ * added after two arcs is still Vol 1. `rows` are the other rows of the book.
+ */
+export function nextUnitKey(kind, rows) {
+  const prefix = KEY_PREFIX[kind] || "Unit";
+  return `${prefix} ${rows.filter((r) => r.unit_kind === kind).length + 1}`;
+}
+
+/** Whether `unitKey` is still the shape nextUnitKey gives `kind` - untouched. */
+export function isPrefilledKey(kind, unitKey) {
+  const prefix = KEY_PREFIX[kind] || "Unit";
+  return new RegExp("^" + prefix + " [0-9]+$").test(String(unitKey ?? "").trim());
+}
+
 export function kindsForType(bookType) {
   return BOOK_UNIT_KINDS_BY_TYPE[bookType] || ["volume"];
 }

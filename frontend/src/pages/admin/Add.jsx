@@ -295,7 +295,7 @@ export default function Add() {
   const upubf = (k, v) => setPublisherForm((p) => ({ ...p, [k]: v }));
   const ucf = (k, v) => setCharacterForm((p) => ({ ...p, [k]: v }));
 
-  // The 標籤 Label field and the content-label picker, kept in step on every
+  // The Label field and the content-label picker, kept in step on every
   // type with that field (hooks/useLabelTagSync.js). A tab switch or a reset
   // after a create brings the labels to the open form's tags, so the picker
   // shows what this tab will save.
@@ -1132,7 +1132,6 @@ export default function Add() {
         twitter_link: personForm.twitter_link?.trim() || null,
         ig_link: personForm.ig_link?.trim() || null,
         pixiv_link: personForm.pixiv_link?.trim() || null,
-        remark: personForm.remark || null,
         roles: personRoles,
         studio_ids: (personForm.affiliations || []).map((s) => s.system_id),
       }),
@@ -1184,7 +1183,6 @@ export default function Add() {
         photo_file: characterForm.photo_file || null,
         photo_focus: characterForm.photo_focus || null,
         mal_link: characterForm.mal_link?.trim() || null,
-        remark: characterForm.remark || null,
         ...firstsPayload(characterForm),
         // Unknown values are created by the character write itself, so no
         // ensureSourceValues here; the refetch below makes them selectable.
@@ -1237,7 +1235,6 @@ export default function Add() {
         defunct_date: studioForm.defunct_date || null,
         mal_id: studioForm.mal_id ? parseInt(studioForm.mal_id, 10) : null,
         mal_link: studioForm.mal_link || null,
-        remark: studioForm.remark || null,
       }),
       credentials: "include",
     });
@@ -1286,7 +1283,6 @@ export default function Add() {
         website_url: publisherForm.website_url || null,
         founded_date: publisherForm.founded_date || null,
         defunct_date: publisherForm.defunct_date || null,
-        remark: publisherForm.remark || null,
         // Which media types offer this publisher. POST is additive, so this
         // can only widen a publisher that already exists under this name.
         scopes: publisherForm.scopes || [],

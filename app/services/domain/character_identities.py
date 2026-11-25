@@ -52,7 +52,6 @@ def identity_response(
         display_name=identity.display_name,
         gender=identity.gender,
         display_gender=identity.gender or character.gender,
-        remark=identity.remark,
         first_mention=identity.first_mention,
         first_appearance=identity.first_appearance,
         first_encounter=identity.first_encounter,

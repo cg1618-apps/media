@@ -1,10 +1,10 @@
 # Notes
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 ## What this is for
 
-Notes are the structured commentary you attach to anything in the library: a media entry (anime, comic, book...) or one of the three grouping tiers (collection, franchise, series). Every bullet — an advantage, an episode comment, an OP you still need to find, a link to a resource — is one row in the single `note` table, and a backend registry decides which *sections* exist, which owners they apply to, and what each row may contain. The frontend notes page reads that registry and renders it; it does not know section names itself (with two narrow, documented exceptions). The old per-owner `remark` column is now just one more section, so the same table also feeds the "Remark" field on the Add/Modify forms and detail pages.
+Notes are the structured commentary you attach to anything in the library: a media entry (anime, comic, book...), one of the three grouping tiers (collection, franchise, series), or - for 備註 Remark and 個人筆記 Personal Notes only - one of the five entities (studio, publisher, person, character, identity). Every bullet — an advantage, an episode comment, an OP you still need to find, a link to a resource — is one row in the single `note` table, and a backend registry decides which *sections* exist, which owners they apply to, and what each row may contain. The frontend notes page reads that registry and renders it; it does not know section names itself (with two narrow, documented exceptions). An owner's remarks are just one more section, `remark`, read and written in the Notes card like the rest.
 
 ## Model
 
@@ -15,6 +15,7 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `system_id` | UUID PK | Generated with `uuid.uuid4()`. |
 | `media_id` | UUID, indexed | FK `media.system_id` ON DELETE CASCADE. Set when the owner is any of the twelve media types. |
 | `collection_id` / `franchise_id` / `series_id` | UUID, indexed | FK to the matching tier table, ON DELETE CASCADE. Set when the owner is a grouping tier. |
+| `studio_id` / `publisher_id` / `person_id` / `character_id` / `identity_id` | UUID, indexed | FK to `studio`, `publisher`, `person`, `character` and `character_identity`, ON DELETE CASCADE. Set when the owner is an entity. `ENTITY_NOTE_COLUMNS` (`app/models/note.py`) maps each owner type to its column. |
 | `author_id` | UUID, indexed, **NOT NULL** | FK `users.id` ON DELETE CASCADE. Who wrote the row — always set, whatever the section's scope, because a catalogue note has an author too and that is the only provenance the catalogue has. Never read from the payload (`NoteBase` has no such field): the router stamps whoever is asking. |
 | `section` | String, indexed | Key of an entry in `NOTE_SECTIONS` (`app/utils/note_sections.py`). |
 | `parent_id` | UUID, indexed | FK `note.system_id` ON DELETE CASCADE. The row this one nests under, for a section whose registry entry sets `hierarchical`. Unbounded depth. CASCADE rather than SET NULL: promoting every child to a root on a delete reads as a flat pile rather than as a loss, which is harder to notice. In a [mixed section](#mixed-sections) the delete route re-homes members' rows before the CASCADE runs, so it takes only catalogue rows. Nothing at the database level keeps a child in its parent's section — a CHECK cannot read another row — so `_validate_parent` in `app/routers/note.py` owns that, along with refusing a cycle at any depth. |
@@ -29,14 +30,14 @@ The table lives in `app/models/note.py` (class `Note`, `__tablename__ = "note"`)
 | `sort_index` | Float | Ordering within one `(owner, section)`. New rows append at `max + 1.0`. |
 | `created_at` / `updated_at` | DateTime | Taipei time via `app/database.get_taipei_now`. Nullable — a Pull from a blank sheet cell leaves them None, so `NoteResponse` tolerates that. |
 
-**`owner_type` and `owner_id` are not stored.** The four owner columns above replace the pair, because a pair cannot cascade — it leaves orphan rows behind that `media_resolver` can only flag as missing. Both survive as **read-only Python properties** derived from whichever column is set, so the API wire format, the SPA and the Google Sheets tab all speak the pair — and, being properties rather than columns, they stay out of the sheet row. The API still takes `?owner_type=&owner_id=` and translates them onto the columns (`_owner_filters`, `_owner_columns` in `app/routers/note.py`). `meme` has the identical shape; `quote` is entry-only and so takes one `media_id` alone.
+**`owner_type` and `owner_id` are not stored.** The nine owner columns above replace the pair, because a pair cannot cascade — it leaves orphan rows behind that `media_resolver` can only flag as missing. Both survive as **read-only Python properties** derived from whichever column is set, so the API wire format, the SPA and the Google Sheets tab all speak the pair — and, being properties rather than columns, they stay out of the sheet row. The API still takes `?owner_type=&owner_id=` and translates them onto the columns (`_owner_filters`, `_owner_columns` in `app/routers/note.py`). `meme` has the same shape over the four entry and tier columns; `quote` is entry-only and so takes one `media_id` alone.
 
 Constraint and indexes (declared in `__table_args__`, so `create_all` test databases enforce them too):
 
 | Name | Definition | Why |
 | --- | --- | --- |
-| `ck_note_one_owner` | CHECK `num_nonnulls(media_id, collection_id, franchise_id, series_id) = 1` | Exactly one owner, enforced by the database rather than by convention. |
-| `ix_note_owner_section` | `(media_id, collection_id, franchise_id, series_id, section)` | The only read path the notes page uses. |
+| `ck_note_one_owner` | CHECK `num_nonnulls(media_id, collection_id, franchise_id, series_id, studio_id, publisher_id, person_id, character_id, identity_id) = 1` | Exactly one owner, enforced by the database rather than by convention. |
+| `ix_note_owner_section` | `(media_id, collection_id, franchise_id, series_id, section)` | The only read path the notes page uses for an entry or a tier. Each entity owner column carries its own index. |
 | `ix_note_one_music_status_per_kind` | unique `(media_id, kind)` **WHERE `section = 'music_status'`** | One status per anime per song list. `music_status` is anime-only, so `media_id` is the whole owner. Created by `alembic/versions/m1s2ongstat3_music_status_and_song_rows.py`; name and predicate must stay identical. |
 
 Column declaration order is also the Google Sheets column order, because `format_model_for_sheet` in `app/utils/formatter.py` walks `__table__.columns`.
@@ -255,12 +256,12 @@ is all the author's.
 
 ### Section registry
 
-`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all fifteen owners (`ALL_OWNERS`); "Entries" = the twelve media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically. "All but H" leaves out the three gated types (`H_OWNERS`); "All but h-comic, hentai" leaves out two of them — see "The gated types' notes" below the table.
+`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all fifteen owners (`ALL_OWNERS`); "Entries" = the twelve media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically. "All + entities" adds the five entities (`ENTITY_OWNERS`: studio, publisher, person, character, identity), which own those two sections and no other. "All but H" leaves out the three gated types (`H_OWNERS`); "All but h-comic, hentai" leaves out two of them — see "The gated types' notes" below the table.
 
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `remark` | 備註 Remark | text_links | flat | All | — | — | — | no | no | no |
-| `personal_notes` | 個人筆記 Personal Notes | text_links | flat | All | — | — | — | no | no | no |
+| `remark` | 備註 Remark | text_links | flat | All + entities | — | — | — | no | no | no |
+| `personal_notes` | 個人筆記 Personal Notes | text_links | flat | All + entities | — | — | — | no | no | no |
 | `introduction` | 介紹 Introduction | text_links | reviews (first) | All but h-comic, hentai | — | — | — | no | no | no |
 | `advantages` | 優點 Advantages (mixed, kind choice) | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
 | `disadvantages` | 缺點 Disadvantages (mixed, kind choice) | text_links | reviews | All but h-comic, hentai | — | — | — | no | no | no |
@@ -740,7 +741,7 @@ Design rules baked into the registry:
 | --- | --- |
 | **Episode-anchored sections stop at entry level.** Anything whose point is a locator (`episode_comments`, `highlights`, `highlight_episodes`, `op_ed_changes`, `extended_episodes`) is limited to episodic entries — never series/franchise/collection. `cinematography`, `foreshadowing`, `symmetry`, `speculation`, `easter_eggs` and `adaptation` reach series (and franchise for all but `cinematography`) because their locator is optional. | `owners` on each entry in `NOTE_SECTIONS`. |
 | **`quotes` is entry-only.** A quote is said in a specific work (`ENTRY_OWNERS`; see the docstring in `app/models/quote.py`). | `NOTE_SECTIONS["quotes"]`. |
-| **`memes` is allowed on all owners**, because a running gag often spans a franchise; `meme` carries the same four owner columns `note` does, so every one of the twelve owners is reachable. | `NOTE_SECTIONS["memes"]`. |
+| **`memes` is allowed on all owners**, because a running gag often spans a franchise; `meme` carries the four entry and tier owner columns `note` does, so every one of the fifteen owners is reachable. | `NOTE_SECTIONS["memes"]`. |
 | **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages` vs `highlight_moments`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
 | **A game's guide vocabulary is the 攻略 group, not one section.** Twenty sections across five cards (for a game) rather than one with a `kind`, because each is a list kept separately: which build to run is not the same question as where the collectibles are. `guide_resources` holds pointers to somebody else's walkthrough; the site-wide `resources` section (name_links, all owners, standalone) is a separate section games also inherit, and a second card labelled "Resources" would be unreadable — hence distinct keys *and* distinct labels. | The 攻略 run in `NOTE_SECTIONS` and its banner comment. |
 | **The 待辦 buckets are four sections, not one section with a `kind`.** `sort_index` orders rows within one `(owner, section)` pair and `/api/notes/reorder` renumbers the whole section, so a kind-tagged single section could not order items *within* a bucket. Moving an item between buckets is a PATCH of `section`, which appends it to the end of the bucket it lands in. The four are `quick_move`: `/api/notes/sections` serves each one's `move_targets` (the owner's other `quick_move` sections in the same card, in registry order), and every row carries a "Move to…" list of them beside Edit and Delete, so moving one is a single step rather than an edit. | The 待辦 run in `NOTE_SECTIONS` and its banner comment; `NoteSection.quick_move`, `NoteSectionOut.move_targets`. |
@@ -757,7 +758,7 @@ Runs on every POST and on the *merged* row of every PATCH. Raises `ValueError`, 
 
 | # | Check | Message |
 | --- | --- | --- |
-| 1 | `owner_type` in `OWNER_TABLES` | Unknown owner_type '…'. |
+| 1 | `owner_type` in `NOTE_OWNER_TABLES` (`OWNER_TABLES` and the five entities) | Unknown owner_type '…'. |
 | 2 | `section` is a registry key | Unknown note section '…'. |
 | 3 | Section's shape is a stored shape (not `external`) | Section '…' has its own table and is not stored as a note. |
 | 4 | Owner type is in the section's `owners` | Section '…' does not apply to owner type '…'. |
@@ -779,6 +780,7 @@ Singleton and one-per-kind uniqueness are **not** here — they need a query, so
 `GET /api/notes` applies the RBAC layer:
 
 - If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. A collection, franchise or series owner hidden from the viewer — by a label on it that the viewer's mode lacks, or on a group above it — answers the same 404 (`tier_visible`); every write resolves the tier from the id through `require_visible_owner` and answers it too.
+- An **entity** owner is visible when its row exists, the viewer holds its view permission (`view.studio`, `view.publisher`, `view.person`, `view.character`; an identity answers to `view.character`, as its page does) and `shared_record_visible` passes (`_entity_visible`). Anything else is the same 404, on reads and writes alike. A write resolves the entity type from the id itself; a claimed entity `owner_type` is used only to refuse, so an id that is missing or is another kind of entity is 404 too.
 - **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer; a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
 - **Personal rows of a mixed section filter the same way** (`note.personal`): the viewer's own beside the catalogue rows, after them. See [Mixed sections](#mixed-sections).
 - No field group names a note section.
@@ -816,12 +818,28 @@ The NG reset clears, from the caller's own marks only, every value the registry 
 Two sections of the same shape - `text_links`, a list of rows each with the
 links it rests on - told apart by whose rows they are. 備註 Remark is the
 catalogue's: shared, written under `manage.catalog`. 個人筆記 Personal Notes
-is personal-scope, each viewer's own. Both reach **every owner**, and the two
+is personal-scope, each viewer's own. Both reach **every owner**, the five
+entities included (the only sections an entity owns), and the two
 are read as a pair wherever 備註 appears; a test asserts they share an
 `owners` tuple.
 
 Remarks are written only here, in the Notes card: no Add or Modify form and
-no detail page carries a remark field of its own.
+no detail page carries a remark field of its own - an entity's included: the
+studio, publisher, person, character and identity pages draw the same Notes
+card for their own owner type.
+
+Three services write entity remarks besides the notes API, all through
+`app/services/domain/entity_remarks.py`. `add_remark(db, owner_type,
+owner_id, text, author_id=None)` appends a trimmed row at the end of the
+list unless a row with the same trimmed text is already there; its author
+defaults to the installation owner (`remark_author_id`). **Sync from cast**
+adds the cast row's remark to the original's list, under the admin syncing;
+**Calculate's cast sync** gives an original whose list is empty its
+highest-ranked cast row's remark as the first row (see
+[credits-and-tags.md](credits-and-tags.md)). An entity **merge**
+(`move_entity_notes`, called by `merge_fill.finish_merge`) moves the loser's
+rows - remarks and every account's personal notes - onto the survivor, after
+the survivor's own rows in each section, before the loser is deleted.
 
 ### Music
 
@@ -998,8 +1016,8 @@ TanStack Query - it has never used a query hook - so the group rows do too.
 
 | Piece | Where |
 | --- | --- |
-| The owner tables have no `remark` column (`alembic/versions/r1e2m3a4r5k6_remark_column_to_note.py` moved it into `note`). An entry's or a group's remarks are its `remark` note rows. | migration |
-| Nothing puts a `remark` on an entry or a group: their schemas declare none, their responses carry none, and a `remark` key in a create, update or patch body is ignored. Every remark is written on the notes page, through the notes API. | `app/schemas/*`, `app/routers/_factory.py`, `collection.py`, `franchise.py`, `series.py` |
+| The owner tables have no `remark` column (`alembic/versions/r1e2m3a4r5k6_remark_column_to_note.py` moved it into `note`), nor do the five entity tables (`e1n2tremark3`). An owner's remarks are its `remark` note rows. | migration |
+| Nothing puts a `remark` on an entry, a group or an entity: their schemas declare none, their responses carry none, and a `remark` key in a create, update or patch body is ignored. Every remark is written on the notes page, through the notes API. | `app/schemas/*`, `app/routers/_factory.py`, `collection.py`, `franchise.py`, `series.py` |
 | The review queue (`find_all_remarks`) reads `note` directly and lists each entry once, with every one of its remarks in the notes page's order. | `app/services/domain/remarks.py` |
 
 ## Sheets
@@ -1008,7 +1026,7 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 
 | Aspect | Detail |
 | --- | --- |
-| Columns | `note` column declaration order: `system_id, media_id, collection_id, franchise_id, series_id, section, personal, parent_id, locator, kind, status, title, content, links, entries, fields, sort_index, created_at, updated_at`, then `username` (`format_model_for_sheet`, `app/utils/formatter.py`). `author_id` is dropped for `username`, the author's name, because the uuid is minted per database; Pull resolves the name back, and an unknown, blank or absent one files the row under the installation owner. A sheet written before the column existed carries `author_id`, and Pull tries that uuid first. `links`, `entries` and `fields` are serialised as JSON text. `owner_type` / `owner_id` are **not** columns — they are read-only properties, which is what keeps them out of the sheet row. |
+| Columns | `note` column declaration order: `system_id, media_id, collection_id, franchise_id, series_id, studio_id, publisher_id, person_id, character_id, identity_id, section, personal, parent_id, locator, kind, status, title, content, links, entries, fields, sort_index, created_at, updated_at`, then `username` (`format_model_for_sheet`, `app/utils/formatter.py`). `author_id` is dropped for `username`, the author's name, because the uuid is minted per database; Pull resolves the name back, and an unknown, blank or absent one files the row under the installation owner. A sheet written before the column existed carries `author_id`, and Pull tries that uuid first. `links`, `entries` and `fields` are serialised as JSON text. `owner_type` / `owner_id` are **not** columns — they are read-only properties, which is what keeps them out of the sheet row. |
 | Restore order | Near the end of `SHEET_TABS`: after every owner tab, Quote and Meme, before Seasonal — owners must exist first. |
 | Parser | `parse_note_from_sheet` (`app/utils/formatter.py`): `owner_id` becomes None rather than failing if unparseable (no name-resolution step exists for it); the pre-rename `episode` header is still accepted as `locator` so old backups Pull. **`entries` and `fields` are each parsed exactly like `links` beside them, and `parent_id` like the owner columns** — without those keys Backup would still write the columns (the formatter walks real columns) and Pull would drop them, losing every item of every `name_entries` row, every structured field, and the nesting of every hierarchical row on a round trip. A `section` naming a key that has left the registry, or was renamed, is filed where the migration filed the local rows (`_RETIRED_NOTE_SECTIONS`): `reviews_and_comments` becomes `public_reviews`, and `remark_list` becomes `personal_notes`. |
 | Id-less row matching | Pull (`app/services/pipelines/pull.py`, "Note" branch) matches on `owner_type + owner_id + section + content` — not guarded on content, so a blank-content row matches `IS NULL` instead of duplicating every pull. |
@@ -1019,7 +1037,7 @@ The Google Sheets backup has a **"Note" tab** (`SheetTab("Note", models.Note, f.
 | Note Mark tab | Each account's marks travel on their own tab, after Note: `note_mark`'s columns with `user_id` dropped for `username`, `values` as JSON text. Pull resolves the name (unknown → the row is skipped and reported; no header → the installation owner), matches an existing mark by `(user, note)`, and translates a `note_id` this database does not hold through the Note tab — a `music_status` row by owner and list, any other by its twin — so a mark follows a row each database minted under its own id. A cell holding no value is not restored. |
 | Old-shape music rows | A sheet `ost` row carrying a type is the one-row OST of a backup taken before the OST became a song list (an OST song never has a type); it becomes the anime's `music_status` row for `ost`, keeping its status if it is one of `MUSIC_STATUSES`. Links that arrive as URL strings - any section, from a backup taken before every link was titled - are read as links with no title (`_note_links` in `app/utils/formatter.py`). A `fields` blob on a section that is not `structured` is dropped (`_note_fields`), since every other shape refuses one on the row's next edit. |
 | Old-shape note rows | A sheet backed up before 操作 Controls, 職業 Classes, 地理 Geography and 各集評論 lost their links, 主線劇情 and 支線劇情 their description, 角色劇情 became titled links and 小知識 became structured is reshaped on Pull exactly as revision `n1l2inkpairs3` reshaped the local rows (`_reshape_pulled_note` in `app/utils/formatter.py`), so no pulled row keeps a value in a column its section no longer draws: links become lines of the description; a plot row's description becomes its chapter and the old chapter its first link's title (otherwise the description is appended to the chapter after " — "); an arc's text becomes its first link's title, or moves to 其他 Other prefixed "【角色劇情】 " when it has no link; a trivia row's stray locator becomes its title. Each step is a no-op on a row already in the new shape, so a newer sheet pulls unchanged. |
-| Round-trip | The owner tables have no `remark` column, so **remarks round-trip only via the Note tab**. The `remark` still parsed on Order tabs is those tables' own column, unrelated. |
+| Round-trip | The owner tables have no `remark` column, so **remarks round-trip only via the Note tab**. An entity tab (Studio, Publisher, Person, Character, Character Identity) from a backup that still carries a `remark` header is read rather than refused: each non-blank cell becomes a Remark row of that entity when the entity's Remark list is still empty - see [../data-actions.md](../data-actions.md). The `remark` still parsed on Order tabs is those tables' own column, unrelated. |
 
 ## Related
 

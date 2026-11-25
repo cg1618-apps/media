@@ -109,7 +109,7 @@ type it serves is seeable.
 | `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
 | `TV_REGIONS` | `歐美劇`, `韓劇`, `日劇`, `陸劇`, `台劇`, `動畫` | `tv_shows.region` (formerly `Region (TV Show)` option category) | `tv_region` |
 | `MANGA_REGIONS` | `日漫`, `韓漫`, `國漫`, `台漫`, `其他` | `manga.region` (formerly `Region (Manga)` option category) | `manga_region` |
-| `BOOK_REGIONS` | `JP`, `CN`, `TW`, `KR`, `Western` | `book.region` | `book_region` |
+| `BOOK_REGIONS` | `歐美`, `日本`, `中國`, `韓國`, `台灣` | `book.region` | `book_region` |
 | `BOOK_TYPES` | `輕小說`, `小說`, `網路小說`, `短篇集`, `指南/設定集`, `其他` | `book.type`; also the Plan page book grouping, the unit kinds a book offers (below), and which books Statistics' Novel section counts (`輕小說`, `小說`, `網路小說`, `短篇集`) | `book_type` |
 | `COMIC_TYPES` | `Ongoing`, `Limited`, `One-Shot`, `Annual` | `comic.comic_type` | `comic_type` |
 | `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`, `h_game.game_type`; `Base Game` is the value `ck_games_base_no_parent` / `ck_h_game_base_no_parent` name | `game_type` |
@@ -550,7 +550,7 @@ Tier 2 category:
 |---|---|---|---|
 | `genre_main` | Genre Main | `Genre Main` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic |
 | `genre_sub` | Genre Sub | `Genre Sub` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic |
-| `label` | 標籤 Label | `Label` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game |
+| `label` | Label | `Label` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game |
 | `original_source` | Original Source (labelled Exclusive Source on movie) | `Platform` | tv-show, cartoon, movie, h-comic |
 | `exclusive_source` | Exclusive Source | `Platform` | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, book |
@@ -562,6 +562,7 @@ Tier 2 category:
 | `game_theme` | Theme | `Game Theme` | game, h-game |
 | `game_mode` | Mode | `Game Mode` | game |
 | `combat_mode` | Combat Mode | `Combat Mode` | game |
+| `exclusive_platform` | Exclusive Source | `Exclusive Platform` | game |
 | `game_platform` | Platform | `Game Platform` | game |
 | `h_genre_plot` | Genre Plot | `H Genre Plot` | h-comic, h-game, hentai |
 | `h_genre_appearance` | Genre Appearance | `H Genre Appearance` | h-comic, h-game, hentai |
@@ -779,7 +780,7 @@ ones in `OPTION_CATEGORIES`:
 | `Label` | per value, among the eight mainstream types and game | tag field `label` (標籤: viewing-experience tags such as 會跳OP; seeded with three values by migration `l1a2b3e4l5o6`) |
 | `Platform` | varies per value | tag fields `original_source` (tv-show, cartoon, movie, h-comic) and `exclusive_source` (anime, anime-movie), **and** `media_source` `kind='access', bucket='main'` rows on every media type. Renamed from `Official Source` (merged the old `TV Show Official Source` / `Cartoon Official Source`); serves two different questions, split by the `usage` axis below |
 | `Reference Source` | varies per value | `media_source` `kind='reference', bucket='main'` rows only — no `TagField`, in `FILTER_ONLY_CATEGORIES`. Gained `SteamDB`, `HowLongToBeat` and `Metacritic` for games, and `Official site` gained a `game` scope; every `game`-scoped value and `Twitter` also carry `h-game` (below); `Wikipedia` and `Fandom wiki` are unscoped and so already reach games |
-| `Serialization Platform` | manga, book | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values |
+| `Serialization Platform` | manga, book | tag field `serialization_platform`; seeded from the old free-text `manga.serialization_platform` column values. Also the vocabulary of a manga's and a book's **Main Sources** - their `main` access `media_source` rows (`category_for_kind` in `app/utils/source_fields.py`, `SERIALIZATION_ACCESS_TYPES`): the picker offers every value, whatever it is scoped to, and no `Platform` value |
 | `Comic Imprint` | comic | tag field `comic_imprint` |
 | `Comic Continuity` | comic | tag field `comic_continuity` |
 | `Comic Era` | comic | tag field `comic_era` |
@@ -788,6 +789,7 @@ ones in `OPTION_CATEGORIES`:
 | `Game Theme` | game, h-game | tag field `game_theme`; 20 seeded values, each with an IGDB alias |
 | `Game Mode` | game | tag field `game_mode`; 5 seeded values, each with an IGDB alias |
 | `Combat Mode` | game | tag field `combat_mode`; `PvE` and `PvP`, seeded **without** aliases - it is not an IGDB field |
+| `Exclusive Platform` | game | tag field `exclusive_platform`, a game's Exclusive Source: `Nintendo`, `PlayStation`, `Xbox`, `PC`, `Mobile`, seeded in that order by `g1x2clusive3` (`seed_exclusive_platforms`). Single-valued - the form offers one or none. Not anime's `exclusive_source`, which draws from Platform and must match a main access row |
 | `Game Platform` | game | tag field `game_platform`; six **families** - `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each followed by its **consoles** under short names (`PS5`, `Switch`, …; the list is under [Game Platform: families and consoles](#game-platform-families-and-consoles)). A console brings its family on every write. Brand names, so English rather than Chinese |
 | `H Genre Plot` | h-comic, h-game, hentai | tag field `h_genre_plot`; admin-managed, ships empty |
 | `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |

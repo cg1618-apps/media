@@ -147,14 +147,6 @@ export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <MyRatingFields kind="character" form={characterForm} update={ucf} />
       </div>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={characterForm.remark ?? ""}
-          onChange={(e) => ucf("remark", e.target.value)}
-        />
-      </Field>
       <CharacterFirstsFields form={characterForm} update={ucf} />
     </div>
   );

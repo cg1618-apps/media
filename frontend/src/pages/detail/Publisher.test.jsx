@@ -10,6 +10,13 @@ import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// The remark list and personal notes are NotesTemplate's to test; here only
+// that the page hands it this record as the owner.
+vi.mock("../notes/NotesTemplate", () => ({
+  default: ({ ownerType, ownerId }) => (
+    <div data-testid="entity-notes" data-owner-type={ownerType} data-owner-id={ownerId} />
+  ),
+}));
 
 const PUBLISHER = {
   system_id: "pb1",
@@ -116,12 +123,19 @@ describe("Publisher detail page", () => {
     expect(within(profile).queryByText("MAL")).not.toBeInTheDocument();
   });
 
-  it("shows a guest the remark as text, with no admin controls", async () => {
+  // The remark list and personal notes are this publisher's notes block.
+  it("draws the remark list and personal notes for this publisher", async () => {
+    renderPage();
+    const notes = await screen.findByTestId("entity-notes");
+    expect(notes).toHaveAttribute("data-owner-type", "publisher");
+    expect(notes.getAttribute("data-owner-id")).toBeTruthy();
+  });
+
+  it("shows a guest no admin controls", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "木棉花" });
     expect(screen.queryByRole("button", { name: "Edit this publisher" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
-    expect(screen.getByText(PUBLISHER.remark)).toBeInTheDocument();
   });
 
   describe("as a member holding self.list", () => {
@@ -164,16 +178,6 @@ describe("Publisher detail page", () => {
       expect(await screen.findByText("at /modify?id=pb1&type=publisher")).toBeInTheDocument();
     });
 
-    it("PATCHes the remark on blur", async () => {
-      const user = userEvent.setup();
-      renderPage();
-      const box = await screen.findByLabelText("Remark");
-      await user.clear(box);
-      fireEvent.blur(box);
-      await waitFor(() => expect(patchCalls()).toHaveLength(1));
-      // An emptied remark saves as null.
-      expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ remark: null });
-    });
   });
 });
 

@@ -3,6 +3,7 @@
 import pytest
 
 from app.services.pipelines.legacy_names import (
+    BOOK_REGION_RENAMES,
     BOOK_TYPE_RENAMES,
     book_type,
     config_value,
@@ -11,6 +12,8 @@ from app.services.pipelines.legacy_names import (
     type_covers,
 )
 from app.utils.constants import (
+    BOOK_REGIONS,
+    BOOK_SERIALIZATION_STATUSES,
     BOOK_TYPES,
     BOOK_UNIT_KINDS_BY_TYPE,
     BOOK_VOLUME_ONLY_TYPES,
@@ -22,7 +25,27 @@ from app.utils.name_normalize import name_slot_for
 
 
 def test_the_types():
-    assert BOOK_TYPES == ("輕小說", "小說", "網路小說", "短篇集", "指南/設定集", "其他")
+    # The order the Type filter and the form's dropdown list them in.
+    assert BOOK_TYPES == ("小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他")
+
+
+def test_the_regions():
+    assert BOOK_REGIONS == ("歐美", "日本", "中國", "韓國", "台灣")
+
+
+def test_the_serialization_statuses_in_order_of_a_run():
+    # Manga and book share this list; the form and the library filter both
+    # read it in this order.
+    assert BOOK_SERIALIZATION_STATUSES == (
+        "未出",
+        "連載中",
+        "連載中 (不穩定)",
+        "連載中 (有生之年)",
+        "停更",
+        "可能更多",
+        "完結",
+        "腰斬",
+    )
 
 
 def test_every_type_has_its_unit_kinds():
@@ -110,3 +133,15 @@ def test_a_books_release_is_the_jp_date_then_the_tw_one():
     assert primary_release_value("book", SimpleNamespace(release_date_jp="2006", release_date_tw="2010")) == "2006"
     assert primary_release_value("book", SimpleNamespace(release_date_jp=None, release_date_tw="2010")) == "2010"
     assert primary_release_value("book", SimpleNamespace(release_date_jp=None, release_date_tw=None)) is None
+
+
+def test_an_older_sheet_restores_a_book_region_in_chinese():
+    """A Books tab backed up before the region was renamed (b1o2okregion3)."""
+    assert BOOK_REGION_RENAMES == {
+        "Western": "歐美", "JP": "日本", "CN": "中國", "KR": "韓國", "TW": "台灣",
+    }
+    assert set(BOOK_REGION_RENAMES.values()) == set(BOOK_REGIONS)
+    assert legacy_cell_values("Book", {"region": "JP"})["region"] == "日本"
+    assert legacy_cell_values("Book", {"region": "日本"})["region"] == "日本"
+    # A manga's region is another vocabulary and never moves.
+    assert legacy_cell_values("Manga", {"region": "JP"})["region"] == "JP"

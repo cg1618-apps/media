@@ -32,12 +32,12 @@ const ENTRY = {
 const ok = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
 
 // A member with a list of their own (self.list), so the tracker is drawn.
-function mockFetch() {
+function mockFetch(entry = ENTRY) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => {
       const u = String(url);
-      if (u.startsWith("/api/tv-shows/")) return ok(ENTRY);
+      if (u.startsWith("/api/tv-shows/")) return ok(entry);
       if (u.startsWith("/api/auth/me")) {
         return ok({
           username: "reader",
@@ -90,5 +90,61 @@ describe("TV detail page - tab title and contents", () => {
     await waitFor(() =>
       expect(rows()).toEqual(["My tracker", "Naming", "Information", "Genres"]),
     );
+  });
+});
+
+// No eyebrow line above the title: the type, status and dates it repeated are
+// on the Information card, and the breadcrumb names the type. The title's
+// block is the first thing in the header.
+it("draws nothing above the title", async () => {
+  mockFetch();
+  mount();
+  const title = await screen.findByRole("heading", { level: 1 });
+  const header = title.closest("header");
+  expect(header.firstElementChild.contains(title)).toBe(true);
+});
+
+// Region, 本傳 / 外傳 and Season; then Airing Type, Airing Status and Release
+// Date; then Total Ep and Runtime. Season is left out when it is unset.
+describe("TV detail page - Information card", () => {
+  const FULL = {
+    ...ENTRY,
+    region: "歐美劇",
+    is_main: "本傳",
+    season_part: "Season 5",
+    airing_type: "TV",
+    release_date: "2012-07-15",
+    runtime_min: 47,
+  };
+  const LABELS = [
+    "Region", "本傳 / 外傳", "Season", "Airing Type", "Airing Status",
+    "Release Date", "Total Ep", "Runtime (min)",
+  ];
+
+  async function card() {
+    const heading = await screen.findByRole("heading", { level: 3, name: "Information" });
+    return within(heading.closest("section"));
+  }
+
+  it("lays the card out in three rows", async () => {
+    mockFetch(FULL);
+    mount();
+    const c = await card();
+    const rowOf = (label) => c.getByText(label).closest(".grid");
+    const labelsIn = (row) => LABELS.filter((l) => row.contains(c.getByText(l)));
+    expect(labelsIn(rowOf("Region"))).toEqual(["Region", "本傳 / 外傳", "Season"]);
+    expect(labelsIn(rowOf("Airing Type"))).toEqual(["Airing Type", "Airing Status", "Release Date"]);
+    expect(labelsIn(rowOf("Total Ep"))).toEqual(["Total Ep", "Runtime (min)"]);
+    expect(c.getByText("歐美劇")).toBeInTheDocument();
+    expect(c.getByText("Season 5")).toBeInTheDocument();
+  });
+
+  it("leaves Season out when it is unset", async () => {
+    mockFetch({ ...FULL, season_part: null });
+    mount();
+    const c = await card();
+    expect(c.queryByText("Season")).toBeNull();
+    expect(c.getByText("Region")).toBeInTheDocument();
+    expect(c.getByText("本傳 / 外傳")).toBeInTheDocument();
   });
 });

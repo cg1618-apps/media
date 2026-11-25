@@ -40,6 +40,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import get_taipei_now
 from app.dependencies import get_db
+from app.models.note import ENTITY_NOTE_COLUMNS
 from app.schemas.note import catalogue_empty, sections_out, validate_note_payload
 from app.services.domain.game_choice import node_of_game, parse_node_id
 from app.services.domain.highlight_group_order import (
@@ -65,10 +66,18 @@ from app.services.rbac.gated_types import unseeable_gated_types
 from app.services.rbac.permissions import (
     PERM_MANAGE_CATALOG,
     PERM_SELF_PERSONAL_NOTES,
+    view_perm,
 )
 from app.services.rbac.resolver import Viewer, get_viewer, require_permission
+from app.services.rbac.shared_visibility import shared_record_visible
 from app.utils.data_control_utils import log_deleted_record
-from app.utils.media_resolver import MEDIA_TABLES, OWNER_TABLES, TIER_TABLES
+from app.utils.media_resolver import (
+    ENTITY_TABLES,
+    MEDIA_TABLES,
+    NOTE_OWNER_TABLES,
+    OWNER_TABLES,
+    TIER_TABLES,
+)
 from app.utils.note_sections import (
     FIELD_CHOICE_NODE,
     NOTE_SECTIONS,
@@ -91,8 +100,8 @@ _SECTION_ORDER = {s.key: i for i, s in enumerate(NOTE_SECTIONS)}
 
 
 def _validate_owner_type(owner_type: Optional[str]) -> None:
-    """Ten valid owners: the seven media entries plus the three grouping tiers."""
-    if owner_type and owner_type not in OWNER_TABLES:
+    """The media entries, the three grouping tiers, and the five entities."""
+    if owner_type and owner_type not in NOTE_OWNER_TABLES:
         raise HTTPException(
             status_code=400, detail=f"Unknown owner_type '{owner_type}'."
         )
@@ -115,6 +124,8 @@ def _owner_filters(owner_type: str, owner_id) -> list:
     """
     if owner_type in TIER_TABLES:
         return [getattr(models.Note, _TIER_COLUMNS[owner_type]) == owner_id]
+    if owner_type in ENTITY_NOTE_COLUMNS:
+        return [getattr(models.Note, ENTITY_NOTE_COLUMNS[owner_type]) == owner_id]
     return [models.Note.media_id == owner_id]
 
 
@@ -122,10 +133,43 @@ def _owner_columns(owner_type: str, owner_id) -> dict:
     """The column assignment writing one owner onto a new note."""
     if owner_type in TIER_TABLES:
         return {_TIER_COLUMNS[owner_type]: owner_id}
+    if owner_type in ENTITY_NOTE_COLUMNS:
+        return {ENTITY_NOTE_COLUMNS[owner_type]: owner_id}
     return {"media_id": owner_id}
 
 
-def _require_visible_owner(db: Session, viewer: Viewer, owner_id) -> None:
+# The view gate an entity answers to, as its own page does: one per entity
+# kind, an identity reading as its character.
+_ENTITY_VIEW = {
+    "studio": "studio",
+    "publisher": "publisher",
+    "person": "person",
+    "character": "character",
+    "identity": "character",
+}
+
+
+def _entity_visible(db: Session, viewer: Viewer, owner_type: str, owner_id) -> bool:
+    """An entity owner's visibility: it exists, its view gate, and its labels."""
+    ref = ENTITY_TABLES[owner_type]
+    if db.get(ref.model, owner_id) is None:
+        return False
+    if viewer is not None and not viewer.has(view_perm(_ENTITY_VIEW[owner_type])):
+        return False
+    return shared_record_visible(db, viewer, ref.model, owner_id)
+
+
+def _entity_type_of(db: Session, owner_id) -> Optional[str]:
+    """Which entity `owner_id` is, read from the tables rather than a claim."""
+    for owner_type, ref in ENTITY_TABLES.items():
+        if db.get(ref.model, owner_id) is not None:
+            return owner_type
+    return None
+
+
+def _require_visible_owner(
+    db: Session, viewer: Viewer, owner_id, claimed_type: Optional[str] = None
+) -> None:
     """
     The write half of the check the read at line 237 already does.
 
@@ -146,6 +190,15 @@ def _require_visible_owner(db: Session, viewer: Viewer, owner_id) -> None:
     exactly as the read answers - a 403 here is note.py's answer for writing
     SOMEBODY ELSE's note, and reusing it would confirm this entry exists.
     """
+    entity_type = _entity_type_of(db, owner_id)
+    # A claimed entity type is only ever used to refuse: an id that is not
+    # that entity - missing, or another kind - is 404, as an unseen one is.
+    if claimed_type in ENTITY_TABLES and entity_type != claimed_type:
+        raise HTTPException(status_code=404, detail="Owner not found.")
+    if entity_type is not None:
+        if not _entity_visible(db, viewer, entity_type, owner_id):
+            raise HTTPException(status_code=404, detail="Owner not found.")
+        return
     require_visible_owner(db, viewer, owner_id, "Owner not found.")
 
 
@@ -555,6 +608,8 @@ def list_notes(
     # owner hides with the franchise's labels; a collection carries none.
     if owner_type in MEDIA_TABLES:
         visible = entry_visible(db, viewer, owner_type, owner_id)
+    elif owner_type in ENTITY_TABLES:
+        visible = _entity_visible(db, viewer, owner_type, owner_id)
     else:
         visible = tier_visible(db, viewer, owner_id)
     if not visible:
@@ -600,7 +655,7 @@ def create_note(
 ):
     personal = _authorize_write(viewer, payload.section, payload.personal)
     _validate_or_422(payload)
-    _require_visible_owner(db, viewer, payload.owner_id)
+    _require_visible_owner(db, viewer, payload.owner_id, payload.owner_type)
     _require_owner_where(db, payload)
     if payload.fields is not None:
         payload.fields = _canonical_fields(payload.section, payload.fields)
@@ -658,7 +713,7 @@ def reorder_notes(
             status_code=400, detail=f"Unknown note section '{payload.section}'."
         )
     personal = _authorize_write(viewer, payload.section, payload.personal)
-    _require_visible_owner(db, viewer, payload.owner_id)
+    _require_visible_owner(db, viewer, payload.owner_id, payload.owner_type)
 
     query = db.query(models.Note).filter(
         *_owner_filters(payload.owner_type, payload.owner_id),
@@ -777,7 +832,7 @@ def rename_group(
             status_code=422,
             detail=f"'{new}' is not one of {', '.join(options)}.",
         )
-    _require_visible_owner(db, viewer, payload.owner_id)
+    _require_visible_owner(db, viewer, payload.owner_id, payload.owner_type)
     if old == new:
         return {"renamed": 0}
 
@@ -938,7 +993,7 @@ def update_note(
             )
     else:
         _authorize_write(viewer, merged.section)
-    _require_visible_owner(db, viewer, merged.owner_id)
+    _require_visible_owner(db, viewer, merged.owner_id, merged.owner_type)
     _require_owner_where(db, merged)
     # Only a PATCH that sends `fields` can change a link, and only a value
     # that differs from the stored one is checked - unless the owner moved,
@@ -968,7 +1023,10 @@ def update_note(
     # so the CHECK still sees exactly one.
     if "owner_type" in data or "owner_id" in data:
         columns = _owner_columns(merged.owner_type, merged.owner_id)
-        for column in ("media_id", "collection_id", "franchise_id", "series_id"):
+        for column in (
+            "media_id", "collection_id", "franchise_id", "series_id",
+            *ENTITY_NOTE_COLUMNS.values(),
+        ):
             setattr(db_note, column, columns.get(column))
     data.pop("owner_type", None)
     data.pop("owner_id", None)

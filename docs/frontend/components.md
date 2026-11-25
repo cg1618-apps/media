@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -224,9 +224,26 @@ caller gets parent chips with no extra wiring. A parent with no children is
 not drawn. The character, person and studio libraries use it for
 **Restricted** over the gated media types.
 
-A set-type def may carry `optionHint(value)`: the chip's hover `title`. The
-watch libraries' Watch Status uses it to list the stored statuses each chip
-includes (`watchStatusFilter` in `lib/libraryFilterDefs.js`).
+A set-type def may carry `optionHint(value)`: the chip's hover `title`. A
+def that has one also gets a circled **?** (`fa-circle-question`) after its
+label, a button named "What the {label} options mean"; hovering or focusing
+it opens a tooltip that lists every option with its hint, so the whole
+vocabulary reads at once. The watch libraries' Watch Status uses it to list
+the stored statuses each chip includes (`watchStatusFilter` in
+`lib/libraryFilterDefs.js`).
+
+A def of type `range` (`rangeFilter` in `lib/libraryFilterDefs.js`) is a
+minimum and a maximum over one number: FilterPanel draws two number inputs
+(`{label} minimum` / `{label} maximum`, then its `unit`), either bound alone
+narrows, both are inclusive, and an item with no number never matches a set
+range. Its state is `{ min, max }`, set whole through `toggleFilter`; it counts
+as one active filter, and the random picker stores it as that object. The
+game library's HLTB Main + Extra and the anime libraries' Runtime are ranges.
+
+An ordinary def may carry `row: "<name>"`: consecutive defs with the same
+row are drawn side by side on one line, in def order, with a gap between
+them (`FilterRows`); a def with no row keeps a line of its own. The TV show
+library puts Airing Type and Region on one row, Airing Type at the left.
 
 A def flagged `advanced: true` is drawn in the **advanced section** instead,
 after every ordinary def, behind an **Advanced filters** toggle
@@ -280,21 +297,22 @@ columns.
   `imdb_series_rating`), `watchButtonColumn`, `readButtonColumn`,
   `planFlagColumn`, `myRatingSort` (a factory: each library passes its public
   score sort and its title order, the two tie-breaks), `malRatingSort`,
-  `imdbRatingSort`, `imdbSeriesRatingSort`, `usefulnessSort`; the factories that read the
+  `imdbRatingSort`, `imdbAvgRatingSort` (the same sort labelled **IMDb AVG Rating**, for a TV show's or cartoon's season), `imdbSeriesRatingSort` (**IMDb Rating** - the whole show's), `usefulnessSort`; the factories that read the
   viewer's own value - `myRatingColumn`, the three status buttons,
   `planFlagColumn`, `myRatingSort`, `usefulnessSort` - carry `personal: true`
   themselves, see [The `personal` flag](#the-personal-flag)),
   `GroupedEntryPage`, `CollapsibleCardGrid`,
-  `AdminTabBar`, `AdminActions` (the media-type detail pages' admin strip:
-  a `start` group at the left end and an `end` group at the right end,
-  which wraps to its own line on a narrow screen and stays right-aligned;
-  no caption - see [pages.md](pages.md#detail-pages--typesystem_id)),
+  `AdminTabBar`, `AdminActions` (every detail page's admin strip:
+  a `start` group at the left end and an optional `end` group at the right
+  end, which wraps to its own line on a narrow screen and stays
+  right-aligned; no caption; `className` sets its outer spacing, `mb-8` by
+  default - see [pages.md](pages.md#detail-pages--typesystem_id)),
   `FittedName`, `TierBadge`, and the in-page contents:
   `TableOfContents`, `ContentsBar` and `DetailContents` (see
   [In-page table of contents](#in-page-table-of-contents)).
 - **`components/hub`** — `HubChrome` (`HubShell`, `GRID_CLS`, `Crumbs` (an
   optional `action` sits at the row's right-hand end),
-  `AdminStrip`, `HeroCover`, `Field`, `HubTabs`, `Section`, `SELECT_CLS`,
+  `AdminStrip` (`AdminActions` with **Edit** at its left end), `HeroCover`, `Field`, `HubTabs`, `Section`, `SELECT_CLS`,
   `pillCls`) and `HubStates`: the franchise/series/collection hub chrome in
   the archive look. `HeroCover` takes `cover`, the `{ url, focus }` a group
   resolver in `lib/covers.js` returns.
@@ -507,13 +525,26 @@ columns.
   drawn after MyAnimeList as "E-Hentai"), `steamLink` (a storefront, not a reference
   database) beside the **access** rows instead — the access section renders
   for a `steamLink` alone, so a game whose only place to play is its Steam
-  page still gets one; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
+  page still gets one; a game's `gameExclusive` (its `exclusive_platform`)
+  leads the card in an **Exclusive Source** section of its own, above Where to
+  Play, with a Font Awesome mark - the PlayStation, Xbox and Nintendo Switch
+  brand icons, a desktop for PC, a phone for Mobile; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
   beside it the same way, as "DLsite (JP)" / "DLsite (TW)" — and the tag-field props (`originalSource`,
-  `exclusiveSource`, `serializationPlatform`) as `Tag` chips above them — except
+  `exclusiveSource`) as `Tag` chips above them — except
   an `exclusiveSource` that names one of the `main` access rows, which moves that
   row to the head of its section as "Netflix (Exclusive)" (the icon still looked
   up by the bare name) and is not drawn as a chip too; one no row matches keeps
-  its chip — one
+  its chip. A TV show and a cartoon pass `originalSourceAsAccess`, and their
+  `originalSource` is then never a chip: each of its values leads the access
+  section after any exclusive row, as "Disney+ (Original)" - the matching
+  `main` row, marked, when there is one, and otherwise a plain source row of
+  its own with the platform's icon, since the original source vocabulary is
+  much wider than the main sources. A movie's and an h-comic's
+  `originalSource` stay chips. A manga's and a book's `serializationPlatform`
+  is read the same way and is never a chip: each value leads Where to Read,
+  marked "週刊少年Jump (連載平台)" - the matching `main` row (its main sources
+  draw from the Serialization Platform vocabulary, so a platform normally has
+  one) or a row of its own; an entry may name several — one
   component composing from both the `media_source` table and the surviving
   columns/tag fields, per the guiding rule in
   [business-rules.md](../business-rules.md#18-media-sources-appservicesdomainsourcespy-apputilscredit_rolespy).
@@ -622,7 +653,11 @@ columns.
   `aria-invalid` when not `YYYY` / `YYYY-MM` / `YYYY-MM-DD`, on every kind)
   and its cover - a `compact` `ImagePicker` with `ownerType="book-unit"` and
   the unit's `system_id`, which attaches through the image library at once,
-  so a row not saved yet shows "Cover after saving" instead. No rating or
+  so a row not saved yet shows "Cover after saving" instead. A new row's key
+  is prefilled as its kind's next key, counted within that kind - "Vol 1",
+  "Arc 3" (`nextUnitKey` in `lib/bookUnits.js`) - and a key still in that
+  shape follows the row when its kind is changed ("Vol 1" becomes "Story 1");
+  a typed key never does. No rating or
   remark, which are each reader's own and set on the detail page;
   `bookUnitPayload` (`lib/payloads.js`) sends a row's own fields only, its
   two dates included and its cover never (the library writes it), and
@@ -1249,7 +1284,7 @@ is a second place to keep in step.
 
 ## `lib/` utilities
 
-`lib/labelTags.js` - the three content labels that have a 標籤 Label tag
+`lib/labelTags.js` - the three content labels that have a Label tag
 (`TAG_FOR_LABEL`, mirroring `app/services/domain/label_tags.py`), the nine
 types with the field (`LABEL_FIELD_TYPES`, `hasLabelField`), and the pure sync
 functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
@@ -1290,7 +1325,7 @@ functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
 | `characterForm.js` | A character's two tag lists between the API and the form: `CHARACTER_TAG_FIELDS` (`appearance` → `Character Appearance`, `trait` → `Character Trait`), `characterTagsToForm(character)` (each array comma-joined for `MultiSelect`) and `characterTagsPayload(form)` (each string split into trimmed, non-empty values, `[]` when empty — the server replaces a list wholesale). Shared by the Add page's `POST` and the character Modify tab's load and `PUT`. Also the three firsts a character and an identity both carry: `CHARACTER_FIRST_FIELDS` (`first_mention`, `first_appearance`, `first_encounter`, each with its label and hint), `CHARACTER_FIRST_PLACEHOLDER` (`第1卷 第13章, 1-13, S1 ep 8`), `firstsToForm(record)` (`""` when unset), `firstsPayload(form)` (trimmed, a blank one as `null`) and `firstsRows(record)` (the detail pages' `InfoCard` rows, only the firsts that are set). |
 | `gameForm.js` | `gamePickOnlyFields(form, split)`: the game's Developer and Publisher, which the Add and Modify saves check with `pickOnlyRefusal` (`ensureSourceValues.js`) and never create; `gameSourceFields(form, split)`: every other game credit and tag field, handed to `ensureSourceValues` with the `game` scope |
 | `hComicForm.js` | `hComicSourceFields(form, split)`: the credit and tag fields the h-comic Add and Modify saves hand to `ensureSourceValues`, each person source with its role and `h-comic` scope |
-| `genreLabelFields.js` | The Genre Main, Genre Sub and 標籤 Label fields of the eight types that share them (`GENRE_LABEL_TYPES`: anime, anime-movie, movie, tv-show, cartoon, manga, book, comic): `GENRE_LABEL_FIELDS` (form key, option category, label, placeholder), `genreLabelSource(mediaType, category)` (the option descriptor, always scoped to the type) and `genreLabelSourceFields(mediaType, form, split)` (what those types' Add and Modify saves hand to `ensureSourceValues`). `fieldMeta.js` builds the three field entries per type from the same list, except anime's, which it keeps as its own entries |
+| `genreLabelFields.js` | The Genre Main, Genre Sub and Label fields of the eight types that share them (`GENRE_LABEL_TYPES`: anime, anime-movie, movie, tv-show, cartoon, manga, book, comic): `GENRE_LABEL_FIELDS` (form key, option category, label, placeholder), `genreLabelSource(mediaType, category)` (the option descriptor, always scoped to the type) and `genreLabelSourceFields(mediaType, form, split)` (what those types' Add and Modify saves hand to `ensureSourceValues`). `fieldMeta.js` builds the three field entries per type from the same list, except anime's, which it keeps as its own entries |
 | `hGameForm.js` | `hGameSourceFields(form, split)`: the same for h-game - the developer (a studio) and the five tag fields, every option source scoped to `h-game` |
 | `hentaiForm.js` | `HENTAI_SOURCES` and `hentaiSourceFields(form, split)`: the same for hentai - the studio (no scope of its own: it is counted and scoped under the form's type), the director and the author (each with its role and the `hentai` scope) and h-comic's three H genre vocabularies asked for under the `hentai` scope. `fieldMeta.js` reads `HENTAI_SOURCES` too, so the defaults page suggests from the lists the form does |
 | `progressStep.js` | The one rule every progress stepper follows ([business-rules.md](../business-rules.md#progress-numbers-are-floats)). `stepUp(value, total)` is `floor(value) + 1`, stopped at the total and never past it, a fractional one included; `stepDown(value)` is `ceil(value) - 1`, stopped at 0; a value within `STEP_TOLERANCE` (`1e-9`) of an integer counts as that integer. `stepBy(value, steps)` is the unclamped multi-step form `arcStep` and `wholeArcStep` carry with, over `nextIntegerAbove` / `nextIntegerBelow`. `parseProgressTotal` reads a total (`null`, blank, `"?"` and unparseable are no total), `formatProgress` shows a progress number - whole values without `.0`, a sum's float noise rounded away - and `FLOAT_PROGRESS_FIELDS` names the counters whose Add-tab inputs take `step="any"`. |
@@ -1485,8 +1520,8 @@ content-label endpoints refuse (422) a set that drops it.
 | `add-tabs/PersonAddTab.jsx` | Exports `PersonFields` (the editor) and `useRoleScopes` (the legal role → media-type map from `GET /api/person/role-scopes`), both reused by `modify-tabs/PersonModifyTab.jsx`. |
 | `forms/WorkImagesEditor.jsx` | A person's gallery of works in `PersonFields`, offered on Modify only (it needs a saved person) and only while the form's roles hold `author` or `illustrator` (`holdsGalleryRole`, `lib/workImages.js`). Every action saves at once over `/api/person/{id}/work-images`: **Upload pictures** POSTs every chosen file in one multipart request (field `files`) and appends them; a caption PATCHes on blur when it changed; a drag or ArrowUp / ArrowDown on a row's grip PUTs the whole `attachment_ids` order, shows it at once, freezes the grips until it settles and puts the old order back if it fails; the × DELETEs the picture. Each row is the library thumbnail (`data-focus="none"`), the caption input and the ×. "Loading works…" while it reads, "No works yet." with what to do when empty, and the server's `detail` - the 422 for a role ticked but not yet saved, say - in `danger` under the list. |
 | `forms/CharacterFirstsFields.jsx` | A **First Appearances** section header and three text inputs — **First Mention**, **First Appearance**, **First Encounter** — each with the `CHARACTER_FIRST_PLACEHOLDER` notation and a one-line hint saying what it records. Rendered last by both `CharacterFields` and `IdentityFields`, so a character and an identity edit their firsts the same way. |
-| `forms/EntityProfileFields.jsx` | The profile inputs `CharacterFields` and `PersonFields` share: `GenderField` (`kind` picks the vocabulary: `"character"`, the default, is `GENDERS`, `"person"` is `PERSON_GENDERS`; `QuickPicks` chips for 男 and 女, filtered against that vocabulary, beside a closed select of "—" plus its every value, both editing the one value; stores `""` for unset, which the savers send as null) and, on Modify only (an unsaved row has no entries), `PhotoFallbackField`: "— Auto (latest with cover) —" plus the row's entries from `GET /api/{character\|person}/{id}/entries`, once each (`uniqueGroupEntries`), labelled `name (year) [type]` like the franchise cover picker. Its hint follows `ownerType`: a character's chosen entry lends its casting photo before its cover, a person's only its cover. It writes `photo_fallback_entry_id`, which the Modify tab's `PUT` carries. No rating field here: the viewer's own rating is `MyRatingFields`, which the four entity field sets draw above Remark. |
-| `info/EntityProfileControls.jsx` | The controls every entity detail page shares — character, person, studio and publisher: `AdminToolbar` (the dashed Admin strip with **Edit** to `/modify?id=<system_id>&type=<character\|person\|studio\|publisher>`, plus **Autofill & update** when the page passes `onAutofilled`: it POSTs `endpoints.{character\|person\|studio}.autofill(id)`, reads **Autofilling…** while it runs, hands the response to `onAutofilled` and toasts **Autofill completed** or the server's `detail`), `RatingSelect` (the viewer's own rating — Unrated plus `MY_RATINGS`, saving on change; the pages draw it for a holder of `self.list` and save it through `useMyRatingSaver`), `RemarkEditor` (a textarea saving on blur — emptied is null, untouched saves nothing) and `useEntityPatch(ownerType, systemId, onSaved)`, which PATCHes the partial body to `endpoints.{character\|person\|studio\|publisher}.patch(id)`, hands the response to `onSaved` and toasts. |
+| `forms/EntityProfileFields.jsx` | The profile inputs `CharacterFields` and `PersonFields` share: `GenderField` (`kind` picks the vocabulary: `"character"`, the default, is `GENDERS`, `"person"` is `PERSON_GENDERS`; `QuickPicks` chips for 男 and 女, filtered against that vocabulary, beside a closed select of "—" plus its every value, both editing the one value; stores `""` for unset, which the savers send as null) and, on Modify only (an unsaved row has no entries), `PhotoFallbackField`: "— Auto (latest with cover) —" plus the row's entries from `GET /api/{character\|person}/{id}/entries`, once each (`uniqueGroupEntries`), labelled `name (year) [type]` like the franchise cover picker. Its hint follows `ownerType`: a character's chosen entry lends its casting photo before its cover, a person's only its cover. It writes `photo_fallback_entry_id`, which the Modify tab's `PUT` carries. No rating field here: the viewer's own rating is `MyRatingFields`, which the four entity field sets draw. |
+| `info/EntityProfileControls.jsx` | The controls every entity detail page shares — character, person, studio and publisher: `AdminToolbar` (the dashed admin strip, drawn by `AdminActions` with no caption, with at its left end **Edit** to `/modify?id=<system_id>&type=<character\|person\|studio\|publisher>`, plus **Autofill & update** when the page passes `onAutofilled`: it POSTs `endpoints.{character\|person\|studio}.autofill(id)`, reads **Autofilling…** while it runs, hands the response to `onAutofilled` and toasts **Autofill completed** or the server's `detail`), and `RatingSelect` (the viewer's own rating — Unrated plus `MY_RATINGS`, saving on change; the pages draw it for a holder of `self.list` and save it through `useMyRatingSaver`). No remark control: an entity's remarks are its Notes card, `NotesTemplate` with the page's own `ownerType` (see [pages.md](pages.md)). |
 | `lib/characterCards.js` | The character library's cards. `characterCards(characters)` flattens the `/api/character/` list into one card per character, and one card per identity of its `identities`, each emitted right after its character (the library sorts them afterwards, an identity card by its own name). An identity card carries its own `public_id` (so it links to the identity page), `display_name`, `display_photo_file` / `display_photo_focus` and resolved gender (`display_gender`), the character's `public_id` as `character_public_id`, `character_display_name`, the character's face for its footer as `character_photo_file` / `character_photo_focus` (the character's displayed photo pair, else its own), and the character's `my_rating`, `role`, `media_types`, `restricted`, `appearance`, `trait` and `casting_count`, so it filters as the character does; it has `card_kind: "identity"`, `identity_id` and a unique `card_id`. Every card of a character carries `search_names`, the names of the character and of all its identities, and `has_identities`. Exports the `Characters` / `Identities` / `Has identities` / `No identities` filter option labels. |
 | `lib/entityFilters.js` | The entity libraries' FilterDefs. `characterFilterDefs(auth)` (Entry type, Role — the character's own `role`, with Not set for null — My Rating, Gender, then **Appearance** and **Trait**: `set-dynamic` defs over the values the rows' lists hold, sorted, plus Not set when a row's list is empty, matching a row that holds any ticked value, then **Card** - Characters / Identities, by the card's `card_kind` - and **Identities** - Has identities / No identities, by `has_identities`); `personFilterDefs(auth, role?)` (Type — the `PERSON_SUB_TABS` roles — then Entry type, My Rating, Gender over `PERSON_GENDERS`; with a `role`, as on `/library/seiyuu`, no Type group); `studioFilterDefs(auth, { studios })` (Entry type, My Rating, **Country** — a `set-dynamic` def whose chips are the countries more than five of `studios` name (`studioChipCountries`; a studio naming several counts for each), the most-named first, ties by name, then **Others** for a studio naming any country without a chip and **Not set** for one naming none, each only when a row needs it; a studio matches every chip one of its countries falls under — and **Relation** — Has relation / No relation, off the list's `has_relations`, which counts only related studios the viewer may see) and `publisherFilterDefs(auth)` (the same three after **Kind**, then the studio's **Relation** filter - both read `has_relations`, which counts related studios and publishers alike: the `PUBLISHER_KINDS` — 遊戲發行商 for game, 台灣出版社 for manga and book, 台灣代理商 for anime and anime movie — then 其他 for any type none of them names, matched over `media_types` ∪ `scopes`, so a publisher covering several kinds matches each). Entry type offers the entity's plain types, then **No entries**, which matches a row whose `media_types` is empty, then a **Restricted** parent over the gated types the entity can have — h-comic and hentai for a character, those and h-game for a person, hentai and h-game for a studio, none for a publisher — keeping only the ones `canSeeGatedType` allows. It matches `media_types`, and for a publisher `media_types` ∪ `scopes`, so one offered on a type but not yet credited on it is still found there. Rating, gender, role and country add Unrated / Not set for null. Every entity library opens with nothing ticked; Entry type's `idle(item)` (honoured by `applyFilterDefs` for a def with nothing chosen) then keeps every row but one whose entries are all of restricted types, so an empty group reads as its plain options and No entries ticked. |
 | `info/PersonLinks.jsx` | `creditValue(item, role, legacyValue)` for an InfoCard credit row: links built from `credit_refs` when the entry has them (plain names for a viewer without `view.person`, through `useEntityHref`), the legacy comma-joined string when it does not — which is also what a viewer without the Credits permission sees. `creditLabel(item, role, fallback)` takes the heading from the ref, so 原作 / Author / Writer stays owned by `credit_label()` on the backend. |
@@ -1502,9 +1537,9 @@ content-label endpoints refuse (422) a set that drops it.
 | `lib/castOrder.js` | The one order a cast is shown in, and the identity-row rules. `sortCast(cast)`: `CHARACTER_ROLES` order (`castRoleRank`; no role last), then `position` — the cast slip's order. `orderLoadedCast(cast)`: sorted the same way and renumbered so `position` is the order shown; Modify applies it to the loaded cast, on load and again after a save (the save replaces the edited item and the refetched cast reloads), never while editing. `isIdentityRow(row)`: the row has an `identity_id` or carries `identity_row`. `castIdentityProblem(cast)`: the message when a row with a character is an identity row with no identity, else null. |
 | `info/VoicedPartCard.jsx` | One part a seiyuu voiced, on the person page's seiyuu groups - the part leads and the entry follows. The picture is the server-resolved `display_photo_file` (casting, else identity, else character) and links, outside the tab order, to the part's page; beneath it the role chip (the casting's `character_role`) and, on an identity, a dashed **Identity** chip and a dashed frame on the picture; then the name, worded as `CastSection`'s rows are - the credited name when the casting has one, linking to the identity's page (else the character's), with the identity's (else the character's) own name beneath it, "identity of <character>" as a sibling link on an identity, the voice remark in brackets, and the casting's own `casting_remark` beneath it, clamped to two lines (`data-cast-remark`). The foot is the entry: a small cover, title and year, linking to it. Keyed by `casting_id`, since one entry can hold several parts. |
 | `info/CastingCard.jsx` | One appearance on the character and identity pages: cover and title linking to the entry, an "as <identity>" line when the row names an identity - "as <credited name>" instead when the casting has one, followed by "· <identity>" when it also names an identity - the casting's own `remark` clamped to two lines (`data-cast-remark`), the year (or "Undated"), and every seiyuu of that row beneath as a sibling person link with its remark in brackets. `hideIdentity` drops the identity from that line, for the identity page, where every row is that identity; a credited name is still shown. |
-| `info/IdentityCard.jsx` | A card for one identity: photo (`display_photo_file` / `display_photo_focus`), display name, every other non-empty name, `display_gender` and remark, linking to `/identity/<public_id>/<slug>` (plain markup with no `public_id`). `to` overrides the link and `label` puts a small caption above the name. The character page's Identities section uses it plain; the identity page's Character section uses it for the character (`label="Character"`, `to` the character's page) and for the other identities (`label="Identity"`). |
+| `info/IdentityCard.jsx` | A card for one identity: photo (`display_photo_file` / `display_photo_focus`), display name, every other non-empty name and `display_gender`, linking to `/identity/<public_id>/<slug>` (plain markup with no `public_id`). `to` overrides the link and `label` puts a small caption above the name. The character page's Identities section uses it plain; the identity page's Character section uses it for the character (`label="Character"`, `to` the character's page) and for the other identities (`label="Identity"`). |
 | `info/MalButton.jsx` | The **MyAnimeList** button beside a character's, a person's or a studio's name, on the character page, (the character's link) the identity page, the person page and the studio page: the MAL icon and label, opening `href` in a new tab; renders nothing without one. Its named export `ImdbButton` is the **IMDb** button the person page draws after it, the same control with the IMDb icon and label; both are drawn by `SiteButton`, so they cannot drift apart. `SiteButton` is exported too, for the person's Twitter, Instagram and pixiv buttons: `site` names the label and the `lib/sourceIcons.js` key, and a site with no bundled icon shows its label alone. |
-| `info/GenresCard.jsx` | `GenresCard({ item })`: the **Genres** `InfoCard` of the manga, book, movie, TV and cartoon detail pages - Genre (Main) and Genre (Sub) side by side, 標籤 Label below, the same card shape the game page uses for its Genre / Theme / Label. Each page renders it directly after its Information card, which no longer carries the three. Renders nothing when none of `genre_main`, `genre_sub` or `label` holds a value (`hasGenreTags(item)`); one set and another not gives the unset one the card's "—". Content labels are not these and stay with `ContentLabelChips`. |
+| `info/GenresCard.jsx` | `GenresCard({ item })`: the **Genres** `InfoCard` of the anime, anime movie, movie, TV, cartoon, manga, book and comic detail pages - directly below Information, on manga and book below Production, and on comic after its Events card - Genre (Main) and Genre (Sub) side by side, Label below, the same card shape the game page uses for its Genre / Theme / Label. Each page renders it directly after its Information card, which no longer carries the three. Renders nothing when none of `genre_main`, `genre_sub` or `label` holds a value (`hasGenreTags(item)`); one set and another not gives the unset one the card's "—". Content labels are not these and stay with `ContentLabelChips`. |
 | `info/BookUnitParts.jsx` | How a book unit is drawn wherever units are listed - the book detail page's Units slip and Future Releases' Books tab: `unitName(unit)` (`name_cn` / `name_en` joined, else `display_key`), `UnitCoverThumb` (the unit's `cover_image_file` at thumbnail size through `LazyImage`, alt "Cover of <display_key>"; nothing without a cover) and `UnitReleaseDates` ("JP 2027-03 · TW 2027-09-15", leaving out an unset date; nothing with neither). |
 | `info/tagChips.jsx` | `tagChips(values)`: an appearance or trait list as a row of `Chip`s, or null for an empty list so the `InfoCard` row shows its "—". Used by the character and identity pages. |
 | `info/CastSection.jsx` | The read-only **Cast** slip every AniManga detail page draws — Anime, AnimeMovie, Manga, Book, HComic and Hentai — from the `useCasting` rows; renders nothing for an empty cast. Rows sort by `sortCast` (`lib/castOrder.js`: Main, Core, Important Supporting, Supporting, Other, then no role, then `position`). Each row is a thumbnail (the row's `display_photo_file` / `display_photo_focus`, the resolved pair), a role chip, the character link - for a row that names an identity, a dashed frame on the thumbnail (`data-identity-thumb`) and a dashed **Identity** chip (`Chip dashed`) after the role chip, then the identity's name as the headline linking to the identity's page (`/identity/<identity_public_id>/<slug>`), then "identity of <character>" with the character's name as a sibling link to its page - and, when the casting has a `credited_name` (what this entry calls the character), that name as the link's text, with the identity's (else the character's) own name in small faint text beneath it (`data-real-name`) - and, when the casting has voices, "voiced by" and every seiyuu as a person link, separated by "·", each with its voice remark in brackets - and, when the casting has a `remark`, that remark on a line of its own beneath (`data-cast-remark`). Every character, identity and seiyuu name goes through `EntityName`: a link when `useEntityHref` gives a path, a plain `<span>` when it does not, as for a viewer without `view.character` (characters and identities) or `view.person` (seiyuu). Collapsed it shows every Main character; **Show core cast (+N)** expands to Main and Core and **Show main cast only** collapses back; **Show full cast (N)** opens a dialog (`FullCastModal`, closed by Escape, Close or a press that starts on the backdrop) listing every row. With no Main character the collapsed view starts at Core; a cast with no Main or Core character is shown whole, with no tier controls. Identity rows of a character that also has a main row in the cast are **hidden by default** (`hideableIdentities`); **Show identities (N)** / **Hide identities** (`IdentityToggle`) toggles them, one state shared by the slip and the dialog, not persisted. An identity row whose character has no main row is always shown and not counted in N, and the tiers and their counts are worked out over the rows the toggle leaves visible. |

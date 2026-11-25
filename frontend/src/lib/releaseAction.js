@@ -122,12 +122,13 @@ export function releaseAction(type, entry, { canTrack = true } = {}) {
     case "anime-movie":
     case "movie":
       return film(entry, canTrack);
-    case "manga":
     case "comic":
     case "h-comic":
       // MANGA_SERIALIZATION_STATUSES has no not-yet-released value.
       return serialization(entry, { pending: null });
+    case "manga":
     case "book":
+      // Both read BOOK_SERIALIZATION_STATUSES, which has 未出.
       return serialization(entry, { pending: "未出" });
     case "game":
     case "h-game":

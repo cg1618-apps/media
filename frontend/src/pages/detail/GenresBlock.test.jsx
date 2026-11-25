@@ -1,4 +1,4 @@
-// The five detail pages that set Genre (Main), Genre (Sub) and 標籤 Label in
+// The seven detail pages that set Genre (Main), Genre (Sub) and Label in
 // a Genres card of their own (GenresCard) rather than inside the Information
 // card: the tags sit in the Genres card and not in Information, and with no
 // tag set there is no Genres card at all.
@@ -10,6 +10,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { AuthProvider } from "../../contexts/AuthContext";
 import { ToastProvider } from "../../hooks/useToast";
+import Anime from "./Anime";
+import AnimeMovie from "./AnimeMovie";
 import Cartoon from "./Cartoon";
 import Manga from "./Manga";
 import Movie from "./Movie";
@@ -17,8 +19,11 @@ import Book from "./Book";
 import TV from "./TV";
 
 const PAGES = [
-  { name: "Manga", type: "manga", Page: Manga },
-  { name: "Book", type: "book", Page: Book, entry: { units: [] } },
+  { name: "Anime", type: "anime", Page: Anime },
+  { name: "Anime Movie", type: "anime-movie", Page: AnimeMovie },
+  // Manga and book draw it under Production instead.
+  { name: "Manga", type: "manga", Page: Manga, after: "production" },
+  { name: "Book", type: "book", Page: Book, entry: { units: [] }, after: "production" },
   { name: "Movie", type: "movie", Page: Movie },
   { name: "TV", type: "tv-show", Page: TV },
   { name: "Cartoon", type: "cartoon", Page: Cartoon },
@@ -68,7 +73,7 @@ function mount(type, Page) {
 
 const card = (title) => screen.getByRole("heading", { name: title }).closest("section");
 
-describe.each(PAGES)("$name detail page — Genres card", ({ type, Page, entry }) => {
+describe.each(PAGES)("$name detail page — Genres card", ({ type, Page, entry, after = "information" }) => {
   const base = { system_id: "x1", public_id: "x1", ...entry };
 
   it("shows the tags in the Genres card, not in Information", async () => {
@@ -77,13 +82,25 @@ describe.each(PAGES)("$name detail page — Genres card", ({ type, Page, entry }
     await screen.findByRole("heading", { name: "Information" });
 
     const genres = card("Genres");
-    for (const text of ["Genre (Main)", "Fantasy, Romance", "Genre (Sub)", "Isekai", "標籤 Label", "必看"]) {
+    for (const text of ["Genre (Main)", "Fantasy, Romance", "Genre (Sub)", "Isekai", "Label", "必看"]) {
       expect(within(genres).getByText(text)).toBeInTheDocument();
       expect(screen.getAllByText(text)).toHaveLength(1);
     }
     const info = card("Information");
     expect(within(info).queryByText("Genre (Main)")).not.toBeInTheDocument();
-    expect(within(info).queryByText("標籤 Label")).not.toBeInTheDocument();
+    expect(within(info).queryByText("Label")).not.toBeInTheDocument();
+  });
+
+  it(`draws the Genres card directly below the ${after} section`, async () => {
+    mockFetch(type, { ...base, ...TAGS });
+    const { container } = mount(type, Page);
+    await screen.findByRole("heading", { name: "Information" });
+    const genres = card("Genres");
+    // Each card sits in its own contents section, found by its id even when
+    // it drew nothing; the Genres one is next.
+    expect(container.querySelector(`section#${after}`).nextElementSibling).toBe(
+      genres.parentElement,
+    );
   });
 
   it("renders no Genres card when no tag is set", async () => {
