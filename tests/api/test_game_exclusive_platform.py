@@ -57,3 +57,30 @@ def test_no_other_type_carries_it(owner_client, db_session):
         json={"credits": {}, "tags": {"exclusive_platform": ["PC"]}},
     )
     assert r.status_code == 400
+
+
+# The revision freezes its own copy of the values (a revision may not import
+# the application); it must seed exactly what the helper does.
+def test_the_revision_seeds_the_same_values_scoped_to_game(db_session):
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "alembic" / "versions" / "g1x2clusive3_game_exclusive_platform.py"
+    spec = importlib.util.spec_from_file_location("_game_exclusive_platform", path)
+    revision = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(revision)
+
+    assert revision.VALUES == EXCLUSIVE_PLATFORMS
+    assert revision.CATEGORY == EXCLUSIVE_PLATFORM_CATEGORY
+    revision.seed(db_session.connection())
+    revision.seed(db_session.connection())
+    db_session.expire_all()
+    options = (
+        db_session.query(models.SystemOption)
+        .filter_by(category=EXCLUSIVE_PLATFORM_CATEGORY)
+        .order_by(models.SystemOption.sort_order)
+        .all()
+    )
+    assert [o.value for o in options] == list(EXCLUSIVE_PLATFORMS)
+    for option in options:
+        assert [s.scope for s in option.scopes] == ["game"]
