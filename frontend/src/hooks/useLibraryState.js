@@ -28,6 +28,10 @@ import { useFilterState } from "./useFilterState";
 // collapsed advanced section rather than with the ordinary filters
 // (lib/libraryFilterDefs.js builds the tag filters that go there).
 //
+// Optional on an advanced def: inPicker: true, which keeps it among the
+// random picker's filters (lib/randomPicker.js typeFilterDefs takes only a
+// library's ordinary defs otherwise).
+//
 // Optional on an ordinary def: row: "<name>". Consecutive defs carrying the
 // same row are drawn side by side on one line, in def order, with a gap
 // between them; a def with no row keeps a line of its own.

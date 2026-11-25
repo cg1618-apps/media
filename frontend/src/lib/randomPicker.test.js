@@ -382,3 +382,15 @@ describe("the shared account's picker", () => {
     expect(decade.deriveOptions(entries)).toEqual(["2020s", "2010s", "1990s", "Unknown"]);
   });
 });
+
+// A range filter round-trips through the stored defaults as { min, max },
+// and an empty one is not stored at all.
+describe("stored range filters", () => {
+  const defs = [{ key: "runtime", label: "Runtime", type: "range", match: () => true }];
+  it("stores only a set range, and restores it", () => {
+    expect(toStoredFilters({ runtime: { min: "", max: "" } })).toEqual({});
+    expect(toStoredFilters({ runtime: { min: "20", max: "" } })).toEqual({ runtime: { min: "20", max: "" } });
+    expect(resolveDefaultFilters(defs, { runtime: { min: "20", max: "" } }).runtime).toEqual({ min: "20", max: "" });
+    expect(resolveDefaultFilters(defs, {}).runtime).toEqual({ min: "", max: "" });
+  });
+});

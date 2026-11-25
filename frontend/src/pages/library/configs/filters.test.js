@@ -106,15 +106,15 @@ describe("the anime library filters", () => {
 // TV show's original source) first where the type has one, then the type's
 // own genre and label vocabularies, which always close the section.
 const ADVANCED_KEYS = {
-  anime: ["exclusiveSource", "genreMain", "genreSub", "label"],
-  "anime-movie": ["exclusiveSource", "genreMain", "genreSub", "label"],
+  anime: ["exclusiveSource", "runtime", "genreMain", "genreSub", "label"],
+  "anime-movie": ["exclusiveSource", "runtime", "genreMain", "genreSub", "label"],
   movie: ["exclusiveSource", "genreMain", "genreSub", "label"],
   "tv-show": ["originalSource", "genreMain", "genreSub", "label"],
   cartoon: ["genreMain", "genreSub", "label"],
   manga: ["publisherTw", "genreMain", "genreSub", "label"],
   book: ["publisherTw", "genreMain", "genreSub", "label"],
   comic: ["genreMain", "genreSub", "label"],
-  game: ["gameGenre", "gameTheme", "label"],
+  game: ["isMain", "ownership", "hltbMainExtra", "gameGenre", "gameTheme", "label"],
   "h-game": ["gameGenre", "gameTheme", "hGenrePlot", "hGenreAppearance", "hGenreRelation"],
   "h-comic": ["hGenrePlot", "hGenreAppearance", "hGenreRelation"],
   hentai: ["hGenrePlot", "hGenreAppearance", "hGenreRelation"],
@@ -144,8 +144,12 @@ describe.each(Object.entries(ADVANCED_KEYS))("the %s advanced section", (type, k
     expect(advanced.slice(firstGenre).every((k) => GENRE_KEYS.has(k))).toBe(true);
   });
 
+  // The one exception is a game's Ownership, advanced at the owner's choice.
   it("keeps the advanced filters catalogue, not personal", () => {
-    for (const fd of defs.filter((d) => d.advanced)) expect(fd.personal).toBeFalsy();
+    const PERSONAL_ADVANCED = { game: ["ownership"] };
+    for (const fd of defs.filter((d) => d.advanced && !(PERSONAL_ADVANCED[type] || []).includes(d.key))) {
+      expect(fd.personal).toBeFalsy();
+    }
   });
 });
 
@@ -296,4 +300,29 @@ it("puts a book's Type above Region, each in its vocabulary's order", () => {
   expect(derive("type", "type", TYPES)).toEqual(TYPES);
   const REGIONS = ["歐美", "日本", "中國", "韓國", "台灣"];
   expect(derive("region", "region", REGIONS)).toEqual(REGIONS);
+});
+
+// Anime and anime movie: a Runtime range filter in the advanced section - the
+// minutes per episode on an anime, the film's length on an anime movie - and
+// a Runtime sort, longest first and listed last.
+describe.each([
+  ["anime", "runtime_min"],
+  ["anime-movie", "length_min"],
+])("the %s library's runtime", (type, field) => {
+  const config = LIBRARY_CONFIGS[type];
+  it("filters by a minimum and a maximum runtime", () => {
+    const runtime = config.filterDefs.find((fd) => fd.key === "runtime");
+    expect(runtime.type).toBe("range");
+    expect(runtime.match({ [field]: 24 }, { min: "20", max: "30" })).toBe(true);
+    expect(runtime.match({ [field]: 90 }, { min: "", max: "30" })).toBe(false);
+    expect(runtime.match({ [field]: null }, { min: "1", max: "" })).toBe(false);
+  });
+
+  it("sorts by runtime last in the list, longest first, unknown last", () => {
+    const sorts = config.sortDefs;
+    const sort = sorts[sorts.length - 1];
+    expect(sort.label).toBe("Runtime");
+    const rows = [{ id: "a", [field]: 24 }, { id: "b", [field]: null }, { id: "c", [field]: 120 }];
+    expect([...rows].sort(sort.compare).map((r) => r.id)).toEqual(["c", "a", "b"]);
+  });
 });
