@@ -43,13 +43,13 @@ const CAST_ROW = {
 
 const ok = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
 
-function mockFetch() {
+function mockFetch(entry = MANGA) {
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => {
       const u = String(url);
       if (u.startsWith("/api/casting/manga/")) return ok({ cast: [CAST_ROW] });
-      if (u.startsWith("/api/manga/")) return ok(MANGA);
+      if (u.startsWith("/api/manga/")) return ok(entry);
       if (u.startsWith("/api/auth/me")) {
         return ok({ username: "reader", role: "user", permissions: ["view.character", "self.list"] });
       }
@@ -108,5 +108,60 @@ describe("Manga detail page - table of contents", () => {
         "Cast",
       ]),
     );
+  });
+});
+
+// Serialization Status, Release Date and End Date share a row; End Date and
+// each Next Volume date are left out when unset, and the Next Volume row with
+// them when both are.
+describe("Manga detail page - Information card", () => {
+  const FULL = {
+    ...MANGA,
+    region: "日漫",
+    is_main: "本傳",
+    serialization_status: "完結",
+    release_date: "2019-02-01",
+    end_date: "2024-06-01",
+    next_vol_release_date_jp: "2026-12-01",
+    next_vol_release_date_tw: "2027-01-15",
+    vol_total: 12,
+    ch_total: 100,
+  };
+
+  async function card() {
+    const heading = await screen.findByRole("heading", { level: 3, name: "Information" });
+    return within(heading.closest("section"));
+  }
+
+  it("puts both dates on the Serialization Status row", async () => {
+    mockFetch(FULL);
+    mount();
+    const c = await card();
+    const row = c.getByText("Serialization Status").closest(".grid");
+    for (const label of ["Release Date", "End Date"]) {
+      expect(row.contains(c.getByText(label))).toBe(true);
+    }
+    expect(c.getByText("Next Volume (JP)")).toBeInTheDocument();
+    expect(c.getByText("Next Volume (TW)")).toBeInTheDocument();
+  });
+
+  it("leaves out an unset End Date and each unset Next Volume date", async () => {
+    mockFetch({ ...FULL, end_date: null, next_vol_release_date_jp: null });
+    mount();
+    const c = await card();
+    expect(c.queryByText("End Date")).toBeNull();
+    expect(c.queryByText("Next Volume (JP)")).toBeNull();
+    expect(c.getByText("Next Volume (TW)")).toBeInTheDocument();
+    expect(c.getByText("Release Date")).toBeInTheDocument();
+  });
+
+  it("drops the Next Volume row when neither date is set", async () => {
+    mockFetch({ ...FULL, next_vol_release_date_jp: null, next_vol_release_date_tw: "" });
+    mount();
+    const c = await card();
+    expect(c.queryByText(/Next Volume/)).toBeNull();
+    // No empty grid is left behind where the row was.
+    const grids = [...c.getByText("Region").closest("section").querySelectorAll(".grid")];
+    expect(grids.every((g) => g.children.length > 0)).toBe(true);
   });
 });

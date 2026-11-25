@@ -391,6 +391,11 @@ export default function Manga() {
       : null;
 
   const imageUrl = getCoverUrl(manga.cover_image_file);
+  // The Information card's Next Volume dates, only those set.
+  const nextVolumes = [
+    { label: "Next Volume (JP)", value: manga.next_vol_release_date_jp },
+    { label: "Next Volume (TW)", value: manga.next_vol_release_date_tw },
+  ].filter((field) => field.value);
 
   const franchiseName = franchise
     ? franchise.franchise_name_cn ||
@@ -630,34 +635,24 @@ export default function Manga() {
                     { label: "Region", value: manga.region },
                     { label: "本傳 / 外傳", value: manga.is_main },
                   ],
+                  // End Date and each Next Volume date are shown only when
+                  // set, and the Next Volume row with them. A Next Volume
+                  // date is shown whatever it is: a passed one drops off
+                  // Future Releases, not off the entry, until it is edited.
                   [
                     {
                       label: "Serialization Status",
                       value: manga.serialization_status,
                     },
-                  ],
-                  [
                     {
                       label: "Release Date",
                       value: manga.release_date || null,
                     },
-                    {
-                      label: "End Date",
-                      value: manga.end_date || null,
-                    },
+                    ...(manga.end_date
+                      ? [{ label: "End Date", value: manga.end_date }]
+                      : []),
                   ],
-                  // Shown whatever the date: a passed one drops off Future
-                  // Releases, not off the entry, until it is edited.
-                  [
-                    {
-                      label: "Next Volume (JP)",
-                      value: manga.next_vol_release_date_jp || null,
-                    },
-                    {
-                      label: "Next Volume (TW)",
-                      value: manga.next_vol_release_date_tw || null,
-                    },
-                  ],
+                  ...(nextVolumes.length > 0 ? [nextVolumes] : []),
                   [
                     {
                       label: "Volume Total",
