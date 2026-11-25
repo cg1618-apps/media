@@ -1743,9 +1743,12 @@ registry group, and hands `quotes`/`memes` sections to `QuoteSection` /
 `MemeSection` — for an account holding the `quotes_memes` feature
 (`hasFeature`). Without it both sections
 are dropped from the registry the page draws, before either component can
-fetch `/api/quote` or `/api/meme`. A personal section needs no such rule:
-the registry lists it for every viewer, and `/api/notes` returns only the
-viewer's own rows in it. Write controls are gated **per section**, from its
+fetch `/api/quote` or `/api/meme`. A personal section (`scope: personal` -
+Personal Notes, the 神回 highlights, the to-do lists, Questions and the
+rest) is dropped the same way for a **guest**, once auth has loaded and
+there is no `username`: a guest has no rows in it and can write none, so it
+is never drawn, not even empty. For a signed-in viewer the registry lists
+it, and `/api/notes` returns only the viewer's own rows in it. Write controls are gated **per section**, from its
 `scope`: a catalogue section - 備註 Remark among them - and Quotes and Memes
 for a holder of `manage.catalog`, a personal one - 個人筆記 Personal Notes, the
 reviews and advantages,
