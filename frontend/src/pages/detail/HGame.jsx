@@ -30,6 +30,7 @@ import SourcesCard from "../../components/info/SourcesCard";
 import { studioValue } from "../../components/info/StudioLinks";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import PlanPlatformGroupField from "../../components/plan/PlanPlatformGroupField";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import GameCompletionBlock, {
   H_GAME_COMPLETION_AXES,
@@ -431,6 +432,18 @@ export default function HGame() {
                 canTrack={ownData}
                 onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
                 onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
+                watchNext={hGame.play_next}
+                watchNextGroup={
+                  <PlanPlatformGroupField
+                    mediaType="h-game"
+                    entryId={hGame.system_id}
+                    queued={hGame.play_next}
+                  />
+                }
+                watchNextLabel="Play Next"
+                onWatchNextChange={(v) =>
+                  saveOwn({ play_next: v }, v ? "Added to Play Next" : "Removed from Play Next")
+                }
                 toRewatch={hGame.to_replay}
                 rewatchLabel="To Replay"
                 onToRewatchChange={(v) =>

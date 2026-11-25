@@ -11,9 +11,27 @@
 // The groups a queued game is filed under on the Do next tab, in display
 // order (PLATFORM_GROUPS in app/utils/plan_next_kinds.py). Unlike every other
 // bucket here, a game's group is the caller's own choice, stored on the plan
-// row itself (plan_next.platform_group) and set from the card; a row with
-// none is drawn under "Ungrouped".
+// row itself (plan_next.platform_group) and set from the Plan card or the
+// game's detail page; a row with none is drawn under "Ungrouped".
 export const PLATFORM_GROUPS = ["PC", "Console", "Handheld Console", "Switch"];
+
+// The types whose "next" row takes a platform group
+// (PLATFORM_GROUP_MEDIA_TYPES in app/utils/plan_next_kinds.py). H-game
+// mirrors game.
+export const PLATFORM_GROUP_TYPES = ["game", "h-game"];
+
+// Anime's two groups after its size buckets on the Do next tab. They are read
+// off the entry's own airing type at display time (entryBucket in
+// utils/planNext.js), not derived by Calculate, so they are not size buckets
+// and are absent from SIZE_GROUPS and from app/utils/plan_next_kinds.py: the
+// size override dropdown, which reads SIZE_GROUPS, cannot offer them.
+// Movie holds a Movie-airing entry; Others holds every other non-TV airing
+// type (OVA, ONA, Special and the rest) and a series or franchise row that
+// has no size bucket.
+export const ANIME_AIRING_GROUPS = [
+  { key: "movie", label: "Movie" },
+  { key: "others", label: "Others" },
+];
 
 export const SIZE_GROUPS = {
   anime: [
@@ -44,9 +62,12 @@ export const SIZE_GROUPS = {
   "anime-movie": [],
   // A game groups by where it will be played - PLATFORM_GROUPS above.
   game: PLATFORM_GROUPS.map((key) => ({ key, label: key })),
-  // H-comic, h-game and hentai are absent on purpose, exactly as anime-movie
-  // is empty: there is no axis any of them groups by, so each Plan tab
-  // renders one ungrouped list.
+  // H-comic and hentai are absent on purpose, exactly as anime-movie is
+  // empty: there is no axis either groups by, so each Plan tab renders one
+  // ungrouped list. Hentai has no airing type, so anime's Movie and Others
+  // groups do not reach it. H-game groups by platform, as game does, through
+  // planNextGroups below rather than here: a franchise or series h-game row
+  // is offered the size override, which must not list platforms.
   // Manga and book do NOT have a size bucket. They group by a column on the
   // entry itself - the way the pre-plan_next Plan page did - so these two
   // vocabularies exist only here, never in app/utils/plan_next_kinds.py, which
@@ -70,6 +91,18 @@ export const SIZE_GROUPS = {
     { key: "其他", label: "其他" },
   ],
 };
+
+// The groups a Do next tab draws, in display order: the type's size buckets
+// or self-grouping vocabulary, then anime's airing groups; or the platform
+// groups for game and h-game. The trailing "ungrouped" pile is added by
+// groupByBucket.
+export function planNextGroups(mediaType) {
+  if (PLATFORM_GROUP_TYPES.includes(mediaType)) {
+    return PLATFORM_GROUPS.map((key) => ({ key, label: key }));
+  }
+  const groups = SIZE_GROUPS[mediaType] ?? [];
+  return mediaType === "anime" ? [...groups, ...ANIME_AIRING_GROUPS] : groups;
+}
 
 // What a tab calls its trailing catch-all group. Manga has no "other" value in
 // its own vocabulary, so its empties land here under the label the old page

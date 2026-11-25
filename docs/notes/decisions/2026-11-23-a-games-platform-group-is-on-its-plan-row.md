@@ -24,5 +24,13 @@ with the row, so a stale group never outlives the plan.
   Validated in the API layer rather than as a DB enum, as `media_type` and
   `kind` are, so adding a group needs no migration.
 
-**Only a game's `next` row takes one.** A replay mark is not a queue in
-platform order, and no other type is played on a platform.
+**Only a game's or an h-game's `next` row takes one.** A replay mark is not
+a queue in platform order, and no other type is played on a platform. An
+h-game is played on one exactly as a game is, and a gated type mirrors its
+counterpart, so its Do next tab groups the same way.
+
+**Set from the detail page as well as the Plan page.** The group is chosen
+when the game is queued, and the game is queued on its detail page, so the
+detail page offers the same picker the Plan card carries. The Plan card keeps
+its own: re-filing a queue is done on the Plan page, where the whole queue is
+in view.

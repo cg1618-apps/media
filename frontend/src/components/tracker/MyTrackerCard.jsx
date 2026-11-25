@@ -178,6 +178,7 @@ export default function MyTrackerCard({
   myRating,
   timeFin,
   watchNext,
+  watchNextGroup,
   toRewatch,
   pinged,
   canTrack,
@@ -281,6 +282,10 @@ export default function MyTrackerCard({
             onChange={onWatchNextChange}
           />
         )}
+        {/* What the queued row is filed under on the Plan page - a game's
+            platform group (PlanPlatformGroupField), which draws nothing
+            while the entry is not queued. */}
+        {watchNextGroup}
         {onToRewatchChange !== undefined && (
           <PlanFlagToggle
             label={rewatchLabel}

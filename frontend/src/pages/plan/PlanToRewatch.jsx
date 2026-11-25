@@ -16,7 +16,7 @@ const SCOPE_LABELS = {
   entry: "Entries",
 };
 
-export default function PlanToRewatch({ planRows }) {
+export default function PlanToRewatch({ id, planRows }) {
   const [tab, setTab] = useState("anime");
   // A gated type's tab only for a session that may see the type.
   const tabs = visibleByType(useAuth(), REWATCH_TABS);
@@ -27,7 +27,7 @@ export default function PlanToRewatch({ planRows }) {
   const scopes = scopesFor("rewatch", tab);
 
   return (
-    <section>
+    <section id={id}>
       <h2 className="font-display text-3xl font-semibold text-text leading-none mb-4 pb-3 border-b border-border">
         To redo
       </h2>

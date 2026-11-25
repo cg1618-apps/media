@@ -33,6 +33,7 @@ import { NotesProvider } from "../notes/NotesContext";
 import { NotesBlocks, NotesGroup } from "../notes/NotesTemplate";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import PlanPlatformGroupField from "../../components/plan/PlanPlatformGroupField";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import {
   Button,
@@ -505,6 +506,13 @@ export default function Game() {
                 onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
                 onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
                 watchNext={game.play_next}
+                watchNextGroup={
+                  <PlanPlatformGroupField
+                    mediaType="game"
+                    entryId={game.system_id}
+                    queued={game.play_next}
+                  />
+                }
                 watchNextLabel="Play Next"
                 onWatchNextChange={(v) =>
                   saveOwn({ play_next: v }, v ? "Added to Play Next" : "Removed from Play Next")

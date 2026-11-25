@@ -1,9 +1,10 @@
 // Frontend: plan page file for usePlanData.
 import { useEffect, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useMediaList } from "../../hooks/useMediaList";
-import { fetchJson } from "../../hooks/queryUtils";
-import { entryBucket } from "../../utils/planNext";
+import { usePlanNextRows } from "../../hooks/usePlanNextRows";
+import { entryBucket, groupRowBucket } from "../../utils/planNext";
+import { PLATFORM_GROUP_TYPES } from "../../config/planNextGroups";
 import { getCoverForSlot } from "../../utils/statsUtils";
 import { entryCover } from "../../lib/covers";
 import { useAuth } from "../../contexts/AuthContext";
@@ -54,7 +55,7 @@ function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFra
     const f = franchiseMap[String(row.target_id)];
     return {
       ...row,
-      bucket: entryBucket(row.media_type, null, null, f),
+      bucket: groupScopeBucket(row, null, f),
       // The tab media_type vocabulary ("anime", "tv-show", ...) does not line
       // up with getCoverForSlot's forType vocabulary (TYPE_TO_ENTRY_TYPES:
       // "Anime", "TV", ...), so no forType is passed rather than a wrong one -
@@ -66,7 +67,7 @@ function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFra
     const s = seriesMap[String(row.target_id)];
     return {
       ...row,
-      bucket: entryBucket(row.media_type, null, s, null),
+      bucket: groupScopeBucket(row, s, null),
       cover: resolveSeriesCover(s, entriesByType),
     };
   }
@@ -82,6 +83,15 @@ function withBucket(row, { franchiseMap, seriesMap, entriesById, allEntriesByFra
   };
 }
 
+// A series or franchise row's bucket: its group's size, or - on an h-game,
+// queued next at any tier - the row's own platform group.
+function groupScopeBucket(row, series, franchise) {
+  if (PLATFORM_GROUP_TYPES.includes(row.media_type)) {
+    return entryBucket(row.media_type, row.platform_group ?? null, null, null);
+  }
+  return groupRowBucket(row.media_type, series, franchise);
+}
+
 // The entry column each self-grouping type buckets on. Every other type
 // inherits from its series or franchise and reads no column of its own.
 const SELF_GROUP_COLUMN = {
@@ -90,10 +100,12 @@ const SELF_GROUP_COLUMN = {
   book: "type",
 };
 
-// A game's group is not the entry's at all: it is the plan row's own
-// platform_group, picked on the card.
+// A game's or an h-game's group is not the entry's at all: it is the plan
+// row's own platform_group, picked on the card or the detail page. An anime
+// entry groups by its airing type before its size.
 function selfGroupValue(row, entry) {
-  if (row.media_type === "game") return row.platform_group ?? null;
+  if (PLATFORM_GROUP_TYPES.includes(row.media_type)) return row.platform_group ?? null;
+  if (row.media_type === "anime") return entry?.airing_type ?? null;
   const column = SELF_GROUP_COLUMN[row.media_type];
   return column ? (entry?.[column] ?? null) : null;
 }
@@ -137,15 +149,7 @@ export default function usePlanData(reloadKey = 0) {
     enabled: canSeeGatedType(auth, "hentai"),
   });
 
-  // Not a media type - plan_next has no MEDIA_CONFIG entry, so this is a plain
-  // useQuery under its own key: the media-list cache writers
-  // (useStatusToggle, useMediaCacheUpdate) map over every ["media-list", *]
-  // entry and must never see this non-list payload.
-  const planNextQuery = useQuery({
-    queryKey: ["plan-next"],
-    queryFn: () => fetchJson("/api/plan-next/"),
-    staleTime: 30_000,
-  });
+  const planNextQuery = usePlanNextRows();
 
   const franchises = franchiseQuery.data || [];
   const series = seriesQuery.data || [];

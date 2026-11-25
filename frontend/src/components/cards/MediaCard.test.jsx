@@ -176,35 +176,8 @@ describe("MediaCard - the card is a link", () => {
     );
   });
 
-  // Only the "future" variant renders the Bahamut badge as a real <a>; in the
-  // library variant it is a plain div. An <a> inside an <a> is invalid markup
-  // and the browser would break the card link apart to recover, so the
-  // stretched-link shape has to keep them siblings.
-  it("keeps the Bahamut link out of the card anchor, so it is not a nested <a>", async () => {
-    mockAuthFetch();
-    mount(
-      {
-        ...base,
-        sources: [
-          {
-            kind: "access",
-            bucket: "main",
-            name: "動畫瘋",
-            available: true,
-            url: "https://ani.gamer.com.tw/x",
-          },
-        ],
-      },
-      "anime",
-      false,
-      "future",
-    );
-    const cardLink = await screen.findByRole("link", { name: /Test Anime/ });
-    const baha = screen.getByAltText("動畫瘋").closest("a");
-    expect(baha).not.toBeNull();
-    expect(cardLink.contains(baha)).toBe(false);
-  });
-
+  // The future card's linked Bahamut badge is pinned in
+  // FutureReleaseCard.test.jsx, which fills this card's cover.
   it("does not nest the status button inside the card anchor", async () => {
     mockAuthFetch(["self.list"]);
     mount(base, "anime");
@@ -261,11 +234,6 @@ describe("MediaCard - the future variant on a game", () => {
     expect(screen.queryByTitle("Mark as Released")).toBeNull();
   });
 
-  it("shows the release date on the meta line", async () => {
-    mockAuthFetch();
-    mount(game, "game", false, "future");
-    expect(await screen.findByText("2027-03")).toBeInTheDocument();
-  });
 });
 
 // The score slot on a card follows the library's sort (LibraryLayout passes

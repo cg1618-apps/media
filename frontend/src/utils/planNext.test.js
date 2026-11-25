@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { effectiveBucket, entryBucket, groupByBucket } from "./planNext";
+import {
+  effectiveBucket,
+  entryBucket,
+  groupByBucket,
+  groupRowBucket,
+} from "./planNext";
 
 describe("effectiveBucket", () => {
   it("prefers the manual key", () => {
@@ -22,16 +27,16 @@ describe("entryBucket", () => {
   const franchise = { size_group_derived: { anime: "12ep" }, size_group_manual: null };
 
   it("inherits from the series", () => {
-    expect(entryBucket("anime", null, series, franchise)).toBe("24ep");
+    expect(entryBucket("anime", "TV", series, franchise)).toBe("24ep");
   });
 
   it("falls back to the franchise", () => {
-    expect(entryBucket("anime", null, null, franchise)).toBe("12ep");
+    expect(entryBucket("anime", "TV", null, franchise)).toBe("12ep");
   });
 
   it("falls back when the series lacks that media type key", () => {
     const other = { size_group_derived: { "tv-show": "2season" }, size_group_manual: null };
-    expect(entryBucket("anime", null, other, franchise)).toBe("12ep");
+    expect(entryBucket("anime", "TV", other, franchise)).toBe("12ep");
   });
 
   it("buckets a comic on its own issue total, ignoring its series", () => {
@@ -46,7 +51,63 @@ describe("entryBucket", () => {
   });
 
   it("returns null with no group at all", () => {
-    expect(entryBucket("anime", null, null, null)).toBeNull();
+    expect(entryBucket("anime", "TV", null, null)).toBeNull();
+    expect(entryBucket("movie", null, null, null)).toBeNull();
+  });
+});
+
+// Anime groups by airing type before size: a Movie is "movie", anything that
+// is neither TV nor Movie is "others", and only a TV anime takes the size
+// bucket its series or franchise carries.
+describe("entryBucket: anime by airing type", () => {
+  const sized = { size_group_derived: { anime: "24ep" }, size_group_manual: null };
+
+  it("files a Movie under movie, even inside a sized series", () => {
+    expect(entryBucket("anime", "Movie", sized, sized)).toBe("movie");
+  });
+
+  it.each(["OVA", "ONA", "Special", "TV Special", null, ""])(
+    "files airing type %j under others, even inside a sized series",
+    (airingType) => {
+      expect(entryBucket("anime", airingType, sized, sized)).toBe("others");
+    },
+  );
+
+  it("gives a TV anime its size bucket", () => {
+    expect(entryBucket("anime", "TV", sized, null)).toBe("24ep");
+  });
+});
+
+describe("groupRowBucket: a series or franchise row", () => {
+  const sized = { size_group_derived: { anime: "30ep_plus" }, size_group_manual: null };
+
+  it("takes the group's size bucket", () => {
+    expect(groupRowBucket("anime", sized, null)).toBe("30ep_plus");
+    expect(groupRowBucket("anime", null, sized)).toBe("30ep_plus");
+  });
+
+  it("files an anime group that cannot be sized under others", () => {
+    expect(groupRowBucket("anime", null, null)).toBe("others");
+    expect(groupRowBucket("anime", { size_group_derived: {}, size_group_manual: null }, null)).toBe(
+      "others",
+    );
+  });
+
+  it("leaves another type's unsized group ungrouped", () => {
+    expect(groupRowBucket("tv-show", null, null)).toBeNull();
+    expect(groupRowBucket("movie", null, null)).toBeNull();
+  });
+});
+
+describe("entryBucket: h-game groups by platform, as game does", () => {
+  it("uses the row's own platform group", () => {
+    expect(entryBucket("h-game", "PC", null, null)).toBe("PC");
+    expect(entryBucket("h-game", "Switch", null, null)).toBe("Switch");
+  });
+
+  it("files a missing or unknown group as ungrouped", () => {
+    expect(entryBucket("h-game", null, null, null)).toBeNull();
+    expect(entryBucket("h-game", "Steam Deck", null, null)).toBeNull();
   });
 });
 
@@ -122,8 +183,20 @@ describe("groupByBucket: manga and book vocabularies", () => {
 
 describe("groupByBucket", () => {
   it("keys every bucket in vocabulary order plus ungrouped", () => {
-    const grouped = groupByBucket([], "anime");
-    expect(Object.keys(grouped)).toEqual(["12ep", "24ep", "30ep_plus", "ungrouped"]);
+    const grouped = groupByBucket([], "tv-show");
+    expect(Object.keys(grouped)).toEqual(["1season", "2season", "3season_plus", "ungrouped"]);
+  });
+
+  it("follows anime's size buckets with Movie and Others", () => {
+    expect(Object.keys(groupByBucket([], "anime"))).toEqual([
+      "12ep", "24ep", "30ep_plus", "movie", "others", "ungrouped",
+    ]);
+  });
+
+  it("keys h-game by platform, as game", () => {
+    expect(Object.keys(groupByBucket([], "h-game"))).toEqual([
+      "PC", "Console", "Handheld Console", "Switch", "ungrouped",
+    ]);
   });
 
   it("files rows by their bucket field", () => {
@@ -150,9 +223,44 @@ describe("groupByBucket", () => {
 import {
   ALLOWED_SCOPES,
   KINDS,
+  PLATFORM_GROUP_TYPES,
   REWATCH_TABS,
+  SIZE_GROUPS,
+  planNextGroups,
   scopesFor,
 } from "../config/planNextGroups";
+
+// app/utils/plan_next_kinds.py: SIZE_THRESHOLDS for the Calculate-derived
+// buckets, PLATFORM_GROUPS / PLATFORM_GROUP_MEDIA_TYPES for the game groups.
+// Anime's Movie and Others are not in SIZE_THRESHOLDS: they are read off the
+// entry's airing type at display time, so neither Calculate nor the size
+// override can produce them.
+describe("the Plan groups agree with app/utils/plan_next_kinds.py", () => {
+  it.each([
+    ["anime", ["12ep", "24ep", "30ep_plus"]],
+    ["tv-show", ["1season", "2season", "3season_plus"]],
+    ["cartoon", ["1season", "2season", "3season_plus"]],
+    ["movie", ["standalone", "2_3movies", "4movies_plus"]],
+    ["comic", ["1_3", "4_10", "11_plus"]],
+  ])("%s size buckets", (mediaType, keys) => {
+    expect(SIZE_GROUPS[mediaType].map((g) => g.key)).toEqual(keys);
+  });
+
+  it("files game and h-game by platform", () => {
+    expect(PLATFORM_GROUP_TYPES).toEqual(["game", "h-game"]);
+  });
+
+  it("keeps the airing groups out of the size-bucket vocabulary", () => {
+    // The size override dropdown reads SIZE_GROUPS; an airing group there
+    // would offer an override the backend refuses.
+    expect(SIZE_GROUPS.anime.map((g) => g.key)).not.toContain("movie");
+    expect(SIZE_GROUPS["h-game"]).toBeUndefined();
+    expect(planNextGroups("anime").map((g) => [g.key, g.label]).slice(3)).toEqual([
+      ["movie", "Movie"],
+      ["others", "Others"],
+    ]);
+  });
+});
 
 describe("kind vocabulary", () => {
   it("has exactly two kinds", () => {

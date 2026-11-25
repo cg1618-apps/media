@@ -340,13 +340,15 @@ describe("Game detail page own tracker", () => {
     all_endings: "No",
   };
 
-  function mockFetch({ admin = false, permissions = [] } = {}) {
+  function mockFetch({ admin = false, permissions = [], game = GAME, planRows = [] } = {}) {
     vi.stubGlobal(
       "fetch",
       vi.fn((url, init) => {
         const u = String(url);
         let body = [];
-        if (init?.method === "PUT" && u.startsWith("/api/me/list/")) {
+        if (u.startsWith("/api/plan-next/") && !init?.method) {
+          body = planRows;
+        } else if (init?.method === "PUT" && u.startsWith("/api/me/list/")) {
           body = { media_id: "g1", media_type: "game", ...JSON.parse(init.body) };
         } else if (init?.method === "PUT" && u.startsWith("/api/me/plan-flags/")) {
           body = JSON.parse(init.body);
@@ -355,7 +357,7 @@ describe("Game detail page own tracker", () => {
         } else if (u.startsWith("/api/auth/me")) {
           body = { is_admin: admin, username: "reader", role: admin ? "super" : "user", permissions };
         } else if (u.startsWith("/api/game/g1")) {
-          body = GAME;
+          body = game;
         }
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
       }),
@@ -415,6 +417,36 @@ describe("Game detail page own tracker", () => {
     expect(puts("/api/me/plan-flags/")[0][0]).toBe("/api/me/plan-flags/g1");
     expect(JSON.parse(puts("/api/me/plan-flags/")[0][1].body)).toEqual({ play_next: true });
     expect(patches()).toHaveLength(0);
+  });
+
+  // The group the Plan page files the queued game under, set here too. The
+  // mirror: the same row, with the game not queued, draws no picker.
+  const NEXT_ROW = {
+    system_id: "plan-1",
+    kind: "next",
+    media_type: "game",
+    scope: "entry",
+    target_id: "g1",
+    display_name: "Test Game",
+    platform_group: "Switch",
+  };
+
+  it("offers the platform group while the game is queued next", async () => {
+    mockFetch({
+      permissions: ["self.list"],
+      game: { ...GAME, play_next: true },
+      planRows: [NEXT_ROW],
+    });
+    mount();
+    const select = await screen.findByRole("combobox", { name: /platform group for test game/i });
+    expect(select).toHaveValue("Switch");
+  });
+
+  it("offers no platform group while the game is not queued", async () => {
+    mockFetch({ permissions: ["self.list"], planRows: [NEXT_ROW] });
+    mount();
+    await screen.findByRole("checkbox", { name: "Play Next" });
+    expect(screen.queryByRole("combobox", { name: /platform group/i })).toBeNull();
   });
 
   it("reads the completion axes without editing them, for a list holder who is not an editor", async () => {

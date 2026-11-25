@@ -5,6 +5,10 @@
 // viewer's list and whether it is planned. Without one, the catalogue only:
 // each group in release-date order, with no personal marker.
 //
+// Every card is FutureReleaseCard, the one the Plan page's future-releases
+// section draws too: the type at the cover's top left, the viewer's own
+// expectation at its top right, and each type's dates under the title.
+//
 // Books and manga have no release status: they are upcoming by date alone. A
 // book is listed while its own JP or TW date, or one of its units', is still
 // ahead (lib/releaseDate.js, isUpcomingReleaseDate), with those units under
@@ -24,7 +28,7 @@ import { PLAN_FLAG_KEYS } from "../../hooks/useStatusToggle";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../contexts/AuthContext";
-import MediaCard from "../../components/cards/MediaCard";
+import FutureReleaseCard from "../../components/cards/FutureReleaseCard";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useMediaList } from "../../hooks/useMediaList";
 import { Chip, Eyebrow } from "../../components/ui/primitives";
@@ -131,7 +135,7 @@ function ListMarkers({ type, data }) {
 function FutureCard({ ownData, ...cardProps }) {
   return (
     <div>
-      <MediaCard {...cardProps} />
+      <FutureReleaseCard {...cardProps} />
       {ownData && <ListMarkers type={cardProps.type} data={cardProps.data} />}
     </div>
   );
@@ -236,32 +240,6 @@ function UpcomingUnits({ units }) {
   );
 }
 
-// A book's own dates, under its card, when one of them is what lists it.
-function UpcomingBookDates({ book, today }) {
-  const upcoming = [book.release_date_jp, book.release_date_tw].some((value) =>
-    isUpcomingReleaseDate(value, today),
-  );
-  if (!upcoming) return null;
-  return (
-    <div className="mt-1">
-      <UnitReleaseDates unit={book} />
-    </div>
-  );
-}
-
-// The manga's next volume, under its card.
-function NextVolume({ manga }) {
-  const dates = [
-    ["JP", manga.next_vol_release_date_jp],
-    ["TW", manga.next_vol_release_date_tw],
-  ].filter(([, value]) => value);
-  return (
-    <p className="mt-1 font-mono text-[11px] text-text-faint tabular-nums">
-      Next vol. {dates.map(([region, value]) => `${region} ${value}`).join(" · ")}
-    </p>
-  );
-}
-
 // The year sections of the book and manga tabs, in the other tabs' markup.
 function YearSections({ years, groups, renderRow }) {
   return (
@@ -328,7 +306,8 @@ export default function FutureReleases() {
   const [mainTab, setMainTab] = useState("anime");
 
   const animeQuery = useMediaList("anime", LIST_OPTIONS);
-  // The franchise expectation orders a list's groups; nothing else reads it.
+  // The franchise expectation orders a list's groups and is each card's
+  // top-right badge.
   const franchiseQuery = useMediaList("franchise", { ...LIST_OPTIONS, enabled: ownData });
   // The open read every catalogue reader may ask, not the Control Center's
   // manage.pipelines route, which a member would be refused.
@@ -716,7 +695,6 @@ export default function FutureReleases() {
                           ownData={ownData}
                           key={anime.system_id}
                           type="anime"
-                          variant="future"
                           data={anime}
                           franchiseDict={franchiseDict}
                           isAdmin={isAdmin}
@@ -778,9 +756,9 @@ export default function FutureReleases() {
                           ownData={ownData}
                           key={movie.system_id}
                           type="anime-movie"
-                          variant="future"
                           data={movie}
                           isAdmin={isAdmin}
+                          franchiseDict={franchiseDict}
                           onUpdated={handleMovieUpdated}
                         />
                       ))}
@@ -835,9 +813,9 @@ export default function FutureReleases() {
                         ownData={ownData}
                         key={movie.system_id}
                         type="movie"
-                        variant="future"
                         data={movie}
                         isAdmin={isAdmin}
+                        franchiseDict={franchiseDict}
                         onUpdated={handleLiveMovieUpdated}
                       />
                     ))}
@@ -892,7 +870,6 @@ export default function FutureReleases() {
                         ownData={ownData}
                         key={cartoon.system_id}
                         type="cartoon"
-                        variant="future"
                         data={cartoon}
                         franchiseDict={franchiseDict}
                         isAdmin={isAdmin}
@@ -947,7 +924,6 @@ export default function FutureReleases() {
                         ownData={ownData}
                         key={game.system_id}
                         type="game"
-                        variant="future"
                         data={game}
                         franchiseDict={franchiseDict}
                         isAdmin={isAdmin}
@@ -963,9 +939,8 @@ export default function FutureReleases() {
       )}
 
       {/* ── BOOK TAB ──
-          The library card, not the future variant: that one's status select
-          and release bolt are the watch and play axes', and a book has
-          neither a release status nor a waiting status to set. */}
+          A book has neither a release status nor a waiting status to set, so
+          its card keeps the status button and draws no bolt. */}
       {mainTab === "book" &&
         (tabState({
           loading: bookQuery.isLoading,
@@ -983,9 +958,9 @@ export default function FutureReleases() {
                   type="book"
                   data={entry}
                   isAdmin={isAdmin}
+                  franchiseDict={franchiseDict}
                   onUpdated={replaceInList("book")}
                 />
-                <UpcomingBookDates book={entry} today={today} />
                 <UpcomingUnits units={units} />
               </div>
             )}
@@ -1010,9 +985,9 @@ export default function FutureReleases() {
                   type="manga"
                   data={entry}
                   isAdmin={isAdmin}
+                  franchiseDict={franchiseDict}
                   onUpdated={replaceInList("manga")}
                 />
-                <NextVolume manga={entry} />
               </div>
             )}
           />
@@ -1053,9 +1028,9 @@ export default function FutureReleases() {
                     ownData={ownData}
                     key={show.system_id}
                     type="tv-show"
-                    variant="future"
                     data={show}
                     isAdmin={isAdmin}
+                    franchiseDict={franchiseDict}
                     onUpdated={handleTvShowUpdated}
                   />
                 ))}
