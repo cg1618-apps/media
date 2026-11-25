@@ -561,17 +561,22 @@ export default function Game() {
                     [
                       { label: "Type", value: game.game_type },
                       { label: "Main / Remake", value: game.is_main },
-                      {
-                        label: "Base Game",
-                        value: game.base_game ? (
-                          <Link
-                            to={entityPath("game", game.base_game)}
-                            className="text-brand hover:underline"
-                          >
-                            {game.base_game.display_name}
-                          </Link>
-                        ) : null,
-                      },
+                      // Shown only for a DLC or expansion that names one.
+                      ...(game.base_game
+                        ? [
+                            {
+                              label: "Base Game",
+                              value: (
+                                <Link
+                                  to={entityPath("game", game.base_game)}
+                                  className="text-brand hover:underline"
+                                >
+                                  {game.base_game.display_name}
+                                </Link>
+                              ),
+                            },
+                          ]
+                        : []),
                     ],
                     [
                       { label: "Platform", value: game.game_platform },
@@ -679,7 +684,10 @@ export default function Game() {
                     // they are editable in My tracker and the Completion block
                     // above. This one is a fact about the source - whether Steam
                     // may write this entry's progress - so it sits with the copies.
-                    { label: "Steam Progress Sync", value: yesNo(game.steam_progress_sync) },
+                    // Shown only when set.
+                    ...(game.steam_progress_sync != null
+                      ? [{ label: "Steam Progress Sync", value: yesNo(game.steam_progress_sync) }]
+                      : []),
                   ]}
                 />
               </TocSection>
