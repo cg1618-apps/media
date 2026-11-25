@@ -93,6 +93,17 @@ describe("Cartoon detail page - tab title and contents", () => {
   });
 });
 
+// No eyebrow line above the title: the type, status and dates it repeated are
+// on the Information card, and the breadcrumb names the type. The title's
+// block is the first thing in the header.
+it("draws nothing above the title", async () => {
+  mockFetch();
+  mount();
+  const title = await screen.findByRole("heading", { level: 1 });
+  const header = title.closest("header");
+  expect(header.firstElementChild.contains(title)).toBe(true);
+});
+
 // 本傳 / 外傳, Airing Type and Season; then Airing Status and Release Date;
 // then Total Ep and Runtime. Season is left out when it is unset.
 describe("Cartoon detail page - Information card", () => {

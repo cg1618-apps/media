@@ -82,6 +82,23 @@ _OLD_COVER_PREFIX = f"{OLD_MEDIA_TYPE}/"
 _COVER_PREFIX = f"{MEDIA_TYPE}/"
 
 
+# A book's `region`, old English code -> its Chinese name (b1o2okregion3).
+BOOK_REGION_RENAMES: dict[str, str] = {
+    "Western": "歐美",
+    "JP": "日本",
+    "CN": "中國",
+    "KR": "韓國",
+    "TW": "台灣",
+}
+
+
+def book_region(value: Any) -> Any:
+    """One book `region` value in the current vocabulary."""
+    if isinstance(value, str):
+        return BOOK_REGION_RENAMES.get(value.strip(), value)
+    return value
+
+
 def book_type(value: Any) -> Any:
     """One `type` value in the current vocabulary."""
     if isinstance(value, str):
@@ -190,6 +207,8 @@ def legacy_cell_values(tab_name: str, raw: dict) -> dict:
         put("cover_image_file", _cover_path(raw["cover_image_file"]))
     if tab_name == "Book" and "type" in raw:
         put("type", book_type(raw["type"]))
+    if tab_name == "Book" and "region" in raw:
+        put("region", book_region(raw["region"]))
     if tab_name == "Franchise":
         if "franchise_type" in raw:
             put("franchise_type", franchise_type(raw["franchise_type"]))

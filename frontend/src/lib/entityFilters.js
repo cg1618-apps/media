@@ -159,12 +159,14 @@ function characterRoleDef() {
  * A group over one of a character's tag lists (appearance, trait): the values
  * the loaded rows hold, sorted, plus Not set when a row's list is empty. A
  * row matches when it holds ANY ticked value, or has none and Not set is on.
+ * Drawn in the advanced section.
  */
 function tagListDef(key, label) {
   return {
     key,
     label,
     type: "set-dynamic",
+    advanced: true,
     deriveOptions: (rows) => {
       const values = [...new Set(rows.flatMap((r) => r[key] || []))].sort();
       return rows.some((r) => !(r[key] || []).length) ? [...values, TAGS_NOT_SET] : values;
@@ -199,9 +201,9 @@ const hasIdentitiesDef = {
 };
 
 /**
- * The character library's defs: entry type, role, rating, gender, appearance,
- * trait, and the card kind and identities groups over its character and
- * identity cards.
+ * The character library's defs: entry type, role, rating, gender, and the
+ * card kind and identities groups over its character and identity cards; then
+ * appearance and trait, in the advanced section.
  */
 export function characterFilterDefs(auth, { ownData = true } = {}) {
   return [
@@ -209,10 +211,10 @@ export function characterFilterDefs(auth, { ownData = true } = {}) {
     characterRoleDef(),
     ...(ownData ? [ratingDef] : []),
     genderDef(),
-    tagListDef("appearance", "Appearance"),
-    tagListDef("trait", "Trait"),
     cardKindDef,
     hasIdentitiesDef,
+    tagListDef("appearance", "Appearance"),
+    tagListDef("trait", "Trait"),
   ];
 }
 

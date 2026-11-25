@@ -150,9 +150,54 @@ function OptionsHelp({ label, options, optionLabel, optionHint }) {
 }
 
 // ---------------------------------------------------------------------------
+// RangeGroup — a range def: a minimum and a maximum, either one enough
+// ---------------------------------------------------------------------------
+// The whole { min, max } goes through toggleFilter, which sets a range rather
+// than toggling it (hooks/useFilterState.js).
+const RANGE_INPUT_CLS =
+  "w-20 px-2 py-0.5 border border-border-strong bg-surface text-text font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-brand";
+
+function RangeGroup({ fd, value, toggleFilter }) {
+  const range = value || { min: "", max: "" };
+  const set = (bound) => (e) => toggleFilter(fd.key, { ...range, [bound]: e.target.value });
+  return (
+    <div>
+      <Eyebrow className="mb-1.5">{fd.label}</Eyebrow>
+      <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted">
+        <input
+          type="number"
+          min="0"
+          inputMode="decimal"
+          aria-label={`${fd.label} minimum`}
+          placeholder="Min"
+          value={range.min}
+          onChange={set("min")}
+          className={RANGE_INPUT_CLS}
+        />
+        <span aria-hidden="true">–</span>
+        <input
+          type="number"
+          min="0"
+          inputMode="decimal"
+          aria-label={`${fd.label} maximum`}
+          placeholder="Max"
+          value={range.max}
+          onChange={set("max")}
+          className={RANGE_INPUT_CLS}
+        />
+        {fd.unit && <span>{fd.unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // FilterGroup — one def: a checkbox for a boolean, else a labelled chip row
 // ---------------------------------------------------------------------------
 function FilterGroup({ fd, filters, toggleFilter, dynamicFilterOptions }) {
+  if (fd.type === "range") {
+    return <RangeGroup fd={fd} value={filters[fd.key]} toggleFilter={toggleFilter} />;
+  }
   if (fd.type === "boolean") {
     return (
       <label className="flex items-center gap-2 cursor-pointer">

@@ -34,7 +34,7 @@ import {
 import { LIBRARY_CONFIGS } from "../pages/library/configs";
 import { getFranchiseCover, withMediaType } from "./covers";
 import { parseTypes } from "./formatters";
-import { initialFilters } from "./libraryFilters";
+import { initialFilters, isFilterActive, isRangeValue } from "./libraryFilters";
 import { primaryReleaseValue, releaseYear } from "./releaseDate";
 
 // Every type the picker offers, in the nav's order. Gated types are listed
@@ -290,7 +290,11 @@ function forEntries(fd) {
  * has always been.
  */
 export function typeFilterDefs(type) {
-  const libraryDefs = (LIBRARY_CONFIGS[type]?.filterDefs ?? []).filter((fd) => !fd.advanced);
+  // The library's ordinary filters, and any advanced one flagged `inPicker`
+  // (a game's Ownership, which is advanced in the library alone).
+  const libraryDefs = (LIBRARY_CONFIGS[type]?.filterDefs ?? []).filter(
+    (fd) => !fd.advanced || fd.inPicker,
+  );
   return [
     ...libraryDefs.map(forEntries),
     ratingDef,
@@ -445,6 +449,12 @@ export function resolveDefaultFilters(filterDefs, stored) {
       state[fd.key] = value === true;
       continue;
     }
+    if (fd.type === "range") {
+      if (value && typeof value === "object") {
+        state[fd.key] = { min: String(value.min ?? ""), max: String(value.max ?? "") };
+      }
+      continue;
+    }
     if (!Array.isArray(value)) continue;
     const offered =
       fd.type === "set" ? fd.options : fd.type === "set-grouped" ? fd.groupOptions : null;
@@ -459,6 +469,8 @@ export function toStoredFilters(filters) {
   for (const [key, value] of Object.entries(filters)) {
     if (value instanceof Set) {
       if (value.size > 0) stored[key] = [...value];
+    } else if (isRangeValue(value)) {
+      if (isFilterActive(value)) stored[key] = { min: value.min, max: value.max };
     } else if (value) {
       stored[key] = true;
     }

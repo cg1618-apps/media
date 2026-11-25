@@ -232,6 +232,14 @@ vocabulary reads at once. The watch libraries' Watch Status uses it to list
 the stored statuses each chip includes (`watchStatusFilter` in
 `lib/libraryFilterDefs.js`).
 
+A def of type `range` (`rangeFilter` in `lib/libraryFilterDefs.js`) is a
+minimum and a maximum over one number: FilterPanel draws two number inputs
+(`{label} minimum` / `{label} maximum`, then its `unit`), either bound alone
+narrows, both are inclusive, and an item with no number never matches a set
+range. Its state is `{ min, max }`, set whole through `toggleFilter`; it counts
+as one active filter, and the random picker stores it as that object. The
+game library's HLTB Main + Extra and the anime libraries' Runtime are ranges.
+
 An ordinary def may carry `row: "<name>"`: consecutive defs with the same
 row are drawn side by side on one line, in def order, with a gap between
 them (`FilterRows`); a def with no row keeps a line of its own. The TV show

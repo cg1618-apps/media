@@ -275,6 +275,24 @@ describe("Game detail page — Replace", () => {
     expect(library.getByText("Steam Progress Sync")).toBeInTheDocument();
   });
 
+  // Base Game on Information and Steam Progress Sync on Library are each left
+  // out when unset; the test above shows them when set.
+  it("leaves out an unset Base Game and Steam Progress Sync", async () => {
+    mockFetch({
+      isAdmin: false,
+      game: { ...GAME, game_type: "Base Game", ownership: "Owned", base_game: null, steam_progress_sync: null },
+    });
+    mount();
+    const card = async (title) =>
+      within((await screen.findByRole("heading", { name: title })).closest("section"));
+    const info = await card("Information");
+    expect(info.getByText("Type")).toBeInTheDocument();
+    expect(info.queryByText("Base Game", { selector: "div.font-mono" })).toBeNull();
+    const library = await card("Library");
+    expect(library.getByText("Owned")).toBeInTheDocument();
+    expect(library.queryByText("Steam Progress Sync")).toBeNull();
+  });
+
   // The three IGDB time-to-beat figures, in hours. Only the ones recorded get
   // a row; with none recorded the card is left out.
   it("shows the recorded time-to-beat figures on a Time to Beat card", async () => {
