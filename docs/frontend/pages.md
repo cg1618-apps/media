@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -1022,7 +1022,8 @@ by the URL's public id, then `.../entries` by the `system_id` it returns —
 where the profile call failing is the page's 404 while the entries call
 failing is not.
 
-Layout: breadcrumb → (admin) the dashed **Admin** strip with **Edit**,
+Layout: breadcrumb → (admin) the dashed admin strip (`AdminActions`, no
+caption) with, at its left end, **Edit**
 linking to `/modify?id=<system_id>&type=person`, and — for a person with a
 MAL link or an IMDb link, whatever their role — **Autofill & update**,
 `POST /api/person/{system_id}/autofill` (`AdminToolbar`'s `onAutofilled`): it
@@ -1159,8 +1160,8 @@ character facts. `useCanonicalPath("identity", …)` puts the slug in the
 address bar.
 
 Layout: a breadcrumb **Characters** (`/library/character`) / the character's
-name, linking to its page / the identity's name → (admin) the dashed
-**Admin** strip with **Edit**, linking to
+name, linking to its page / the identity's name → (admin) the dashed admin
+strip (`AdminActions`, no caption) with **Edit** at its left end, linking to
 `/modify?id=<system_id>&type=identity` → left column with the photo
 (`display_photo_file`, the identity's own photo else the
 character's displayed one, as the server resolves it; else `FALLBACK_SVG`),
@@ -1275,7 +1276,8 @@ Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
 (thin wrappers `Franchise.jsx`, `Series.jsx`, `Collection.jsx`). Chrome comes
 from `components/hub/` (`HubShell`, `Crumbs` — whose `action` slot holds the
 hub's **Report a problem**, beside the **待補充** badge —, `AdminStrip` — the admin-only
-dashed strip with the **Edit** link `/modify?id=…` —, `HeroCover` with
+dashed strip, `AdminActions` with no caption, with the **Edit** link
+`/modify?id=…` at its left end —, `HeroCover` with
 the rating stamp and optional progress rule, cropping the borrowed cover at
 its entry's focal point, `Field`, `HubTabs`, `Section` (a slip titled with the
 list and its count - no grey description line under the title),
@@ -1797,8 +1799,9 @@ File `pages/detail/OrderPage.jsx`. GET `/api/order/lists/{id}`
 `/api/collection/{id}`) and sibling lists
 `/api/order/lists?franchise_id=&collection_id=` (self excluded);
 cancellable. Shows owner link, `MediaTypeFilter`, list name, badges
-(`list_type`, most-recommended, Default, "{n} steps"), an **admin-only** link
-to `/orders`, `OrderGuide` (filter all / essentials / no-optional,
+(`list_type`, most-recommended, Default, "{n} steps"), an **admin-only**
+dashed strip (`AdminActions`, no caption) with **Edit this order** at its
+left end, linking to `/orders`, `OrderGuide` (filter all / essentials / no-optional,
 section blocks, list remark) and "Other orders for {owner}".
 `MediaTypeFilter` is the scope above the title drawn as type pills, in the
 dashboard type filter's pill style. On a cross-type order it reads

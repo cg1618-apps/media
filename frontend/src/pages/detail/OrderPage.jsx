@@ -14,7 +14,8 @@ import OrderGuide, {
   MediaTypeFilter,
 } from "../../components/tracker/OrderGuide";
 import { getDisplayName } from "../../utils/media";
-import { Chip, Slip, sectionTitleCls } from "../../components/ui/primitives";
+import { Chip, Slip } from "../../components/ui/primitives";
+import AdminActions from "../../components/layout/AdminActions";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
@@ -141,17 +142,16 @@ export default function OrderPage() {
       </nav>
 
       {isAdmin && (
-        <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-          <div className={sectionTitleCls}>
-            Admin
-          </div>
-          <Link
-            to={orderEditPath(ownerKeyOf(list), list.system_id)}
-            className="border border-border-strong text-text bg-surface px-3 py-1.5 text-sm font-medium hover:border-text transition"
-          >
-            Edit this order
-          </Link>
-        </div>
+        <AdminActions
+          start={
+            <Link
+              to={orderEditPath(ownerKeyOf(list), list.system_id)}
+              className="border border-border-strong text-text bg-surface px-3 py-1.5 text-sm font-medium hover:border-text transition"
+            >
+              Edit this order
+            </Link>
+          }
+        />
       )}
 
       <header className="mb-8">

@@ -51,3 +51,11 @@ describe("AdminActions", () => {
     expect(container.textContent).not.toMatch(/admin/i);
   });
 });
+
+describe("AdminActions with only a start group", () => {
+  it("draws no empty Status actions group", () => {
+    render(<AdminActions start={<button type="button">Edit</button>} />);
+    expect(screen.getByRole("group", { name: "Edit actions" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Status actions" })).toBeNull();
+  });
+});

@@ -75,6 +75,14 @@ describe("OrderPage edit link", () => {
     ).toEqual({ owner: "franchise:FR001", order: "L1" });
   });
 
+  it("sits at the left of the admin strip, with no Admin caption", async () => {
+    renderPage();
+    const link = await screen.findByRole("link", { name: "Edit this order" });
+    const group = screen.getByRole("group", { name: "Edit actions" });
+    expect(group).toContainElement(link);
+    expect(group.parentElement.textContent).not.toMatch(/admin/i);
+  });
+
   it("draws no link for a guest", async () => {
     isAdmin = false;
     renderPage();

@@ -7,7 +7,8 @@
 // tiers at once. See docs/frontend/design-system.md.
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, focusStyle } from "../../lib/covers";
-import { Eyebrow, Slip, RatingStamp, ProgressRule, sectionTitleCls } from "../ui/primitives";
+import { Eyebrow, Slip, RatingStamp, ProgressRule } from "../ui/primitives";
+import AdminActions from "../layout/AdminActions";
 import LazyImage from "../ui/LazyImage";
 
 /**
@@ -68,20 +69,23 @@ export function Crumbs({ trail, current, action = null }) {
   );
 }
 
-/** The dashed admin strip; `editId` is the system_id Modify should open. */
+/**
+ * The dashed admin strip; `editId` is the system_id Modify should open. Drawn
+ * by the media pages' AdminActions: Edit at the left end, no caption.
+ */
 export function AdminStrip({ editId }) {
   return (
-    <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between">
-      <div className={sectionTitleCls}>
-        Admin
-      </div>
-      <Link
-        to={`/modify?id=${editId}`}
-        className="border border-border-strong text-text bg-surface px-3 py-1.5 text-sm font-medium hover:border-text transition"
-      >
-        Edit
-      </Link>
-    </div>
+    <AdminActions
+      start={
+        <Link
+          to={`/modify?id=${editId}`}
+          className="border border-border-strong text-text bg-surface px-3 py-1.5 text-sm font-medium hover:border-text transition"
+        >
+          Edit
+        </Link>
+      }
+      className=""
+    />
   );
 }
 

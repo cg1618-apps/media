@@ -280,6 +280,15 @@ describe("Studio detail page", () => {
       expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     });
 
+    it("puts Edit and Autofill at the left of the admin strip, with no Admin caption", async () => {
+      renderPage();
+      const edit = await screen.findByRole("button", { name: "Edit this studio" });
+      const group = screen.getByRole("group", { name: "Edit actions" });
+      expect(group).toContainElement(edit);
+      expect(group).toContainElement(screen.getByRole("button", { name: "Autofill & update" }));
+      expect(group.parentElement.textContent).not.toMatch(/admin/i);
+    });
+
     it("links Edit to this studio's Modify editor", async () => {
       const user = userEvent.setup();
       renderPage();
