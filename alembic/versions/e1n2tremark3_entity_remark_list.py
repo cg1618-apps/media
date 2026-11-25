@@ -17,7 +17,7 @@ list order, and every entity-owned note is deleted - so a personal note, and
 the split between several remarks, written since the upgrade is lost.
 
 Revision ID: e1n2tremark3
-Revises: b1o2okregion3
+Revises: g1x2clusive3
 """
 
 from typing import Sequence, Union
@@ -28,7 +28,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision: str = "e1n2tremark3"
-down_revision: Union[str, Sequence[str], None] = "b1o2okregion3"
+down_revision: Union[str, Sequence[str], None] = "g1x2clusive3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
