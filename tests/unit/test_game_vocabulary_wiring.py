@@ -39,6 +39,7 @@ def test_game_tag_fields():
         "game_mode",
         "combat_mode",
         "game_platform",
+        "exclusive_platform",
         "label",
     }
     assert fields["game_genre"].category == "Game Genre"

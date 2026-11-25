@@ -90,6 +90,10 @@ export const GAME_TYPES = ["Base Game", "DLC", "Expansion", "Bundle"];
 // to the Remake / Remaster relation kinds.
 export const GAME_IS_MAIN = ["Main", "Remake", "Remaster"];
 
+// The platform families a game may be exclusive to (EXCLUSIVE_PLATFORMS in
+// app/utils/game_vocabulary.py), in picker order.
+export const GAME_EXCLUSIVE_PLATFORMS = ["Nintendo", "PlayStation", "Xbox", "PC", "Mobile"];
+
 // Anime's original_or_remake (ANIME_ORIGINAL_OR_REMAKE in app/utils/constants.py).
 // A column beside anime's is_main, never empty: a new anime is the original.
 export const ANIME_ORIGINAL_OR_REMAKE = ["Original", "Remake"];
@@ -201,7 +205,8 @@ export const TV_REGIONS = ["歐美劇", "韓劇", "日劇", "陸劇", "台劇", 
 
 export const MANGA_REGIONS = ["日漫", "韓漫", "國漫", "台漫", "其他"];
 
-export const BOOK_REGIONS = ["Western", "JP", "CN", "KR", "TW"];
+// Named in Chinese; app/utils/constants.py is the authority.
+export const BOOK_REGIONS = ["歐美", "日本", "中國", "韓國", "台灣"];
 
 export const BOOK_TYPES = ["小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他"];
 

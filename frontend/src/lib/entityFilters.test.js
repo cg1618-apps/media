@@ -402,3 +402,12 @@ describe("the My Rating group and ownData", () => {
     });
   }
 });
+
+// Appearance and Trait are advanced filters, after every ordinary one.
+it("puts the character library's Appearance and Trait in the advanced section", () => {
+  const defs = characterFilterDefs({ has: () => true, visibleGatedTypes: [] });
+  const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
+  expect(advanced).toEqual(["appearance", "trait"]);
+  const firstAdvanced = defs.findIndex((fd) => fd.advanced);
+  expect(defs.slice(firstAdvanced).every((fd) => fd.advanced)).toBe(true);
+});

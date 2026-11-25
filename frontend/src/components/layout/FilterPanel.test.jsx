@@ -212,3 +212,44 @@ it("draws defs that share a row side by side, in def order", () => {
   expect(kindGroup.nextElementSibling).toBe(regionGroup);
   expect(statusGroup.parentElement).not.toBe(kindGroup.parentElement);
 });
+
+// A range def draws a minimum and a maximum input; typing in either sets the
+// filter, and one bound alone is enough. It lives in the advanced section like
+// the tag filters, and counts toward the toggle's badge.
+it("draws a range filter as two number inputs that set it", async () => {
+  const user = userEvent.setup();
+  const defs = [
+    {
+      key: "hltb",
+      label: "HLTB Main + Extra",
+      type: "range",
+      unit: "h",
+      advanced: true,
+      match: () => true,
+    },
+  ];
+  function Harness() {
+    const state = useFilterState(defs, []);
+    return (
+      <>
+      <output data-testid="range-state">{JSON.stringify(state.filters.hltb)}</output>
+      <FilterPanel
+        filterDefs={defs}
+        filters={state.filters}
+        toggleFilter={state.toggleFilter}
+        clearFilters={state.clearFilters}
+        activeFilterCount={state.activeFilterCount}
+        dynamicFilterOptions={{}}
+      />
+      </>
+    );
+  }
+  render(<Harness />);
+  await user.click(screen.getByRole("button", { name: /Advanced filters/ }));
+  const min = screen.getByRole("spinbutton", { name: "HLTB Main + Extra minimum" });
+  const max = screen.getByRole("spinbutton", { name: "HLTB Main + Extra maximum" });
+  await user.type(max, "40");
+  expect(JSON.parse(screen.getByTestId("range-state").textContent)).toEqual({ min: "", max: "40" });
+  expect(min).toHaveValue(null);
+  expect(screen.getByRole("button", { name: /Advanced filters/ })).toHaveTextContent("1");
+});

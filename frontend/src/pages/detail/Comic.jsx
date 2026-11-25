@@ -192,15 +192,6 @@ export default function Comic() {
   const progress = issueTotal ? issueFin / issueTotal : issueFin > 0 ? 1 : 0;
   const progressPct = issueTotal ? Math.round(progress * 100) : null;
 
-  const eyebrow = [
-    "Comic",
-    comic.comic_type,
-    comic.era,
-    comic.serialization_status,
-    yearRange,
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
 
   return (
     <DetailContents>
@@ -327,10 +318,9 @@ export default function Comic() {
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
           {/* Header */}
+          {/* No eyebrow above the title: what it repeated is on the Information
+              card, and the breadcrumb names the type. */}
           <header>
-            <div className="font-mono text-[11px] text-text-muted mb-3">
-              {eyebrow}
-            </div>
             <div className="flex items-baseline gap-4 flex-wrap mb-2">
               <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95]">
                 {titleMain}

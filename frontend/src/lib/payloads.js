@@ -143,6 +143,7 @@ const CREDITS_FIELD_MAP = {
       game_mode: "game_mode",
       combat_mode: "combat_mode",
       game_platform: "game_platform",
+      exclusive_platform: "exclusive_platform",
       label: "label",
     },
   },

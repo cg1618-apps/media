@@ -7,6 +7,7 @@ import {
   malRatingSort,
   myRatingColumn,
   myRatingSort,
+  runtimeSort,
   planFlagColumn,
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
@@ -18,6 +19,7 @@ import { compareTitles } from "../../../lib/naming";
 import { ANIME_MOVIE_RELEASE_TYPES, FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
 import {
   exclusiveSourceFilter,
+  rangeFilter,
   genreFilters,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
@@ -96,6 +98,8 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
     },
     // Advanced section (FilterPanel draws it collapsed).
     exclusiveSourceFilter(),
+    // Runtime in minutes: the film's length.
+    rangeFilter("runtime", "Runtime", (x) => x.length_min, { unit: "min" }),
     ...genreFilters(),
   ],
 
@@ -114,6 +118,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
     malRatingSort,
     anilistRatingSort,
     anilistPopularitySort,
+    runtimeSort("length_min"),
   ],
 
   tableColumns: [
