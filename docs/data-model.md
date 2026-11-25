@@ -1182,6 +1182,8 @@ One human credited on a media entry (Tier 3 entity - see
 | `photo_fallback_entry_id` | UUID | yes | | A `media.system_id` whose cover stands in when `photo_file` is NULL; must be an entry the person is credited on or voices a character in. No FK, like `franchise.cover_entry_id`: a stale id falls through to the automatic choice ([systems/credits-and-tags.md](systems/credits-and-tags.md#photo-fallback)). |
 | `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Person (MAL) Fill, or typed directly. Any person holding one is filled from MAL, whatever their role |
 | `mal_link` | String | yes | | `myanimelist.net/people/<id>/<slug>` |
+| `anilist_link` | String | yes | | `anilist.co/staff/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
+| `anilist_link` | String | yes | | `anilist.co/staff/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
 | `imdb_id` | String | yes | | IMDb name id, `nm<digits>`. Derived from `imdb_link` by `extract_imdb_id_person` on every write and on the Person (TMDB) Fill. Any person holding one is filled from TMDB's person record (through `/find`), after MAL |
 | `imdb_link` | String | yes | | `imdb.com/name/nm<digits>/` |
 | `twitter_link` | String | yes | | The person's own Twitter (X) page. Stored as typed; no id is derived from it and no Fill reads it |
@@ -1348,6 +1350,8 @@ every type it applies to is not wrong in the way a distributor list offering
 | `website_url` | String | yes | | |
 | `mal_id` | Integer | yes | | MAL producer id. Derived from `mal_link` by `extract_mal_id_producer` on write and on Fill, or typed directly. Setting it is what makes a studio fillable |
 | `mal_link` | String | yes | | |
+| `anilist_link` | String | yes | | `anilist.co/studio/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
+| `anilist_link` | String | yes | | `anilist.co/studio/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 All four name columns are nullable and **at least one** must be set: a studio
@@ -1502,6 +1506,8 @@ with one intentional deviation - see the constraints note below.
 | `first_encounter` | Text | yes | | Free text: where the main character first actually faces them — meets, talks, fights — whether or not the name is known by then |
 | `mal_id` | Integer | yes | | MAL character id. Indexed (`ix_character_mal_id`), **not unique**, like `person.mal_id`: a duplicate is fixed by merge, not refused. Derived from `mal_link` by `extract_mal_id_character` on every write. The key the MAL cast import matches a character on, and the key the character is filled from MAL on |
 | `mal_link` | String | yes | | `myanimelist.net/character/<id>/<slug>` |
+| `anilist_link` | String | yes | | `anilist.co/character/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
+| `anilist_link` | String | yes | | `anilist.co/character/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraint: `ck_character_has_a_name` CHECK `num_nonnulls(name_en, name_cn,
@@ -1831,7 +1837,7 @@ its section's *shape* in `app/utils/note_sections.py`
 | `system_id` | UUID | no | uuid4 | PK |
 | `media_id` | UUID | yes | | FK `media.system_id` ON DELETE CASCADE, indexed - set when the owner is one of the twelve media types |
 | `collection_id` / `franchise_id` / `series_id` | UUID | yes | | FK to the matching tier table, ON DELETE CASCADE, indexed - set when the owner is a grouping tier |
-| `studio_id` / `publisher_id` / `person_id` / `character_id` / `identity_id` | UUID | yes | | FK to `studio`, `publisher`, `person`, `character` and `character_identity`, ON DELETE CASCADE, indexed - set when the owner is an entity. Created by `e1n2tremark3`. An entity owns only the `remark` and `personal_notes` sections. `ENTITY_NOTE_COLUMNS` (`app/models/note.py`) maps each owner type to its column |
+| `studio_id` / `publisher_id` / `person_id` / `character_id` / `identity_id` | UUID | yes | | FK to `studio`, `publisher`, `person`, `character` and `character_identity`, ON DELETE CASCADE, indexed - set when the owner is an entity. Created by `e1n2tremark3`. An entity owns only the `remark`, `personal_notes` and `resources` sections. `ENTITY_NOTE_COLUMNS` (`app/models/note.py`) maps each owner type to its column |
 | `author_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed. Who wrote the row - see [`note`, `quote` and `meme`: who wrote it](#note-quote-and-meme-who-wrote-it) |
 | `section` | String | yes | | Key in NOTE_SECTIONS, indexed |
 | `personal` | Boolean | **no** | false (server default) | A personal row of a mixed section (`NoteSection.mixed`): one account's own, read and written by its `author_id` alone, beside the section's catalogue rows. False on a catalogue row and on a row of a personal-scope section, which is personal by its section. Set by the server on create from `manage.catalog`; nothing changes it after. A catalogue row may not nest under a personal one (the router refuses it). In a section with `kind_choice` (優點, 缺點, 優缺點) its writer picks it, and an editor may switch it on a row it wrote |

@@ -120,6 +120,17 @@ export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
           placeholder="https://myanimelist.net/character/..."
         />
       </Field>
+      <Field
+        label="AniList Link"
+        hint="The character's anilist.co/character/<id> page. Stored as given; nothing is filled from it."
+      >
+        <input
+          className={inputCls}
+          value={characterForm.anilist_link ?? ""}
+          onChange={(e) => ucf("anilist_link", e.target.value)}
+          placeholder="https://anilist.co/character/..."
+        />
+      </Field>
       <Field label="Photo">
         <ImagePicker
           ownerType="character"

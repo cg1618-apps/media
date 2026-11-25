@@ -6,14 +6,23 @@
 // person is credited on, grouped as GET /api/person/{id}/entries returns them
 // — by media type AND role, because one person can be an anime's director and
 // a manga's author, and each group carries the label that credit has on that
-// media type. A seiyuu group is the exception in what it shows: its cards
-// lead with the part voiced (VoicedPartCard), the entry beneath it.
+// media type. A group is titled by its person type in Chinese
+// (personTypeLabel: 導演, 作家&畫家), and each card names its media type. A
+// seiyuu group is the exception in what it shows: its cards lead with the
+// part voiced (VoicedPartCard), the entry beneath it. One credit sort
+// (hooks/useCreditSort.js), shared with the studio and publisher pages,
+// orders every group alike.
+//
+// The names lead the Profile card; the person's links (IMDb, MAL, AniList and
+// their own pages) are the left column's links card, under My rating
+// (components/info/EntityLinksCard.jsx).
 //
 // Like Studio.jsx it reads the API with plain fetch. An admin can jump to the
 // full editor, the same controls Character.jsx has
-// (components/info/EntityProfileControls.jsx), and the remark list and
-// personal notes are a notes block (NotesTemplate, owner type "person"). My rating is the viewer's own, set
-// by a holder of self.list through PUT /api/me/ratings. Club membership
+// (components/info/EntityProfileControls.jsx), and the remark list,
+// resources and personal notes are a notes block (NotesTemplate, owner type
+// "person"). My rating is the viewer's own, set by a holder of self.list
+// through PUT /api/me/ratings. Club membership
 // (ClubMembership) is editable here too, through its own endpoints. An
 // author's or illustrator's gallery of works (WorkGallery) is shown under it;
 // it is edited in the person form, beside the photo.
@@ -23,16 +32,18 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
-import { releaseYear } from "../../lib/releaseDate";
+import { mediaTypeLabel } from "../../config/mediaRegistry";
 import { useEntityHref } from "../../lib/entityPath";
 import ClubMembership from "../../components/info/ClubMembership";
 import VoicedPartCard from "../../components/info/VoicedPartCard";
 import WorkGallery from "../../components/info/WorkGallery";
-import { PERSON_SUB_TABS } from "../../components/forms/PersonSubTabBar";
+import { personTypeLabel } from "../../components/forms/PersonSubTabBar";
 import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
-import MalButton, { ImdbButton, SiteButton } from "../../components/info/MalButton";
-import NamingCard from "../../components/info/NamingCard";
+import { CreditSortControl } from "../../components/info/CompanyCredits";
+import EntityHeading, { creditedEntries } from "../../components/info/EntityHeading";
+import EntityLinksCard, { ENTITY_LINKS } from "../../components/info/EntityLinksCard";
+import { namingRows } from "../../components/info/NamingCard";
 import {
   AdminToolbar,
   RatingSelect,
@@ -44,21 +55,15 @@ import { useAuth } from "../../contexts/AuthContext";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
+import { useCreditSort } from "../../hooks/useCreditSort";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
-// A role key to the name the admin sub-tabs give it ("composer" ->
-// "Music / Composer"), so the Types row reads as the library's Type filter does.
-const PERSON_TYPE_LABELS = Object.fromEntries(
-  PERSON_SUB_TABS.map((t) => [t.key, t.label]),
-);
-
-// The person's own pages, as the header buttons and the Profile rows name
-// them. "Twitter" is also the key lib/sourceIcons.js files its icon under.
-const SOCIAL_SITES = [
-  { field: "twitter_link", site: "Twitter" },
-  { field: "ig_link", site: "Instagram" },
-  { field: "pixiv_link", site: "pixiv" },
-];
+// A credit group's title: its person type in Chinese, as the person
+// library's Type filter names it - each of a combined group's roles, joined
+// ("作家&畫家" for a manga both written and drawn).
+function groupTitle(group) {
+  return (group.roles?.length ? group.roles : [group.role]).map(personTypeLabel).join("&");
+}
 
 // The studios a person belongs to, each a link to its page when the viewer
 // may open studio pages (useEntityHref), plain text otherwise.
@@ -95,6 +100,7 @@ export default function Person() {
   // My rating is the viewer's own (self.list), saved through /api/me/ratings.
   const { ownData: canRate } = useViewScope();
   const saveMyRating = useMyRatingSaver("person", person?.system_id, setPerson);
+  const creditSort = useCreditSort();
 
   useCanonicalPath("person", person);
 
@@ -157,10 +163,9 @@ export default function Person() {
   const photoUrl = getCoverUrl(person.display_photo_file ?? person.photo_file);
   const creditTotal = groups.reduce((sum, g) => sum + g.entries.length, 0);
   // The types they are offered under, deduplicated: person_role carries one
-  // row per (role, scope) and the label here is the type, not the scope.
-  const types = [...new Set((person.roles || []).map((r) => r.role))].map(
-    (role) => PERSON_TYPE_LABELS[role] ?? role,
-  );
+  // row per (role, scope) and the label here is the type, not the scope. In
+  // Chinese, as the library's Type filter and the credit titles name them.
+  const types = [...new Set((person.roles || []).map((r) => r.role))].map(personTypeLabel);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
@@ -230,33 +235,18 @@ export default function Person() {
             />
           )}
 
-          <NamingCard type="person" item={person} />
+          <EntityLinksCard item={person} links={ENTITY_LINKS.person} />
         </div>
 
         {/* ========== RIGHT COLUMN: facts, then the credits ========== */}
         <div className="lg:col-span-3 space-y-6">
-          <div>
-            <Eyebrow className="mb-1">Person</Eyebrow>
-            <h1 className="font-display text-4xl font-semibold text-text leading-tight">
-              {name}
-            </h1>
-            <div className="flex flex-wrap items-center gap-3 mt-2">
-              <p className="font-mono text-[11px] text-text-faint">
-                {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
-              </p>
-              {/* The ways out to MAL and IMDb, by the name as on the
-                  character page, then the person's own pages. */}
-              <MalButton href={person.mal_link} />
-              <ImdbButton href={person.imdb_link} />
-              {SOCIAL_SITES.map(({ field, site }) => (
-                <SiteButton key={field} href={person[field]} site={site} />
-              ))}
-            </div>
-          </div>
+          <EntityHeading kind="Person" count={creditedEntries(creditTotal)} name={name} />
 
+          {/* The names lead the profile, one per line, then the facts. */}
           <InfoCard
             title="Profile"
             fields={[
+              ...namingRows("person", person),
               [
                 { label: "Gender", value: person.gender },
                 { label: "Types", value: types.join(", ") || null },
@@ -267,49 +257,11 @@ export default function Person() {
                   <AffiliationLinks studios={person.affiliations} />
                 ) : null,
               },
-              {
-                label: "MAL",
-                value: person.mal_link ? (
-                  <a
-                    href={person.mal_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-brand hover:underline break-all"
-                  >
-                    {person.mal_id ? `Person #${person.mal_id}` : "MyAnimeList"}
-                  </a>
-                ) : null,
-              },
-              {
-                label: "IMDb",
-                value: person.imdb_link ? (
-                  <a
-                    href={person.imdb_link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-brand hover:underline break-all"
-                  >
-                    {person.imdb_id ?? "IMDb"}
-                  </a>
-                ) : null,
-              },
-              ...SOCIAL_SITES.map(({ field, site }) => ({
-                label: site,
-                value: person[field] ? (
-                  <a
-                    href={person[field]}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-brand hover:underline break-all"
-                  >
-                    {person[field]}
-                  </a>
-                ) : null,
-              })),
             ]}
           />
 
-          {/* The remark list and personal notes (app/utils/note_sections.py). */}
+          {/* The remark list, resources and personal notes
+              (app/utils/note_sections.py). */}
           <NotesTemplate ownerType="person" ownerId={person.system_id} />
 
           <ClubMembership person={person} />
@@ -322,38 +274,42 @@ export default function Person() {
               <p className="text-sm text-text-muted">No credited entries</p>
             </section>
           ) : (
-            groups.map((group) => (
-              <section key={`${group.media_type}:${group.role}`}>
-                <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] text-text-muted">
-                  {group.label}
-                  <span className="text-text-faint">{group.entries.length}</span>
-                  <span className="flex-1 border-t border-dotted border-border-strong/60" />
-                </h2>
-                {group.entries.length === 0 ? (
-                  <p className="text-sm text-text-faint italic">
-                    Nothing you can see here.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                    {group.entries.map((entry) =>
-                      group.role === "seiyuu" ? (
-                        <VoicedPartCard
-                          key={entry.casting_id}
-                          entry={entry}
-                          navPath={group.nav_path}
-                        />
-                      ) : (
-                        <CreditCard
-                          key={entry.system_id}
-                          entry={entry}
-                          navPath={group.nav_path}
-                        />
-                      ),
-                    )}
-                  </div>
-                )}
-              </section>
-            ))
+            <>
+              <CreditSortControl creditSort={creditSort} />
+              {groups.map((group) => (
+                <section key={`${group.media_type}:${group.role}`}>
+                  <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] text-text-muted">
+                    {groupTitle(group)}
+                    <span className="text-text-faint">{group.entries.length}</span>
+                    <span className="flex-1 border-t border-dotted border-border-strong/60" />
+                  </h2>
+                  {group.entries.length === 0 ? (
+                    <p className="text-sm text-text-faint italic">
+                      Nothing you can see here.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {creditSort.sorted(group.entries, group.media_type).map((entry) =>
+                        group.role === "seiyuu" ? (
+                          <VoicedPartCard
+                            key={entry.casting_id}
+                            entry={entry}
+                            navPath={group.nav_path}
+                          />
+                        ) : (
+                          <CreditCard
+                            key={entry.system_id}
+                            entry={entry}
+                            mediaType={group.media_type}
+                            navPath={group.nav_path}
+                          />
+                        ),
+                      )}
+                    </div>
+                  )}
+                </section>
+              ))}
+            </>
           )}
         </div>
       </div>
@@ -361,14 +317,11 @@ export default function Person() {
   );
 }
 
-// A minimal cover-and-title card. MediaCard is deliberately not reused: it
-// reads a full media payload (status fields, franchise dict, admin toggles)
-// and resolves its title through getDisplayName, none of which the four keys
-// the entries endpoint returns can satisfy. Same reasoning, same shape as
-// Studio.jsx's card.
-function CreditCard({ entry, navPath }) {
+// A minimal cover-and-title card, naming the entry's media type beneath its
+// title: a person's groups are titled by role alone, so the card says which
+// kind of work it is.
+function CreditCard({ entry, mediaType, navPath }) {
   const title = entry.display_name || "Untitled";
-  const year = releaseYear(entry.release_date);
   const card = (
     <>
       <div
@@ -392,9 +345,7 @@ function CreditCard({ entry, navPath }) {
         >
           {title}
         </h3>
-        <span className={eyebrowCls}>
-          {year || "Undated"}
-        </span>
+        <span className={eyebrowCls}>{mediaTypeLabel(mediaType)}</span>
       </div>
     </>
   );

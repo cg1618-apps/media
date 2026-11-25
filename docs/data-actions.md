@@ -619,17 +619,21 @@ since a person's vocabulary is `男` / `女`
 vocabularies applied to the stored rows), so a backup from before then cannot
 bring the free text back. Both tabs carry `photo_fallback_entry_id`, a plain
 entry uuid like `cover_entry_id`; a cell that is not a uuid restores as blank.
-`Person` carries its link columns too — `mal_id`, `mal_link`, `imdb_id`,
+`Person` carries its link columns too — `mal_id`, `mal_link`, `anilist_link`, `imdb_id`,
 `imdb_link`, `twitter_link`, `ig_link` and `pixiv_link` — restored as they are, and the Person parser names every
 column the tab writes (`tests/api/test_person_tmdb.py` walks the model to
 prove it), so none is dropped on a Pull.
+`Studio`, `Person` and `Character` each carry `anilist_link`, the entity's
+AniList page, restored as it is - except that a sheet with no such column, a
+backup from before it existed, leaves the local value as it is rather than
+clearing it (`formatter._anilist_link_from_sheet`).
 `Franchise` and `Series` carry `alone_reviewed_media_id` the same way (the
 review queue's single-entry check); a sheet with no such column - a backup
 from before it existed - leaves the local value as it is rather than
 clearing it.
 `Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
-restores as blank. It carries `mal_id` and `mal_link` too, restored as they
-are, as on `Person`, and the three free-text firsts, `first_mention`,
+restores as blank. It carries `mal_id`, `mal_link` and `anilist_link` too,
+restored as they are, as on `Person`, and the three free-text firsts, `first_mention`,
 `first_appearance` and `first_encounter`. Each first restores only when the
 sheet has its column: a backup from before they existed leaves the local
 values as they are rather than clearing them, as `alone_reviewed_media_id`

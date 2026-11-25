@@ -12,7 +12,7 @@ import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
-// The remark list and personal notes are NotesTemplate's to test; here only
+// The remark list, resources and personal notes are NotesTemplate's to test; here only
 // that the page hands it this record as the owner.
 vi.mock("../notes/NotesTemplate", () => ({
   default: ({ ownerType, ownerId }) => (
@@ -127,111 +127,94 @@ describe("Person detail page", () => {
     );
   });
 
-  it("lists the names it has on a Naming card, and no row for an unset one", async () => {
+  it("leads the Profile card with the names it has, and no row for an unset one", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Hayao Miyazaki" });
-    const naming = screen.getByText("Naming").closest("section");
+    expect(screen.queryByText("Naming")).toBeNull();
+    const profile = screen.getByText("Profile").closest("section");
     for (const label of ["English", "Chinese", "Japanese"]) {
-      expect(within(naming).getByText(label)).toBeInTheDocument();
+      expect(within(profile).getByText(label)).toBeInTheDocument();
     }
-    expect(within(naming).queryByText("Alternative")).not.toBeInTheDocument();
-    expect(within(naming).getByText("宮崎駿")).toBeInTheDocument();
+    expect(within(profile).queryByText("Alternative")).not.toBeInTheDocument();
+    expect(within(profile).getByText("宮崎駿")).toBeInTheDocument();
+    // The names come first, before the facts.
+    expect(
+      within(profile).getByText("English").compareDocumentPosition(
+        within(profile).getByText("Gender"),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
-  it("links the MAL person page from the Profile card", async () => {
+  const IMDB = "https://www.imdb.com/name/nm0594503/";
+  const MAL = "https://myanimelist.net/people/1870/Hayao_Miyazaki";
+
+  it("lists every link in the left column's links card, IMDb above MyAnimeList", async () => {
     mockFetch({
       ...PERSON,
       mal_id: 1870,
-      mal_link: "https://myanimelist.net/people/1870/Hayao_Miyazaki",
-    });
-    renderPage();
-    expect(await screen.findByRole("link", { name: "Person #1870" })).toHaveAttribute(
-      "href",
-      "https://myanimelist.net/people/1870/Hayao_Miyazaki",
-    );
-  });
-
-  it("links MyAnimeList beside the name when the person has a MAL link", async () => {
-    const link = "https://myanimelist.net/people/1870/Hayao_Miyazaki";
-    mockFetch({ ...PERSON, mal_id: 1870, mal_link: link });
-    renderPage();
-    const button = await screen.findByRole("link", { name: "Open on MyAnimeList" });
-    expect(button).toHaveAttribute("href", link);
-    expect(button).toHaveAttribute("target", "_blank");
-  });
-
-  it("draws no MyAnimeList button for a person without a MAL link", async () => {
-    renderPage();
-    await screen.findByRole("heading", { name: "Hayao Miyazaki" });
-    expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
-  });
-
-  // The IMDb link is drawn exactly as the MAL one: a button beside the name
-  // and a row of the Profile card, for every viewer of the page.
-  const IMDB = "https://www.imdb.com/name/nm0594503/";
-
-  it("links the IMDb name page from the Profile card", async () => {
-    mockFetch({ ...PERSON, imdb_id: "nm0594503", imdb_link: IMDB });
-    renderPage();
-    const link = await screen.findByRole("link", { name: "nm0594503" });
-    expect(link).toHaveAttribute("href", IMDB);
-    expect(link).toHaveAttribute("target", "_blank");
-  });
-
-  it("links IMDb beside the name when the person has an IMDb link", async () => {
-    mockFetch({ ...PERSON, imdb_id: "nm0594503", imdb_link: IMDB });
-    renderPage();
-    const button = await screen.findByRole("link", { name: "Open on IMDb" });
-    expect(button).toHaveAttribute("href", IMDB);
-    expect(button).toHaveAttribute("target", "_blank");
-  });
-
-  it("draws both buttons, MyAnimeList first, for a person with both links", async () => {
-    const mal = "https://myanimelist.net/people/1870/Hayao_Miyazaki";
-    mockFetch({ ...PERSON, mal_id: 1870, mal_link: mal, imdb_id: "nm0594503", imdb_link: IMDB });
-    renderPage();
-    const malButton = await screen.findByRole("link", { name: "Open on MyAnimeList" });
-    const imdbButton = screen.getByRole("link", { name: "Open on IMDb" });
-    expect(malButton.compareDocumentPosition(imdbButton)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-  });
-
-  it("draws no IMDb button or link for a person without an IMDb link", async () => {
-    renderPage();
-    await screen.findByRole("heading", { name: "Hayao Miyazaki" });
-    expect(screen.queryByRole("link", { name: "Open on IMDb" })).toBeNull();
-    expect(screen.queryByRole("link", { name: /^nm/ })).toBeNull();
-  });
-
-  it("links the person's own pages beside the name and on the Profile card", async () => {
-    const links = {
+      mal_link: MAL,
+      imdb_id: "nm0594503",
+      imdb_link: IMDB,
+      anilist_link: "https://anilist.co/staff/1",
       twitter_link: "https://x.com/artist",
       ig_link: "https://www.instagram.com/artist",
       pixiv_link: "https://www.pixiv.net/users/1",
-    };
-    mockFetch({ ...PERSON, ...links });
+    });
     renderPage();
-    for (const [site, href] of [
-      ["Twitter", links.twitter_link],
-      ["Instagram", links.ig_link],
-      ["pixiv", links.pixiv_link],
-    ]) {
-      const button = await screen.findByRole("link", { name: `Open on ${site}` });
-      expect(button).toHaveAttribute("href", href);
-      expect(screen.getByRole("link", { name: href })).toHaveAttribute("href", href);
-    }
+    const links = await screen.findByRole("region", { name: "Links" });
+    expect(within(links).getAllByRole("link").map((a) => a.textContent)).toEqual([
+      "IMDb",
+      "MyAnimeList",
+      "AniList",
+      "Twitter",
+      "Instagram",
+      "pixiv",
+    ]);
+    expect(within(links).getByRole("link", { name: "IMDb" })).toHaveAttribute("href", IMDB);
+    // Under My rating, beside the photo - not in the facts on the right.
+    expect(links.parentElement).toContainElement(screen.getByAltText("Hayao Miyazaki photo"));
   });
 
-  it("draws no social button for a person without those links", async () => {
+  it("draws no link buttons beside the name and no link rows in the profile", async () => {
+    mockFetch({ ...PERSON, mal_id: 1870, mal_link: MAL, imdb_id: "nm0594503", imdb_link: IMDB });
+    renderPage();
+    await screen.findByRole("region", { name: "Links" });
+    expect(screen.queryByRole("link", { name: /^Open on/ })).toBeNull();
+    const profile = screen.getByText("Profile").closest("section");
+    expect(within(profile).queryByText("MAL")).toBeNull();
+    expect(within(profile).queryByText("IMDb")).toBeNull();
+    expect(within(profile).queryByRole("link", { name: "Person #1870" })).toBeNull();
+  });
+
+  it("draws no links card for a person linked nowhere", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Hayao Miyazaki" });
-    for (const site of ["Twitter", "Instagram", "pixiv"]) {
-      expect(screen.queryByRole("link", { name: `Open on ${site}` })).toBeNull();
-    }
+    expect(screen.queryByRole("region", { name: "Links" })).toBeNull();
   });
 
-  it("titles a combined manga group by the label the server sends", async () => {
+  it("sets the credited-entry count on the kind line above the name", async () => {
+    renderPage();
+    await screen.findByRole("heading", { level: 1, name: "Hayao Miyazaki" });
+    expect(screen.getByText("0 credited entries").parentElement).toHaveTextContent(/^Person/);
+  });
+
+  it("titles a credit group by its person type in Chinese", async () => {
+    mockFetch(PERSON, [
+      {
+        media_type: "anime-movie",
+        role: "director",
+        roles: ["director"],
+        label: "Director",
+        nav_path: "/anime-movie",
+        entries: [{ system_id: "am1", display_name: "Spirited Away", release_date: "2001" }],
+      },
+    ]);
+    renderPage();
+    expect(await screen.findByRole("heading", { level: 2, name: /^導演/ })).toBeInTheDocument();
+    expect(screen.queryByText("Director")).toBeNull();
+  });
+
+  it("titles a combined manga group by each of its types, joined", async () => {
     mockFetch(PERSON, [
       {
         media_type: "manga",
@@ -243,10 +226,51 @@ describe("Person detail page", () => {
       },
     ]);
     renderPage();
-    expect(await screen.findByText("原作&作畫")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 2, name: /^作家&畫家/ })).toBeInTheDocument();
   });
 
-  it("names the person's types by their labels, not their keys", async () => {
+  it("names the media type on a credit card, not the release date", async () => {
+    mockFetch(PERSON, [
+      {
+        media_type: "anime-movie",
+        role: "director",
+        roles: ["director"],
+        label: "Director",
+        nav_path: "/anime-movie",
+        entries: [{ system_id: "am1", display_name: "Spirited Away", release_date: "2001-07-20" }],
+      },
+    ]);
+    renderPage();
+    const card = await screen.findByRole("link", { name: /Spirited Away/ });
+    expect(within(card).getByText("Anime Movie")).toBeInTheDocument();
+    expect(card).not.toHaveTextContent("2001");
+  });
+
+  it("sorts every credit group by the shared sort, newest first by default", async () => {
+    const user = userEvent.setup();
+    mockFetch(PERSON, [
+      {
+        media_type: "anime-movie",
+        role: "director",
+        roles: ["director"],
+        label: "Director",
+        nav_path: "/anime-movie",
+        entries: [
+          { system_id: "am1", display_name: "Spirited Away", release_date: "2001-07-20", mal_rating: 8.8 },
+          { system_id: "am2", display_name: "Nausicaa", release_date: "1984-03-11", mal_rating: 8.9 },
+        ],
+      },
+    ]);
+    renderPage();
+    await screen.findByRole("link", { name: /Spirited Away/ });
+    const titles = () =>
+      screen.getAllByRole("link", { name: /Spirited Away|Nausicaa/ }).map((a) => a.textContent);
+    expect(titles()[0]).toMatch(/Spirited Away/);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Sort" }), "public_rating");
+    expect(titles()[0]).toMatch(/Nausicaa/);
+  });
+
+  it("names the person's types in Chinese, not by their keys", async () => {
     mockFetch({
       ...PERSON,
       roles: [
@@ -256,11 +280,11 @@ describe("Person detail page", () => {
       ],
     });
     renderPage();
-    expect(await screen.findByText("Director, Music / Composer")).toBeInTheDocument();
+    expect(await screen.findByText("導演, 作曲")).toBeInTheDocument();
   });
 
-  // The remark list and personal notes are this person's notes block.
-  it("draws the remark list and personal notes for this person", async () => {
+  // The remark list, resources and personal notes are this person's notes block.
+  it("draws the remark list, resources and personal notes for this person", async () => {
     renderPage();
     const notes = await screen.findByTestId("entity-notes");
     expect(notes).toHaveAttribute("data-owner-type", "person");

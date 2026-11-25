@@ -9,7 +9,7 @@ import { ToastProvider } from "../../hooks/useToast";
 // Reassigned per test: a guest by default, an admin where a test says so.
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
-// The remark list and personal notes are NotesTemplate's to test; here only
+// The remark list, resources and personal notes are NotesTemplate's to test; here only
 // that the page hands it this record as the owner.
 vi.mock("../notes/NotesTemplate", () => ({
   default: ({ ownerType, ownerId }) => (
@@ -260,20 +260,40 @@ describe("Character detail page", () => {
     expect(within(profile).getByText("Trait").nextElementSibling).toHaveTextContent("—");
   });
 
-  it("links MyAnimeList beside the name when the character has a MAL link", async () => {
+  it("lists MyAnimeList and AniList in the links card, and nowhere else", async () => {
     const link = "https://myanimelist.net/character/251/Yuki_Nagato";
-    mockFetch({ character: { ...CHARACTER, mal_link: link, mal_id: 251 } });
+    const anilist = "https://anilist.co/character/251";
+    mockFetch({
+      character: { ...CHARACTER, mal_link: link, mal_id: 251, anilist_link: anilist },
+    });
     renderPage();
-    const button = await screen.findByRole("link", { name: "Open on MyAnimeList" });
-    expect(button).toHaveAttribute("href", link);
-    expect(button).toHaveAttribute("target", "_blank");
+    const links = await screen.findByRole("region", { name: "Links" });
+    expect(within(links).getByRole("link", { name: "MyAnimeList" })).toHaveAttribute(
+      "href",
+      link,
+    );
+    expect(within(links).getByRole("link", { name: "AniList" })).toHaveAttribute(
+      "href",
+      anilist,
+    );
+    // No button beside the name, no MAL row in the profile.
+    expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
+    const profile = screen.getByText("Profile").closest("section");
+    expect(within(profile).queryByText("MAL")).toBeNull();
   });
 
-  it("draws no MyAnimeList button for a character without a MAL link", async () => {
+  it("draws no links card for a character linked nowhere", async () => {
     mockFetch();
     renderPage();
     await screen.findByRole("heading", { name: "Yuki Nagato" });
-    expect(screen.queryByRole("link", { name: "Open on MyAnimeList" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Links" })).toBeNull();
+  });
+
+  it("sets the appearance count on the kind line above the name", async () => {
+    renderPage();
+    await screen.findByRole("heading", { level: 1, name: "Yuki Nagato" });
+    const count = screen.getByText(/^\d+ appearances?$/);
+    expect(count.parentElement).toHaveTextContent(/^Character/);
   });
 
   it("lists the names it has on a Naming card, and no row for an unset one", async () => {
@@ -449,8 +469,8 @@ describe("Character detail page", () => {
   });
 });
 
-// The remark list and personal notes are this character's notes block.
-it("draws the remark list and personal notes for this character", async () => {
+// The remark list, resources and personal notes are this character's notes block.
+it("draws the remark list, resources and personal notes for this character", async () => {
   renderPage();
   const notes = await screen.findByTestId("entity-notes");
   expect(notes).toHaveAttribute("data-owner-type", "character");

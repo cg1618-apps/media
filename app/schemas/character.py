@@ -37,6 +37,8 @@ class CharacterBase(BaseModel):
     # MAL's character record; mal_id is derived from mal_link on every write.
     mal_id: Optional[int] = None
     mal_link: Optional[str] = None
+    # The AniList character page, stored as given - nothing is derived from it.
+    anilist_link: Optional[str] = None
 
     @model_validator(mode="after")
     def _display_field_is_known(self):

@@ -1141,6 +1141,57 @@ server-resolved fallback — with the `my_rating` stamp in its corner (none
 when unrated), the display name and casting count, and links to
 `/character/:system_id`.
 
+### Entity detail pages: what the five share
+
+The person, character, identity, publisher and studio pages are hand-built
+beside the media detail pages, and share these parts:
+
+- **The heading** (`components/info/EntityHeading.jsx`): one mono line with
+  the kind (**Person**, **Studio**, …) and, beside it, the count — "N
+  credited entries" on a person, studio and publisher, "N appearances" on a
+  character and an identity — then the display name in the display face.
+  No link buttons sit beside the name.
+- **The links card** (`components/info/EntityLinksCard.jsx`), in the left
+  column directly under My rating (under the photo where there is no rating
+  select): a **Links** slip built like the Sources card's link rows — the
+  site's icon (`lib/sourceIcons.js`) and name, an external-link mark at the
+  right, opening in a new tab. A site with no bundled icon (Instagram, pixiv,
+  Website) keeps the empty icon slot so the names line up. Each entity type's
+  list is `ENTITY_LINKS`, in one order everywhere: the reference sites first,
+  **IMDb above MyAnimeList**, then **AniList**, then the entity's own pages
+  (**Twitter**, **Instagram**, **pixiv**, **Website**). A field left blank
+  gets no row, and with none set the card is left out. Every link is shown to
+  every viewer of the page.
+
+  | Page | Links |
+  | --- | --- |
+  | Person | IMDb, MyAnimeList, AniList, Twitter, Instagram, pixiv |
+  | Studio | MyAnimeList, AniList, Website |
+  | Publisher | Website |
+  | Character, Identity | MyAnimeList, AniList (an identity's are its character's) |
+
+- **Notes** (`NotesTemplate`, owner type the entity's): the 備註 Remark list
+  and 個人筆記 Personal Notes in the Notes card, then 資源 Resources as a card
+  of its own - the three sections an entity owns - read and written as on any
+  notes page ([systems/notes.md](../systems/notes.md)); a guest sees no
+  personal section.
+- **The admin controls** (`components/info/EntityProfileControls.jsx`): the
+  dashed admin strip with **Edit** to `/modify?id=<system_id>&type=<kind>`,
+  and **Autofill & update** where the entity has something to fetch from. The
+  rating select is the viewer's own and drawn for a holder of `self.list`, not
+  by `isAdmin`: it sends `PUT /api/me/ratings/<kind>/{system_id}`
+  `{my_rating}` on change (Unrated sends null) and folds the answer into the
+  page's state (`useMyRatingSaver`).
+- **The credit sort** (person, studio, publisher): one **Sort** control
+  (`components/layout/SortControl.jsx`, through `hooks/useCreditSort.js` and
+  `lib/creditSorts.js`) above the credit groups orders every group alike.
+  **Release date** is the default, newest first; the direction button turns
+  it old to new. **My rating** (best first, for a holder of `self.list`) and
+  **Public rating** (highest first: MAL's score, or Metacritic's on a game
+  and an h-game) follow. An entry with no value for the chosen sort goes last
+  in either direction, and a tie falls back to the release date, newest
+  first.
+
 ### Person — `/person/:system_id`
 
 File `pages/detail/Person.jsx`. The public profile for one person, built the
@@ -1149,51 +1200,34 @@ by the URL's public id, then `.../entries` by the `system_id` it returns —
 where the profile call failing is the page's 404 while the entries call
 failing is not.
 
-Layout: breadcrumb → (admin) the dashed admin strip (`AdminActions`, no
-caption) with, at its left end, **Edit**
-linking to `/modify?id=<system_id>&type=person`, and — for a person with a
-MAL link or an IMDb link, whatever their role — **Autofill & update**,
+Layout: breadcrumb → (admin) the admin strip with **Edit** and — for a person
+with a MAL link or an IMDb link, whatever their role — **Autofill & update**,
 `POST /api/person/{system_id}/autofill` (`AdminToolbar`'s `onAutofilled`): it
 reads **Autofilling…** while it runs, fills only the blank columns from MAL
-and then from TMDB, toasts **Autofill completed** and
-takes the page's state from the response; a 422 or any other failure toasts
-the server's `detail` → left column with the photo
-(`display_photo_file`: the photo, else the server-resolved fallback cover,
-else `FALLBACK_SVG`) and rating stamp, (holder of `self.list`) a **My rating** select, and a
-**Naming** card (`NamingCard`, each of the four names that is set) → right column with the
-display name, credited-entry count and, for a person with a `mal_link`, a
-**MyAnimeList** button beside it (`MalButton`, as on the character page; none
-without one), then for a person with an `imdb_link` an **IMDb** button after
-it, drawn the same way (`ImdbButton`, from the same file; none without one),
-then **Twitter**, **Instagram** and **pixiv** buttons for the links the person
-has (`SiteButton`, the same control; a site with no bundled icon shows its name
-alone), a "Profile" `InfoCard` (gender; the types they are offered under, by
-their `PERSON_SUB_TABS` labels — Director, Music / Composer; **Affiliation**, the
-studios they belong to as links; MAL as an external
-link reading `Person #<mal_id>`; IMDb the same way, reading the `nm…` id;
-Twitter, Instagram and pixiv as links reading the URL), the **Notes** block,
-then one section per group. Every external link is shown to every viewer of
-the page.
+and then from TMDB, toasts **Autofill completed** and takes the page's state
+from the response; a 422 or any other failure toasts the server's `detail` →
+left column with the photo (`display_photo_file`: the photo, else the
+server-resolved fallback cover, else `FALLBACK_SVG`) and rating stamp, (holder
+of `self.list`) a **My rating** select, and the **Links** card → right column
+with the heading, a "Profile" `InfoCard`, the **Notes** block, **Club
+membership**, **Works**, then the credit sort and one section per group.
 
-**Notes** (`NotesTemplate ownerType="person"`, `ownerId` the person's
-`system_id`) sit under the Profile card: the 備註 Remark list and 個人筆記
-Personal Notes, the only two sections an entity owns, read and written as on
-any notes page ([systems/notes.md](../systems/notes.md)); a guest sees no personal section.
+The **Profile** card leads with the person's names, one per line — each of
+the four that is set (`namingRows`, the same list the Naming card draws
+elsewhere) — then gender and the types they are offered under, by their
+Chinese labels (`personTypeLabel`: 導演, 作曲, …, as the person library's
+Type filter names them), then **Affiliation**, the studios they belong to as
+links.
 
-The admin controls are `components/info/EntityProfileControls.jsx`, shared
-with the character, studio and publisher pages. The rating select is the
-viewer's own and drawn for a holder of `self.list`, not by `isAdmin`: it
-sends `PUT /api/me/ratings/person/{system_id}` `{my_rating}` on change
-(Unrated sends null) and folds the answer into the page's state
-(`useMyRatingSaver`).
-
-The one difference from the studio page: a person may hold several roles, so
-`/entries` groups by **(media type, role)** and each heading is the group's
-`label` — 原作 on a manga, Writer on a comic — which comes from the endpoint,
-not from the page. A manga the person both wrote and drew is listed once, under
-a **原作&作畫** group the endpoint builds, not under 原作 and again under 作畫. A group the viewer may see no entries of still renders, with
-"Nothing you can see here" inside it. Entry cards are the same local
-`CreditCard`, not `MediaCard`, for the reason spelled out below.
+A person may hold several roles, so `/entries` groups by **(media type,
+role)**. Each section is titled by its person type in Chinese
+(`personTypeLabel`) — 導演, 作家, 聲優 — and a manga the person both wrote and
+drew is listed once, in the combined group the endpoint builds, titled by
+both types joined: **作家&畫家**. A group the viewer may see no entries of
+still renders, with "Nothing you can see here" inside it. Each entry card is
+a local `CreditCard`: the cover, the title and, beneath it, the entry's media
+type (Anime, Anime Movie, …) — the section is titled by role alone, so the
+card says which kind of work it is.
 
 A **seiyuu** group is drawn differently, because what a seiyuu is credited
 with is a part, not a work: one `VoicedPartCard` per casting voiced
@@ -1210,15 +1244,15 @@ visible roles hold `author` or `illustrator`. It is not edited here: an admin
 adds, captions, reorders and removes pictures in the person form, under the
 photo (**Edit**).
 
-**Club membership** (`components/info/ClubMembership.jsx`, under the Profile
-card) is drawn only for a session that can see h-comic. A club - a person holding the `club` role -
-shows its **Members** in the club's order (`GET /api/person/{id}/members`); an
-artist shows the **Clubs** they belong to (`.../clubs`, ordered by name). For
-an admin each list has an Edit button: remove, add from a search, and on the
-member list drag a member by its grip (or ArrowUp / ArrowDown on it) to
-reorder; the order is a draft until Save PUTs the whole list. The clubs editor is
-offered on anyone holding an `h-comic`-scoped role, so it does not appear on
-every director's page.
+**Club membership** (`components/info/ClubMembership.jsx`, under the Notes) is
+drawn only for a session that can see h-comic. A club - a person holding the
+`club` role - shows its **Members** in the club's order
+(`GET /api/person/{id}/members`); an artist shows the **Clubs** they belong
+to (`.../clubs`, ordered by name). For an admin each list has an Edit button:
+remove, add from a search, and on the member list drag a member by its grip
+(or ArrowUp / ArrowDown on it) to reorder; the order is a draft until Save
+PUTs the whole list. The clubs editor is offered on anyone holding an
+`h-comic`-scoped role, so it does not appear on every director's page.
 
 ### Character — `/character/:system_id`
 
@@ -1227,27 +1261,27 @@ hand-built beside `Person.jsx` and `Studio.jsx` rather than reusing a media
 detail shape — the header is a profile and the body is the entries this
 character is cast in. Two raw fetches, the profile then `.../entries` by the
 `system_id` it returns; the character call failing is the page's 404, the
-entries call failing is not. Under the Profile card, a **First Appearances**
-`InfoCard` lists the character's First Mention, First Appearance and First
-Encounter — only the ones that are set (`firstsRows`); with none set the card
-is left out. Beside the appearance count under the name, a
-character with a `mal_link` gets a **MyAnimeList** button (`MalButton`, the
-MAL icon, opening in a new tab); one without draws none. The Profile card shows the character's own
-**Role** beside Gender — its own field, not derived from any casting's role —
-then **Appearance** and **Trait**, each list as a row of `Chip`s in its stored
-order (`tagChips`) ("—" when empty, like every unset row), and a **MAL** row: the `mal_link` as an external link reading
-`Character #<mal_id>` (`MyAnimeList` when no id was derived), "—" without a
-link. The layout and the admin controls — Edit
-to `/modify?id=<system_id>&type=character`, **Autofill & update** for a
-character with a MAL link (`POST /api/character/{system_id}/autofill`, as on
-the person page), and the viewer's own My rating select
-(`self.list`, `PUT /api/me/ratings/character/{system_id}`) — are the person
-page's, as is the Naming card in place of a list of other names. The photo
-is `display_photo_file`: the photo, else a casting photo (the chosen entry's,
+entries call failing is not.
+
+Layout: breadcrumb → (admin) the admin strip with **Edit** and, for a
+character with a MAL link, **Autofill & update**
+(`POST /api/character/{system_id}/autofill`, as on the person page) → left
+column with the photo, (holder of `self.list`) the **My rating** select
+(`PUT /api/me/ratings/character/{system_id}`), the **Links** card (MAL,
+AniList) and the **Naming** card → right column with the heading and its
+appearance count, a "Profile" `InfoCard`, a **First Appearances** card, the
+**Notes** block, **Identities**, then the appearances. The photo is
+`display_photo_file`: the photo, else a casting photo (the chosen entry's,
 then the newest visible), else an entry cover (the same order), else
-`FALLBACK_SVG`. Under the First Appearances card, the character's **Notes**
-(`NotesTemplate ownerType="character"`) hold its Remark list and Personal
-Notes, as on the person page.
+`FALLBACK_SVG`.
+
+The Profile card shows the character's own **Role** beside Gender — its own
+field, not derived from any casting's role — then **Appearance** and
+**Trait**, each list as a row of `Chip`s in its stored order (`tagChips`)
+("—" when empty, like every unset row). The **First Appearances** `InfoCard`
+lists the character's First Mention, First Appearance and First Encounter —
+only the ones that are set (`firstsRows`); with none set the card is left
+out.
 
 The one structural difference from the person page: `GET
 /api/character/{id}/entries` groups **by media type only**, because a
@@ -1256,14 +1290,14 @@ character holds no role the way a person does — see
 also carries every seiyuu who voiced the character there (`seiyuu`, a list of
 `{display_name, system_id, public_id, remark}`), rendered beneath the entry
 card as one small link per seiyuu with its remark in brackets - "Name (child)"
-(`components/info/CastingCard.jsx`, shared with the identity page, not
-`MediaCard`, for the same reason `Person.jsx`'s `CreditCard` is local) — since knowing who played the part is
-the point of looking a character up, unlike a person's own credits. A group
-the viewer may see no entries of still renders, with "Nothing you can see
-here" inside it, same rule the person and studio pages follow.
+(`components/info/CastingCard.jsx`, shared with the identity page) — since
+knowing who played the part is the point of looking a character up, unlike a
+person's own credits. A group the viewer may see no entries of still renders,
+with "Nothing you can see here" inside it, same rule the person and studio
+pages follow.
 
 **Identities.** A character with other identities draws an **Identities**
-section after the profile: one card per identity
+section after the notes: one card per identity
 (`components/info/IdentityCard.jsx`) with its
 photo (`display_photo_file`), display name, its other non-empty names (the four name columns but the displayed one) and resolved gender, each
 card a link to the identity's own page (below); an identity with no
@@ -1281,7 +1315,7 @@ public page for one of a character's other identities (Edogawa Conan of Kudo
 Shinichi), hand-built beside `Character.jsx` and shaped like it: an identity
 is its character under another name, so the page shows what the character
 page does. The names, photo, gender, firsts and notes are the identity's own; the
-role, the appearance and trait tags, the rating and the MAL link are the
+role, the appearance and trait tags, the rating and the links are the
 character's. `GET /api/character-identity/{id}` by the URL's public id comes
 first, and its failing is the page's 404 ("Identity not found."). Then two
 reads run side by side: `.../entries` by the `system_id` it returns, and
@@ -1291,29 +1325,27 @@ character facts. `useCanonicalPath("identity", …)` puts the slug in the
 address bar.
 
 Layout: a breadcrumb **Characters** (`/library/character`) / the character's
-name, linking to its page / the identity's name → (admin) the dashed admin
-strip (`AdminActions`, no caption) with **Edit** at its left end, linking to
-`/modify?id=<system_id>&type=identity` → left column with the photo
-(`display_photo_file`, the identity's own photo else the
-character's displayed one, as the server resolves it; else `FALLBACK_SVG`),
-the character's `my_rating` stamp on it, read-only, and a **Naming** card
-(`NamingCard type="identity"`, each of the four names that is set) → right column with the
-display name, its appearance count and the character's **MyAnimeList**
-button (`MalButton`), a "Profile" `InfoCard` — **Role**, then **Gender**
+name, linking to its page / the identity's name → (admin) the admin strip with
+**Edit** to `/modify?id=<system_id>&type=identity` → left column with the
+photo (`display_photo_file`, the identity's own photo else the character's
+displayed one, as the server resolves it; else `FALLBACK_SVG`), the
+character's `my_rating` stamp on it, read-only, the character's **Links**
+card (MAL, AniList) and a **Naming** card (`NamingCard type="identity"`, each
+of the four names that is set) → right column with the heading and its
+appearance count, a "Profile" `InfoCard` — **Role**, then **Gender**
 (`display_gender`, the character's when the identity sets none), then
-**Appearance** and **Trait** (`tagChips`) and **MAL** from the character —
-with a faint line under it,
-"Role, tags, rating and MAL are <character>'s." Under it a **First
-Appearances** `InfoCard` lists the identity's own firsts, only those set, and
-is left out when none is; the character's firsts never show here. Then the
-identity's own **Notes** (`NotesTemplate ownerType="identity"`, its Remark
-list and Personal Notes - never the character's), then a **Character** section:
-the character's own card, labelled **Character** and linking to its page, then
-its other identities, labelled **Identity**, this one left out — all
-`IdentityCard`s.
-Then one section per media type the entries endpoint returned. Nothing is
-edited in place but the notes: an identity has no `PATCH` route and its rating
-is the character's, set on the character's page, so there is no rating select.
+**Appearance** and **Trait** (`tagChips`) from the character — with a faint
+line under it, "Role, tags, rating and links are <character>'s." Under it a
+**First Appearances** `InfoCard` lists the identity's own firsts, only those
+set, and is left out when none is; the character's firsts never show here.
+Then the identity's own **Notes** (`NotesTemplate ownerType="identity"`, its
+Remark list, Personal Notes and Resources - never the character's), then a
+**Character** section: the character's own card, labelled **Character** and
+linking to its page, then its other identities, labelled **Identity**, this
+one left out — all `IdentityCard`s. Then one section per media type the
+entries endpoint returned. Nothing is edited in place but the notes: an
+identity has no `PATCH` route and its rating is the character's, set on the
+character's page, so there is no rating select.
 
 The appearance sections are the character page's: `/entries` answers the same shape,
 narrowed to the cast rows that name this identity, a group the viewer may see
@@ -1326,30 +1358,29 @@ identity. A row with a credited name still reads "as <credited name>". The nav l
 ### Publisher — `/publisher/:system_id`
 
 File `pages/detail/Publisher.jsx`. The public profile for one publisher or
-distributor, copied from `Studio.jsx` and behaving identically: two raw
+distributor, built as `Studio.jsx` is and behaving identically: two raw
 fetches (`GET /api/publisher/{id}`, then `.../entries` by the `system_id` it
 returns), the profile call failing being the page's 404 while the entries
 call failing is not, a breadcrumb back to `/library/publisher`, the admin
-strip with Edit to `/modify?id=<system_id>&type=publisher`, the
-logo-plus-rating left column with the viewer's own My rating select
-(`self.list`, `PUT /api/me/ratings/publisher/{system_id}`) and the Naming
-card, the **Notes** block (`NotesTemplate ownerType="publisher"`, the Remark
-list and Personal Notes), the **Related companies** slip
-(`RelatedRecords type="publisher"`), and one section per group the entries
-endpoint returned rendered as the same local `CreditCard`.
+strip with Edit to `/modify?id=<system_id>&type=publisher`, the left column —
+logo and rating stamp, the viewer's own My rating select (`self.list`,
+`PUT /api/me/ratings/publisher/{system_id}`), the **Links** card, the
+**Related companies** slip (`RelatedRecords type="publisher"`) and the
+Naming card — and on the right the heading, the "Profile" card, the **Notes**
+block and the credits, drawn as on the studio page.
 
-Two differences from the studio page, both in the "Profile" `InfoCard`: a
-**Types** row naming the media types the publisher is offered on (`scopes`,
-by their media-type labels), and **no MAL row** — `PublisherResponse` carries
-no `mal_id` / `mal_link` at all, because MAL has no record of a games
-publisher or a TW distributor. Country, founded/defunct and website are the
-studio page's.
+Two differences from the studio page. The **Profile** card is one row, in
+the order **Country**, **Types** (the media types the publisher is offered
+on, `scopes`, by their media-type labels) and **Active** (`founded –
+defunct`, as on the studio page). And the Links card carries the **Website**
+alone: `PublisherResponse` has no `mal_id` / `mal_link` / `anilist_link`,
+because MAL has no record of a games publisher or a TW distributor.
 
 ### Studio — `/studio/:system_id`
 
 File `pages/detail/Studio.jsx`. The public profile for one studio, built by
 hand beside the media detail pages rather than from their shape: a studio has
-no franchise and no tracker, and of the notes only the two an entity owns.
+no franchise and no tracker, and of the notes only the three an entity owns.
 
 Two raw fetches: `GET /api/studio/{id}` by the URL's public id, then
 `GET /api/studio/{id}/entries` by the `system_id` it returns. The studio call
@@ -1362,45 +1393,53 @@ media detail pages need TanStack hooks.
 Layout:
 
 1. **Breadcrumb** `/library/studio` → display name.
-2. **Admin strip** (admin only) — the dashed strip with **Edit** to
+2. **Admin strip** (admin only) — **Edit** to
    `/modify?id=<system_id>&type=studio`, and **Autofill & update** for a
    studio with a MAL link (`POST /api/studio/{system_id}/autofill`, as on the
    person page: blank columns only, then the response is the page's state).
 3. **Left column** — logo with the rating stamp (`display_logo_file` /
    `display_logo_focus`, the logo or the server-resolved fallback cover, else
-   `logo_file`), (admin) the **My rating**
-   select, then the **Naming** card (`NamingCard`, each of the four names that is set —
-   English, Chinese, Japanese, Alternative — the displayed one included, as
-   on the person and character pages).
-4. **Right column** — the display name, a credited-entry count and, for a
-   studio with a `mal_link`, a **MyAnimeList** button beside it (`MalButton`,
-   as on the person and character pages; none without one), a "Profile"
-   `InfoCard` (countries, comma-joined in order; `founded – defunct`, or `Since founded` while the
-   studio is still working, and no invented span when both are empty;
-   website and MAL — `Producer #<mal_id>` — as external links), the
-   **Notes** block (`NotesTemplate ownerType="studio"`: the Remark list and
-   Personal Notes, a guest seeing no personal section), the **Related
-   companies** slip (`RelatedRecords type="studio"`: studios and publishers,
-   each marked with its kind), the **People** slip (`AffiliatedPeople`, the
-   people affiliated with the studio; none drawn when there are none), then
-   one section per
-   group the entries endpoint returned, each entry linking to
-   `{nav_path}/{system_id}`.
+   `logo_file`), (holder of `self.list`) the **My rating** select, the
+   **Links** card (MyAnimeList, AniList, Website), the **Related companies**
+   slip (`RelatedRecords type="studio"`: studios and publishers, each marked
+   with its kind) — the place a media entry keeps Related Entries, under its
+   Sources — then the **Naming** card (`NamingCard`, each of the four names
+   that is set — English, Chinese, Japanese, Alternative — the displayed one
+   included).
+4. **Right column** — the heading and its credited-entry count, a "Profile"
+   `InfoCard` (countries, comma-joined in order; **Active**: `founded –
+   defunct`, or `Since founded` while the studio is still working, and no
+   invented span when both are empty), the **Notes** block, the **People**
+   slip (`AffiliatedPeople`, the people affiliated with the studio; none drawn
+   when there are none), then the credits.
 
-The controls are `EntityProfileControls`, the person page's: the
-viewer's own rating select (`self.list`) sends
-`PUT /api/me/ratings/studio/{system_id}` on change.
+**The credits** (`components/info/CompanyCredits.jsx`, shared with the
+publisher page): the credit sort, then one section per media type the
+entries endpoint returned. Each entry is drawn as its type's library card
+without the tracker — `MediaCard` with `variant="credit"`: no progress, no
+status button, no platform icons, titled by the payload's `display_name` and
+linking to the entry's page. What each type's card shows:
 
-Empty `groups` renders "No credited entries" as an ordinary empty state, not
-an error: that is exactly what a viewer whose permissions hide every one of
-this studio's credits sees.
+| Type | Cover corner | Meta line |
+| --- | --- | --- |
+| Anime | airing type | release season (`Spring 2024`, else the date) · MAL score |
+| Hentai | — | release date |
+| Anime Movie | release type (Cinema, ONA) | release date · MAL score |
+| Manga, Book | — | release date · MAL score |
+| H-Comic | — | release date |
+| Comic | — | release year |
+| Game | — | release year · Metacritic score |
+| H-Game | — | release year |
 
-The entry cards are a local `CreditCard`, **not** `MediaCard`. `MediaCard`
-resolves its title through `getDisplayName(data, type)` and reads status,
-franchise and admin props; the entries endpoint returns four keys
-(`system_id`, `display_name`, `cover_image_file`, `release_date`), so
-`MediaCard` would render blank titles. A group whose `nav_path` is null
-renders the card unlinked.
+The gated types read as their counterparts — Hentai as Anime, H-Comic as
+Manga, H-Game as Game — with only what they carry: a hentai has no season
+and no airing type, and none of the three has a public rating.
+
+Every card carries the viewer's own rating stamp. A type a studio or
+publisher is not credited on today falls back to the library card's meta line,
+still without the tracker. Empty `groups` renders "No credited entries" as an
+ordinary empty state, not an error: that is exactly what a viewer whose
+permissions hide every one of this studio's credits sees.
 
 ### Hubs — `/franchise/:id`, `/series/:id`, `/collection/:id`
 

@@ -183,8 +183,8 @@ def finish_merge(db: Session, owner_type: str, keep, drop) -> None:
     clash, and a 409 naming it, with nothing changed.
     """
     merge_user_ratings(db, owner_type, keep.system_id, drop.system_id)
-    # Its notes too - the remark list and personal notes - which the delete
-    # would also cascade away.
+    # Its notes too - the remark list, resources and personal notes - which
+    # the delete would also cascade away.
     move_entity_notes(db, owner_type, keep.system_id, drop.system_id)
     db.delete(drop)
     db.flush()

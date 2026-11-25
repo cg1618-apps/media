@@ -52,6 +52,7 @@ function studioToForm(s) {
     defunct_date: s.defunct_date || "",
     mal_id: s.mal_id ?? "",
     mal_link: s.mal_link || "",
+    anilist_link: s.anilist_link || "",
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: s.my_rating || "",
   };
@@ -152,6 +153,7 @@ export default function StudioModifyTab({ initialId = null } = {}) {
           defunct_date: studioForm.defunct_date || null,
           mal_id: studioForm.mal_id ? parseInt(studioForm.mal_id, 10) : null,
           mal_link: studioForm.mal_link || null,
+          anilist_link: studioForm.anilist_link?.trim() || null,
         }),
       });
       await queryClient.invalidateQueries({ queryKey: ["studios-admin"] });

@@ -4,10 +4,16 @@
 // top-right, then the title in the display face and one mono line of
 // metadata. No grid card names its type in a spine; the page it sits on does. Flat, no hover zoom - the border darkens.
 //
-// The "future" variant is the frame FutureReleaseCard fills: what sits on its
-// cover and under its title comes in as `coverBadges` and `meta`, so the
-// future-release content lives in that one component. The frame keeps the
-// footer - the status select and the release bolt.
+// Three variants. `library` is the library's card, with the tracker (progress
+// and the status button) along its foot; `credit` is the library card
+// without the tracker, drawn for each entry a studio or publisher is credited
+// on (components/info/CompanyCredits.jsx). A credit card reads the credit
+// payload (app/services/domain/credit_cards.py): `display_name` is its title
+// and `release_date` is already the type's primary release value. `future`
+// is the frame FutureReleaseCard fills: what sits on its cover and under its
+// title comes in as `coverBadges` and `meta`, so the future-release content
+// lives in that one component. The frame keeps the footer - the status
+// select and the release bolt.
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
@@ -92,6 +98,7 @@ const SCORE_LABEL = {
   mal_rating: "MAL score",
   anilist_rating: "AniList score",
   imdb_rating: "IMDb score",
+  metacritic_score: "Metacritic score",
 };
 
 function imdbValue(value) {
@@ -126,12 +133,71 @@ export function MetaLine({ children, className = "" }) {
 // The tile the platform icons sit on over cover art.
 export const PLATFORM_BOX_CLS = "bg-surface/95 px-1 py-0.5 border border-border";
 
-// Every card but the future one: the outside score sits on the meta line,
-// not the cover, and the TV show's region and the game's, book's and comic's
-// type take the cover's top-left corner, opposite the rating stamp. One look
-// on the libraries and on a franchise's entries. The rating stamp is the
-// viewer's own list rating, which a viewer without a list does not have.
-function PosterBadges({ type, data }) {
+// What a credit card says, per type: `release` is the release line - the
+// anime's season line, a full date, or the year alone - and `score` the
+// public rating at its right. The gated types read as their counterparts
+// (Hentai as Anime, H-Comic as Manga, H-Game as Game), with what they carry:
+// a hentai has no season, so it reads its date. A type not listed draws the
+// library card's meta line instead.
+const CREDIT_META = {
+  anime: { release: "season", score: "mal_rating" },
+  hentai: { release: "date", score: "mal_rating" },
+  "anime-movie": { release: "date", score: "mal_rating" },
+  manga: { release: "date", score: "mal_rating" },
+  "h-comic": { release: "date", score: "mal_rating" },
+  book: { release: "date", score: "mal_rating" },
+  comic: { release: "year" },
+  game: { release: "year", score: "metacritic_score" },
+  "h-game": { release: "year", score: "metacritic_score" },
+};
+
+// The label a credit card lays over its cover's top-left corner: an anime's
+// airing type, an anime movie's release type (Cinema, ONA).
+const CREDIT_CORNER = {
+  anime: "airing_type",
+  hentai: "airing_type",
+  "anime-movie": "release_type",
+};
+
+function CreditMeta({ type, data }) {
+  const { release, score } = CREDIT_META[type];
+  const line =
+    release === "season"
+      ? getReleaseFallback(data)
+      : release === "year"
+        ? releaseYear(data.release_date) || "?"
+        : formatReleaseDate(data.release_date);
+  const value = score ? data[score] : null;
+  return (
+    <MetaLine className="mb-0">
+      <span className="truncate pr-1">{line}</span>
+      {value != null && value !== "" && <Score value={value} label={SCORE_LABEL[score]} />}
+    </MetaLine>
+  );
+}
+
+// The rating stamp is the viewer's own list rating, which a viewer without a
+// list does not have.
+function PosterBadges({ type, variant, data }) {
+  if (variant === "credit" && CREDIT_META[type]) {
+    const corner = CREDIT_CORNER[type] ? data[CREDIT_CORNER[type]] : null;
+    return (
+      <>
+        <RatingStamp
+          rating={data.my_rating}
+          size="sm"
+          className="absolute top-1.5 right-1.5 z-10"
+        />
+        {corner && <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>{corner}</div>}
+      </>
+    );
+  }
+
+  // Every card but the future one: the outside score sits on the meta line,
+  // not the cover, and the TV show's region and the game's, book's and
+  // comic's type take the cover's top-left corner, opposite the rating stamp.
+  // One look on the libraries, on a franchise's entries and on a credit card
+  // of a type CREDIT_META does not list.
   return (
     <>
       <RatingStamp
@@ -527,7 +593,8 @@ export default function MediaCard({
   const config = MEDIA_CONFIG[type];
   const { statusField, navPath, statusType } = config;
 
-  const title = getDisplayName(data, type);
+  const title =
+    variant === "credit" && data.display_name ? data.display_name : getDisplayName(data, type);
   // Prefer the pretty /anime/47/slug form every other Link on the site uses.
   // Rows that predate public_id, or a payload that omits it, still resolve:
   // the backend's entry-ref parser takes a UUID too.
@@ -642,7 +709,7 @@ export default function MediaCard({
     >
       <div className="flex">
         <div className="flex-1 min-w-0 aspect-[3/4] bg-surface-2 relative overflow-hidden">
-          {variant === "future" ? coverBadges : <PosterBadges type={type} data={data} />}
+          {variant === "future" ? coverBadges : <PosterBadges type={type} variant={variant} data={data} />}
           <LazyImage
             src={thumbUrl(imageUrl)}
             alt={title}
@@ -677,7 +744,13 @@ export default function MediaCard({
           )}
         </h3>
 
-        {variant === "future" ? (
+        {variant === "credit" ? (
+          CREDIT_META[type] ? (
+            <CreditMeta type={type} data={data} />
+          ) : (
+            <CardMeta type={type} data={data} scoreField={scoreField} />
+          )
+        ) : variant === "future" ? (
           <>
             {meta}
             <div className="relative z-10 mt-auto flex items-center gap-1 border-t border-border pt-2.5">

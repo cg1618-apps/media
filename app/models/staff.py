@@ -115,6 +115,9 @@ class Person(Base, NameFallbackMixin):
     # (MAL) Fill reads it (app/services/domain/autofill.py).
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
+    # The person's AniList staff page, entered by hand beside mal_link. A
+    # plain link: no id is derived from it and nothing is fetched from it.
+    anilist_link = Column(String, nullable=True)
     # IMDb's name page, as a movie carries its title page: imdb_id is the nm
     # id derived from a pasted imdb_link (/name/nm<digits>/), and the Person
     # (TMDB) Fill resolves it through TMDB's /find.
@@ -420,6 +423,9 @@ class Studio(Base, NameFallbackMixin):
     website_url = Column(String, nullable=True)
     mal_id = Column(Integer, nullable=True)
     mal_link = Column(String, nullable=True)
+    # The studio's AniList page, entered by hand beside mal_link. A plain
+    # link: no id is derived from it and nothing is fetched from it.
+    anilist_link = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 

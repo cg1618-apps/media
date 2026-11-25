@@ -6,20 +6,28 @@
 // studio is credited on, grouped by media type exactly as
 // GET /api/studio/{id}/entries returns them.
 //
+// Each entry is drawn as its type's library card without the tracker
+// (components/info/CompanyCredits.jsx), under one shared credit sort. The left
+// column holds the logo, My rating, the links card (website, MAL, AniList -
+// components/info/EntityLinksCard.jsx), then the Related companies, as a
+// media entry's left column holds its Sources then its Related Entries.
+//
 // Like Person.jsx it reads the API with plain fetch. An admin can jump to the
 // full editor, the controls Person.jsx and Character.jsx have
-// (components/info/EntityProfileControls.jsx), and the remark list and
-// personal notes are a notes block (NotesTemplate, owner type "studio"). My rating is the viewer's own, set
-// by a holder of self.list through PUT /api/me/ratings.
+// (components/info/EntityProfileControls.jsx), and the remark list,
+// resources and personal notes are a notes block (NotesTemplate, owner type
+// "studio"). My rating is the viewer's own, set by a holder of self.list
+// through PUT /api/me/ratings.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
-import { releaseYear } from "../../lib/releaseDate";
 import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
-import MalButton from "../../components/info/MalButton";
+import CompanyCredits from "../../components/info/CompanyCredits";
+import EntityHeading, { creditedEntries } from "../../components/info/EntityHeading";
+import EntityLinksCard, { ENTITY_LINKS } from "../../components/info/EntityLinksCard";
 import NamingCard from "../../components/info/NamingCard";
 import RelatedRecords from "../../components/info/RelatedRecords";
 import AffiliatedPeople from "../../components/info/AffiliatedPeople";
@@ -28,7 +36,7 @@ import {
   RatingSelect,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
-import { Eyebrow, RatingStamp, eyebrowCls } from "../../components/ui/primitives";
+import { RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { useAuth } from "../../contexts/AuthContext";
 import { usePageTitle } from "../../contexts/PageTitleContext";
@@ -182,24 +190,16 @@ export default function Studio() {
             />
           )}
 
+          <EntityLinksCard item={studio} links={ENTITY_LINKS.studio} />
+
+          <RelatedRecords type="studio" recordId={studio.system_id} isAdmin={isAdmin} />
+
           <NamingCard type="studio" item={studio} />
         </div>
 
         {/* ========== RIGHT COLUMN: facts, then the credits ========== */}
         <div className="lg:col-span-3 space-y-6">
-          <div>
-            <Eyebrow className="mb-1">Studio</Eyebrow>
-            <h1 className="font-display text-4xl font-semibold text-text leading-tight">
-              {name}
-            </h1>
-            <div className="flex flex-wrap items-center gap-3 mt-2">
-              <p className="font-mono text-[11px] text-text-faint">
-                {creditTotal} credited entr{creditTotal === 1 ? "y" : "ies"}
-              </p>
-              {/* The way out to MAL, by the name as on the character page. */}
-              <MalButton href={studio.mal_link} />
-            </div>
-          </div>
+          <EntityHeading kind="Studio" count={creditedEntries(creditTotal)} name={name} />
 
           <InfoCard
             title="Profile"
@@ -208,122 +208,18 @@ export default function Studio() {
                 { label: "Countries", value: formatCountries(studio.countries) },
                 { label: "Active", value: span },
               ],
-              [
-                {
-                  label: "Website",
-                  value: studio.website_url ? (
-                    <a
-                      href={studio.website_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-brand hover:underline break-all"
-                    >
-                      {studio.website_url}
-                    </a>
-                  ) : null,
-                },
-                {
-                  label: "MAL",
-                  value: studio.mal_link ? (
-                    <a
-                      href={studio.mal_link}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-brand hover:underline break-all"
-                    >
-                      {studio.mal_id ? `Producer #${studio.mal_id}` : "MyAnimeList"}
-                    </a>
-                  ) : null,
-                },
-              ],
             ]}
           />
 
-          {/* The remark list and personal notes (app/utils/note_sections.py). */}
+          {/* The remark list, resources and personal notes
+              (app/utils/note_sections.py). */}
           <NotesTemplate ownerType="studio" ownerId={studio.system_id} />
-
-          <RelatedRecords type="studio" recordId={studio.system_id} isAdmin={isAdmin} />
 
           <AffiliatedPeople studioId={studio.system_id} />
 
-          {groups.length === 0 ? (
-            <section className="border border-dashed border-border-strong px-4 py-10 text-center">
-              <Eyebrow className="mb-1">Empty</Eyebrow>
-              <p className="text-sm text-text-muted">No credited entries</p>
-            </section>
-          ) : (
-            groups.map((group) => (
-              <section key={group.media_type}>
-                <h2 className="flex items-center gap-3 mb-3 font-mono text-[11px] text-text-muted">
-                  {group.label}
-                  <span className="text-text-faint">{group.entries.length}</span>
-                  <span className="flex-1 border-t border-dotted border-border-strong/60" />
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {group.entries.map((entry) => (
-                    <CreditCard
-                      key={entry.system_id}
-                      entry={entry}
-                      navPath={group.nav_path}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))
-          )}
+          <CompanyCredits groups={groups} />
         </div>
       </div>
     </div>
-  );
-}
-
-// A minimal cover-and-title card. MediaCard is deliberately not reused: it
-// reads a full media payload (status fields, franchise dict, admin toggles)
-// and resolves its title through getDisplayName, none of which the four keys
-// the entries endpoint returns can satisfy.
-function CreditCard({ entry, navPath }) {
-  const title = entry.display_name || "Untitled";
-  const year = releaseYear(entry.release_date);
-  const card = (
-    <>
-      <div
-        className="bg-surface-2 overflow-hidden"
-        style={{ aspectRatio: "2/3" }}
-      >
-        <LazyImage
-          src={getCoverUrl(entry.cover_image_file)}
-          alt=""
-          className="w-full h-full object-cover"
-          style={focusStyle(entry.cover_image_focus)}
-          onError={(e) => {
-            e.target.src = FALLBACK_SVG;
-          }}
-        />
-      </div>
-      <div className="p-2.5 flex flex-col gap-1 border-t border-border">
-        <h3
-          className="font-display font-semibold text-text text-sm line-clamp-2 leading-tight"
-          title={title}
-        >
-          {title}
-        </h3>
-        <span className={eyebrowCls}>
-          {year || "Undated"}
-        </span>
-      </div>
-    </>
-  );
-
-  // An unresolved entry has no nav_path; it is shown but not linked.
-  if (!navPath) {
-    return <div className="bg-surface border border-border">{card}</div>;
-  }
-  return (
-    <Link
-      to={`${navPath}/${entry.system_id}`}
-      className="bg-surface border border-border hover:border-border-strong transition-colors flex flex-col"
-    >
-      {card}
-    </Link>
   );
 }

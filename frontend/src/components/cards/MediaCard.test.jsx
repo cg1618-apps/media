@@ -704,3 +704,110 @@ describe("MediaCard - the library and franchise card layout", () => {
     expect(date.compareDocumentPosition(hours) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
+
+// A studio's or publisher's credit list: the type's library card, without the
+// tracker part, showing what the owner listed per type.
+describe("MediaCard - the credit variant", () => {
+  const LIST_HOLDER = ["self.list"];
+
+  function credit(type, data) {
+    return mount(
+      { system_id: "c1", display_name: "Credited Title", ...data },
+      type,
+      false,
+      "credit",
+    );
+  }
+
+  it("draws no tracker - no progress and no status button - even for a list holder", async () => {
+    mockAuthFetch(LIST_HOLDER);
+    const data = { ep_total: 12, ep_fin: 3, watching_status: "Active Watching" };
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // The library card beside it is the mirror: its status button showing
+    // proves /me has answered, so the credit card's absence is its own.
+    render(
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <ToastProvider>
+            <MemoryRouter>
+              <MediaCard type="anime" data={{ system_id: "l1", anime_name_en: "Library Card", ...data }} />
+              <MediaCard
+                type="anime"
+                variant="credit"
+                data={{ system_id: "c1", display_name: "Credited Title", ...data }}
+              />
+            </MemoryRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findAllByTitle(/→/)).toHaveLength(1);
+    const libraryCard = screen.getByText("Library Card").closest("div.group");
+    expect(libraryCard.textContent).toMatch(/12/);
+    const creditCard = screen.getByText("Credited Title").closest("div.group");
+    expect(creditCard.textContent).not.toMatch(/12/);
+  });
+
+  it("titles the card with the payload's display name", async () => {
+    mockAuthFetch();
+    credit("anime", {});
+    expect(await screen.findByRole("link", { name: "Credited Title" })).toBeInTheDocument();
+  });
+
+  it("shows an anime's airing type, rating, release season and MAL score", async () => {
+    mockAuthFetch();
+    credit("anime", {
+      airing_type: "TV",
+      my_rating: "A",
+      release_season: "Spring",
+      release_date_jp: "2024-04-05",
+      mal_rating: 8.5,
+    });
+    expect(await screen.findByText("TV")).toBeInTheDocument();
+    expect(screen.getByLabelText("Rating A")).toBeInTheDocument();
+    expect(screen.getByText("Spring 2024")).toBeInTheDocument();
+    expect(screen.getByTitle("MAL score")).toHaveTextContent("8.5");
+  });
+
+  it("shows an anime movie's release type, release date and MAL score", async () => {
+    mockAuthFetch();
+    credit("anime-movie", {
+      release_type: "Cinema",
+      release_date: "2016-08-26",
+      mal_rating: 8.8,
+      length_min: 106,
+    });
+    expect(await screen.findByText("Cinema")).toBeInTheDocument();
+    expect(screen.getByText("2016-08-26")).toBeInTheDocument();
+    expect(screen.getByTitle("MAL score")).toHaveTextContent("8.8");
+    // The runtime is the library card's, not on the owner's list.
+    expect(screen.queryByText(/1h 46m|106/)).toBeNull();
+  });
+
+  it("shows a manga's release date and MAL score", async () => {
+    mockAuthFetch();
+    credit("manga", { release_date: "2009-09-09", mal_rating: 8.9 });
+    expect(await screen.findByText("2009-09-09")).toBeInTheDocument();
+    expect(screen.getByTitle("MAL score")).toHaveTextContent("8.9");
+  });
+
+  it("shows a comic's release year and no score", async () => {
+    mockAuthFetch();
+    credit("comic", { release_date: "1986-03-01", mal_rating: 9 });
+    expect(await screen.findByText("1986")).toBeInTheDocument();
+    expect(screen.queryByTitle("MAL score")).toBeNull();
+  });
+
+  it("shows a game's release year and Metacritic score", async () => {
+    mockAuthFetch();
+    credit("game", { release_date: "2017-03-03", metacritic_score: 97 });
+    expect(await screen.findByText("2017")).toBeInTheDocument();
+    expect(screen.getByTitle("Metacritic score")).toHaveTextContent("97");
+  });
+
+  it("reads an h-game like a game", async () => {
+    mockAuthFetch();
+    credit("h-game", { release_date: "2019-05-01" });
+    expect(await screen.findByText("2019")).toBeInTheDocument();
+  });
+});
