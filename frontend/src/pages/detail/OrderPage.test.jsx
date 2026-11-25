@@ -18,6 +18,20 @@ vi.mock("../../contexts/AuthContext", () => ({
 
 vi.mock("../../components/tracker/FollowOrderButton", () => ({
   default: () => null,
+  followOf: (follows, listId) =>
+    (follows || []).find((f) => f.list.system_id === listId),
+}));
+
+// The viewer's follows. A test that follows the order puts one here.
+let follows = [];
+vi.mock("../../api/mutations/useOrderFollows", () => ({
+  useOrderFollows: () => ({ data: follows }),
+  useToggleSkip: () => ({ mutate: skipMutate, isPending: false }),
+}));
+const skipMutate = vi.fn();
+
+vi.mock("../../hooks/useToast", () => ({
+  useToast: () => ({ showToast: vi.fn() }),
 }));
 
 vi.mock("../../hooks/useCanonicalPath", () => ({
@@ -43,6 +57,8 @@ function jsonRes(body) {
 beforeEach(() => {
   isAdmin = true;
   order = ORDER;
+  follows = [];
+  skipMutate.mockReset();
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => {
@@ -193,5 +209,55 @@ describe("OrderPage type filter", () => {
     const scope = screen.getByTestId("order-type-scope");
     expect(within(scope).getAllByRole("button")).toHaveLength(3);
     expect(within(scope).queryByText("Single-type")).toBeNull();
+  });
+});
+
+describe("OrderPage skip toggles", () => {
+  const FOLLOW = {
+    list: { system_id: "L1", public_id: 7 },
+    importance: "Normal",
+    skipped: ["i3"],
+  };
+
+  it("gives a follower a skip toggle on every step, pressed where skipped", async () => {
+    order = CROSS;
+    follows = [FOLLOW];
+    renderPage();
+    await screen.findByText("Film A");
+
+    const toggles = screen.getAllByRole("button", { name: /^Skip/ });
+    expect(toggles.map((b) => b.textContent)).toEqual([
+      "Skip",
+      "Skip",
+      "Skipped",
+      "Skip",
+    ]);
+    expect(
+      within(screen.getByText("Film C").closest("li")).getByRole("button", {
+        name: "Skipped",
+      }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("marks the step it sits beside", async () => {
+    order = CROSS;
+    follows = [FOLLOW];
+    renderPage();
+    await screen.findByText("Film A");
+
+    const row = screen.getByText("Show B").closest("li");
+    fireEvent.click(within(row).getByRole("button", { name: "Skip" }));
+    expect(skipMutate).toHaveBeenCalledWith(
+      { listId: "L1", stepId: "i2", skipped: false },
+      expect.anything(),
+    );
+  });
+
+  it("draws no toggle for a viewer who does not follow the order", async () => {
+    order = CROSS;
+    follows = [{ ...FOLLOW, list: { system_id: "OTHER", public_id: 9 } }];
+    renderPage();
+    await screen.findByText("Film A");
+    expect(screen.queryByRole("button", { name: /^Skip/ })).toBeNull();
   });
 });

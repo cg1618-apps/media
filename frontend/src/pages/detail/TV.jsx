@@ -5,6 +5,7 @@ import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import MarkCompletedButton from "../../components/tracker/MarkCompletedButton";
 import AdminActions from "../../components/layout/AdminActions";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
@@ -211,7 +212,9 @@ export default function TV() {
           end={
             <>
               <MarkReleaseButton type="tv-show" entry={show} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-              <Button
+              <MarkCompletedButton
+                type="tv-show"
+                entry={show}
                 onClick={async () => {
                   if (!isAdmin) return;
                   try {
@@ -230,9 +233,7 @@ export default function TV() {
                     showToast("error", "Update failed");
                   }
                 }}
-              >
-                Mark completed
-              </Button>
+              />
             </>
           }
         />
