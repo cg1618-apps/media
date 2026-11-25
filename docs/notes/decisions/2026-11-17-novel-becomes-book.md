@@ -10,7 +10,9 @@
   derivable, so they are moved by hand.
 - **Statistics keeps a section called Novel, counting novels only**
   (`NOVEL_BOOK_TYPES`): a guide is a book, not a novel, and would skew a novel
-  rating distribution.
+  rating distribution. Completions is not a distribution, so its tab is Book
+  and lists every book, grouped by type: a guide sits under its own heading
+  and skews nothing.
 - **The old release date became `release_date_jp` only.** It stood for the
   original's first publication — MAL and Open Library know only the original —
   so copying it into TW would invent a Taiwanese edition date.

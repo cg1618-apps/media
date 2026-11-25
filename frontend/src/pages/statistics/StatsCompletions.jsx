@@ -1,187 +1,266 @@
 // Frontend: statistics page file for StatsCompletions.
+//
+// The Recent completions tabs. All mixes every type the viewer may see into
+// one list; each type's own tab lists its completions in titled groups. What
+// a tab lists and how it groups is completionGroups.js; this file draws it.
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  getCoverUrl,
-  getDisplayName,
-  FALLBACK_SVG,
-  COMPLETED_STATUSES,
-} from "../../utils/media";
-import hentaiCompletionGroups from "./hentaiCompletions";
+import { getCoverUrl, getDisplayName, FALLBACK_SVG } from "../../utils/media";
 import { useAuth } from "../../contexts/AuthContext";
 import { visibleByType } from "../../lib/gatedTypes";
-import { BOOK_REGIONS } from "../../config/fieldOptions";
-
-const COMPLETION_TABS = [
-  { key: "anime", label: "Anime" },
-  { key: "anime-movie", label: "Anime movie" },
-  { key: "movie", label: "Movie" },
-  { key: "tv-show", label: "TV show" },
-  { key: "cartoon", label: "Cartoon" },
-  { key: "manga", label: "Manga" },
-  // The Novel section: books of the novel types only (NOVEL_BOOK_TYPES).
-  { key: "book", label: "Novel" },
-  { key: "comic", label: "Comic" },
-  { key: "game", label: "Game" },
-  // Gated: offered through visibleByType only.
-  { key: "h-comic", label: "H-Comic" },
-  { key: "h-game", label: "H-Game" },
-  { key: "hentai", label: "Hentai" },
-];
 import { Button, Eyebrow, RatingStamp, sectionTitleCls } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
 import { entityPath } from "../../lib/entityPath";
 import { focusStyle, thumbUrl } from "../../lib/covers";
-import { novelsOnly } from "../../utils/statsUtils";
+import { completionDetails, completionGroups, recentCompletions } from "./completionGroups";
+
+const ALL = "all";
+
+const COMPLETION_TABS = [
+  { key: "anime", label: "Anime", prop: "allAnime" },
+  { key: "anime-movie", label: "Anime movie", prop: "allAnimeMovies" },
+  { key: "movie", label: "Movie", prop: "allMovies" },
+  { key: "tv-show", label: "TV show", prop: "allTVShows" },
+  { key: "cartoon", label: "Cartoon", prop: "allCartoons" },
+  { key: "manga", label: "Manga", prop: "allManga" },
+  { key: "book", label: "Book", prop: "allBook" },
+  { key: "comic", label: "Comic", prop: "allComic" },
+  { key: "game", label: "Game", prop: "allGame" },
+  // Gated: offered, and mixed into All, through visibleByType only.
+  { key: "h-comic", label: "H-Comic", prop: "allHComic" },
+  { key: "h-game", label: "H-Game", prop: "allHGame" },
+  { key: "hentai", label: "Hentai", prop: "allHentai" },
+];
+
+const TAB_LABEL = Object.fromEntries(COMPLETION_TABS.map(({ key, label }) => [key, label]));
+
+// How many detail cells a type's rows carry (completionDetails). Every row of
+// a list draws the same number of fixed-width cells, empty ones included, so
+// the rating and the date line up down the list whatever a row holds.
+const DETAIL_SLOTS = {
+  anime: 1,
+  "tv-show": 1,
+  cartoon: 1,
+  manga: 1,
+  book: 1,
+  game: 1,
+  "h-comic": 2,
+  "h-game": 1,
+  hentai: 1,
+};
 
 const PAGE_SIZE = 10;
 
-/**
- * One tab's completions, in titled groups of ten a page: the shape every tab
- * below draws by hand. `groups` is `[{ key, label, items }]`, empty groups
- * already dropped; `pages` and `setPages` hold the page each group is on.
- * `extra(entry)` is the optional muted cell before the rating.
- */
-function GroupedCompletions({ type, groups, pages, setPages, franchiseMap, extra }) {
-  return (
-    <div className="space-y-8">
-      {groups.map(({ key, label, items }) => {
-        const page = pages[key] ?? 0;
-        const totalPages = Math.ceil(items.length / PAGE_SIZE);
-        const pageItems = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-        const setPage = (p) => setPages((prev) => ({ ...prev, [key]: p }));
+const mutedCls = "font-mono text-[11px] text-text-faint shrink-0 hidden sm:block";
 
-        return (
-          <div key={key}>
-            <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-              <h3 className={sectionTitleCls}>
-                {label}
-              </h3>
-              <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                {items.length}
-              </span>
-            </div>
-            <div className="bg-surface border border-border">
-              {pageItems.map((entry, idx) => {
-                const franchise = franchiseMap[String(entry.franchise_id)];
-                const name = getDisplayName(entry, type);
-                const dateStr = new Date(entry.completed_at).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                });
-                const path = entityPath(type, entry);
-                const Wrapper = path ? Link : "div";
-                const cell = extra?.(entry);
-                return (
-                  <Wrapper
-                    key={entry.system_id}
-                    {...(path ? { to: path } : {})}
-                    className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                      idx < pageItems.length - 1 ? "border-b border-border" : ""
-                    }`}
-                  >
-                    <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                      {page * PAGE_SIZE + idx + 1}
-                    </span>
-                    <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                      <LazyImage
-                        src={thumbUrl(getCoverUrl(entry.cover_image_file))}
-                        alt={name}
-                        className="w-full h-full object-cover"
-                        style={focusStyle(entry.cover_image_focus)}
-                        onError={(e) => {
-                          e.target.src = FALLBACK_SVG;
-                        }}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-display text-base leading-tight text-text truncate">
-                        {name}
-                      </p>
-                      {franchise && (
-                        <p className="font-mono text-[11px] text-text-faint truncate">
-                          {getDisplayName(franchise, "franchise")}
-                        </p>
-                      )}
-                    </div>
-                    {cell && (
-                      <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                        {cell}
-                      </span>
-                    )}
-                    <RatingStamp rating={entry.my_rating} />
-                    <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                      {dateStr}
-                    </span>
-                  </Wrapper>
-                );
-              })}
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-3 px-1">
-                <Button size="sm" onClick={() => setPage(page - 1)} disabled={page === 0}>
-                  Previous
-                </Button>
-                <span className="font-mono text-[11px] text-text-faint">
-                  Page {page + 1} of {totalPages}
-                </span>
-                <Button
-                  size="sm"
-                  onClick={() => setPage(page + 1)}
-                  disabled={page >= totalPages - 1}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-          </div>
-        );
-      })}
+function formatDate(value) {
+  return new Date(value).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * One completed entry. `lead` is the cell at the left: the row's number in a
+ * type's tab, the media type in All. The details, the rating and the date
+ * each sit in a fixed-width cell, so a one-digit day or a missing rating
+ * shifts nothing.
+ */
+function CompletionRow({ type, entry, lead, slots, franchiseMap, last }) {
+  const franchise = franchiseMap[String(entry.franchise_id)];
+  const name = getDisplayName(entry, type);
+  const path = entityPath(type, entry);
+  const Wrapper = path ? Link : "div";
+  const details = completionDetails(type, entry);
+  const cells = [...Array(Math.max(slots - details.length, 0)).fill(null), ...details];
+  return (
+    <Wrapper
+      {...(path ? { to: path } : {})}
+      className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
+        last ? "" : "border-b border-border"
+      }`}
+    >
+      {lead}
+      <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
+        <LazyImage
+          src={thumbUrl(getCoverUrl(entry.cover_image_file))}
+          alt={name}
+          className="w-full h-full object-cover"
+          style={focusStyle(entry.cover_image_focus)}
+          onError={(e) => {
+            e.target.src = FALLBACK_SVG;
+          }}
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-display text-base leading-tight text-text truncate">{name}</p>
+        {franchise && (
+          <p className="font-mono text-[11px] text-text-faint truncate">
+            {getDisplayName(franchise, "franchise")}
+          </p>
+        )}
+      </div>
+      {cells.map((cell, idx) => (
+        <span
+          key={idx}
+          data-testid="completion-detail"
+          className={`${mutedCls} w-24 text-right truncate tabular-nums`}
+        >
+          {cell}
+        </span>
+      ))}
+      <span className="w-7 shrink-0 flex justify-center">
+        <RatingStamp rating={entry.my_rating} />
+      </span>
+      <span
+        data-testid="completion-date"
+        className={`${mutedCls} w-[12ch] text-right tabular-nums`}
+      >
+        {formatDate(entry.completed_at)}
+      </span>
+    </Wrapper>
+  );
+}
+
+/** A list's Previous / Next, drawn only when it runs past one page. */
+function Pager({ page, totalPages, setPage }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between mt-3 px-1">
+      <Button size="sm" onClick={() => setPage(page - 1)} disabled={page === 0}>
+        Previous
+      </Button>
+      <span className="font-mono text-[11px] text-text-faint">
+        Page {page + 1} of {totalPages}
+      </span>
+      <Button size="sm" onClick={() => setPage(page + 1)} disabled={page >= totalPages - 1}>
+        Next
+      </Button>
     </div>
   );
 }
 
-export default function StatsCompletions({
-  allAnime,
-  allAnimeMovies,
-  allMovies,
-  allTVShows,
-  allCartoons,
-  allManga,
-  allBook,
-  allComic,
-  allGame,
-  allHComic,
-  allHGame,
-  allHentai,
-  franchiseMap,
-}) {
+/** `items` ten a page; `pageKey` names the page this list is on in `pages`. */
+function PagedList({ items, pageKey, pages, setPages, renderRow }) {
+  const page = pages[pageKey] ?? 0;
+  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+  const pageItems = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const setPage = (p) => setPages((prev) => ({ ...prev, [pageKey]: p }));
+  return (
+    <>
+      <div className="bg-surface border border-border">
+        {pageItems.map((item, idx) =>
+          renderRow(item, page * PAGE_SIZE + idx, idx === pageItems.length - 1),
+        )}
+      </div>
+      <Pager page={page} totalPages={totalPages} setPage={setPage} />
+    </>
+  );
+}
+
+/** One type's tab: its completions in titled groups, each paged on its own. */
+function GroupedCompletions({ type, groups, pages, setPages, franchiseMap }) {
+  return (
+    <div className="space-y-8">
+      {groups.map(({ key, label, items }) => (
+        <div key={key}>
+          <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
+            <h3 className={sectionTitleCls}>{label}</h3>
+            <span className="font-mono text-[11px] text-text-faint tabular-nums">
+              {items.length}
+            </span>
+          </div>
+          <PagedList
+            items={items}
+            pageKey={`${type}:${key}`}
+            pages={pages}
+            setPages={setPages}
+            renderRow={(entry, index, last) => (
+              <CompletionRow
+                key={entry.system_id}
+                type={type}
+                entry={entry}
+                slots={DETAIL_SLOTS[type] ?? 0}
+                franchiseMap={franchiseMap}
+                last={last}
+                lead={
+                  <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
+                    {index + 1}
+                  </span>
+                }
+              />
+            )}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyCompletions({ label = null }) {
+  return (
+    <div className="border border-dashed border-border-strong px-4 py-10 text-center">
+      <p className="text-sm text-text-muted">
+        {label ? `No ${label} completions recorded yet.` : "No completions recorded yet."}
+      </p>
+    </div>
+  );
+}
+
+export default function StatsCompletions({ franchiseMap, ...lists }) {
   const tabs = visibleByType(useAuth(), COMPLETION_TABS);
-  const [completionsTab, setCompletionsTab] = useState("anime");
-  const [groupPages, setGroupPages] = useState({
-    TV: 0,
-    Movie: 0,
-    ONA: 0,
-    Others: 0,
-  });
-  const [amCompletionPages, setAmCompletionPages] = useState({
-    ghibli: 0,
-    shinkai: 0,
-    original: 0,
-    adapted: 0,
-    others: 0,
-  });
-  const [movieCompletionPages, setMovieCompletionPages] = useState({});
-  const [tvCompletionPages, setTvCompletionPages] = useState({});
-  const [cartoonCompletionPages, setCartoonCompletionPages] = useState({});
-  const [mangaCompletionPages, setMangaCompletionPages] = useState({});
-  const [novelCompletionPages, setNovelCompletionPages] = useState({});
-  const [comicCompletionPages, setComicCompletionPages] = useState({});
-  const [gameCompletionPages, setGameCompletionPages] = useState({});
-  const [hComicCompletionPages, setHComicCompletionPages] = useState({});
-  const [hGameCompletionPages, setHGameCompletionPages] = useState({});
-  const [hentaiCompletionPages, setHentaiCompletionPages] = useState({});
+  const [completionsTab, setCompletionsTab] = useState(ALL);
+  const [pages, setPages] = useState({});
+
+  const tabBar = [{ key: ALL, label: "All" }, ...tabs];
+  const listOf = (key) => lists[COMPLETION_TABS.find((tab) => tab.key === key).prop];
+
+  let body;
+  if (completionsTab === ALL) {
+    const items = recentCompletions(tabs.map(({ key }) => ({ type: key, entries: listOf(key) })));
+    const slots = Math.max(0, ...items.map(({ type }) => DETAIL_SLOTS[type] ?? 0));
+    body =
+      items.length === 0 ? (
+        <EmptyCompletions />
+      ) : (
+        <PagedList
+          items={items}
+          pageKey={ALL}
+          pages={pages}
+          setPages={setPages}
+          renderRow={({ type, entry }, index, last) => (
+            <CompletionRow
+              key={`${type}:${entry.system_id}`}
+              type={type}
+              entry={entry}
+              slots={slots}
+              franchiseMap={franchiseMap}
+              last={last}
+              lead={
+                <span className="font-mono text-[10px] text-text-faint w-20 shrink-0 truncate">
+                  {TAB_LABEL[type]}
+                </span>
+              }
+            />
+          )}
+        />
+      );
+  } else {
+    const groups = completionGroups(completionsTab, listOf(completionsTab), franchiseMap);
+    body =
+      groups.length === 0 ? (
+        <EmptyCompletions label={TAB_LABEL[completionsTab].toLowerCase()} />
+      ) : (
+        <GroupedCompletions
+          type={completionsTab}
+          groups={groups}
+          pages={pages}
+          setPages={setPages}
+          franchiseMap={franchiseMap}
+        />
+      );
+  }
 
   return (
     <section>
@@ -192,9 +271,8 @@ export default function StatsCompletions({
         </h1>
       </header>
 
-      {/* Tab bar */}
       <div className="flex flex-wrap gap-1.5 mb-6">
-        {tabs.map((tab) => (
+        {tabBar.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setCompletionsTab(tab.key)}
@@ -209,1809 +287,7 @@ export default function StatsCompletions({
         ))}
       </div>
 
-      {/* Anime tab */}
-      {completionsTab === "anime" &&
-        (() => {
-          const AIRING_TYPE_ORDER = ["TV", "Movie", "ONA", "Others"];
-          const completed = allAnime
-            .filter(
-              (a) =>
-                COMPLETED_STATUSES.includes(a.watching_status) &&
-                a.completed_at,
-            )
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-
-          const grouped = { TV: [], Movie: [], ONA: [], Others: [] };
-          completed.forEach((a) => {
-            const t = ["TV", "Movie", "ONA"].includes(a.airing_type)
-              ? a.airing_type
-              : "Others";
-            grouped[t].push(a);
-          });
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No completions recorded yet.
-                </p>
-                <p className="text-xs text-text-faint mt-1">
-                  Completions are tracked when watching status is set to
-                  Completed.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {AIRING_TYPE_ORDER.map((type) => {
-                const items = grouped[type];
-                if (items.length === 0) return null;
-                const PAGE_SIZE = 10;
-                const page = groupPages[type];
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setGroupPages((prev) => ({ ...prev, [type]: p }));
-
-                return (
-                  <div key={type}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {type}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((anime, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const franchise =
-                          franchiseMap[String(anime.franchise_id)];
-                        const coverUrl = getCoverUrl(anime.cover_image_file);
-                        const name =
-                          anime.anime_name_cn ||
-                          anime.anime_name_en ||
-                          anime.anime_name_roman ||
-                          "—";
-                        const franchiseName = franchise
-                          ? franchise.franchise_name_cn ||
-                            franchise.franchise_name_en ||
-                            franchise.franchise_name_roman
-                          : null;
-                        const dateStr = new Date(
-                          anime.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-
-                        // Empty when the row carries no public_id: the entry renders as a
-                        // plain row rather than a link to nowhere.
-                        const path = entityPath("anime", anime);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={anime.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(coverUrl)}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(anime.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {franchiseName && (
-                                <p className="font-mono text-[11px] text-text-faint truncate">
-                                  {franchiseName}
-                                </p>
-                              )}
-                            </div>
-                            <RatingStamp rating={anime.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                          >
-                            Previous
-                          </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                          >
-                            Next
-                          </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* Anime Movie tab */}
-      {completionsTab === "anime-movie" &&
-        (() => {
-          const AM_GROUPS = [
-            { key: "ghibli", label: "吉卜力" },
-            { key: "shinkai", label: "新海誠" },
-            { key: "original", label: "原創動畫電影" },
-            { key: "adapted", label: "改編動畫電影" },
-            { key: "others", label: "其他" },
-          ];
-          const completed = allAnimeMovies
-            .filter(
-              (am) =>
-                COMPLETED_STATUSES.includes(am.watching_status) &&
-                am.completed_at,
-            )
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-          const amGrouped = {
-            ghibli: [],
-            shinkai: [],
-            original: [],
-            adapted: [],
-            others: [],
-          };
-          completed.forEach((am) => {
-            const f = franchiseMap[String(am.franchise_id)];
-            const fname = f?.franchise_name_cn || f?.franchise_name_en || "";
-            if (fname === "吉卜力") amGrouped.ghibli.push(am);
-            else if (fname === "新海誠") amGrouped.shinkai.push(am);
-            else if (fname === "原創動畫電影") amGrouped.original.push(am);
-            else if (fname === "改編動畫電影") amGrouped.adapted.push(am);
-            else amGrouped.others.push(am);
-          });
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No anime movie completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {AM_GROUPS.map(({ key, label }) => {
-                const items = amGrouped[key];
-                if (items.length === 0) return null;
-                const PAGE_SIZE = 10;
-                const page = amCompletionPages[key];
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setAmCompletionPages((prev) => ({ ...prev, [key]: p }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {label}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((am, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const name =
-                          am.anime_movie_name_cn ||
-                          am.anime_movie_name_en ||
-                          am.anime_movie_name_roman ||
-                          "—";
-                        const dateStr = new Date(
-                          am.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        // Empty when the row carries no public_id: the entry renders as a
-                        // plain row rather than a link to nowhere.
-                        const path = entityPath("anime-movie", am);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={am.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(am.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(am.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {am.anime_movie_name_cn &&
-                                am.anime_movie_name_en && (
-                                  <p className="font-mono text-[11px] text-text-faint truncate">
-                                    {am.anime_movie_name_en}
-                                  </p>
-                                )}
-                            </div>
-                            <RatingStamp rating={am.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                          >
-                            Previous
-                          </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                          >
-                            Next
-                          </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* Movie tab */}
-      {completionsTab === "movie" &&
-        (() => {
-          const MOVIE_GROUPS = [
-            { key: "disney", label: "Disney" },
-            { key: "marvel", label: "Marvel" },
-            { key: "others", label: "其他" },
-          ];
-          const completed = allMovies
-            .filter(
-              (m) =>
-                COMPLETED_STATUSES.includes(m.watching_status) &&
-                m.completed_at,
-            )
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-          const grouped = { disney: [], marvel: [], others: [] };
-          completed.forEach((m) => {
-            const fEn =
-              franchiseMap[String(m.franchise_id)]?.franchise_name_en || "";
-            if (fEn.includes("Disney")) grouped.disney.push(m);
-            else if (fEn.includes("Marvel")) grouped.marvel.push(m);
-            else grouped.others.push(m);
-          });
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No movie completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {MOVIE_GROUPS.map(({ key, label }) => {
-                const items = grouped[key];
-                if (items.length === 0) return null;
-                const PAGE_SIZE = 10;
-                const page = movieCompletionPages[key] ?? 0;
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setMovieCompletionPages((prev) => ({
-                    ...prev,
-                    [key]: p,
-                  }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {label}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((movie, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const name =
-                          movie.movie_name_cn ||
-                          movie.movie_name_en ||
-                          movie.movie_name_alt ||
-                          "—";
-                        const dateStr = new Date(
-                          movie.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        // Empty when the row carries no public_id: the entry renders as a
-                        // plain row rather than a link to nowhere.
-                        const path = entityPath("movie", movie);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={movie.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(movie.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(movie.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {movie.movie_name_cn && movie.movie_name_en && (
-                                <p className="font-mono text-[11px] text-text-faint truncate">
-                                  {movie.movie_name_en}
-                                </p>
-                              )}
-                            </div>
-                            <RatingStamp rating={movie.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                          >
-                            Previous
-                          </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                          >
-                            Next
-                          </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* TV Show tab */}
-      {completionsTab === "tv-show" &&
-        (() => {
-          const TV_GROUPS = [
-            { key: "disney", label: "Disney" },
-            { key: "marvel", label: "Marvel" },
-            { key: "others", label: "其他" },
-          ];
-          const completed = allTVShows
-            .filter(
-              (tv) =>
-                COMPLETED_STATUSES.includes(tv.watching_status) &&
-                tv.completed_at,
-            )
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-          const grouped = { disney: [], marvel: [], others: [] };
-          completed.forEach((tv) => {
-            const fEn =
-              franchiseMap[String(tv.franchise_id)]?.franchise_name_en || "";
-            if (fEn.includes("Disney")) grouped.disney.push(tv);
-            else if (fEn.includes("Marvel")) grouped.marvel.push(tv);
-            else grouped.others.push(tv);
-          });
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No TV show completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {TV_GROUPS.map(({ key, label }) => {
-                const items = grouped[key];
-                if (items.length === 0) return null;
-                const PAGE_SIZE = 10;
-                const page = tvCompletionPages[key] ?? 0;
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setTvCompletionPages((prev) => ({
-                    ...prev,
-                    [key]: p,
-                  }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {label}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((tv, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const name =
-                          tv.tv_name_cn ||
-                          tv.tv_name_en ||
-                          tv.tv_name_alt ||
-                          "—";
-                        const dateStr = new Date(
-                          tv.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        // Empty when the row carries no public_id: the entry renders as a
-                        // plain row rather than a link to nowhere.
-                        const path = entityPath("tv-show", tv);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={tv.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(tv.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(tv.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {tv.tv_name_cn && tv.tv_name_en && (
-                                <p className="font-mono text-[11px] text-text-faint truncate">
-                                  {tv.tv_name_en}
-                                </p>
-                              )}
-                            </div>
-                            <RatingStamp rating={tv.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                          >
-                            Previous
-                          </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                          >
-                            Next
-                          </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* Cartoon tab */}
-      {completionsTab === "cartoon" &&
-        (() => {
-          const CARTOON_GROUPS = [
-            { key: "cartoon_network", label: "Cartoon Network" },
-            { key: "disney", label: "Disney" },
-            { key: "nickelodeon", label: "Nickelodeon" },
-            { key: "adult_swim", label: "Adult Swim" },
-            { key: "fox", label: "FOX" },
-            { key: "hbo", label: "HBO" },
-            { key: "others", label: "其他" },
-          ];
-          const completed = allCartoons
-            .filter(
-              (c) =>
-                COMPLETED_STATUSES.includes(c.watching_status) &&
-                c.completed_at,
-            )
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-          const grouped = {
-            cartoon_network: [],
-            disney: [],
-            nickelodeon: [],
-            adult_swim: [],
-            fox: [],
-            hbo: [],
-            others: [],
-          };
-          completed.forEach((c) => {
-            const src = (c.source_official || "").toLowerCase();
-            if (src.includes("cartoon network"))
-              grouped.cartoon_network.push(c);
-            else if (src.includes("disney")) grouped.disney.push(c);
-            else if (src.includes("nickelodeon")) grouped.nickelodeon.push(c);
-            else if (src.includes("adult swim")) grouped.adult_swim.push(c);
-            else if (src.includes("fox")) grouped.fox.push(c);
-            else if (src.includes("hbo")) grouped.hbo.push(c);
-            else grouped.others.push(c);
-          });
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No cartoon completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {CARTOON_GROUPS.map(({ key, label }) => {
-                const items = grouped[key];
-                if (items.length === 0) return null;
-                const PAGE_SIZE = 10;
-                const page = cartoonCompletionPages[key] ?? 0;
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setCartoonCompletionPages((prev) => ({
-                    ...prev,
-                    [key]: p,
-                  }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {label}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((cartoon, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const name =
-                          cartoon.cartoon_name_cn ||
-                          cartoon.cartoon_name_en ||
-                          cartoon.cartoon_name_alt ||
-                          "—";
-                        const dateStr = new Date(
-                          cartoon.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        // Empty when the row carries no public_id: the entry renders as a
-                        // plain row rather than a link to nowhere.
-                        const path = entityPath("cartoon", cartoon);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={cartoon.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(cartoon.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(cartoon.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {cartoon.cartoon_name_cn &&
-                                cartoon.cartoon_name_en && (
-                                  <p className="font-mono text-[11px] text-text-faint truncate">
-                                    {cartoon.cartoon_name_en}
-                                  </p>
-                                )}
-                            </div>
-                            {cartoon.airing_type && (
-                              <span className="font-mono text-[10px] text-text-faint shrink-0">
-                                {cartoon.airing_type}
-                              </span>
-                            )}
-                            <RatingStamp rating={cartoon.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                          >
-                            Previous
-                          </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                          >
-                            Next
-                          </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* Manga tab */}
-      {completionsTab === "manga" &&
-        (() => {
-          const MANGA_GROUPS = [
-            { key: "日漫", label: "日漫" },
-            { key: "韓漫", label: "韓漫" },
-            { key: "國漫", label: "國漫" },
-            { key: "台漫", label: "台漫" },
-            { key: "others", label: "Others" },
-          ];
-          const completed = allManga
-            .filter((m) =>
-                COMPLETED_STATUSES.includes(m.reading_status) &&
-                m.completed_at)
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-          const mangaGrouped = {
-            日漫: [],
-            韓漫: [],
-            國漫: [],
-            台漫: [],
-            others: [],
-          };
-          completed.forEach((m) => {
-            const key = ["日漫", "韓漫", "國漫", "台漫"].includes(m.region)
-              ? m.region
-              : "others";
-            mangaGrouped[key].push(m);
-          });
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No manga completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {MANGA_GROUPS.map(({ key, label }) => {
-                const items = mangaGrouped[key];
-                if (items.length === 0) return null;
-                const PAGE_SIZE = 10;
-                const page = mangaCompletionPages[key] ?? 0;
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setMangaCompletionPages((prev) => ({ ...prev, [key]: p }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {label}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((m, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const franchise =
-                          franchiseMap[String(m.franchise_id)];
-                        const name =
-                          m.manga_name_cn ||
-                          m.manga_name_en ||
-                          m.manga_name_roman ||
-                          "—";
-                        const franchiseName = franchise
-                          ? franchise.franchise_name_cn ||
-                            franchise.franchise_name_en ||
-                            franchise.franchise_name_roman
-                          : null;
-                        const dateStr = new Date(
-                          m.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        // Empty when the row carries no public_id: the entry renders as a
-                        // plain row rather than a link to nowhere.
-                        const path = entityPath("manga", m);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={m.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(m.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(m.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {franchiseName && (
-                                <p className="font-mono text-[11px] text-text-faint truncate">
-                                  {franchiseName}
-                                </p>
-                              )}
-                            </div>
-                            <RatingStamp rating={m.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                          >
-                            Previous
-                          </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                          >
-                            Next
-                          </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* Novel tab: the books of a novel type, not guides or other books */}
-      {completionsTab === "book" &&
-        (() => {
-          // One group per book region, in the vocabulary's order, and
-          // Others for a book with none or one outside it.
-          const NOVEL_GROUPS = [
-            ...BOOK_REGIONS.map((region) => ({ key: region, label: region })),
-            { key: "others", label: "Others" },
-          ];
-          const completed = novelsOnly(allBook)
-            .filter((n) =>
-                COMPLETED_STATUSES.includes(n.reading_status) &&
-                n.completed_at)
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-          const novelGrouped = Object.fromEntries(
-            NOVEL_GROUPS.map(({ key }) => [key, []]),
-          );
-          completed.forEach((n) => {
-            const key = BOOK_REGIONS.includes(n.region) ? n.region : "others";
-            novelGrouped[key].push(n);
-          });
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No novel completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {NOVEL_GROUPS.map(({ key, label }) => {
-                const items = novelGrouped[key];
-                if (items.length === 0) return null;
-                const PAGE_SIZE = 10;
-                const page = novelCompletionPages[key] ?? 0;
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setNovelCompletionPages((prev) => ({ ...prev, [key]: p }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {label}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((n, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const franchise =
-                          franchiseMap[String(n.franchise_id)];
-                        const name =
-                          n.book_name_cn ||
-                          n.book_name_en ||
-                          n.book_name_roman ||
-                          "—";
-                        const franchiseName = franchise
-                          ? franchise.franchise_name_cn ||
-                            franchise.franchise_name_en ||
-                            franchise.franchise_name_roman
-                          : null;
-                        const dateStr = new Date(
-                          n.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        // Empty when the row carries no public_id: the entry renders as a
-                        // plain row rather than a link to nowhere.
-                        const path = entityPath("book", n);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={n.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(n.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(n.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {franchiseName && (
-                                <p className="font-mono text-[11px] text-text-faint truncate">
-                                  {franchiseName}
-                                </p>
-                              )}
-                            </div>
-                            <RatingStamp rating={n.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                          >
-                            Previous
-                          </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                          >
-                            Next
-                          </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* Comic tab */}
-      {completionsTab === "comic" &&
-        (() => {
-          const completed = (allComic || [])
-            .filter((c) =>
-                COMPLETED_STATUSES.includes(c.reading_status) &&
-                c.completed_at)
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-
-          // Grouped by publisher, and the groups are derived rather than
-          // declared. Every other tab groups on a closed set (airing type,
-          // region), but `publisher` is filled from Comic Vine and is open -
-          // a fixed list would silently drop the first run from a publisher
-          // the collection had not seen before. Largest group first, with the
-          // unattributed runs last so an empty field never leads.
-          const byPublisher = {};
-          completed.forEach((c) => {
-            const key = (c.publisher || "").trim() || "Others";
-            if (!byPublisher[key]) byPublisher[key] = [];
-            byPublisher[key].push(c);
-          });
-          const COMIC_GROUPS = Object.keys(byPublisher)
-            .sort((a, b) => {
-              if (a === "Others") return 1;
-              if (b === "Others") return -1;
-              const sizeDiff = byPublisher[b].length - byPublisher[a].length;
-              return sizeDiff !== 0 ? sizeDiff : a.localeCompare(b);
-            })
-            .map((key) => ({ key, label: key }));
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No comic completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {COMIC_GROUPS.map(({ key, label }) => {
-                const items = byPublisher[key];
-                if (items.length === 0) return null;
-                const PAGE_SIZE = 10;
-                const page = comicCompletionPages[key] ?? 0;
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setComicCompletionPages((prev) => ({ ...prev, [key]: p }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {label}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((c, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const franchise = franchiseMap[String(c.franchise_id)];
-                        // EN first: comic's display name falls back
-                        // EN -> CN -> Alt, unlike every other type here.
-                        const baseName =
-                          c.comic_name_en || c.comic_name_cn || "—";
-                        const name = c.volume_label
-                          ? `${baseName} ${c.volume_label}`
-                          : baseName;
-                        const franchiseName = franchise
-                          ? franchise.franchise_name_cn ||
-                            franchise.franchise_name_en ||
-                            franchise.franchise_name_roman
-                          : null;
-                        const dateStr = new Date(
-                          c.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        // Empty when the row carries no public_id: the entry renders as a
-                        // plain row rather than a link to nowhere.
-                        const path = entityPath("comic", c);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={c.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(c.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(c.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {franchiseName && (
-                                <p className="font-mono text-[11px] text-text-faint truncate">
-                                  {franchiseName}
-                                </p>
-                              )}
-                            </div>
-                            <RatingStamp rating={c.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                          >
-                            Previous
-                          </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                          >
-                            Next
-                          </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* Game tab */}
-      {completionsTab === "game" &&
-        (() => {
-          // A game is complete when its playing_status says so. The completion
-          // LEVEL (Main Story .. Completionist) is a separate axis and is shown
-          // per row rather than used to filter, so a Main Story finish still
-          // counts as finished.
-          const completed = (allGame || [])
-            .filter((g) => g.playing_status === "Completed" && g.completed_at)
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-
-          // Grouped by completion level, on the closed COMPLETION_LEVELS
-          // ladder, with the unrecorded ones last.
-          const LEVELS = [
-            "Main Story",
-            "Main + Extras",
-            "Post-game",
-            "Completionist",
-          ];
-          const byLevel = {};
-          completed.forEach((g) => {
-            const key = LEVELS.includes(g.completion_level)
-              ? g.completion_level
-              : "Unrecorded";
-            if (!byLevel[key]) byLevel[key] = [];
-            byLevel[key].push(g);
-          });
-          const GAME_GROUPS = [...LEVELS, "Unrecorded"]
-            .filter((key) => byLevel[key]?.length)
-            .map((key) => ({ key, label: key }));
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No game completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {GAME_GROUPS.map(({ key, label }) => {
-                const items = byLevel[key];
-                const PAGE_SIZE = 10;
-                const page = gameCompletionPages[key] ?? 0;
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setGameCompletionPages((prev) => ({ ...prev, [key]: p }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {label}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((g, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const franchise = franchiseMap[String(g.franchise_id)];
-                        const name =
-                          g.game_name_cn || g.game_name_en || "—";
-                        const franchiseName = franchise
-                          ? franchise.franchise_name_cn ||
-                            franchise.franchise_name_en ||
-                            franchise.franchise_name_roman
-                          : null;
-                        const dateStr = new Date(
-                          g.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        // Empty when the row carries no public_id: the entry renders as a
-                        // plain row rather than a link to nowhere.
-                        const path = entityPath("game", g);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={g.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(g.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(g.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {franchiseName && (
-                                <p className="font-mono text-[11px] text-text-faint truncate">
-                                  {franchiseName}
-                                </p>
-                              )}
-                            </div>
-                            {g.hours_played != null && (
-                              <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block tabular-nums">
-                                {g.hours_played} h
-                              </span>
-                            )}
-                            <RatingStamp rating={g.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                        >
-                          Previous
-                        </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* H-Comic tab - gated: the tab bar only offers it to a session that
-          can see the type, and the list is empty for any other. */}
-      {completionsTab === "h-comic" &&
-        (() => {
-          // Grouped by region: a JP h-comic reads in pages and a KR one in
-          // chapters, so the two are different reading experiences.
-          const completed = (allHComic || [])
-            .filter(
-              (h) => COMPLETED_STATUSES.includes(h.reading_status) && h.completed_at,
-            )
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-          const byRegion = {};
-          completed.forEach((h) => {
-            const key = h.region || "Unrecorded";
-            if (!byRegion[key]) byRegion[key] = [];
-            byRegion[key].push(h);
-          });
-          const REGION_GROUPS = ["JP", "KR", "Unrecorded"].filter(
-            (key) => byRegion[key]?.length,
-          );
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No h-comic completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {REGION_GROUPS.map((key) => {
-                const items = byRegion[key];
-                const PAGE_SIZE = 10;
-                const page = hComicCompletionPages[key] ?? 0;
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setHComicCompletionPages((prev) => ({ ...prev, [key]: p }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {key}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((h, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const franchise = franchiseMap[String(h.franchise_id)];
-                        const name = getDisplayName(h, "h-comic");
-                        const franchiseName = franchise
-                          ? getDisplayName(franchise, "franchise")
-                          : null;
-                        const dateStr = new Date(
-                          h.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        const path = entityPath("h-comic", h);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={h.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(h.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(h.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {franchiseName && (
-                                <p className="font-mono text-[11px] text-text-faint truncate">
-                                  {franchiseName}
-                                </p>
-                              )}
-                            </div>
-                            {h.usefulness && (
-                              <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                                {h.usefulness}
-                              </span>
-                            )}
-                            <RatingStamp rating={h.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                        >
-                          Previous
-                        </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* H-Game tab - gated like the h-comic tab. Grouped by completion
-          level on Game's ladder; usefulness is shown per row. */}
-      {completionsTab === "h-game" &&
-        (() => {
-          const completed = (allHGame || [])
-            .filter((g) => g.playing_status === "Completed" && g.completed_at)
-            .sort(
-              (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
-            );
-          const LEVELS = [
-            "Main Story",
-            "Main + Extras",
-            "Post-game",
-            "Completionist",
-          ];
-          const byLevel = {};
-          completed.forEach((g) => {
-            const key = LEVELS.includes(g.completion_level)
-              ? g.completion_level
-              : "Unrecorded";
-            if (!byLevel[key]) byLevel[key] = [];
-            byLevel[key].push(g);
-          });
-          const LEVEL_GROUPS = [...LEVELS, "Unrecorded"].filter(
-            (key) => byLevel[key]?.length,
-          );
-
-          if (completed.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">
-                  No h-game completions recorded yet.
-                </p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="space-y-8">
-              {LEVEL_GROUPS.map((key) => {
-                const items = byLevel[key];
-                const PAGE_SIZE = 10;
-                const page = hGameCompletionPages[key] ?? 0;
-                const totalPages = Math.ceil(items.length / PAGE_SIZE);
-                const pageItems = items.slice(
-                  page * PAGE_SIZE,
-                  (page + 1) * PAGE_SIZE,
-                );
-                const setPage = (p) =>
-                  setHGameCompletionPages((prev) => ({ ...prev, [key]: p }));
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center justify-between mb-3 pb-1 border-b border-border">
-                      <h3 className={sectionTitleCls}>
-                        {key}
-                      </h3>
-                      <span className="font-mono text-[11px] text-text-faint tabular-nums">
-                        {items.length}
-                      </span>
-                    </div>
-                    <div className="bg-surface border border-border">
-                      {pageItems.map((g, idx) => {
-                        const globalIdx = page * PAGE_SIZE + idx;
-                        const franchise = franchiseMap[String(g.franchise_id)];
-                        const name = getDisplayName(g, "h-game");
-                        const franchiseName = franchise
-                          ? getDisplayName(franchise, "franchise")
-                          : null;
-                        const dateStr = new Date(
-                          g.completed_at,
-                        ).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        });
-                        const path = entityPath("h-game", g);
-                        const Wrapper = path ? Link : "div";
-                        const wrapperProps = path ? { to: path } : {};
-                        return (
-                          <Wrapper
-                            key={g.system_id}
-                            {...wrapperProps}
-                            className={`flex items-center gap-4 px-5 py-3 hover:bg-surface-2 transition-colors ${
-                              idx < pageItems.length - 1
-                                ? "border-b border-border"
-                                : ""
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-text-faint w-6 text-center shrink-0 tabular-nums">
-                              {globalIdx + 1}
-                            </span>
-                            <div className="w-9 h-12 overflow-hidden bg-surface-2 border border-border shrink-0">
-                              <LazyImage
-                                src={thumbUrl(getCoverUrl(g.cover_image_file))}
-                                alt={name}
-                                className="w-full h-full object-cover"
-                                style={focusStyle(g.cover_image_focus)}
-                                onError={(e) => {
-                                  e.target.src = FALLBACK_SVG;
-                                }}
-                              />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display text-base leading-tight text-text truncate">
-                                {name}
-                              </p>
-                              {franchiseName && (
-                                <p className="font-mono text-[11px] text-text-faint truncate">
-                                  {franchiseName}
-                                </p>
-                              )}
-                            </div>
-                            {g.usefulness && (
-                              <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                                {g.usefulness}
-                              </span>
-                            )}
-                            <RatingStamp rating={g.my_rating} />
-                            <span className="font-mono text-[11px] text-text-faint shrink-0 hidden sm:block">
-                              {dateStr}
-                            </span>
-                          </Wrapper>
-                        );
-                      })}
-                    </div>
-                    {totalPages > 1 && (
-                      <div className="flex items-center justify-between mt-3 px-1">
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page - 1)}
-                          disabled={page === 0}
-                        >
-                          Previous
-                        </Button>
-                        <span className="font-mono text-[11px] text-text-faint">
-                          Page {page + 1} of {totalPages}
-                        </span>
-                        <Button
-                          size="sm"
-                          onClick={() => setPage(page + 1)}
-                          disabled={page >= totalPages - 1}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
-
-      {/* Hentai tab - gated like the two above. */}
-      {completionsTab === "hentai" &&
-        (() => {
-          const groups = hentaiCompletionGroups(allHentai);
-          if (groups.length === 0) {
-            return (
-              <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-                <p className="text-sm text-text-muted">No hentai completions recorded yet.</p>
-              </div>
-            );
-          }
-          return (
-            <GroupedCompletions
-              type="hentai"
-              groups={groups}
-              pages={hentaiCompletionPages}
-              setPages={setHentaiCompletionPages}
-              franchiseMap={franchiseMap}
-              extra={(h) => h.usefulness}
-            />
-          );
-        })()}
-
-      {/* Under-development tabs */}
-      {![
-        "anime",
-        "anime-movie",
-        "movie",
-        "tv-show",
-        "cartoon",
-        "manga",
-        "book",
-        "comic",
-        "game",
-        "h-comic",
-        "h-game",
-        "hentai",
-      ].includes(completionsTab) && (
-        <div className="border border-dashed border-border-strong px-4 py-10 text-center">
-          <Eyebrow className="mb-1">Under development</Eyebrow>
-          <p className="text-sm text-text-faint">This section is not built yet.</p>
-        </div>
-      )}
+      {body}
     </section>
   );
 }
-

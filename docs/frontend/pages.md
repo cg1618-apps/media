@@ -1570,7 +1570,11 @@ Top to bottom:
    passes its own buttons and handlers; the strip owns only the layout.
    **Edit** → `/modify?id={id}`; **Autofill & update** runs the type's
    single-entry fill; **Mark completed** → `POST {apiEndpoint}/{id}/complete`
-   then refetch; the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
+   then refetch. It is `components/tracker/MarkCompletedButton.jsx`, and it
+   is absent while the viewer's status on the entry - the type's
+   `MEDIA_CONFIG[type].statusField` - is already a completed one
+   (`isCompleted` in `lib/mediaTabs.js`: Completed or Completed (解說)).
+   The **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
    in `lib/releaseAction.js`) moves the entry one step along its release
    axis, and is absent when there is no next step. It is the one control
    that edits the work and the viewer's row together, so `saveRelease` (from
@@ -2146,21 +2150,43 @@ value": what was paid for those is not what an hour of that game costs. Each
 of the three exclusions is counted and named separately under the card, since
 they mean different things.
 
-Completions renders `StatsCompletions`:
-one tab per type with paged sub-groups (anime by airing type, anime movie by
-studio bucket, movie/TV Disney/Marvel/other, cartoon by network, manga by
-region, book by region (the **Novel** tab, over the same novel types as the
-Novel rating card), comic dynamic, game by `completion_level` on the
-closed ladder with the unrecorded ones last, h-comic by region, h-game by
-`completion_level` as game with usefulness shown per row, hentai by
-`source_material` (Original, Manga, Novel, the unrecorded ones last) with
-usefulness shown per row - each gated type's tab and list only for a session that can see it) using `COMPLETED_STATUSES`. The
-game tab filters on `playing_status === "Completed"` plus a `completed_at`:
-the completion **level** is a separate axis shown per row, so a Main Story
-finish still counts as finished. The hentai tab is drawn by a local
-`GroupedCompletions` component - titled groups of ten a page, the shape the
-other tabs draw by hand. No admin
-controls on either page.
+Completions renders `StatsCompletions`; what each tab lists, how it groups
+and what a row shows is `completionGroups.js`, a set of pure functions. An
+entry counts as completed when its type's own status field holds one of
+`COMPLETED_STATUSES` (`isCompleted`) and it carries a `completed_at`; every
+list is newest first and pages ten at a time with Previous / Next.
+
+- **All**, the first tab and the one open on arrival, mixes every type the
+  session can see into one list with no groups. Each row shows its media
+  type at the left where a type's tab shows the row number. A gated type
+  joins it only for a session that can see that type, the same rule as its
+  own tab (`visibleByType`).
+- **One tab per type**, in titled sub-groups each paged on its own: anime by
+  airing type (TV, Movie, ONA, Others); anime movie by studio bucket; movie
+  and TV show with the type's Individual franchise first (the franchise whose
+  English name is `Individual Movie` / `Individual TV Show`, labelled with its
+  display name), then Disney, Marvel and 其他; cartoon by network; manga by
+  region; **Book** - every book, not only the novels - by type in
+  `BOOK_TYPES` order, the book library's Type filter, untyped ones last as
+  Unrecorded; comic by publisher, derived from the data, largest first;
+  game by `completion_level` on the closed ladder with the unrecorded ones
+  last; h-comic by region; h-game by `completion_level` as game; hentai by
+  `source_material` (Original, Manga, Novel, the unrecorded ones last). Each
+  gated type's tab and list are drawn only for a session that can see it.
+  The completion **level** is a separate axis from the status, so a Main
+  Story finish still counts as finished.
+
+A row reads number or type, cover, name over its franchise, then its
+details, the rating and the completion date. The details
+(`completionDetails`) are the same in a type's tab and in All: the airing
+type for anime, TV show and cartoon; the region for manga; the book type for
+a book; the play hours for a game; the region and the usefulness for an
+h-comic; the usefulness for an h-game and a hentai, neither of which has an
+airing type or play hours to mirror. Every detail, the rating and the date
+sit in fixed-width cells - the date in `12ch` of tabular figures, right-
+aligned, and an empty cell still drawn - so the rating column lines up down
+every list whatever a row holds. The details and the date are hidden below
+the `sm` breakpoint. No admin controls on either page.
 
 ### FutureReleases — `/future-releases`
 
