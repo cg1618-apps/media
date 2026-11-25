@@ -562,6 +562,7 @@ Tier 2 category:
 | `game_theme` | Theme | `Game Theme` | game, h-game |
 | `game_mode` | Mode | `Game Mode` | game |
 | `combat_mode` | Combat Mode | `Combat Mode` | game |
+| `exclusive_platform` | Exclusive Source | `Exclusive Platform` | game |
 | `game_platform` | Platform | `Game Platform` | game |
 | `h_genre_plot` | Genre Plot | `H Genre Plot` | h-comic, h-game, hentai |
 | `h_genre_appearance` | Genre Appearance | `H Genre Appearance` | h-comic, h-game, hentai |
@@ -788,6 +789,7 @@ ones in `OPTION_CATEGORIES`:
 | `Game Theme` | game, h-game | tag field `game_theme`; 20 seeded values, each with an IGDB alias |
 | `Game Mode` | game | tag field `game_mode`; 5 seeded values, each with an IGDB alias |
 | `Combat Mode` | game | tag field `combat_mode`; `PvE` and `PvP`, seeded **without** aliases - it is not an IGDB field |
+| `Exclusive Platform` | game | tag field `exclusive_platform`, a game's Exclusive Source: `Nintendo`, `PlayStation`, `Xbox`, `PC`, `Mobile`, seeded in that order by `g1x2clusive3` (`seed_exclusive_platforms`). Single-valued - the form offers one or none. Not anime's `exclusive_source`, which draws from Platform and must match a main access row |
 | `Game Platform` | game | tag field `game_platform`; six **families** - `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each followed by its **consoles** under short names (`PS5`, `Switch`, …; the list is under [Game Platform: families and consoles](#game-platform-families-and-consoles)). A console brings its family on every write. Brand names, so English rather than Chinese |
 | `H Genre Plot` | h-comic, h-game, hentai | tag field `h_genre_plot`; admin-managed, ships empty |
 | `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |

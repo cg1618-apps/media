@@ -233,6 +233,7 @@ class GameLinkFields(AttachedFields):
     game_mode: Optional[str] = None
     combat_mode: Optional[str] = None
     game_platform: Optional[str] = None
+    exclusive_platform: Optional[str] = None
     label: Optional[str] = None
 
 

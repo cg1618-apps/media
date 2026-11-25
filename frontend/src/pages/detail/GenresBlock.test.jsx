@@ -21,8 +21,8 @@ import TV from "./TV";
 const PAGES = [
   { name: "Anime", type: "anime", Page: Anime },
   { name: "Anime Movie", type: "anime-movie", Page: AnimeMovie },
-  { name: "Manga", type: "manga", Page: Manga },
-  // Book draws it under Production instead.
+  // Manga and book draw it under Production instead.
+  { name: "Manga", type: "manga", Page: Manga, after: "production" },
   { name: "Book", type: "book", Page: Book, entry: { units: [] }, after: "production" },
   { name: "Movie", type: "movie", Page: Movie },
   { name: "TV", type: "tv-show", Page: TV },

@@ -37,6 +37,7 @@ import {
   GAME_ACHIEVEMENT_HINT,
   GAME_COMPLETION_FLAGS,
   GAME_IS_MAIN,
+  GAME_EXCLUSIVE_PLATFORMS,
   GAME_RELEASE_STATUSES,
   GAME_TYPES,
   MY_RATINGS,
@@ -290,6 +291,15 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
             "PvE, PvP...",
           )}
         </Field>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* One platform family or none: the exclusive_platform tag. */}
+        {select(
+          "exclusive_platform",
+          "Exclusive Source",
+          GAME_EXCLUSIVE_PLATFORMS,
+          "Leave blank unless the game is exclusive",
+        )}
       </div>
 
       <SectionHeader icon="fa-tags" title="Genres & Labels" />
