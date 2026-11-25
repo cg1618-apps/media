@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import PersonSubTabBar, { PERSON_SUB_TABS } from "./PersonSubTabBar";
+import PersonSubTabBar, { PERSON_SUB_TABS, personTypeLabel } from "./PersonSubTabBar";
 
 // The Club tab is the gated h-comic type's: drawn only for a session whose
 // /api/auth/me names the type.
@@ -18,6 +18,18 @@ describe("PersonSubTabBar", () => {
       "illustrator",
       "club",
       "seiyuu",
+    ]);
+  });
+
+  it("names every person type in Chinese for readers, Club as it reads", () => {
+    expect(PERSON_SUB_TABS.map((t) => personTypeLabel(t.key))).toEqual([
+      "導演",
+      "製片",
+      "作曲",
+      "作家",
+      "畫家",
+      "Club",
+      "聲優",
     ]);
   });
 

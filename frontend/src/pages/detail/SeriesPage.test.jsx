@@ -134,7 +134,7 @@ describe("SeriesPage games", () => {
     expect(
       Array.from(sort.options).map((o) => o.textContent),
     ).toEqual(
-      expect.arrayContaining(["Sort: Metacritic", "Sort: Metacritic user"]),
+      expect.arrayContaining(["Metacritic", "Metacritic user"]),
     );
     expect(screen.queryByRole("button", { name: "Playing" })).toBeNull();
   });

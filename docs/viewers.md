@@ -1,6 +1,6 @@
 # What each viewer sees
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 ## What this is for
 
@@ -132,8 +132,8 @@ Super without the catalogue work.
   row and its pages are absent and its names render as plain text wherever
   they appear.
 - **Four kinds, one setting each:** studio (`view.studio`); publisher
-  (`view.publisher`); person (`view.person`) — the people library and the
-  seiyuu library, since a seiyuu opens a person page; and character
+  (`view.publisher`); person (`view.person`) — the people library, where a
+  seiyuu is found under the Type filter, since a seiyuu is a person; and character
   (`view.character`) — characters, identities, and the Characters tab on
   franchise and series pages.
 - **They apply to guest, shared and user**, adjustable per role on the

@@ -37,7 +37,7 @@ are a large share of the bundle and never needed on first paint.
 | `/library/studio` | `StudioLibrary` — `library/StudioLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.studio`** |
 | `/library/publisher` | `PublisherLibrary` — `library/PublisherLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.publisher`** |
 | `/library/person` | `PersonLibrary` — `library/PersonLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.person`** |
-| `/library/seiyuu` | `PersonLibrary role="seiyuu"` — same file, filtered server-side via `?role=seiyuu` (matched before `/library/:type`) | lazy, **`view.person`** — a seiyuu is a person |
+| `/library/seiyuu` | `<Navigate to="/library/person" replace>` — there is no seiyuu library; a seiyuu is a person, found under the Person library's Type filter (聲優), and an old link lands there (matched before `/library/:type`) | **`view.person`** |
 | `/library/character` | `CharacterLibrary` — `library/CharacterLibrary.jsx` (matched before `/library/:type`) | lazy, **`view.character`** |
 | `/library/h-comic` | `Library type="h-comic"` — same file, declared on its own inside `<ProtectedRoute gatedType="h-comic">` (matched before `/library/:type`) | eager, **gated** |
 | `/library/h-game` | `Library type="h-game"` — the same, inside `<ProtectedRoute gatedType="h-game">` | eager, **gated** |
@@ -101,7 +101,7 @@ until an admin ticks a kind on:
 |---|---|---|
 | `view.studio` | the studio library and studio pages | studio and developer names render as plain text (`useEntityHref`, components.md) |
 | `view.publisher` | the publisher library and publisher pages | publisher names render as plain text |
-| `view.person` | the person and seiyuu libraries and person pages | staff, author, club-member and seiyuu names render as plain text |
+| `view.person` | the person library and person pages (and the `/library/seiyuu` redirect) | staff, author, club-member and seiyuu names render as plain text |
 | `view.character` | the character library, character and identity pages | character and identity names render as plain text; the franchise and series hubs have no Characters tab |
 | `view.search` | `/search` | `NavSearch` is not drawn — not the inline slot, the phone button or its sheet |
 | `view.random_picker` | every `/random` route | the picker asks `/api/plan-next/` for plan marks only with `self.list` (`useViewScope().ownData`), so a shared account's picker draws no plan weight and never gets a 401 |
@@ -148,7 +148,7 @@ about styling.
 
 | Section key | Label | Shape | Contents |
 |---|---|---|---|
-| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` (also matches `/franchise` and `/order`), Series `/library/series` (also matches `/series`) · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`), Seiyuu `/library/seiyuu` (`view.person`) · **ACG**: Anime, Anime Movie, Manga, Book, Game `/library/game` (also matches `/game`) · **Reality**: TV Show, Movie, Cartoon, Comic |
+| `library` | Library | mega-panel (`columns`), `requires` any of the nine ordinary `media_type.*` keys (`LIBRARY_MEDIA_TYPE_PERMISSIONS`), so a role holding none — the admin — has no Library tab. Nav only: the `/library` routes themselves stay open | **Groups**: Collection `/library/collection`, Franchise `/library/franchise` (also matches `/franchise` and `/order`), Series `/library/series` (also matches `/series`) · **Entities** (each row `requires` its own kind's key, so a row whose kind is off is dropped and a viewer holding none has no Entities column): Studio `/library/studio` (also matches `/studio`; `view.studio`), Publisher `/library/publisher` (also matches `/publisher`; `view.publisher`), Person `/library/person` (also matches `/person`; `view.person`), Character `/library/character` (also matches `/character` and `/identity`; `view.character`) · **ACG**: Anime, Anime Movie, Manga, Book, Game `/library/game` (also matches `/game`) · **Reality**: Movie, TV Show, Cartoon, Comic |
 | `restricted` | Restricted | flat `items`, every row gated | H-Comic `/library/h-comic` (also matches `/h-comic`; `gatedType: "h-comic"`), H-Game `/library/h-game` (also matches `/h-game`; `gatedType: "h-game"`), Hentai `/library/hentai` (also matches `/hentai`; `gatedType: "hentai"`). Each is drawn only for a session that can see its type; a session that can see no gated type has every row dropped, so the tab itself is not drawn |
 | `track` | Track | flat `items` | Plan `/plan` (`requires: "self.list"` — see below), Completions `/completions` (`requires: "self.list"`). The account's own progress; a guest holds no `self.*` key, so the tab is not drawn |
 | `explore` | Explore | flat `items` | Seasonal `/seasonal` and Future Releases `/future-releases`, each `requires: LIBRARY_MEDIA_TYPE_PERMISSIONS` (any ordinary media type, so a guest's and a shared account's Explore hold both and the admin's neither), Statistics `/statistics` (`requires: "view.statistics"`, so super, user and shared and never a guest), and Random Picker `/random` (`requires: "view.random_picker"`; its `/random/<type>` pages light it too) |
@@ -519,10 +519,13 @@ tab. The scope chip above the results names a scope only when
 hand-typed `?scope=` for a type the viewer cannot see names nothing.
 `characters: true` is what adds the `character` bucket, for a viewer
 holding `view.character`; this page is the only caller that sends it.
-Results are copied into local state so a card's `onUpdated` can replace a row
-without a refetch.
+Results are copied into local state, one object keyed by bucket, so a card's
+`onUpdated` can replace a row without a refetch. Every section the page can
+draw is one row of the module's `SECTIONS` list (bucket, tab, heading, the
+count line's word, how its rows are drawn); the count line, the tab counts,
+the sections and the contents are all built from it.
 
-Layout: a sticky header "Search Results for “q”" + scope pill + a count line
+Layout: a sticky header (the "Search results" eyebrow over “q”) + scope pill + a count line
 ("n collections · n anime · …", non-empty buckets only), and under it a tab
 bar — `HubTabs` (`components/hub/HubChrome.jsx`), the hub pages' underline
 tabs, with one group labelled "Results" and a count on each tab:
@@ -533,14 +536,29 @@ tabs, with one group labelled "Results" and a count on each tab:
   labelled "{franchise_type} Franchise"), **Series**, **Anime** (sub-grouped
   TV / ONA, Movies, Other by `airing_type`), **Anime Movies**, **Movies**,
   **TV Shows**, **Cartoons**, **Manga**, **Book**, **Comic**, **Game**,
-  **H-Comic**, **H-Game**, **Hentai** — all `MediaCard` grids.
+  **H-Comic**, **H-Game**, **Hentai** — each a grid of `MediaCard` drawn as
+  its library draws it (`LibraryLayout`'s grid and the card's own defaults,
+  gated types included), so a search card and a library card are the same
+  card.
 - **People & companies** — **People**, **Studios** and **Publishers**,
   `PersonCard` / `StudioCard` / `PublisherCard` grids
-  (`components/cards/StaffCard.jsx`, the same cards the three libraries use)
+  (`components/cards/StaffCard.jsx`) on the libraries' `gap-4` grid,
   linking to `/person/:id`, `/studio/:id` and `/publisher/:id`.
-- **Characters** — a `CharacterCard` grid (`components/cards/CharacterCard.jsx`,
-  the character library's card) linking to `/character/:id`. One card per
-  character: identities are not separate results.
+- **Characters** — the character library's cards: `characterCards`
+  (`lib/characterCards.js`) over the bucket, drawn by `CharacterCard`, so
+  each matched character is followed by a dashed card for each of its other
+  identities, linking to `/identity/:id`. The search matches characters'
+  names; the count line, the tab and the section count characters, not
+  cards.
+
+**Contents.** The active tab's sections are listed on the right, as on the
+detail pages: the shared `TableOfContents` in an `xl:`-only `w-40` column
+(the container widens to `88rem` there), and below `xl` a `ContentsBar` of
+chips inside the sticky header, unpinned itself because the header holds
+it. Each section is a `TocSection` with id `search-<bucket>`, labelled with
+its heading, and `useScrollSpy` marks the current one. Its anchor offset is
+the nav's height plus the sticky header's, which covers the top of every
+section.
 
 Every link on the page comes from `useEntityHref` (`lib/entityPath.js`): an
 entity card without its kind's `view.*` key renders as plain text, and the
@@ -554,8 +572,39 @@ People & companies. Choosing a tab writes `?tab=` and keeps `q` and `scope`.
 Characters are searched at scope `all` only, so any narrower scope leaves
 that tab out. `SCOPE_LABELS` and `SEARCH_TABS` are module-level exports so a
 test can assert the page and the API agree on the keys without rendering the
-page. Empty query shows a "No Search Query" card. Admin-only behaviour comes
+page. An empty query shows a "No search term yet" card. Admin-only behaviour comes
 from `MediaCard` itself.
+
+### The library toolbar — every library
+
+Every library draws the same toolbar row, `components/layout/LibraryToolbar.jsx`:
+the twelve media libraries (through `LibraryLayout`), the three group
+libraries and the four entity libraries. Left to right:
+
+- **Search** — a search field (`type="search"`, its own Clear search cross)
+  that takes all the width the other controls leave (`flex-1`).
+- **Sort** — `SortControl` (`components/layout/SortControl.jsx`): a mono
+  "Sort" caption outside the select, the select's options in plain words
+  ("Title", "My Rating", "Credits" - never "Sort: Title"), and a direction
+  button.
+- **Filters** — the `FilterToggleButton` with the active-chip count, on a
+  library that has filters. The collection library has none, so it has no
+  button.
+- **Grid / table** — the view toggle (`ViewToggle`), on a library with both
+  views: every one but the collection library.
+- A media library adds its result count at the end; the group and entity
+  libraries keep their title and count above the row.
+
+**The direction button reverses the chosen sort.** Each sort keeps its
+natural direction - a title A to Z, a rating best first, a library's release
+date newest first, a count most first - and the button runs it backwards,
+tie-breaks included (`directed` in `lib/sortDirection.js`). Its icon and title
+say which way the list runs now: Ascending or Descending, off the option's
+`descending` flag (a media sortDef says the opposite, `ascending: true`, on
+its title sort). The direction is held beside the sort (`hooks/useSortState.js`
+on the libraries, the tab's view on a hub), and choosing a different sort
+starts it in its own natural direction again. Nothing about it is persisted,
+any more than the sort is.
 
 ### Library — `/library/:type`
 
@@ -597,7 +646,7 @@ picker: `hooks/useFilterState.js` holds the chip and toggle values,
 `optionLabel(value)` when its chip text should differ from the stored value,
 and a `set` def may carry a **parent chip**, `parent: { label, children }` —
 see `components.md`, "FilterPanel". The entity libraries — studio,
-publisher, person (and seiyuu) and character — use the same machinery.
+publisher, person and character — use the same machinery.
 
 A sort may also name the figure a **grid card** shows in its score slot,
 through `cardScoreField` on the sortDef: `LibraryLayout` reads it off the
@@ -613,9 +662,10 @@ the data), `set-grouped` (group labels mapped through `WATCHING_STATUS_GROUP`
 / `READING_STATUS_GROUP`), `boolean` (checkbox; no library config has one,
 the machinery stays for the FilterDef shape). A set-type def may carry
 `optionHint(value)`, the chip's hover title, and any def `advanced: true`,
-which puts it in the collapsed advanced section. Top bar: search, "Sort:"
-select, Filters button with an active-count badge, grid/table toggle, result
-count. Table rows link to `${config.navPath}/${id}`; table cells receive
+which puts it in the collapsed advanced section. Top bar: the shared
+`LibraryToolbar` every library draws (see "The library toolbar" below), here
+with the Filters button, the grid/table toggle and the result count. Table
+rows link to `${config.navPath}/${id}`; table cells receive
 `{ franchiseDict, seriesDict, canTrack, handleStatusToggle }`, and
 `handleStatusToggle` goes through `useStatusToggle(type)` with toasts
 ("Added to Watch/Read Next", "Marked for rewatch/reread", "Status → X"); the
@@ -684,15 +734,23 @@ it:
 
 | Type | Advanced filters (response attribute) |
 |---|---|
-| anime, anime-movie | Exclusive Source (`exclusive_source`) · Runtime (a range in minutes: `runtime_min` per episode on an anime, `length_min` on an anime movie) · Genre Main (`genre_main`) · Genre Sub (`genre_sub`) · Label (`label`) |
-| movie | Exclusive Source (`original_source`, the field a movie labels Exclusive Source) · Genre Main · Genre Sub · Label |
-| tv-show | Original Source (`source_official`, its sheet header) · Genre Main · Genre Sub · Label |
-| manga, book | Publisher TW (`publisher_tw`) · Genre Main · Genre Sub · Label |
-| cartoon | Genre Main · Genre Sub · Label |
-| comic | Genre Main · Genre Sub · Label · Era (`era`) · Event (`events`, multi-value) - the one library whose genres are not last |
-| game | Main / Remake (`is_main`, `GAME_IS_MAIN` order) · Ownership *(p)* (the one personal advanced filter; flagged `inPicker`, so the random picker still offers it) · HLTB Main + Extra (a range in hours, `hltb_main_extra`) · Genre (`game_genre`) · Theme (`game_theme`) · Label (`label`) |
-| h-game | Genre (`game_genre`) · Theme (`game_theme`) · Genre Plot (`h_genre_plot`) · Genre Appearance (`h_genre_appearance`) · Genre Relation (`h_genre_relation`) |
-| h-comic, hentai | Genre Plot · Genre Appearance · Genre Relation |
+| anime, anime-movie | Exclusive Source (`exclusive_source`) · Runtime (a range in minutes: `runtime_min` per episode on an anime, `length_min` on an anime movie) · My Rating *(p)* · Genre Main (`genre_main`) · Genre Sub (`genre_sub`) · Label (`label`) |
+| movie | Exclusive Source (`original_source`, the field a movie labels Exclusive Source) · My Rating *(p)* · Genre Main · Genre Sub · Label |
+| tv-show | Original Source (`source_official`, its sheet header) · My Rating *(p)* · Genre Main · Genre Sub · Label |
+| manga, book | Publisher TW (`publisher_tw`) · My Rating *(p)* · Genre Main · Genre Sub · Label |
+| cartoon | My Rating *(p)* · Genre Main · Genre Sub · Label |
+| comic | My Rating *(p)* · Genre Main · Genre Sub · Label · Era (`era`) · Event (`events`, multi-value) - the one library whose genres are not last |
+| game | Main / Remake (`is_main`, `GAME_IS_MAIN` order) · Ownership *(p)* (flagged `inPicker`, so the random picker still offers it) · HLTB Main + Extra (a range in hours, `hltb_main_extra`) · My Rating *(p)* · Genre (`game_genre`) · Theme (`game_theme`) · Label (`label`) |
+| h-game | My Rating *(p)* · Genre (`game_genre`) · Theme (`game_theme`) · Genre Plot (`h_genre_plot`) · Genre Appearance (`h_genre_appearance`) · Genre Relation (`h_genre_relation`) |
+| h-comic, hentai | My Rating *(p)* · Genre Plot · Genre Appearance · Genre Relation |
+
+**My Rating** *(p)* sits in every one of the twelve advanced sections,
+directly above the first genre filter (Genre Main, a game's Genre, a gated
+type's Genre Plot): `myRatingFilter({ advanced: true })` in
+`lib/libraryFilterDefs.js`, a chip per rating (S A+ A B C D E F) then
+**Unrated** for a row with none. It and a game's Ownership are the two
+personal advanced filters; the random picker keeps its own rating filter and
+does not take this one.
 
 TV Show's and Cartoon's `original_source` is an Original Source, not an
 exclusive one, so neither has an Exclusive Source filter: TV Show filters it
@@ -784,9 +842,11 @@ File `pages/library/CollectionLibrary.jsx`. Raw `fetch` in one `Promise.all`:
 them**, so a game can never supply a collection cover. Search over the five
 collection names; sort `title | my_rating (default) | expectation` for a
 viewer holding `self.list`, the viewer's own values, through `compareGroups`
-as the franchise library sorts. Without it the
+as the franchise library sorts (`groupSortOptions` in `lib/groupSort.js`
+names the three for every group list). Without it the
 viewer has neither, so only `title` is offered and the list sorts by title
-whatever was chosen. No filter panel, no table view, no admin controls.
+whatever was chosen. The toolbar is search and sort only: no filter panel,
+no table view, no admin controls.
 Renders `CollectionCard` with member count, the expectation chip above the
 count (`GroupCard`'s `expectationFirst`, which only the collection card
 sets); the card's rating stamp and expectation chip are drawn only with
@@ -829,9 +889,9 @@ public-score tie-break has no counterpart here. The last two are the viewer's
 own, offered only to a holder of `self.list`, and without
 it the list sorts by title.
 
-Grid renders `FranchiseCard`. Table view renders the file's `TABLE_COLUMNS`,
-whose markup and class names mirror the table in `LibraryLayout.jsx` so the
-two read as one component: Franchise (a `Link` built by `entityPath`, plain
+Grid renders `FranchiseCard`. Table view renders the file's `TABLE_COLUMNS`
+through `LibraryTable` (`components/layout/LibraryTable.jsx`), the table every
+library's list view is: Franchise (a `Link` built by `entityPath`, plain
 text when the row carries no `public_id`), Collection (`md`), Type (`lg`),
 Entries, Expectation (`lg`, a Highest expectation in the brand tone), My.
 Expectation and My carry `personal: true` and are dropped for a viewer without `self.list`, as are the card's
@@ -879,19 +939,29 @@ every filter runs client-side. Search runs over **all four** name fields
 Animation" finds a studio displayed as "KyoAni". Sort
 `name (default) | credit_count | my_rating`, the last — the viewer's own
 rating — offered only to a holder of `self.list` (without it the list sorts by
-name). No table view.
+name). The four entity libraries are one component, `components/layout/EntityLibrary.jsx`:
+each page fetches its list and passes its title, filter defs, search
+match, sorts (`entitySorts` in `lib/entitySorts.js`: Name, the count, My
+rating, a tie falling through to the name), card and list columns, and the
+component draws the title and count, the toolbar, the filter panel, the empty
+state and the grid or the table.
+
+**List view.** The grid / table toggle switches to a `LibraryTable` of
+`studioColumns()` (`components/layout/entityColumns.jsx`): **Studio** (a
+small logo thumbnail and the display name), **Country** (`md`, the countries
+joined), **Entry types** (`lg`, a chip per `media_types` entry), **Credits**,
+**My** (personal, dropped without `self.list`). A row opens the studio's page.
 
 The **Filters** button (`FilterToggleButton`, with the active-chip count)
 toggles a `FilterPanel` over `studioFilterDefs(auth)` from
-`lib/entityFilters.js`, open when the page loads:
+`lib/entityFilters.js`, open when the page loads. Every entity library's
+filters open with **Entry type** and close their ordinary ones with **My
+Rating**:
 
 - **Entry type** — anime, anime movie, game, **No entries**, then a
   **Restricted** parent chip over hentai and h-game, matched against
   `media_types` (the types of the visible entries the studio is credited
   on). No entries matches a studio credited on nothing the viewer can see.
-- **My Rating** — `MY_RATINGS` plus Unrated (null), the viewer's own
-  rating; only for a holder of `self.list` (`studioFilterDefs(auth,
-  { ownData })`).
 - **Country** — a chip for each country more than five of the loaded studios
   name (a studio naming several counts for each), the most-named first and
   ties by name; then **Others**, for a studio naming any country without a
@@ -901,6 +971,10 @@ toggles a `FilterPanel` over `studioFilterDefs(auth)` from
 - **Relation** — Has relation / No relation, off `has_relations`, which
   counts only related companies the viewer may see. The publisher library has
   the same filter.
+- **My Rating** — `MY_RATINGS` plus Unrated (null), the viewer's own
+  rating (`myRatingFilter()` in `lib/libraryFilterDefs.js`, the media
+  libraries' def drawn in the ordinary section); only for a holder of
+  `self.list` (`studioFilterDefs(auth, { ownData })`).
 
 Every entity library opens with nothing ticked. An empty Entry type group is
 not "no filter": its `idle` rule keeps every row except one whose entries are
@@ -931,11 +1005,15 @@ route lives in one place. The response already carries `display_name`,
 publisher) and runs over **all four** name fields, so a publisher displayed
 as 木棉花 is still found by typing "Muse Communication". Sort
 `name (default) | credit_count | my_rating`, the last as on the studio
-library. No table view.
+library.
+
+**List view**, `publisherColumns()`: **Publisher** (thumbnail and name),
+**Kind** (`md`, a chip per kind it falls under, `publisherKindLabels`),
+**Country** (`md`), **Entry types** (`lg`), **Credits**, **My** (personal).
 
 The filter panel is the studio library's, over `publisherFilterDefs(auth)`,
-open on the same default, with the same Clear all and Reset, and one group
-more, first: **Kind** — 遊戲發行商 (game), 台灣出版社 (manga, book),
+open on the same default, with the same Clear all and Reset, in the order
+Entry type, Kind, Country, Relation, My Rating. **Kind** — 遊戲發行商 (game), 台灣出版社 (manga, book),
 台灣代理商 (anime, anime movie) and 其他 (every other type; comic, today).
 It reads the same `media_types` **or** `scopes` as Entry type, a publisher
 covering several kinds matches each of them, and it starts empty. The kinds
@@ -947,7 +1025,8 @@ gated), and matches `media_types` **or** `scopes`: a publisher offered on
 manga but not yet credited on one is still found under Manga. No entries
 still means no visible credits, whatever the scopes. **My Rating** is the
 studio library's. **Country** is simpler than the studio one, because a
-publisher names one country: every country on record, sorted, plus Not set
+publisher names one country: every country on record, the one the most
+publishers name first (`valuesByCount`, ties by name), plus Not set last
 when a publisher has none.
 
 Each `PublisherCard` (`components/cards/StaffCard.jsx`, beside `StudioCard`)
@@ -969,39 +1048,41 @@ would refetch on each click. Search runs over all four name columns
 `name (default) | credit_count | my_rating`, the last as on the studio
 library.
 
+**List view**, `personColumns()`: **Person** (thumbnail and name), **Type**
+(a chip per person type held, in Chinese - `personTypeLabel`, below),
+**Gender** (`md`), **Entry types** (`lg`), **Credits**, **My** (personal).
+
 The **Filters** button opens a `FilterPanel` over `personFilterDefs(auth)`
 from `lib/entityFilters.js`, open when the page loads and on the studio
 library's default (no entry type ticked, which leaves out only the people
 credited on restricted types alone), with the same **Clear all** and **Reset**; OR within a group,
 AND across groups:
 
-- **Type** — the `PERSON_SUB_TABS` roles, matched against `roles`; the Club
-  chip only for a session that can see h-comic.
 - **Entry type** — every non-gated media type, **No entries**, then a
   **Restricted** parent chip over h-comic, hentai and h-game, matched against
   `media_types` (the types of the entries the viewer can see the person
   credited or cast on). A gated child the session cannot see is left out,
   and the parent with it once none is left.
+- **Type** — the `PERSON_SUB_TABS` roles, matched against `roles`, each
+  named in Chinese by `personTypeLabel` (`components/forms/PersonSubTabBar.jsx`,
+  `PERSON_TYPE_LABELS_ZH`): 導演 director, 製片 producer, 作曲 composer, 作家
+  author, 畫家 illustrator, 聲優 seiyuu, and Club, which has no Chinese name;
+  the Club chip only for a session that can see h-comic. The admin sub-tabs
+  keep their English labels.
+- **Gender** — `PERSON_GENDERS` (男, 女) plus Not set (null).
 - **My Rating** — `MY_RATINGS` plus Unrated (null); only for a holder of
   `self.list`, as on the studio library.
-- **Gender** — `PERSON_GENDERS` (男, 女) plus Not set (null).
 
 Each `PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
 shows `display_photo_file` — the photo, or the server-resolved fallback
 cover — with the `my_rating` stamp in its corner (none when unrated), the
 display name and credit count, and links to `/person/:system_id`.
 
-`/library/seiyuu` renders the same component with `role="seiyuu"`, which adds
-`?role=seiyuu` to the `/api/person/` fetch server-side rather than filtering
-client-side — not a new page type. With a role the page is named after it:
-the heading, the loading text, the search placeholder, the count ("12
-seiyuu") and the empty state all say seiyuu, and the **Type** group is
-dropped (`personFilterDefs(auth, role)`), since every row already holds the
-role. The nav marks the Seiyuu item active, not Person, and a card still
-opens `/person/:system_id`, whose breadcrumb leads to `/library/person`. A
-person holding the `seiyuu` role but never yet cast is listed by default,
-under No entries: `person_role` exists precisely so a seiyuu can show up
-before their first casting, and hiding them here would defeat that.
+A seiyuu is a person like any other: there is no separate seiyuu library,
+the Type group's **聲優** chip lists them, and `/library/seiyuu` redirects
+here. A person holding the `seiyuu` role but never yet cast is listed by
+default, under No entries: `person_role` exists precisely so a seiyuu can
+show up before their first casting, and hiding them here would defeat that.
 
 ### CharacterLibrary — `/library/character`
 
@@ -1013,6 +1094,13 @@ Raw `fetch` of `/api/character/` alone (server-side `?name=` search is what
 the cast editor's combobox uses instead; this page searches client-side over
 all four name columns). Sort `name (default) | casting_count` ("Appearances")
 `| my_rating`, the last as on the studio library.
+
+**List view**, `characterColumns()`, one row per card: **Character**
+(thumbnail and name), **Card** (`md`, Character, or a dashed Identity chip
+over its character's name), **Role** (`md`), **Gender** (`lg`), **Entry
+types** (`lg`), **Appearances** (`casting_count`), **My** (personal; "-" on
+an identity card, which carries no rating of its own). A row opens the
+character's page, or the identity's.
 
 **Cards.** The list is flattened by `characterCards` (`lib/characterCards.js`)
 into one card per character and one per identity in the response's nested
@@ -1033,19 +1121,19 @@ Search matches every card of a character on the names of the character and of
 all its identities, so "Conan" finds the Shinichi card too.
 
 The **Filters** button opens a `FilterPanel` over
-`characterFilterDefs(auth)` (`lib/entityFilters.js`), the person library's
-groups without Type: **Entry type** — anime, anime movie, manga, book, game, No
-entries, then a **Restricted** parent chip over h-comic and hentai (not
-h-game: nobody is cast on an h-game) — then **Role** — Main, Core,
-Important Supporting, Supporting, Other, plus Not set for null, matched against the character's
-own `role` field and never against the roles its castings carry — then **My
-Rating** and **Gender**, then **Card** (Characters, Identities: tick one to
-show only that kind; empty shows both) and **Identities** (Has identities, No
-identities: an identity card always counts as having them); and in the
-advanced section **Appearance** and **Trait** — `set-dynamic` groups over the
-values the loaded characters hold, sorted, plus Not set when a character's
-list is empty; a character matches when it holds any ticked value, with the
-same OR/AND rule. The panel is open when
+`characterFilterDefs(auth)` (`lib/entityFilters.js`): **Entry type** — anime,
+anime movie, manga, book, game, No entries, then a **Restricted** parent chip
+over h-comic and hentai (not h-game: nobody is cast on an h-game) — then
+**Role** — Main, Core, Important Supporting, Supporting, Other, plus Not set
+for null, matched against the character's own `role` field and never against
+the roles its castings carry — then **Gender** and **My Rating**; and in the
+advanced section **Card** (Characters, Identities: tick one to show only that
+kind; empty shows both), **Identities** (Has identities, No identities: an
+identity card always counts as having them), **Appearance** and **Trait** —
+the last two `set-dynamic` groups over the values the loaded characters
+hold, the one the most characters carry first (`valuesByCount`, ties by
+name), plus Not set last when a character's list is empty; a character
+matches when it holds any ticked value, with the same OR/AND rule. The panel is open when
 the page loads, on the shared default, with the same Clear all and Reset.
 
 Each character `CharacterCard` shows `display_photo_file` — the photo, or the
@@ -1339,7 +1427,7 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
 | Personal Status controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), one row per type the franchise's `franchise_type` offers, that it holds entries for, and that `scopesFor("next", type)` allows at franchise scope - the whole field is absent when none qualifies - and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
 | Related | **Related franchises** (`RelatedRecords type="franchise"`) under the hero: each related franchise as a link with this franchise's remark; an admin edits the list in place, and a franchise added there offers an **Also related to** tick for each franchise above it on the list, all ticked, so the new one can join the others in the same save (the studio and publisher pages' **Related companies** box does the same). Drawn for a reader only when something is related | none | none |
-| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** (sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Order, Relations, Notes. Every media tab's "Sort: my rating" option is offered only with `self.list` | Media tabs by non-empty list only; same extras, and the Relations tab gives an admin "Edit relations" → `/relations?owner=series:{id}` | "Members" → Franchises (`FranchiseCard`s), sorted `title` (default) \| `my_rating` \| `expectation` through `compareGroups`, the last two only with `self.list`; extras Order, Relations, Notes |
+| Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** (sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Order, Relations, Notes. Every media tab's My rating sort is offered only with `self.list` | Media tabs by non-empty list only; same extras, and the Relations tab gives an admin "Edit relations" → `/relations?owner=series:{id}` | "Members" → Franchises (`FranchiseCard`s), sorted `title` (default) \| `my_rating` \| `expectation` through `compareGroups`, the last two only with `self.list`, by the shared `SortControl` with its direction button; extras Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
 (409 tolerated) and `DELETE /api/plan-next/target?scope=&media_type=&kind=&target_id=`
@@ -1358,9 +1446,14 @@ row, the counts and the totals from one list of
 group-by-series default; `applyView`, `defaultView`, `isFiltered`) and
 `hooks/useHubTabViews.js`, which keeps each tab's view at page level so a
 tab's filters survive switching away and back. Cards are
-`MediaCard`, the same card the libraries draw. Every sort falls back to the type's title order,
-and "Sort: my rating" is offered only with `self.list`. Each strip ends with
-"Clear all", which resets that tab's filters (not its sort or grouping).
+`MediaCard`, the same card the libraries draw. The strip opens with the
+shared `SortControl` - the "Sort" caption, the select (Title, Release date,
+My rating, MAL rating, …, `hubSortOptions`) and the direction button, the
+direction kept in the tab's view beside the sort (`reversed`). Every sort
+falls back to the type's title order, the dates and the title run low to
+high and every score high to low until reversed, and My rating is offered
+only with `self.list`. Each strip ends with "Clear all", which resets that
+tab's filters (not its sort or grouping).
 
 Every tab but Game and H-Game has a **Completed** All / Yes / No control
 (`components/hub/TriStateFilter.jsx`, default All; Yes is a status in
@@ -1374,8 +1467,8 @@ Every tab but Game and H-Game has a **Completed** All / Yes / No control
 | Movie | release date, title, my rating, IMDb | none | TW date first, IMDb score to its right, runtime below; no cover stamp |
 | Manga | release date, title, my rating, MAL, end date | serialization, region | no region tag on the cover |
 | H-Comic | release date, title, my rating | none | no region tag on the cover |
-| Book | title, my rating, MAL, release date, end date | **小說** All / Yes / No (Yes = `type` 輕小說, 小說 or 網路小說; No = anything else, untyped included) | no region tag on the cover |
-| Comic | franchise hub: release date, title, my rating; series hub: title, my rating, release date, end date | franchise hub: comic type, era; series hub: serialization | no type-specific layout |
+| Book | title, my rating, MAL, release date, end date | **小說** All / Yes / No (Yes = `type` 輕小說, 小說 or 網路小說; No = anything else, untyped included) | type (`type`) top-left on the cover, opposite the rating stamp; no serialization status and no region tag; the version chip, the year range and the MAL score below the title |
+| Comic | franchise hub: release date, title, my rating; series hub: title, my rating, release date, end date | franchise hub: comic type, era; series hub: serialization | comic type top-left on the cover, the rating stamp, the EN name, the release year alone at the meta line's left, then the tracker - nothing else (no CN name, volume label, era, events or platform icons) |
 | TV Show | release date, title, my rating, IMDb | none | region top-left, IMDb right of the release date as the show's rating with the season's episode average in brackets ("9.5 (avg 9.4)"; the entry's own score alone when there is no show rating), no airing status |
 | Cartoon | release date, title, my rating, IMDb | airing type | IMDb right of the release date, as on a TV show |
 | Game | release date, title, my rating, Metacritic, Metacritic user, hours played | completion level — Main Story, Main + Extras, Completionist, Post-game, Not completed (`completion_level` empty) — **instead of** Completed; game type chips from the types the list holds, in vocabulary order | game type top-left on the cover, release date above the play-hours row, Metacritic and Metacritic user stacked on the right |
@@ -1397,10 +1490,11 @@ character. A strip above the groups filters and sorts: kind chips
 **Character** (on by default) and **Identity**, gender chips **男**, **女**
 and **其他** (anything but 男 and 女, unset included; an identity is judged by
 its displayed gender). Chips are multi-select with no "All" chip — within a
-row, all on and all off both mean no restriction. A holder of `self.list`
-also gets **Sort: name** (default) / **Sort: my rating** (S first, unrated
-last; an identity carries its character's rating), applied inside each role
-group. Group counts follow the filters, an emptied group is hidden, and
+row, all on and all off both mean no restriction. The strip opens with the
+shared `SortControl`: **Name** (default), and for a holder of `self.list`
+**My rating** (S first, unrated last; an identity carries its character's
+rating), applied inside each role group, with the direction button
+reversing it there. Group counts follow the filters, an emptied group is hidden, and
 "Clear all" turns every chip off. Offered to every viewer holding `view.character`, like the other
 extras; an empty tier says so. Without the key the tab is not in the row and
 `HubCharacters` never mounts, so `/api/character/` — which would answer 401 —
@@ -2414,8 +2508,7 @@ permission="self.list">`.
 ### UnderDevelopment — `/under-development`
 
 File `pages/public/UnderDevelopment.jsx`. Static card. Targets: unknown
-`/library/:type` values. No nav item currently carries `dev: true` — Seiyuu
-lost it once `/library/seiyuu` shipped.
+`/library/:type` values. No nav item currently carries `dev: true`.
 
 ## Known rough edges (as of this commit)
 

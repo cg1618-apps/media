@@ -111,8 +111,7 @@ const memberOrder = () =>
     .getAllByRole("heading", { level: 3 })
     .map((h) => h.textContent)
     .filter((t) => MEMBERS.some((m) => m.franchise_name_en === t));
-const sortSelect = () =>
-  screen.getByRole("option", { name: "Sort: title" }).closest("select");
+const sortSelect = () => screen.getByRole("combobox", { name: "Sort" });
 
 describe("CollectionPage header", () => {
   it("reads just 'Collection' above the title, with no franchise count or expectation chip", async () => {
@@ -141,6 +140,10 @@ describe("CollectionPage member sort", () => {
 
     await userEvent.selectOptions(sortSelect(), "expectation");
     expect(memberOrder()).toEqual(["Charlie", "Alpha", "Bravo"]);
+
+    // The direction button runs the chosen sort backwards.
+    await userEvent.click(screen.getByRole("button", { name: "Reverse order" }));
+    expect(memberOrder()).toEqual(["Bravo", "Alpha", "Charlie"]);
   });
 
   it("offers only the title sort to a viewer without own data", async () => {

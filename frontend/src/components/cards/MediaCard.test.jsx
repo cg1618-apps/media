@@ -655,6 +655,58 @@ describe("MediaCard - the library and franchise card layout", () => {
     expect(screen.queryByText("日漫")).toBeNull();
   });
 
+  it("puts a book's type top left, where the rating stamp sits on the right, and no serialization status", async () => {
+    mockAuthFetch();
+    mount(
+      {
+        system_id: "b1",
+        book_name_en: "Novel",
+        type: "輕小說",
+        serialization_status: "連載中",
+        version: "台版",
+        release_date_jp: "2019-03-01",
+      },
+      "book",
+      false,
+    );
+    expect(atTopLeft(await screen.findByText("輕小說"))).toBe(true);
+    expect(screen.queryByText("連載中")).toBeNull();
+    expect(screen.getByText("台版")).toBeInTheDocument();
+    expect(screen.getByText("2019")).toBeInTheDocument();
+  });
+
+  it("draws a comic card as its type top left, the EN name, the release year and the tracker only", async () => {
+    mockAuthFetch();
+    mount(
+      {
+        system_id: "c1",
+        public_id: 4,
+        comic_name_en: "Saga",
+        comic_name_cn: "大英雄",
+        comic_type: "Ongoing",
+        volume_label: "Vol. 2",
+        era: "Modern Age",
+        events: "Event A, Event B",
+        release_date: "2012-03-14",
+        end_date: "2018-07-25",
+        issue_fin: 3,
+        issue_total: 54,
+      },
+      "comic",
+      false,
+    );
+    expect(atTopLeft(await screen.findByText("Ongoing"))).toBe(true);
+    expect(screen.getByRole("link", { name: "Saga" })).toBeInTheDocument();
+    // The start year alone, at the meta line's left edge.
+    const year = screen.getByText("2012");
+    expect(year.parentElement.firstElementChild).toBe(year);
+    expect(screen.queryByText(/2018/)).toBeNull();
+    for (const gone of ["大英雄", "Vol. 2", "Modern Age", "Event A"]) {
+      expect(screen.queryByText(gone)).toBeNull();
+    }
+    expect(screen.getByText("iss")).toBeInTheDocument();
+  });
+
   it("puts a game's type top left, its date over the hours, and both Metacritic figures", async () => {
     mockAuthFetch();
     mount(

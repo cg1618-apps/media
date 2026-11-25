@@ -148,7 +148,8 @@ describe("PersonLibrary", () => {
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
     );
 
-    await user.click(screen.getByRole("button", { name: "Author" }));
+    // The person types read in Chinese: 作家 is Author.
+    await user.click(screen.getByRole("button", { name: "作家" }));
     const cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toHaveLength(1);
     expect(cards[0]).toContain("諫山創");
@@ -177,7 +178,7 @@ describe("PersonLibrary", () => {
     await waitFor(() =>
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
     );
-    await user.click(screen.getByRole("button", { name: "Director" }));
+    await user.click(screen.getByRole("button", { name: "導演" }));
     expect(screen.getAllByRole("link")).toHaveLength(2);
     await user.click(screen.getByRole("button", { name: "Unrated" }));
     expect(screen.queryAllByRole("link")).toHaveLength(0);
@@ -198,15 +199,7 @@ describe("PersonLibrary", () => {
     expect(cards[1]).toContain("Jon Favreau");
   });
 
-  it("filters to seiyuu when rendered with role=\"seiyuu\"", async () => {
-    renderLibrary({ role: "seiyuu" });
-
-    await waitFor(() => expect(fetch).toHaveBeenCalled());
-    const [url] = fetch.mock.calls[0];
-    expect(url).toBe("/api/person/?role=seiyuu");
-  });
-
-  it("does not filter /library/person when role is unset", async () => {
+  it("asks for every person, unfiltered", async () => {
     renderLibrary();
 
     await waitFor(() => expect(fetch).toHaveBeenCalled());
@@ -281,27 +274,16 @@ describe("PersonLibrary", () => {
     expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
   });
 
-  it("names itself Seiyuu, not People, and drops the Type group, under role=\"seiyuu\"", async () => {
+  it("finds a seiyuu under the Type group's 聲優", async () => {
     fetch.mockImplementation(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve(SEIYUU) }),
+      Promise.resolve({ ok: true, json: () => Promise.resolve([...PEOPLE, ...SEIYUU]) }),
     );
-    renderLibrary({ role: "seiyuu" });
-
-    expect(await screen.findByRole("heading", { name: "Seiyuu" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "People" })).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Search seiyuu...")).toBeInTheDocument();
-    expect(screen.getByText(/^1 seiyuu/)).toBeInTheDocument();
-    expect(screen.queryByText("Type")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Director" })).not.toBeInTheDocument();
-    expect(screen.getByText("Entry type")).toBeInTheDocument();
-  });
-
-  it("says seiyuu in the empty state too", async () => {
-    fetch.mockImplementation(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve([]) }),
-    );
-    renderLibrary({ role: "seiyuu" });
-    expect(await screen.findByText("No seiyuu found")).toBeInTheDocument();
+    const user = userEvent.setup();
+    renderLibrary();
+    expect(await screen.findByRole("heading", { name: "People" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "聲優" }));
+    const cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toEqual([expect.stringContaining("Miyu Irino")]);
   });
 
   it("keeps the Type group on /library/person", async () => {
@@ -310,7 +292,7 @@ describe("PersonLibrary", () => {
       expect(screen.getByText("Jon Favreau")).toBeInTheDocument(),
     );
     const typeGroup = screen.getByText("Type").parentElement;
-    expect(within(typeGroup).getByRole("button", { name: "Director" })).toBeInTheDocument();
+    expect(within(typeGroup).getByRole("button", { name: "導演" })).toBeInTheDocument();
   });
 
   it("lists a seiyuu who has never been cast", async () => {
@@ -318,7 +300,7 @@ describe("PersonLibrary", () => {
       Promise.resolve({ ok: true, json: () => Promise.resolve(SEIYUU) }),
     );
 
-    renderLibrary({ role: "seiyuu" });
+    renderLibrary();
 
     await waitFor(() =>
       expect(screen.getByText("Miyu Irino")).toBeInTheDocument(),
@@ -344,5 +326,21 @@ describe("PersonLibrary and the viewer's own rating", () => {
     await screen.findByText("Jon Favreau");
     expect(screen.getByRole("option", { name: "My rating" })).toBeInTheDocument();
     expect(screen.getByText("My Rating")).toBeInTheDocument();
+  });
+});
+
+describe("PersonLibrary list view", () => {
+  it("draws a table whose Type column reads the person types in Chinese", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Jon Favreau");
+    await user.click(screen.getByRole("button", { name: "Table view" }));
+    const table = screen.getByRole("table");
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual([
+      "Person", "Type", "Gender", "Entry types", "Credits", "My",
+    ]);
+    const row = within(table).getByText("諫山創").closest("tr");
+    expect(within(row).getByText("作家")).toBeInTheDocument();
+    expect(within(table).getByText("Jon Favreau").closest("tr")).toHaveTextContent("導演");
   });
 });

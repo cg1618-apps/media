@@ -14,6 +14,7 @@ import { compareTitles } from "../../../lib/naming";
 import {
   airingStatusFilter,
   genreFilters,
+  myRatingFilter,
   tagFilter,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
@@ -68,6 +69,7 @@ const TV_LIBRARY_CONFIG = {
     // Advanced section (FilterPanel draws it collapsed). A TV show's original
     // source is served under its sheet header, source_official.
     tagFilter("originalSource", "Original Source", "source_official"),
+    myRatingFilter({ advanced: true }),
     ...genreFilters(),
   ],
 
@@ -75,6 +77,7 @@ const TV_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       compare: compareTitle,
     },
     {

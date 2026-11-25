@@ -10,6 +10,7 @@ import { READING_STATUS_GROUP } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
 import {
   genreFilters,
+  myRatingFilter,
   tagFilter,
 } from "../../../lib/libraryFilterDefs";
 
@@ -65,6 +66,7 @@ const COMIC_LIBRARY_CONFIG = {
     // Advanced section (FilterPanel draws it collapsed). Era and Event follow
     // the genres here - the one library where something does. Events is a
     // comma-joined multi-value column, which tagFilter splits.
+    myRatingFilter({ advanced: true }),
     ...genreFilters(),
     tagFilter("era", "Era", "era"),
     tagFilter("events", "Event", "events"),
@@ -74,6 +76,7 @@ const COMIC_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       compare: compareTitle,
     },
     {

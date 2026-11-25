@@ -7,6 +7,7 @@ import {
   applyView,
   chipOptions,
   defaultView,
+  hubSortOptions,
   hubTabConfig,
   isFiltered,
 } from "./hubTabs";
@@ -167,5 +168,37 @@ describe("hubTabs - sorts", () => {
     ];
     const view = defaultView("movie", "series");
     expect(ids(applyView("movie", "series", movies, view))).toEqual(["earlier", "later"]);
+  });
+});
+
+describe("hubTabs - the sort direction", () => {
+  const anime = [
+    { system_id: "a", anime_name_en: "A", my_rating: "B" },
+    { system_id: "b", anime_name_en: "B", my_rating: "S" },
+  ];
+
+  it("opens every tab in its sort's natural direction", () => {
+    expect(defaultView("anime", "series").reversed).toBe(false);
+  });
+
+  it("runs the whole order backwards while reversed, tie-break included", () => {
+    const title = { ...defaultView("anime", "series"), sort: "title" };
+    expect(ids(applyView("anime", "series", anime, title))).toEqual(["a", "b"]);
+    expect(ids(applyView("anime", "series", anime, { ...title, reversed: true }))).toEqual([
+      "b",
+      "a",
+    ]);
+  });
+
+  it("offers the sorts by plain sentence-case names, the scores best first", () => {
+    const options = hubSortOptions(hubTabConfig("anime", "series"), true);
+    expect(options.map((o) => o.label)).toEqual(["Title", "Release date", "My rating", "MAL rating"]);
+    expect(options.filter((o) => o.descending).map((o) => o.value)).toEqual([
+      "my_rating",
+      "mal_rating",
+    ]);
+    expect(hubSortOptions(hubTabConfig("anime", "series"), false).map((o) => o.value)).not.toContain(
+      "my_rating",
+    );
   });
 });

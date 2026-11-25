@@ -12,6 +12,7 @@ import { compareTitles, getDisplayName, getSortName } from "../../../lib/naming"
 import {
   airingStatusFilter,
   hGenreFilters,
+  myRatingFilter,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
 
@@ -75,6 +76,7 @@ const HENTAI_LIBRARY_CONFIG = {
     setFilter("originality", "Originality", "originality"),
     { ...setFilter("usefulness", "Usefulness", "usefulness"), personal: true },
     // Advanced section (FilterPanel draws it collapsed).
+    myRatingFilter({ advanced: true }),
     ...hGenreFilters(),
   ],
 
@@ -82,6 +84,7 @@ const HENTAI_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       compare: compareTitle,
     },
     {

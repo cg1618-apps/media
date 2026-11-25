@@ -11,7 +11,9 @@ import { statusToggleFields } from "../../lib/status";
 import { MEDIA_CONFIG } from "../../utils/media";
 import { useIncrementalList } from "../../hooks/useIncrementalList";
 import MediaCard from "../cards/MediaCard";
-import FilterPanel, { FilterToggleButton } from "./FilterPanel";
+import FilterPanel from "./FilterPanel";
+import LibraryTable from "./LibraryTable";
+import LibraryToolbar from "./LibraryToolbar";
 import MediaLoadingState from "./MediaLoadingState";
 import { Eyebrow } from "../ui/primitives";
 
@@ -75,6 +77,7 @@ function LibraryBody({
   const {
     searchQuery, setSearchQuery,
     currentSort, setCurrentSort,
+    reversed, setReversed,
     currentView, setCurrentView,
     showFilters, setShowFilters,
     filters, toggleFilter, clearFilters, activeFilterCount,
@@ -181,79 +184,36 @@ function LibraryBody({
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Top bar: a flat strip on the canvas */}
-      <div className="flex flex-wrap items-center gap-3 mb-4 border-b border-border pb-4">
-        {/* Search */}
-        <div className="relative flex-1 min-w-48">
-          <i className="fas fa-search absolute left-3 top-2.5 text-text-faint text-sm pointer-events-none" />
-          <input
-            type="text"
-            placeholder={config.searchPlaceholder ?? "Search..."}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-9 py-2 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              aria-label="Clear search"
-              className="absolute right-3 top-2.5 text-text-faint hover:text-text-muted"
-            >
-              <i className="fas fa-times text-sm" />
-            </button>
-          )}
-        </div>
-
-        {/* Sort */}
-        <select
-          value={currentSort}
-          onChange={(e) => setCurrentSort(e.target.value)}
-          className="border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand bg-surface"
-        >
-          {config.sortDefs.map((s) => (
-            <option key={s.key} value={s.key}>
-              Sort: {s.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Filter toggle */}
-        <FilterToggleButton
-          open={showFilters}
-          onToggle={() => setShowFilters((o) => !o)}
-          activeFilterCount={activeFilterCount}
+      <div className="mb-4 border-b border-border pb-4">
+        <LibraryToolbar
+          search={{
+            value: searchQuery,
+            onChange: setSearchQuery,
+            placeholder: config.searchPlaceholder ?? "Search...",
+          }}
+          sort={{
+            options: config.sortDefs.map((s) => ({
+              value: s.key,
+              label: s.label,
+              descending: !s.ascending,
+            })),
+            value: currentSort,
+            onChange: setCurrentSort,
+            reversed,
+            onReversedChange: setReversed,
+          }}
+          filters={{
+            open: showFilters,
+            onToggle: () => setShowFilters((o) => !o),
+            activeFilterCount,
+          }}
+          view={{ value: currentView, onChange: setCurrentView }}
+          trailing={
+            <span className="font-mono text-[11px] text-text-faint">
+              {filteredAndSorted.length} results
+            </span>
+          }
         />
-
-        {/* View toggle */}
-        <div className="flex border border-border-strong">
-          <button
-            onClick={() => setCurrentView("grid")}
-            aria-label="Grid view"
-            aria-pressed={currentView === "grid"}
-            className={`px-3 py-2 text-sm transition-colors ${
-              currentView === "grid"
-                ? "bg-brand text-on-brand"
-                : "bg-surface text-text-faint hover:text-text-muted"
-            }`}
-          >
-            <i className="fas fa-th-large" />
-          </button>
-          <button
-            onClick={() => setCurrentView("table")}
-            aria-label="Table view"
-            aria-pressed={currentView === "table"}
-            className={`px-3 py-2 text-sm transition-colors ${
-              currentView === "table"
-                ? "bg-brand text-on-brand"
-                : "bg-surface text-text-faint hover:text-text-muted"
-            }`}
-          >
-            <i className="fas fa-list" />
-          </button>
-        </div>
-
-        <span className="font-mono text-[11px] text-text-faint">
-          {filteredAndSorted.length} results
-        </span>
       </div>
 
       {/* Filter panel */}
@@ -294,49 +254,12 @@ function LibraryBody({
         </>
       ) : (
         /* Table view */
-        <div className="bg-surface border border-border overflow-auto max-h-[75vh]">
-          <table className="w-full text-left">
-            <thead className="bg-surface border-b border-border sticky top-0 z-10">
-              <tr>
-                {config.tableColumns.map((col, i) => (
-                  <th
-                    key={col.key}
-                    className={`px-4 py-2.5 font-mono text-[10px] font-normal text-text-faint text-center ${
-                      i < config.tableColumns.length - 1
-                        ? "border-r border-border"
-                        : ""
-                    } ${col.thClass ?? ""}`}
-                  >
-                    {col.header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredAndSorted.map((item) => (
-                <tr
-                  key={item.system_id}
-                  onClick={() => handleRowClick(item)}
-                  className="hover:bg-surface-2 transition-colors cursor-pointer"
-                >
-                  {config.tableColumns.map((col, i) => (
-                    <td
-                      key={col.key}
-                      className={`px-4 py-2 ${
-                        i < config.tableColumns.length - 1
-                          ? "border-r border-border"
-                          : ""
-                      } ${col.tdClass ?? ""}`}
-                      onClick={col.stopPropagation ? (e) => e.stopPropagation() : undefined}
-                    >
-                      {col.render(item, columnCtx)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <LibraryTable
+          columns={config.tableColumns}
+          rows={filteredAndSorted}
+          ctx={columnCtx}
+          onRowClick={handleRowClick}
+        />
       )}
     </div>
   );

@@ -18,6 +18,7 @@ import {
   characterFilterDefs,
   personFilterDefs,
   publisherFilterDefs,
+  publisherKindLabels,
   studioChipCountries,
   studioFilterDefs,
 } from "./entityFilters";
@@ -119,9 +120,6 @@ describe("characterFilterDefs", () => {
     expect(def(personFilterDefs(SEES_ALL), "gender").options).toEqual([
       "男", "女", GENDER_NOT_SET,
     ]);
-    expect(def(personFilterDefs(SEES_ALL, "seiyuu"), "gender").options).toEqual([
-      "男", "女", GENDER_NOT_SET,
-    ]);
   });
 });
 
@@ -133,14 +131,28 @@ describe("characterFilterDefs appearance and trait", () => {
     { id: "d" },
   ];
 
-  it("offers the values the rows hold, sorted, plus Not set for an empty list", () => {
+  it("offers the values the rows hold, the most-carried first, plus Not set last", () => {
     const defs = characterFilterDefs(SEES_ALL);
     expect(def(defs, "appearance").type).toBe("set-dynamic");
+    // Glasses is on two rows, Red Hair on one.
     expect(def(defs, "appearance").deriveOptions(ROWS)).toEqual([
       "Glasses", "Red Hair", TAGS_NOT_SET,
     ]);
+    // Kuudere is on two rows, Tsundere on one.
     expect(def(defs, "trait").deriveOptions(ROWS)).toEqual([
       "Kuudere", "Tsundere", TAGS_NOT_SET,
+    ]);
+    // A value carried more often outranks one earlier in the alphabet; a tie
+    // reads in name order.
+    const byCount = [
+      { appearance: ["Twin Tails"] },
+      { appearance: ["Twin Tails", "Ahoge"] },
+      { appearance: ["Twin Tails", "Bob"] },
+      { appearance: ["Bob"] },
+      { appearance: [] },
+    ];
+    expect(def(defs, "appearance").deriveOptions(byCount)).toEqual([
+      "Twin Tails", "Bob", "Ahoge", TAGS_NOT_SET,
     ]);
   });
 
@@ -189,7 +201,7 @@ describe("personFilterDefs", () => {
     ];
     expect(filtered(defs, rows, { role: ["author"] })).toEqual(["w"]);
     expect(filtered(defs, rows, { role: ["author", "director"] })).toEqual(["d", "w"]);
-    expect(def(defs, "role").optionLabel("composer")).toBe("Music / Composer");
+    expect(def(defs, "role").optionLabel("composer")).toBe("作曲");
   });
 
   // Club is a person type scoped to h-comic only; a session that cannot see
@@ -249,10 +261,79 @@ describe("the entry-type group with nothing ticked", () => {
   });
 });
 
-describe("personFilterDefs with a role", () => {
-  it("drops the Type group - every row already holds the role", () => {
-    const keys = personFilterDefs(SEES_ALL, "seiyuu").map((fd) => fd.key);
-    expect(keys).toEqual(["mediaType", "myRating", "gender"]);
+describe("the entity libraries' filter order", () => {
+  const keys = (defs) => defs.map((fd) => fd.key);
+  const advanced = (defs) => defs.filter((fd) => fd.advanced).map((fd) => fd.key);
+  const ordinary = (defs) => defs.filter((fd) => !fd.advanced).map((fd) => fd.key);
+
+  it("puts Entry type first and My Rating last on every entity library", () => {
+    for (const defs of [
+      characterFilterDefs(SEES_ALL),
+      personFilterDefs(SEES_ALL),
+      studioFilterDefs(SEES_ALL),
+      publisherFilterDefs(SEES_ALL),
+    ]) {
+      expect(keys(defs)[0]).toBe("mediaType");
+      expect(ordinary(defs).at(-1)).toBe("myRating");
+    }
+  });
+
+  it("orders each library's ordinary filters", () => {
+    expect(ordinary(characterFilterDefs(SEES_ALL))).toEqual([
+      "mediaType", "role", "gender", "myRating",
+    ]);
+    expect(ordinary(personFilterDefs(SEES_ALL))).toEqual([
+      "mediaType", "role", "gender", "myRating",
+    ]);
+    expect(ordinary(studioFilterDefs(SEES_ALL))).toEqual([
+      "mediaType", "country", "relation", "myRating",
+    ]);
+    expect(ordinary(publisherFilterDefs(SEES_ALL))).toEqual([
+      "mediaType", "kind", "country", "relation", "myRating",
+    ]);
+  });
+
+  it("puts a character's Card and Identities groups in the advanced section", () => {
+    expect(advanced(characterFilterDefs(SEES_ALL))).toEqual([
+      "cardKind", "hasIdentities", "appearance", "trait",
+    ]);
+  });
+
+  it("leaves My Rating out for a viewer without a list, keeping the rest in order", () => {
+    expect(keys(personFilterDefs(SEES_ALL, { ownData: false }))).toEqual([
+      "mediaType", "role", "gender",
+    ]);
+  });
+});
+
+describe("personFilterDefs Type labels", () => {
+  it("names each person type in Chinese, keeping Club as it reads", () => {
+    const type = def(personFilterDefs(SEES_ALL), "role");
+    expect(Object.fromEntries(type.options.map((k) => [k, type.optionLabel(k)]))).toEqual({
+      director: "導演",
+      producer: "製片",
+      composer: "作曲",
+      author: "作家",
+      illustrator: "畫家",
+      club: "Club",
+      seiyuu: "聲優",
+    });
+  });
+});
+
+describe("publisherFilterDefs country", () => {
+  it("offers the countries the most publishers name first, then Not set", () => {
+    const country = def(publisherFilterDefs(SEES_ALL), "country");
+    const rows = [
+      { country: "Taiwan" },
+      { country: "Japan" },
+      { country: "Taiwan" },
+      { country: null },
+      { country: "China" },
+      { country: "Japan" },
+      { country: "Taiwan" },
+    ];
+    expect(country.deriveOptions(rows)).toEqual(["Taiwan", "Japan", "China", COUNTRY_NOT_SET]);
   });
 });
 
@@ -390,8 +471,7 @@ describe("publisherFilterDefs kind group", () => {
 describe("the My Rating group and ownData", () => {
   const builders = {
     character: (o) => characterFilterDefs(SEES_ALL, o),
-    person: (o) => personFilterDefs(SEES_ALL, null, o),
-    seiyuu: (o) => personFilterDefs(SEES_ALL, "seiyuu", o),
+    person: (o) => personFilterDefs(SEES_ALL, o),
     studio: (o) => studioFilterDefs(SEES_ALL, o),
     publisher: (o) => publisherFilterDefs(SEES_ALL, o),
   };
@@ -403,11 +483,21 @@ describe("the My Rating group and ownData", () => {
   }
 });
 
-// Appearance and Trait are advanced filters, after every ordinary one.
-it("puts the character library's Appearance and Trait in the advanced section", () => {
+// Card, Identities, Appearance and Trait are advanced filters, after every
+// ordinary one.
+it("puts the character library's Card, Identities, Appearance and Trait in the advanced section", () => {
   const defs = characterFilterDefs({ has: () => true, visibleGatedTypes: [] });
   const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
-  expect(advanced).toEqual(["appearance", "trait"]);
+  expect(advanced).toEqual(["cardKind", "hasIdentities", "appearance", "trait"]);
   const firstAdvanced = defs.findIndex((fd) => fd.advanced);
   expect(defs.slice(firstAdvanced).every((fd) => fd.advanced)).toBe(true);
+});
+
+describe("publisherKindLabels", () => {
+  it("names each kind a publisher covers, in kind order, then 其他", () => {
+    expect(publisherKindLabels({ media_types: ["comic", "anime"], scopes: ["game"] })).toEqual([
+      "遊戲發行商", "台灣代理商", "其他",
+    ]);
+    expect(publisherKindLabels({ media_types: [], scopes: [] })).toEqual([]);
+  });
 });

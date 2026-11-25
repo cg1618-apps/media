@@ -175,3 +175,40 @@ describe("StudioLibrary and the viewer's own rating", () => {
     expect(screen.getByText("My Rating")).toBeInTheDocument();
   });
 });
+
+// The list view: one table row per studio, the columns a studio is told apart
+// by, and the row opening the studio's page.
+describe("StudioLibrary list view", () => {
+  it("draws a table of name, country, entry types, credits and my rating", async () => {
+    renderPage();
+    await screen.findByText("KyoAni");
+    await userEvent.click(screen.getByRole("button", { name: "Table view" }));
+    const table = screen.getByRole("table");
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual([
+      "Studio", "Country", "Entry types", "Credits", "My",
+    ]);
+    const row = within(table).getByText("KyoAni").closest("tr");
+    expect(within(row).getByText("Japan")).toBeInTheDocument();
+    expect(within(row).getByText("Anime Movie")).toBeInTheDocument();
+    expect(within(row).getByText("30")).toBeInTheDocument();
+    expect(within(row).getByText("S")).toBeInTheDocument();
+  });
+
+  it("drops the My column for a viewer without a list", async () => {
+    held.delete("self.list");
+    renderPage();
+    await screen.findByText("KyoAni");
+    await userEvent.click(screen.getByRole("button", { name: "Table view" }));
+    expect(screen.queryByRole("columnheader", { name: "My" })).toBeNull();
+  });
+
+  it("sorts by credits and reverses with the direction button", async () => {
+    renderPage();
+    await screen.findByText("KyoAni");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Sort" }), "credit_count");
+    const first = () => screen.getAllByRole("link")[0].textContent;
+    expect(first()).toContain("KyoAni");
+    await userEvent.click(screen.getByRole("button", { name: "Reverse order" }));
+    expect(first()).toContain("Fresh Studio");
+  });
+});

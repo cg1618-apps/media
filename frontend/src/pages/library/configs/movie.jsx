@@ -13,6 +13,7 @@ import { FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
 import {
   exclusiveSourceFilter,
   genreFilters,
+  myRatingFilter,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
 
@@ -68,6 +69,7 @@ const MOVIE_LIBRARY_CONFIG = {
     // Advanced section (FilterPanel draws it collapsed).
     // A movie's original_source is the one it labels Exclusive Source.
     exclusiveSourceFilter("original_source"),
+    myRatingFilter({ advanced: true }),
     ...genreFilters(),
   ],
 
@@ -75,6 +77,7 @@ const MOVIE_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       compare: compareTitle,
     },
     {

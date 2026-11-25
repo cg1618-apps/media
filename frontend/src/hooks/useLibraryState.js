@@ -3,8 +3,10 @@ import { useState, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { applyFilterDefs } from "../lib/libraryFilters";
 import { resolveSortKey } from "../lib/libraryScope";
+import { directed } from "../lib/sortDirection";
 import { cleanString } from "../utils/media";
 import { useFilterState } from "./useFilterState";
+import { useSortState } from "./useSortState";
 
 // ---------------------------------------------------------------------------
 // FilterDef type reference
@@ -47,7 +49,12 @@ import { useFilterState } from "./useFilterState";
 //   (item, activeValue, franchiseDict, seriesDict) => boolean
 //
 // SortDef shape:
-//   { key, label, compare(a, b, franchiseDict, seriesDict) => number }
+//   { key, label, compare(a, b, franchiseDict, seriesDict) => number,
+//     ascending? }
+// `compare` orders the sort's natural direction. `ascending: true` says that
+// direction runs low to high (a title, A to Z); every other sort's runs high
+// to low - newest, best, longest first. The toolbar's direction button
+// reverses it (`reversed`), and SortControl shows which way it runs.
 //
 // Optional on a FilterDef, a SortDef and a table column: `personal: true`,
 // when the value it reads is the viewer's own (a list-row field, a plan flag,
@@ -69,7 +76,12 @@ export function useLibraryState(type, config, data, franchiseDict, seriesDict) {
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery]   = useState("");
-  const [chosenSort, setCurrentSort]    = useState(config.defaultSort ?? "title");
+  const {
+    sort: chosenSort,
+    setSort: setCurrentSort,
+    reversed,
+    setReversed,
+  } = useSortState(config.defaultSort ?? "title");
   // A sort the config does not offer - a default naming a dropped sort, say -
   // falls back to its first, so the select and the order always agree.
   const currentSort = resolveSortKey(config.sortDefs, chosenSort);
@@ -125,9 +137,8 @@ export function useLibraryState(type, config, data, franchiseDict, seriesDict) {
     // 3. Sort
     const sortDef = config.sortDefs.find((s) => s.key === currentSort);
     if (sortDef) {
-      result.sort((a, b) =>
-        sortDef.compare(a, b, franchiseDict, seriesDict),
-      );
+      const compare = directed(sortDef.compare, reversed);
+      result.sort((a, b) => compare(a, b, franchiseDict, seriesDict));
     }
 
     return result;
@@ -136,6 +147,7 @@ export function useLibraryState(type, config, data, franchiseDict, seriesDict) {
     searchQuery,
     filters,
     currentSort,
+    reversed,
     franchiseDict,
     seriesDict,
     config,
@@ -145,6 +157,7 @@ export function useLibraryState(type, config, data, franchiseDict, seriesDict) {
     // UI state
     searchQuery,  setSearchQuery,
     currentSort,  setCurrentSort,
+    reversed,     setReversed,
     currentView,  setCurrentView,
     showFilters,  setShowFilters,
     // Filter state & helpers

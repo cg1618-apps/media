@@ -109,16 +109,16 @@ export const NAV_SECTIONS = [
         heading: "Reality",
         items: [
           {
-            label: "TV Show",
-            icon: "fas fa-video",
-            to: "/library/tv-show",
-            matches: ["/tv-show"],
-          },
-          {
             label: "Movie",
             icon: "fas fa-ticket-alt",
             to: "/library/movie",
             matches: ["/movie"],
+          },
+          {
+            label: "TV Show",
+            icon: "fas fa-video",
+            to: "/library/tv-show",
+            matches: ["/tv-show"],
           },
           {
             label: "Cartoon",
@@ -139,8 +139,8 @@ export const NAV_SECTIONS = [
         // The credited entities are a member's view of the catalogue: a guest
         // browses the media and the groups, and reads entity names as plain
         // text on those pages (useEntityHref in lib/entityPath.js). Each row
-        // asks its own kind's key, as App.jsx's entity routes do; Seiyuu is a
-        // person list and asks view.person.
+        // asks its own kind's key, as App.jsx's entity routes do. A seiyuu is
+        // a person, found in the Person library under its Type filter.
         items: [
           {
             label: "Studio",
@@ -161,12 +161,6 @@ export const NAV_SECTIONS = [
             icon: "fas fa-user",
             to: "/library/person",
             matches: ["/person"],
-            requires: "view.person",
-          },
-          {
-            label: "Seiyuu",
-            icon: "fas fa-microphone",
-            to: "/library/seiyuu",
             requires: "view.person",
           },
           {
