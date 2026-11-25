@@ -816,6 +816,14 @@ export const TYPE_FIELD_META = {
     // stays editable anyway (as mal_id is): with no link there is nothing to
     // derive it from, and a stale id left by a cleared link can only be
     // removed here.
+    // As manga's: the adaptation's studio, a plain column, offered the
+    // anime studios.
+    anime_studio: {
+      label: "Anime Studio",
+      control: "tags",
+      source: ANIME_STUDIO_SOURCE,
+      group: "Credits",
+    },
     openlibrary_link: {
       label: "Open Library Link",
       control: "url",
