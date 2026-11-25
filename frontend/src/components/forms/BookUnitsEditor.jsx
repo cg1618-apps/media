@@ -9,7 +9,7 @@
 // moment it is picked (ImagePicker with ownerType "book-unit"), so it needs a
 // saved unit to attach to - a row added since the last save shows a note in
 // its place - and the units save never sends it (lib/payloads.js).
-import { kindsForType, unitDisplayKey } from "../../lib/bookUnits";
+import { isPrefilledKey, kindsForType, nextUnitKey, unitDisplayKey } from "../../lib/bookUnits";
 import { isValidReleaseDate } from "../../lib/releaseDate";
 import { DragHandle, SortableItem, SortableList, arrayMove } from "../ui/Sortable";
 import ImagePicker from "./ImagePicker";
@@ -50,7 +50,9 @@ export default function BookUnitsEditor({ items, bookType, onChange }) {
       {
         unit_kind: kinds[0],
         position: rows.length + 1,
-        unit_key: "",
+        // Prefilled as the kind's next key ("Vol 1", "Arc 3"); the admin
+        // edits it like any other.
+        unit_key: nextUnitKey(kinds[0], rows),
         name_cn: "",
         name_en: "",
         ch_count: "",
@@ -67,12 +69,20 @@ export default function BookUnitsEditor({ items, bookType, onChange }) {
 
   // ch_count is meaningful only on arc rows; clear it in the same update as
   // unit_kind so a value the UI has already hidden can't ride along in the
-  // payload after the user picks a non-arc kind.
+  // payload after the user picks a non-arc kind. A key still in its
+  // prefilled shape follows the kind ("Vol 1" -> "Story 1"); a typed one stays.
   const updateKind = (i, kind) =>
     onChange(
       rows.map((x, j) =>
         j === i
-          ? { ...x, unit_kind: kind, ...(kind === "arc" ? {} : { ch_count: "" }) }
+          ? {
+              ...x,
+              unit_kind: kind,
+              ...(isPrefilledKey(x.unit_kind, x.unit_key)
+                ? { unit_key: nextUnitKey(kind, rows.filter((_, k) => k !== i)) }
+                : {}),
+              ...(kind === "arc" ? {} : { ch_count: "" }),
+            }
           : x,
       ),
     );

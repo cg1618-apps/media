@@ -2,7 +2,7 @@
 // instead of the retired book_name_each_cn/_en parallel lists, using each
 // unit's server-computed display_key.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -399,5 +399,95 @@ describe("Book detail page — Production", () => {
     await screen.findByRole("heading", { name: "Test Book" });
     expect(screen.queryByText("0")).toBeNull();
     expect(screen.queryByText("Production")).toBeNull();
+  });
+});
+
+// Information: Region, Type, 本傳 / 外傳 and Version; then Serialization
+// Status and the three dates; then the totals. Version, the JP date and each
+// total are shown only when set. Production: Author and Illustrator, then
+// Publisher TW and Anime Studio, as on a manga.
+describe("Book detail page — Information and Production rows", () => {
+  const FULL = {
+    ...BASE_BOOK,
+    region: "JP",
+    type: "輕小說",
+    is_main: "本傳",
+    version: "新裝版",
+    serialization_status: "連載中",
+    release_date_jp: "2019-01",
+    release_date_tw: "2020-03",
+    end_date: "2024",
+    vol_total_original: 10,
+    vol_total_tw: 8,
+    arc_total: 3,
+    ch_total: 120,
+    author: "Author A",
+    illustrator: "Artist B",
+    publisher_tw: "台灣角川",
+    anime_studio: "Shaft",
+  };
+  const cardOf = async (title) =>
+    within((await screen.findByRole("heading", { level: 3, name: title })).closest("section"));
+  const rowLabels = (card, label, labels) => {
+    const row = card.getByText(label).closest(".grid");
+    return labels.filter((l) => card.queryByText(l) && row.contains(card.getByText(l)));
+  };
+  const INFO = [
+    "Region", "Type", "本傳 / 外傳", "Version", "Serialization Status",
+    "Release Date JP", "Release Date TW", "End Date",
+    "Total Volumes (JP/KR)", "Vol Total (TW)", "Arc Total", "Chapter Total",
+  ];
+
+  it("lays Information out in three rows", async () => {
+    mockFetch(FULL);
+    mount();
+    const c = await cardOf("Information");
+    expect(rowLabels(c, "Region", INFO)).toEqual(["Region", "Type", "本傳 / 外傳", "Version"]);
+    expect(rowLabels(c, "Serialization Status", INFO)).toEqual([
+      "Serialization Status", "Release Date JP", "Release Date TW", "End Date",
+    ]);
+    expect(rowLabels(c, "Arc Total", INFO)).toEqual([
+      "Total Volumes (JP/KR)", "Vol Total (TW)", "Arc Total", "Chapter Total",
+    ]);
+  });
+
+  it("leaves out an unset Version, JP date and totals", async () => {
+    mockFetch({
+      ...FULL,
+      version: null,
+      release_date_jp: null,
+      vol_total_original: null,
+      vol_total_tw: null,
+      arc_total: null,
+      ch_total: 120,
+    });
+    mount();
+    const c = await cardOf("Information");
+    for (const gone of ["Version", "Release Date JP", "Total Volumes (JP/KR)", "Vol Total (TW)", "Arc Total"]) {
+      expect(c.queryByText(gone)).toBeNull();
+    }
+    expect(c.getByText("Release Date TW")).toBeInTheDocument();
+    expect(c.getByText("End Date")).toBeInTheDocument();
+    expect(c.getByText("Chapter Total")).toBeInTheDocument();
+  });
+
+  it("puts Author and Illustrator on one row, Publisher TW and Anime Studio on the next", async () => {
+    mockFetch(FULL);
+    mount();
+    const c = await cardOf("Production");
+    const authorRow = c.getByText("Author A").closest(".grid");
+    expect(authorRow.contains(c.getByText("Artist B"))).toBe(true);
+    const studioRow = c.getByText("Anime Studio").closest(".grid");
+    expect(studioRow.contains(c.getByText("Shaft"))).toBe(true);
+    expect(studioRow.contains(c.getByText("台灣出版社"))).toBe(true);
+    expect(authorRow).not.toBe(studioRow);
+  });
+
+  it("leaves out an unset Illustrator, and draws the card for an Anime Studio alone", async () => {
+    mockFetch({ ...BASE_BOOK, anime_studio: "Shaft", publisher_refs: [] });
+    mount();
+    const c = await cardOf("Production");
+    expect(c.getByText("Shaft")).toBeInTheDocument();
+    expect(c.queryByText("Illustrator")).toBeNull();
   });
 });

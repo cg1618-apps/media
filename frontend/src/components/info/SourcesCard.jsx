@@ -224,32 +224,38 @@ export default function SourcesCard({
         (row) => row.bucket === "main" && row.name === exclusiveName,
       ) || null
     : null;
-  // A TV show's or cartoon's original source (`originalSourceAsAccess`) is
-  // read the same way, and leads the section after any exclusive row. A value
-  // with a main access row marks that row; a value with none - the common
-  // case, since the original source vocabulary is far wider than the main
-  // sources - is drawn as a row of its own in the same place. Each is the
-  // platform's own vocabulary value, so it wears the platform's icon.
-  const originals = originalSourceAsAccess ? tagValues(originalSource) : [];
-  const originalEntries = originals.map((name) => ({
-    name,
+  // A TV show's or cartoon's original source (`originalSourceAsAccess`) and a
+  // manga's or book's serialization platform are read the same way: each
+  // value leads the section after any exclusive row, marked "(Original)" or
+  // "(連載平台)". A value with a main access row marks that row; a value with
+  // none - the common case for an original source, whose vocabulary is far
+  // wider than the main sources - is drawn as a row of its own in the same
+  // place. Each is the platform's own vocabulary value, so it wears the
+  // platform's icon. An entry may name several.
+  const markedEntries = [
+    ...(originalSourceAsAccess ? tagValues(originalSource) : []).map((name) => ({
+      name,
+      mark: "Original",
+    })),
+    ...tagValues(serializationPlatform).map((name) => ({ name, mark: "連載平台" })),
+  ].map((entry) => ({
+    ...entry,
     row:
-      allAccessRows.find((row) => row.bucket === "main" && row.name === name) || null,
+      allAccessRows.find((row) => row.bucket === "main" && row.name === entry.name) || null,
   }));
-  const originalRows = new Set(originalEntries.map((o) => o.row).filter(Boolean));
+  const markedRows = new Set(markedEntries.map((o) => o.row).filter(Boolean));
   // The rest, in the server's order.
   const accessRows = allAccessRows.filter(
-    (row) => row !== exclusiveRow && !originalRows.has(row),
+    (row) => row !== exclusiveRow && !markedRows.has(row),
   );
-  const hasAccess = Boolean(exclusiveRow) || originalEntries.length > 0 || accessRows.length > 0;
+  const hasAccess = Boolean(exclusiveRow) || markedEntries.length > 0 || accessRows.length > 0;
 
   // A matched exclusive source is said by its row, so it is not a tag too.
   // One with no row - stored before the rule required one - stays a tag. An
-  // original source drawn as rows is never a tag.
+  // original source or serialization platform drawn as rows is never a tag.
   const tags = tagValues(
     originalSourceAsAccess ? null : originalSource,
     exclusiveRow ? null : exclusiveSource,
-    serializationPlatform,
   );
 
   // The storefront links are column-backed rather than source rows: Steam on
@@ -296,12 +302,12 @@ export default function SourcesCard({
           {exclusiveRow && (
             <SourceEntry row={exclusiveRow} coverUrl={coverUrl} mark="Exclusive" />
           )}
-          {originalEntries.map(({ name, row }) =>
+          {markedEntries.map(({ name, mark, row }) =>
             row ? (
-              <SourceEntry key={row.system_id} row={row} coverUrl={coverUrl} mark="Original" />
+              <SourceEntry key={`${mark}:${row.system_id}`} row={row} coverUrl={coverUrl} mark={mark} />
             ) : (
-              <SourceRow key={name} icon={sourceIconUrl(name)}>
-                <span data-testid="source-name">{`${name} (Original)`}</span>
+              <SourceRow key={`${mark}:${name}`} icon={sourceIconUrl(name)}>
+                <span data-testid="source-name">{`${name} (${mark})`}</span>
               </SourceRow>
             ),
           )}

@@ -250,3 +250,42 @@ def test_a_free_form_row_has_no_option_id(db_session, sample_anime):
 
     (row,) = sample_anime.sources
     assert row.option_id is None
+
+
+# A manga's or book's main access rows are its serialization platforms: the
+# vocabulary is Serialization Platform, not Platform, so a name resolves to the
+# existing serialization value and never mints a Platform one beside it.
+def test_a_manga_main_access_row_is_a_serialization_platform(db_session, sample_manga):
+    jump = _option(db_session, "週刊少年Jump", category="Serialization Platform")
+    replace_sources(
+        db_session,
+        sample_manga.system_id,
+        [{"kind": "access", "bucket": "main", "name": "週刊少年Jump", "available": True}],
+        media_type="manga",
+    )
+    db_session.commit()
+
+    (row,) = db_session.query(models.MediaSource).all()
+    assert row.option_id == jump.system_id
+    assert (
+        db_session.query(models.SystemOption)
+        .filter_by(category="Platform", value="週刊少年Jump")
+        .count()
+        == 0
+    )
+
+    attach_sources(db_session, "manga", sample_manga)
+    assert [s.name for s in sample_manga.sources] == ["週刊少年Jump"]
+
+
+def test_an_anime_main_access_row_stays_a_platform(db_session, sample_anime):
+    netflix = _option(db_session, "Netflix")
+    replace_sources(
+        db_session,
+        sample_anime.system_id,
+        [{"kind": "access", "bucket": "main", "name": "Netflix"}],
+        media_type="anime",
+    )
+    db_session.commit()
+    (row,) = db_session.query(models.MediaSource).all()
+    assert row.option_id == netflix.system_id
