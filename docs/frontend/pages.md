@@ -1037,12 +1037,13 @@ entries, then a **Restricted** parent chip over h-comic and hentai (not
 h-game: nobody is cast on an h-game) — then **Role** — Main, Core,
 Important Supporting, Supporting, Other, plus Not set for null, matched against the character's
 own `role` field and never against the roles its castings carry — then **My
-Rating** and **Gender**, then **Appearance** and **Trait** — `set-dynamic`
-groups over the values the loaded characters hold, sorted, plus Not set when a
-character's list is empty; a character matches when it holds any ticked
-value — with the same OR/AND rule — then **Card** (Characters, Identities:
-tick one to show only that kind; empty shows both) and **Identities** (Has
-identities, No identities: an identity card always counts as having them). The panel is open when
+Rating** and **Gender**, then **Card** (Characters, Identities: tick one to
+show only that kind; empty shows both) and **Identities** (Has identities, No
+identities: an identity card always counts as having them); and in the
+advanced section **Appearance** and **Trait** — `set-dynamic` groups over the
+values the loaded characters hold, sorted, plus Not set when a character's
+list is empty; a character matches when it holds any ticked value, with the
+same OR/AND rule. The panel is open when
 the page loads, on the shared default, with the same Clear all and Reset.
 
 Each character `CharacterCard` shows `display_photo_file` — the photo, or the
