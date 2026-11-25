@@ -12,6 +12,7 @@ import {
 } from "../../../components/layout/libraryColumns";
 import { compareTitles } from "../../../lib/naming";
 import {
+  airingStatusFilter,
   genreFilters,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
@@ -42,13 +43,7 @@ const TV_LIBRARY_CONFIG = {
   },
 
   filterDefs: [
-    {
-      key: "airingStatus",
-      label: "Airing Status",
-      type: "set",
-      options: ["Finished Airing", "Airing", "Not Yet Aired", "Canceled"],
-      match: (item, active) => active.has(item.airing_status),
-    },
+    airingStatusFilter(),
     watchStatusFilter("tv-show"),
     {
       key: "region",

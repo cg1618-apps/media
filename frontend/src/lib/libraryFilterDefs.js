@@ -1,7 +1,8 @@
 // Frontend: FilterDefs more than one library config builds the same way - the
-// watch-status filter and the tag filters of the advanced section. The
+// watch-status and airing-status filters and the tag filters of the advanced
+// section. The
 // FilterDef shape itself is documented in hooks/useLibraryState.js.
-import { watchingStatusesFor } from "../config/fieldOptions";
+import { AIRING_STATUSES, watchingStatusesFor } from "../config/fieldOptions";
 import { WATCHING_STATUS_GROUP } from "../config/statusGroups";
 
 // ---------------------------------------------------------------------------
@@ -54,6 +55,26 @@ export function watchStatusFilter(type) {
     optionHint: (group) => watchStatusHint(type, group),
     match: (item, active) =>
       active.has(WATCHING_STATUS_GROUP[item.watching_status] ?? NO_STATUS_GROUP),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Airing status
+// ---------------------------------------------------------------------------
+
+/**
+ * The Airing Status filter of the four airing libraries (anime, TV show,
+ * cartoon, hentai). Its chips are AIRING_STATUSES, in the order a title moves
+ * through them: Not Yet Aired, Airing, Finished Airing, Canceled. The array
+ * is the one /api/constants refreshes in place, so the chips follow it.
+ */
+export function airingStatusFilter() {
+  return {
+    key: "airingStatus",
+    label: "Airing Status",
+    type: "set",
+    options: AIRING_STATUSES,
+    match: (item, active) => active.has(item.airing_status),
   };
 }
 

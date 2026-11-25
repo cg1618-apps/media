@@ -168,3 +168,19 @@ describe("the anime movie release type filter", () => {
     expect(kept.map((i) => i.system_id)).toEqual(["o"]);
   });
 });
+
+// Every airing library's Airing Status chips run in the order a title moves
+// through them: not yet, airing, finished, then canceled.
+describe.each(["anime", "tv-show", "cartoon", "hentai"])("the %s airing-status filter", (type) => {
+  const def = LIBRARY_CONFIGS[type].filterDefs.find((fd) => fd.key === "airingStatus");
+  const ORDER = ["Not Yet Aired", "Airing", "Finished Airing", "Canceled"];
+
+  it("orders its chips not yet, airing, finished, canceled", () => {
+    const options =
+      def.type === "set-dynamic"
+        ? // Fed every status in reverse, so an alphabetical or as-found order fails.
+          def.deriveOptions([...ORDER].reverse().map((airing_status) => ({ airing_status })))
+        : def.options;
+    expect(options).toEqual(ORDER);
+  });
+});

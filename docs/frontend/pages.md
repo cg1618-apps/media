@@ -665,8 +665,8 @@ viewer. In the table below the personal defs are marked *(p)*.
 | anime | yes | airingType: set (TV/Movie/ONA/OVA/OAD/Special) · airingStatus: set (Not Yet Aired/Airing/Finished Airing/Canceled) · watchingStatus *(p)* | title (franchise→series→entry), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`) *(p)*, my *(p)*, mal, studio, baha, watch *(p)* |
 | anime-movie | no | releaseStatus: set (`FILM_RELEASE_STATUSES`) · releaseType: set (`ANIME_MOVIE_RELEASE_TYPES`: Cinema/ONA; the column is never empty, so no Not set chip) · watchingStatus *(p)* | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my *(p)*, mal, studio, director, baha, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus *(p)* | title, release_date (year of `release_date_usa` only), my_rating *(p)*, imdb_rating | franchise, title, status, my *(p)*, imdb, director, release, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
-| tv-show | no | airingStatus · watchingStatus *(p)* · region: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
-| cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
+| tv-show | no | airingStatus: set (Not Yet Aired/Airing/Finished Airing/Canceled) · watchingStatus *(p)* · region: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| cartoon | yes | airingStatus: set (as anime) · airingType: set-dynamic · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
 | manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped *(p)* · region: set-dynamic | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch *(p)*, vol *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | book | yes | serializationStatus · readingStatus *(p)* · region · type: set-dynamic | title, release_date (jp→tw), end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getBookProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | comic | yes | comicType: set-dynamic · readingStatus *(p)* · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
@@ -692,6 +692,11 @@ it:
 TV Show's and Cartoon's `original_source` is an Original Source, not an
 exclusive one, so neither has an Exclusive Source filter; Cartoon keeps it
 in its ordinary section as officialSource.
+
+**Airing Status is one def on all four airing libraries** — anime, TV show,
+cartoon and hentai — `airingStatusFilter()` in `lib/libraryFilterDefs.js`.
+Its chips are `AIRING_STATUSES` in the order a title moves through them:
+Not Yet Aired, Airing, Finished Airing, Canceled.
 
 **Watch Status is one def on all six watch libraries** — anime, anime
 movie, movie, TV show, cartoon and hentai — `watchStatusFilter(type)` in
