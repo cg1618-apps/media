@@ -5,7 +5,7 @@ mal_link it carries no derived id and no fill reads it, so it is one plain
 nullable column per table with no index and no backfill.
 
 Revision ID: a1n2ilistlk3
-Revises: e1n2tremark3
+Revises: o1f2ollowimp3
 Create Date: 2026-11-25 00:00:00.000000
 
 """
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "a1n2ilistlk3"
-down_revision: Union[str, Sequence[str], None] = "e1n2tremark3"
+down_revision: Union[str, Sequence[str], None] = "o1f2ollowimp3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
