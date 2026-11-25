@@ -491,7 +491,7 @@ names live in `book_unit` rows, one per unit.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `book_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
-| `region` | String | yes | | BOOK_REGIONS (Western / JP / CN / KR / TW) |
+| `region` | String | yes | | BOOK_REGIONS (歐美 / 日本 / 中國 / 韓國 / 台灣) |
 | `type` | String | yes | | BOOK_TYPES (小說 / 輕小說 / 網路小說 / 短篇集 / 指南/設定集 / 其他); also selects which `book_unit.unit_kind`s the editor offers - see `entry-types.md` - and which books Statistics' Novel section counts |
 | `version` | String | yes | | Edition (free text) |
 | `is_main` | String | yes | | |
