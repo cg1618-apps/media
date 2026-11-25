@@ -20,6 +20,7 @@ import {
   isBaha,
 } from "../../../utils/media";
 import {
+  airingStatusFilter,
   exclusiveSourceFilter,
   genreFilters,
   watchStatusFilter,
@@ -81,13 +82,7 @@ const ANIME_LIBRARY_CONFIG = {
       options: ["TV", "Movie", "ONA", "OVA", "OAD", "Special"],
       match: (item, active) => active.has(item.airing_type),
     },
-    {
-      key: "airingStatus",
-      label: "Airing Status",
-      type: "set",
-      options: ["Not Yet Aired", "Airing", "Finished Airing", "Canceled"],
-      match: (item, active) => active.has(item.airing_status),
-    },
+    airingStatusFilter(),
     watchStatusFilter("anime"),
     // Advanced section (FilterPanel draws it collapsed).
     exclusiveSourceFilter(),

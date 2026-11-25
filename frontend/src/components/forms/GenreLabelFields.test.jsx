@@ -1,4 +1,4 @@
-// Frontend: the Genre Main / Genre Sub / 標籤 Label section the eight
+// Frontend: the Genre Main / Genre Sub / Label section the eight
 // GENRE_LABEL_TYPES share. The scope is the point: a value scoped to manga must
 // not be offered on a movie, while an unscoped one is offered on both.
 import { render, screen } from "@testing-library/react";
@@ -45,7 +45,7 @@ describe("GenreLabelFields", () => {
     renderFields("movie");
     expect(screen.getByText("Genre Main")).toBeInTheDocument();
     expect(screen.getByText("Genre Sub")).toBeInTheDocument();
-    expect(screen.getByText("標籤 Label")).toBeInTheDocument();
+    expect(screen.getByText("Label")).toBeInTheDocument();
     expect(screen.getAllByRole("combobox")).toHaveLength(3);
   });
 

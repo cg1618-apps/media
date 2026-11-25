@@ -665,8 +665,8 @@ viewer. In the table below the personal defs are marked *(p)*.
 | anime | yes | airingType: set (TV/Movie/ONA/OVA/OAD/Special) · airingStatus: set (Not Yet Aired/Airing/Finished Airing/Canceled) · watchingStatus *(p)* | title (franchise→series→entry), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, type, season, status, ep (`cum_ep_fin/cum_ep_total`) *(p)*, my *(p)*, mal, studio, baha, watch *(p)* |
 | anime-movie | no | releaseStatus: set (`FILM_RELEASE_STATUSES`) · releaseType: set (`ANIME_MOVIE_RELEASE_TYPES`: Cinema/ONA; the column is never empty, so no Not set chip) · watchingStatus *(p)* | title (en→roman→alt→cn→jp), release_date (jp→tw), my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title, status, my *(p)*, mal, studio, director, baha, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus *(p)* | title, release_date (year of `release_date_usa` only), my_rating *(p)*, imdb_rating | franchise, title, status, my *(p)*, imdb, director, release, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
-| tv-show | no | airingStatus · watchingStatus *(p)* · region: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
-| cartoon | yes | airingStatus · airingType: set-dynamic · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
+| tv-show | no | airingStatus: set (Not Yet Aired/Airing/Finished Airing/Canceled) · watchingStatus *(p)* · airingType: set (TV/Special) and region: set-dynamic on one line, Airing Type at the left | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
+| cartoon | yes | airingStatus: set (as anime) · airingType: set (TV/Movie/Special) · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
 | manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped *(p)* · region: set-dynamic | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch *(p)*, vol *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | book | yes | serializationStatus · readingStatus *(p)* · region · type: set-dynamic | title, release_date (jp→tw), end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getBookProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | comic | yes | comicType: set-dynamic · readingStatus *(p)* · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
@@ -676,29 +676,43 @@ Every library's filters end in an **advanced section** — tag filters, drawn
 by `FilterPanel` behind a collapsed **Advanced filters** toggle (see
 `components.md`, "FilterPanel"). They are catalogue filters, built by
 `tagFilter` in `lib/libraryFilterDefs.js`: `set-dynamic` over a `", "`-joined
-tag link field, chips the values the library holds, an entry matching when
-it carries any chosen value. Exclusive Source comes first where a type has
+tag link field, chips the values the library holds - most-carried first
+(`valuesByAppearance`: a value counts once per entry that carries it, a tie
+in name order), so the commonest genre or label of that type leads - an
+entry matching when it carries any chosen value. Exclusive Source comes first where a type has
 it:
 
 | Type | Advanced filters (response attribute) |
 |---|---|
-| anime, anime-movie | Exclusive Source (`exclusive_source`) · Genre Main (`genre_main`) · Genre Sub (`genre_sub`) · 標籤 Label (`label`) |
-| movie | Exclusive Source (`original_source`, the field a movie labels Exclusive Source) · Genre Main · Genre Sub · 標籤 Label |
-| tv-show, cartoon, manga, book, comic | Genre Main · Genre Sub · 標籤 Label |
-| game | Genre (`game_genre`) · Theme (`game_theme`) · 標籤 Label (`label`) |
+| anime, anime-movie | Exclusive Source (`exclusive_source`) · Genre Main (`genre_main`) · Genre Sub (`genre_sub`) · Label (`label`) |
+| movie | Exclusive Source (`original_source`, the field a movie labels Exclusive Source) · Genre Main · Genre Sub · Label |
+| tv-show | Original Source (`source_official`, its sheet header) · Genre Main · Genre Sub · Label |
+| cartoon, manga, book, comic | Genre Main · Genre Sub · Label |
+| game | Genre (`game_genre`) · Theme (`game_theme`) · Label (`label`) |
 | h-game | Genre (`game_genre`) · Theme (`game_theme`) · Genre Plot (`h_genre_plot`) · Genre Appearance (`h_genre_appearance`) · Genre Relation (`h_genre_relation`) |
 | h-comic, hentai | Genre Plot · Genre Appearance · Genre Relation |
 
 TV Show's and Cartoon's `original_source` is an Original Source, not an
-exclusive one, so neither has an Exclusive Source filter; Cartoon keeps it
-in its ordinary section as officialSource.
+exclusive one, so neither has an Exclusive Source filter: TV Show filters it
+in its advanced section as **Original Source**, ahead of the genres, and
+Cartoon keeps it in its ordinary section as officialSource. Whatever else a
+library's advanced section holds, its genre-related filters - Genre Main,
+Genre Sub and Label; Genre, Theme and Label on a game; the gated genres -
+always come last (`configs/filters.test.js` holds every library to it).
+
+**Airing Status is one def on all four airing libraries** — anime, TV show,
+cartoon and hentai — `airingStatusFilter()` in `lib/libraryFilterDefs.js`.
+Its chips are `AIRING_STATUSES` in the order a title moves through them:
+Not Yet Aired, Airing, Finished Airing, Canceled.
 
 **Watch Status is one def on all six watch libraries** — anime, anime
 movie, movie, TV show, cartoon and hentai — `watchStatusFilter(type)` in
 `lib/libraryFilterDefs.js`. Its chips run Might Watch, Planned, Watching,
 Completed, Dropped, each a group of stored statuses through
 `WATCHING_STATUS_GROUP`, and each chip's hover title (`optionHint`) lists the
-statuses it includes in that type's vocabulary (`watchingStatusesFor`):
+statuses it includes in that type's vocabulary (`watchingStatusesFor`). The
+circled **?** after the **Watch Status** label shows the whole table below
+on hover or focus:
 
 | Chip | Includes |
 |---|---|
@@ -711,10 +725,18 @@ statuses it includes in that type's vocabulary (`watchingStatusesFor`):
 **My Rating breaks a tie on the type's public score, then on the title**
 (`myRatingSort({ publicScore, title })` in `libraryColumns.jsx`): MAL for
 anime, anime movie, manga and book; IMDb (`imdb_rating`) for movie, TV show
-and cartoon; Metacritic for game - each higher first, unscored last - and the
+and cartoon (on the last two that is the season's episode average); Metacritic for game - each higher first, unscored last - and the
 library's own title order after it. Comic, H-Comic, H-Game and Hentai carry
 no public score and go from my rating straight to the title. An entry carries
 no expectation, so that tie-break is the group libraries' alone (below).
+
+**TV shows and cartoons carry two IMDb sorts**, listed right after My
+Rating: **IMDb Rating** (`imdb_series_rating`, the whole show's) and then
+**IMDb AVG Rating** (`imdb_rating`, the season's - the average of its
+episodes' ratings). A movie's one IMDb sort is **IMDb Rating**. The library
+card's score reads the same way: the show's rating with the season's average
+in brackets, "9.5 (avg 9.4)", or the entry's own score alone when there is no
+show rating (a cartoon movie).
 
 All default to the `title` sort. **Every library's title sort reads the English name first** — `getSortName` for the media types and the three groups, `entitySortName` (`name_en`, then `display_name`) for studios, publishers, people and characters — and compares through `compareTitles` (`lib/naming.js`), an `Intl.Collator` fixed to `en`, so a Latin title sorts before a CJK one whatever the browser's language (a `zh-TW` browser's own collation puts Han first). `configs/titleSort.test.js` runs every config's title sort under a `zh-TW` default. `Library.test.jsx` pins the twelve config
 keys, requires more than three table columns and a `my_rating` sort per
@@ -1022,7 +1044,8 @@ by the URL's public id, then `.../entries` by the `system_id` it returns —
 where the profile call failing is the page's 404 while the entries call
 failing is not.
 
-Layout: breadcrumb → (admin) the dashed **Admin** strip with **Edit**,
+Layout: breadcrumb → (admin) the dashed admin strip (`AdminActions`, no
+caption) with, at its left end, **Edit**
 linking to `/modify?id=<system_id>&type=person`, and — for a person with a
 MAL link or an IMDb link, whatever their role — **Autofill & update**,
 `POST /api/person/{system_id}/autofill` (`AdminToolbar`'s `onAutofilled`): it
@@ -1159,8 +1182,8 @@ character facts. `useCanonicalPath("identity", …)` puts the slug in the
 address bar.
 
 Layout: a breadcrumb **Characters** (`/library/character`) / the character's
-name, linking to its page / the identity's name → (admin) the dashed
-**Admin** strip with **Edit**, linking to
+name, linking to its page / the identity's name → (admin) the dashed admin
+strip (`AdminActions`, no caption) with **Edit** at its left end, linking to
 `/modify?id=<system_id>&type=identity` → left column with the photo
 (`display_photo_file`, the identity's own photo else the
 character's displayed one, as the server resolves it; else `FALLBACK_SVG`),
@@ -1275,7 +1298,8 @@ Files `pages/detail/FranchisePage.jsx`, `SeriesPage.jsx`, `CollectionPage.jsx`
 (thin wrappers `Franchise.jsx`, `Series.jsx`, `Collection.jsx`). Chrome comes
 from `components/hub/` (`HubShell`, `Crumbs` — whose `action` slot holds the
 hub's **Report a problem**, beside the **待補充** badge —, `AdminStrip` — the admin-only
-dashed strip with the **Edit** link `/modify?id=…` —, `HeroCover` with
+dashed strip, `AdminActions` with no caption, with the **Edit** link
+`/modify?id=…` at its left end —, `HeroCover` with
 the rating stamp and optional progress rule, cropping the borrowed cover at
 its entry's focal point, `Field`, `HubTabs`, `Section` (a slip titled with the
 list and its count - no grey description line under the title),
@@ -1329,8 +1353,8 @@ Every tab but Game and H-Game has a **Completed** All / Yes / No control
 | H-Comic | release date, title, my rating | none | no region tag on the cover |
 | Book | title, my rating, MAL, release date, end date | **小說** All / Yes / No (Yes = `type` 輕小說, 小說 or 網路小說; No = anything else, untyped included) | no region tag on the cover |
 | Comic | franchise hub: release date, title, my rating; series hub: title, my rating, release date, end date | franchise hub: comic type, era; series hub: serialization | no type-specific layout |
-| TV Show | release date, title, my rating, IMDb | none | region top-left, IMDb right of the release date, no airing status |
-| Cartoon | release date, title, my rating, IMDb | airing type | no type-specific layout |
+| TV Show | release date, title, my rating, IMDb | none | region top-left, IMDb right of the release date as the show's rating with the season's episode average in brackets ("9.5 (avg 9.4)"; the entry's own score alone when there is no show rating), no airing status |
+| Cartoon | release date, title, my rating, IMDb | airing type | IMDb right of the release date, as on a TV show |
 | Game | release date, title, my rating, Metacritic, Metacritic user, hours played | completion level — Main Story, Main + Extras, Completionist, Post-game, Not completed (`completion_level` empty) — **instead of** Completed; game type chips from the types the list holds, in vocabulary order | game type top-left on the cover, release date above the play-hours row, Metacritic and Metacritic user stacked on the right |
 | H-Game | release date, title, my rating | as Game | game type top-left, release date in place of the play-style line; no Metacritic (no such columns) |
 
@@ -1510,7 +1534,7 @@ Top to bottom:
    which passes `mediaType="game"` - `orderNoun` in `lib/orderNoun.js`), the tracker,
    `NamingCard`, `InfoCard "Information"`, on Manga, Book, Movie, TV and
    Cartoon a **Genres** card (`GenresCard`: Genre (Main), Genre (Sub) and
-   標籤 Label in a card of their own, directly after Information and not
+   Label in a card of their own, directly after Information and not
    repeated inside it, left out when none of the three is set), `InfoCard
    "Production"` — whose Studio row on Anime and AnimeMovie is built by
    `studioValue()` (`components/info/StudioLinks.jsx`): one link to
@@ -1597,14 +1621,14 @@ status select, which goes through `/api/me/list`.
 | Page | Information card | Production card | Extras |
 |---|---|---|---|
 | Anime | in rows: 本傳/外傳, Airing Type, Season Part, and Original / Remake for a remake alone (an original says nothing); Airing Status, Total Episodes (with cumulative), Runtime (min); Release Season, Release Date JP/TW; then Genre main, Genre sub and Label a row each. Season Part carries a special's episode after it - `Season 2 第13集` from `season_part` and `ep_special`, `第13集` alone when there is no season part - and there is no Special Episodes row | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
-| AnimeMovie | in rows: Release Status, Release Type, Runtime; Release Date (an ONA) or Release Date JP/TW; then Genre main, Genre sub and 標籤 Label a row each | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder; no eyebrow line above the title; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
+| AnimeMovie | in rows: Release Status, Release Type, Runtime; Release Date (an ONA) or Release Date JP/TW; then Genre main, Genre sub and Label a row each | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
 | Movie | 本傳/外傳 and Movie Type; Director and Runtime; Release Status, Release Date TW and USA - three rows | — | **Genres** card (`GenresCard`); inline IMDb score block |
 | TV | 本傳/外傳, Season, Total Ep, Official Source, Airing Type/Status, Release Date, Runtime (min) | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
 | Cartoon | + Airing Type, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版社 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
 | Book | Region, Type, Version, 本傳/外傳, Serialization Status, Release Date JP, Release Date TW, End Date, Vol Total (JP/KR)/TW, Arc Total, Chapter Total | Author, Illustrator, 台灣出版社 (linked, conditional) | **Genres** card (`GenresCard`), between Information and Production; **Units** card (`BookUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and, on an arc, a chapter count; a `manage.catalog` holder gets the editor with drag-to-reorder/add/remove and a Save → PATCH carrying each unit's own fields only (`bookUnitPayload`), everyone else a plain list keyed by each row's server-computed `display_key`. For a holder of `self.list` each row of that list carries the viewer's own rating select (`MY_RATINGS`, saved on change) and remark field (saved on blur), both through `useSaveMyBookUnit` → `PUT /api/me/book-units/{unit_id}`; an account holding both keys gets the editor and, under it, that list headed **My ratings**. The admin holds no `self.list` and gets no such control. Hidden entirely for a viewer when the book has no units) |
-| Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, 標籤 Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no `RelationsSection`, no `ScoreBlock` |
-| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme and 標籤 Label, a row each — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `progressEstimate` - `hltb_main_extra`, or `hltb_main` when only that is recorded - achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date, the sale as `sold EUR 7.50` (`copySale`), the copy's hours played as `12.5 h`, and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played` over the same `progressEstimate`; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); the **Cast** slip (`CastSection`, the AniManga pages' own, from `useCasting("game", id)`), drawn just above the 圖鑑&名詞 Compendium card through `NotesBlocks`' `beforeGroup` - beside the 角色 notes it is read with, but a sibling of the card rather than a section in it, since the cast is not a note; hidden when there is no cast; no `RelationsSection`, no `ScoreBlock` |
+| Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no `RelationsSection`, no `ScoreBlock` |
+| Game | Type, Main / Remake (`is_main`), Base Game (a link to `/game/{base_game_id}`), Platform, Mode, Combat Mode — only what the game *is*; the rest sits in cards of its own, below | **Production & Release**: Developer (`studioValue`), 發行商 (`publisherValue`, labelled by `publisherLabel` rather than a bare literal), Director, Composer, Release Status, Release Date, Current Patch — always shown, with a dash for an empty field | **Genres** card (Genre, Theme and Label, a row each — the same `Label` vocabulary anime shows); **Reception** card (Metacritic / Metacritic User, each carrying its own denominator — `96 / 100`, `8.6 / 10` — via the exported `outOf` helper, a missing score showing the card's dash rather than a zero; the public verdict, not mine, which is the stamp on the cover); **Time to Beat** card (`TimeToBeatCard`, after Reception: Main, Main + Extra and Completionist from `hltb_main`, `hltb_main_extra` and `hltb_completionist`, IGDB's time-to-beat in hours, formatted by `hours` in `lib/gameHours.js` - only the recorded figures get a field, and with none recorded the card is left out); **Library** card (Ownership, server-derived; Copies, a count; Steam Progress Sync — whether Steam may write this entry's progress, a fact about the source rather than an answer about a playthrough, so it sits with the copies while playing status and the four completion axes stay editable in the tracker and Completion blocks); **Progress** slip (`GameProgress`: playtime against `progressEstimate` - `hltb_main_extra`, or `hltb_main` when only that is recorded - achievements gated on `achievements_total` — nothing renders when neither figure exists, since "0 h / ? h" reads as "played none of it" rather than "never measured"); the **分歧 Choices** card (`ChoiceGraphCard`: a still preview of the game's choice graph and **View all**, see below); **Prices** card (MSRP in USD / JPY / TWD); **Copies** slip (`GameCopiesSection`: one row per `game_copy` — storefront and ownership as chips, then format, acquisition, price with the copy's own currency via `copyPrice`, acquired date, the sale as `sold EUR 7.50` (`copySale`), the copy's hours played as `12.5 h`, and remark — sorted by `position`, and rendered only when the game has copies, so the Library card's count is not their only trace on the page; editing still happens in the Add/Modify tab); a cover-side `ProgressRule` on `hours_played` over the same `progressEstimate`; `SourcesCard` with `igdbLink` (under "Where to Look Up") and `steamLink` (under "Where to Play", since a Steam store page is a storefront rather than a reference database); the **Cast** slip (`CastSection`, the AniManga pages' own, from `useCasting("game", id)`), drawn just above the 圖鑑&名詞 Compendium card through `NotesBlocks`' `beforeGroup` - beside the 角色 notes it is read with, but a sibling of the card rather than a section in it, since the cast is not a note; hidden when there is no cast; no `RelationsSection`, no `ScoreBlock` |
 
 **H-Comic** (`pages/detail/HComic.jsx`) is a gated type's page: App.jsx
 routes to it only for a session that can see h-comic
@@ -1669,7 +1693,7 @@ IGDB and Steam fill, through `replaceSingle("h-game")`). What differs:
 | Completion block | `GameCompletionBlock` with `H_GAME_COMPLETION_AXES`: Completion Level, All Endings, **All CG** - the work's, an editor's through the catalogue PATCH - and **usefulness**, the viewer's own (marked `personal` in the axes), drawn for `self.list` and written through `saveOwn` (`onOwnChange`) - no All Achievements or All Collected |
 | Progress | `HGameProgress`: the main-story estimate and achievements - there is no playtime, so the cover's progress rule is achievements earned against the total |
 | Information card | Type, Main / Remake (`is_main`), Base Game (an h-game), Series Number, Play Style, Platform, Language. A multi-choice list reads "None" when it is `[]` and a dash when it is `null` (`choiceText`) |
-| Genres card | Genre, Theme, Genre Plot, Genre Appearance and Genre Relation, a row each; no 標籤 Label |
+| Genres card | Genre, Theme, Genre Plot, Genre Appearance and Genre Relation, a row each; no Label |
 | Presentation card | Art Style, H 演出 Art Style, H 演出形式, Dialogue Audio, Sound Effect — how it looks and sounds |
 | Production & Release card | Developer (`studioValue`), Release Status / Date, Current Patch — always shown |
 | Time to Beat card | `TimeToBeatCard`, as on Game - Main, Main + Extra, Completionist, only the recorded ones, and left out when none is |
@@ -1797,8 +1821,9 @@ File `pages/detail/OrderPage.jsx`. GET `/api/order/lists/{id}`
 `/api/collection/{id}`) and sibling lists
 `/api/order/lists?franchise_id=&collection_id=` (self excluded);
 cancellable. Shows owner link, `MediaTypeFilter`, list name, badges
-(`list_type`, most-recommended, Default, "{n} steps"), an **admin-only** link
-to `/orders`, `OrderGuide` (filter all / essentials / no-optional,
+(`list_type`, most-recommended, Default, "{n} steps"), an **admin-only**
+dashed strip (`AdminActions`, no caption) with **Edit this order** at its
+left end, linking to `/orders`, `OrderGuide` (filter all / essentials / no-optional,
 section blocks, list remark) and "Other orders for {owner}".
 `MediaTypeFilter` is the scope above the title drawn as type pills, in the
 dashboard type filter's pill style. On a cross-type order it reads

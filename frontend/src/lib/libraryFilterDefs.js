@@ -1,7 +1,8 @@
 // Frontend: FilterDefs more than one library config builds the same way - the
-// watch-status filter and the tag filters of the advanced section. The
+// watch-status and airing-status filters and the tag filters of the advanced
+// section. The
 // FilterDef shape itself is documented in hooks/useLibraryState.js.
-import { watchingStatusesFor } from "../config/fieldOptions";
+import { AIRING_STATUSES, watchingStatusesFor } from "../config/fieldOptions";
 import { WATCHING_STATUS_GROUP } from "../config/statusGroups";
 
 // ---------------------------------------------------------------------------
@@ -58,6 +59,26 @@ export function watchStatusFilter(type) {
 }
 
 // ---------------------------------------------------------------------------
+// Airing status
+// ---------------------------------------------------------------------------
+
+/**
+ * The Airing Status filter of the four airing libraries (anime, TV show,
+ * cartoon, hentai). Its chips are AIRING_STATUSES, in the order a title moves
+ * through them: Not Yet Aired, Airing, Finished Airing, Canceled. The array
+ * is the one /api/constants refreshes in place, so the chips follow it.
+ */
+export function airingStatusFilter() {
+  return {
+    key: "airingStatus",
+    label: "Airing Status",
+    type: "set",
+    options: AIRING_STATUSES,
+    match: (item, active) => active.has(item.airing_status),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Tag filters - the advanced section
 // ---------------------------------------------------------------------------
 
@@ -71,9 +92,22 @@ export function tagValues(raw) {
 }
 
 /**
+ * The distinct values of `field` across `data`, the most-carried first: a
+ * value counts once per entry that carries it, and a tie reads in name order.
+ */
+export function valuesByAppearance(data, field) {
+  const counts = new Map();
+  for (const d of data) {
+    for (const v of new Set(tagValues(d[field]))) counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a) || a.localeCompare(b));
+}
+
+/**
  * An advanced-section filter over one tag link field (`field` is the list
  * response's attribute, a ", "-joined string). Its chips are the values the
- * library holds; an entry matches when it carries any chosen value.
+ * library holds, ordered by how many of its entries carry each
+ * (valuesByAppearance); an entry matches when it carries any chosen value.
  */
 export function tagFilter(key, label, field) {
   return {
@@ -81,8 +115,7 @@ export function tagFilter(key, label, field) {
     label,
     type: "set-dynamic",
     advanced: true,
-    deriveOptions: (data) =>
-      [...new Set(data.flatMap((d) => tagValues(d[field])))].sort((a, b) => a.localeCompare(b)),
+    deriveOptions: (data) => valuesByAppearance(data, field),
     match: (item, active) => tagValues(item[field]).some((v) => active.has(v)),
   };
 }
@@ -92,12 +125,17 @@ export function exclusiveSourceFilter(field = "exclusive_source") {
   return tagFilter("exclusiveSource", "Exclusive Source", field);
 }
 
-/** The mainstream genres and 標籤 Label: the eight types that carry Genre Main. */
+/** Label: the eight mainstream types and game. */
+export function labelFilter() {
+  return tagFilter("label", "Label", "label");
+}
+
+/** The mainstream genres and Label: the eight types that carry Genre Main. */
 export function genreFilters() {
   return [
     tagFilter("genreMain", "Genre Main", "genre_main"),
     tagFilter("genreSub", "Genre Sub", "genre_sub"),
-    tagFilter("label", "標籤 Label", "label"),
+    labelFilter(),
   ];
 }
 

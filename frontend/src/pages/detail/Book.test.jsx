@@ -302,7 +302,7 @@ describe("Book detail page — units", () => {
     expect(screen.getByText("Fantasy, Romance")).toBeInTheDocument();
     expect(screen.getByText("Genre (Sub)")).toBeInTheDocument();
     expect(screen.getByText("Isekai")).toBeInTheDocument();
-    expect(screen.getByText("標籤 Label")).toBeInTheDocument();
+    expect(screen.getByText("Label")).toBeInTheDocument();
     expect(screen.getByText("必看")).toBeInTheDocument();
   });
 

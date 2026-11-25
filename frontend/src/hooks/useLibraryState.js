@@ -28,6 +28,10 @@ import { useFilterState } from "./useFilterState";
 // collapsed advanced section rather than with the ordinary filters
 // (lib/libraryFilterDefs.js builds the tag filters that go there).
 //
+// Optional on an ordinary def: row: "<name>". Consecutive defs carrying the
+// same row are drawn side by side on one line, in def order, with a gap
+// between them; a def with no row keeps a line of its own.
+//
 // Optional on "set": parent: { label, children: [value, ...] } — one extra
 // chip standing for a group of values, drawn after `options` and boxed with
 // its children (which are NOT repeated in `options`). The children are

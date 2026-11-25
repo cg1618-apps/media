@@ -33,7 +33,7 @@ class ContentLabelDef:
     lowest_mode: str
     # The gated media type every entry of which carries this label, if any.
     gated_type: Optional[str] = None
-    # The 標籤 Label tag (system_option category "Label") kept in step with
+    # The Label tag (system_option category "Label") kept in step with
     # this label on an entry, both ways - see services/domain/label_tags.py.
     # None for a label with no tag: the gated types carry none.
     tag: Optional[str] = None

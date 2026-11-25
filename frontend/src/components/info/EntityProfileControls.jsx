@@ -20,6 +20,7 @@ import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
 import { MY_RATINGS } from "../../config/fieldOptions";
 import { useToast } from "../../hooks/useToast";
+import AdminActions from "../layout/AdminActions";
 import { Button, Eyebrow, Slip } from "../ui/primitives";
 
 const selectCls =
@@ -46,7 +47,8 @@ export function useEntityPatch(ownerType, systemId, onSaved) {
 }
 
 /**
- * The dashed admin strip with its Edit button, placed as on the media pages.
+ * The dashed admin strip with its Edit button, drawn by the media pages'
+ * AdminActions: the buttons sit at its left end and it carries no caption.
  *
  * `onAutofilled` adds Autofill & update, which hands the response to it; a
  * page passes it only when the entity has something to fetch (a MAL link, and
@@ -56,26 +58,27 @@ export function useEntityPatch(ownerType, systemId, onSaved) {
 export function AdminToolbar({ ownerType, systemId, onAutofilled }) {
   const navigate = useNavigate();
   return (
-    <div className="border border-border-strong border-dashed px-3 py-2 flex flex-wrap gap-3 items-center justify-between mb-8">
-      <Eyebrow className="text-[11px] text-text-muted">Admin</Eyebrow>
-      <div className="flex flex-wrap gap-2">
-        {/* Named for its entity as well as "Edit": a studio's or publisher's
-            Related records slip has an Edit button of its own on the page. */}
-        <Button
-          aria-label={`Edit this ${ownerType}`}
-          onClick={() => navigate(`/modify?id=${systemId}&type=${ownerType}`)}
-        >
-          Edit
-        </Button>
-        {onAutofilled && (
-          <AutofillButton
-            ownerType={ownerType}
-            systemId={systemId}
-            onAutofilled={onAutofilled}
-          />
-        )}
-      </div>
-    </div>
+    <AdminActions
+      start={
+        <>
+          {/* Named for its entity as well as "Edit": a studio's or publisher's
+              Related records slip has an Edit button of its own on the page. */}
+          <Button
+            aria-label={`Edit this ${ownerType}`}
+            onClick={() => navigate(`/modify?id=${systemId}&type=${ownerType}`)}
+          >
+            Edit
+          </Button>
+          {onAutofilled && (
+            <AutofillButton
+              ownerType={ownerType}
+              systemId={systemId}
+              onAutofilled={onAutofilled}
+            />
+          )}
+        </>
+      }
+    />
   );
 }
 

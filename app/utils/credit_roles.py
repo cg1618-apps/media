@@ -139,8 +139,8 @@ PERSON_ROLES: tuple[str, ...] = tuple(
 
 # Labels that differ by media type. One person type, three reader-facing words:
 # the same `author` is 原作 on a manga, Author on a book and Writer on a
-# comic. 作畫 is the traditional form, matching the site's other CJK labels
-# (標籤 Label); the pre-collapse label carried the Japanese 作画.
+# comic. 作畫 is the traditional form, matching the site's other Traditional
+# Chinese labels; the pre-collapse label carried the Japanese 作画.
 # Anything absent falls back to CreditRole.label.
 _LABEL_OVERRIDES: dict[tuple[str, str], str] = {
     ("author", "manga"): "原作",
@@ -221,7 +221,7 @@ TAG_FIELDS: dict[str, TagField] = {
     # LEGACY_SHEET_COLUMN entry: the sheet header is the key. The gated types
     # carry none of the three.
     "label": TagField(
-        "label", "標籤 Label", "Label", GENRE_MEDIA_TYPES + ("game",)
+        "label", "Label", "Label", GENRE_MEDIA_TYPES + ("game",)
     ),
     # Where a work FIRST appeared. Multi-value: a film can open in cinemas and
     # on a streaming service the same day.

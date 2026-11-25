@@ -323,8 +323,14 @@ export const imdbRatingSort = {
   compare: numericDesc((x) => parseFloat(imdbValue(x, "imdb_rating") ?? -1)),
 };
 
+// A TV show's or cartoon's two IMDb sorts. The whole show's rating is the
+// one called "IMDb Rating" there; the season's own imdb_rating is the average
+// of its episodes, so its sort is "IMDb AVG Rating". The key stays
+// imdb_rating either way, so a saved sort keeps working.
+export const imdbAvgRatingSort = { ...imdbRatingSort, label: "IMDb AVG Rating" };
+
 export const imdbSeriesRatingSort = {
   key: "imdb_series_rating",
-  label: "IMDb Show Rating",
+  label: "IMDb Rating",
   compare: numericDesc((x) => parseFloat(imdbValue(x, "imdb_series_rating") ?? -1)),
 };

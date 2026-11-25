@@ -587,7 +587,7 @@ export default function Game() {
                   fields={[
                     { label: "Genre", value: game.game_genre },
                     { label: "Theme", value: game.game_theme },
-                    { label: "標籤 Label", value: game.label },
+                    { label: "Label", value: game.label },
                   ]}
                 />
               </TocSection>
