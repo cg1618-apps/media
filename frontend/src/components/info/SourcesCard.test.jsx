@@ -357,6 +357,43 @@ describe("SourcesCard", () => {
     });
   });
 
+  // A manga's or book's serialization platform reads like an exclusive one:
+  // it leads Where to Read marked "(連載平台)" - the matching main row when
+  // the entry has one, otherwise a row of its own - and is never a tag. An
+  // entry may name more than one.
+  describe("the serialization platform of a manga or book", () => {
+    const read = [
+      { system_id: "1", kind: "access", bucket: "main", name: "Pixiv", url: "https://p.test", available: true },
+      { system_id: "2", kind: "access", bucket: "main", name: "週刊少年Jump", url: "https://j.test", available: true },
+      { system_id: "3", kind: "access", bucket: "restricted", name: "Elsewhere", url: "https://e.test" },
+    ];
+
+    it("marks the matching main row (連載平台) and puts it first", () => {
+      render(<SourcesCard sources={read} mediaType="manga" serializationPlatform="週刊少年Jump" />);
+      const section = screen.getByRole("region", { name: "Where to Read" });
+      const names = within(section).getAllByTestId("source-name").map((n) => n.textContent);
+      expect(names).toEqual(["週刊少年Jump (連載平台)", "Pixiv", "Elsewhere"]);
+      expect(screen.getByRole("link", { name: /週刊少年Jump \(連載平台\)/ })).toHaveAttribute("href", "https://j.test");
+      expect(screen.queryByTestId("source-tag")).toBeNull();
+    });
+
+    it("draws each of several platforms, matched or not, at the head of the section", () => {
+      render(
+        <SourcesCard sources={read} mediaType="book" serializationPlatform="カクヨム, 週刊少年Jump" />,
+      );
+      const section = screen.getByRole("region", { name: "Where to Read" });
+      const names = within(section).getAllByTestId("source-name").map((n) => n.textContent);
+      expect(names).toEqual(["カクヨム (連載平台)", "週刊少年Jump (連載平台)", "Pixiv", "Elsewhere"]);
+      expect(screen.queryByTestId("source-tag")).toBeNull();
+    });
+
+    it("opens Where to Read on its own when there are no access rows", () => {
+      render(<SourcesCard sources={[]} mediaType="manga" serializationPlatform="Pixiv" />);
+      const section = screen.getByRole("region", { name: "Where to Read" });
+      expect(within(section).getByText("Pixiv (連載平台)")).toBeInTheDocument();
+    });
+  });
+
   it("says so when there is nothing at all", () => {
     render(<SourcesCard sources={[]} mediaType="anime" />);
     expect(screen.getByText(/no sources recorded/i)).toBeInTheDocument();
