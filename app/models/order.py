@@ -296,6 +296,11 @@ class OrderFollow(Base):
     the list's owner for as long as both rows exist. Every foreign key
     cascades: deleting the user, the order or its owner takes the follow
     with it.
+
+    `importance` is the lowest rung the follower wants to be shown next: a
+    follow at "Recommended" passes over Normal and Optional steps. The steps
+    the follower has marked to skip are OrderFollowSkip rows, which go with
+    the follow.
     """
 
     __tablename__ = "order_follow"
@@ -360,6 +365,95 @@ class OrderFollow(Base):
         ),
         nullable=True,
     )
+    # One of ITEM_IMPORTANCE (app/services/domain/order.py), the same four
+    # rungs a step carries. NOT NULL with a server default, so a row written
+    # before the column existed, or restored from a sheet without it, reads
+    # as "Normal" - every step but Optional, what a follow always meant.
+    importance = Column(
+        String, nullable=False, default="Normal", server_default="Normal"
+    )
 
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    skips = relationship(
+        "OrderFollowSkip",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class OrderFollowSkip(Base):
+    """
+    One step a follower has marked to skip in an order they follow.
+
+    A skipped step is never "next" for that follow. The row hangs off the
+    follow, not the user: unfollowing deletes the follow and its skips with
+    it, and so does following another order of the same group, because the
+    group's follow row is repointed and its skips named the old order's steps.
+
+    Exactly one of `item_id` and `media_id` names the step. A hand-built
+    order's step is an order_item row and is named by it; a built-in order's
+    steps are generated on read and have no row, so such a step is named by
+    the entry it stands for - a generated order names each entry once. Both
+    cascade, so deleting the step or the entry takes the skip with it.
+
+    uq_order_follow_skip_step is NULLS NOT DISTINCT for the reason
+    uq_order_follow_group is: one of the two step columns is NULL on every
+    row, and the default would let a step be skipped twice.
+    """
+
+    __tablename__ = "order_follow_skip"
+    __table_args__ = (
+        CheckConstraint(
+            "num_nonnulls(item_id, media_id) = 1",
+            name="ck_order_follow_skip_one_step",
+        ),
+        UniqueConstraint(
+            "follow_id",
+            "item_id",
+            "media_id",
+            name="uq_order_follow_skip_step",
+            postgresql_nulls_not_distinct=True,
+        ),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    follow_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "order_follow.system_id",
+            ondelete="CASCADE",
+            name="fk_order_follow_skip_follow",
+        ),
+        nullable=False,
+        index=True,
+    )
+    item_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "order_item.system_id",
+            ondelete="CASCADE",
+            name="fk_order_follow_skip_item",
+        ),
+        nullable=True,
+    )
+    media_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "media.system_id",
+            ondelete="CASCADE",
+            name="fk_order_follow_skip_media",
+        ),
+        nullable=True,
+    )
+
+    created_at = Column(DateTime, default=get_taipei_now)
+    updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
+
+    @property
+    def step_id(self):
+        """The id the step travels under in the API: the item's, else the entry's."""
+        return self.item_id or self.media_id

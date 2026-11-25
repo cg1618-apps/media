@@ -3,13 +3,16 @@
 // The shareable, full-page view of one order. Same guide the Franchise /
 // Collection tab renders, given more room: bigger posters, notes always shown,
 // and links back to the owner and to the owner's other orders.
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
-import FollowOrderButton from "../../components/tracker/FollowOrderButton";
+import FollowOrderButton, {
+  followOf,
+} from "../../components/tracker/FollowOrderButton";
+import { useOrderFollows } from "../../api/mutations/useOrderFollows";
 import OrderGuide, {
   MediaTypeFilter,
 } from "../../components/tracker/OrderGuide";
@@ -23,7 +26,8 @@ import { ownerKeyOf, orderEditPath } from "../../lib/orderPaths";
 
 export default function OrderPage() {
   const { publicId } = useParams();
-  const { isAdmin } = useAuth();
+  const { isAdmin, has } = useAuth();
+  const follows = useOrderFollows(has("self.list"));
 
   const [list, setList] = useState(null);
   const [owner, setOwner] = useState(null);
@@ -35,6 +39,17 @@ export default function OrderPage() {
   const [typeFilter, setTypeFilter] = useState(null);
 
   useCanonicalPath("order", list);
+
+  // A follower of this order gets a skip toggle on every step; anyone else
+  // reads the guide as it is.
+  const follow = followOf(follows.data, list?.system_id);
+  const skips = useMemo(
+    () =>
+      follow
+        ? { listId: follow.list.system_id, skipped: new Set(follow.skipped || []) }
+        : null,
+    [follow],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -183,7 +198,13 @@ export default function OrderPage() {
         </div>
       </header>
 
-      <OrderGuide list={list} roomy colourCoded typeFilter={typeFilter} />
+      <OrderGuide
+        list={list}
+        roomy
+        colourCoded
+        typeFilter={typeFilter}
+        skips={skips}
+      />
 
       {siblings.length > 0 && (
         <Slip

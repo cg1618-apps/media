@@ -184,10 +184,13 @@ export const endpoints = {
     createRelease: () => "/api/order/lists/release",
     backfillRelease: () => "/api/order/lists/release/backfill",
     // The caller's own follows; PUT follows (replacing the group's previous
-    // one), DELETE unfollows.
+    // one) or sets the follow's importance, DELETE unfollows.
     follows: () => "/api/order/follows",
     followsForEntry: (entryId) => `/api/order/follows/entry/${entryId}`,
     follow: (listId) => `/api/order/lists/${listId}/follow`,
+    // PUT marks one step of a followed order to skip, DELETE clears the mark.
+    followSkip: (listId, stepId) =>
+      `/api/order/lists/${listId}/follow/skips/${stepId}`,
   },
 
   mediaRelation: {

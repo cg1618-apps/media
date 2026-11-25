@@ -436,7 +436,7 @@ headers and the filter bar already pin under the nav):
 | Anchor | Division | What it shows |
 |---|---|---|
 | `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only on the catalogue dashboard; written on `/system` and on the admin's own page. |
-| `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next — see [../systems/orders.md](../systems/orders.md#following). |
+| `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next - the first pending, unskipped step at or above the follow's importance — see [../systems/orders.md](../systems/orders.md#what-is-next). |
 | `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown. Not drawn when there are none. |
 | `#recent` | Recently added | `view.random_picker` without a list (shared): one section per visible type, newest first — anime two rows, every other type one. |
 | `#pinged` | Pinged (Watching · Reading · Playing) | members only. Every entry the viewer has pinned (`is_pinged`), whatever its status, grouped into three **soft sections** — Watching, Reading, Playing — each an eyebrow on a dotted rule (`Watching · 3`), the way a type eyebrow groups a sub-section's cards. A soft section reads its division's own sorted, filtered list, so its pins keep that division's order and follow the type filter; one with no pins is not drawn, and with none at all the division says so. The soft sections are not anchors: the contents lists Pinged alone. The cards are each type's own dashboard card (a local `TrackerCard` picks it), steppers included, and list view draws one `DashboardTable` per soft section. A pinned entry is still drawn in its own division as well. |
@@ -1550,10 +1550,12 @@ Top to bottom:
    AnimeMovie, Manga, Book (Movie has an inline IMDb block; TV/Cartoon/Comic
    none), then — directly under the header, on all twelve entry types —
    `FollowedOrderPanel` (the viewer's followed orders that step
-   through this entry: order, group, step N / total, previous and next step;
+   through this entry: order, group, step N / total and the follow's
+   importance, then the direct next step and, under "Coming up", the next
+   Recommended and/or Essential steps, each with a skip toggle - see
+   [../systems/orders.md](../systems/orders.md#what-is-next);
    nothing when none does, or for a viewer without `self.list`; its eyebrow
-   reads "Following Order", and "Following Play Order" on the Game page,
-   which passes `mediaType="game"` - `orderNoun` in `lib/orderNoun.js`), the tracker,
+   reads "Following order" on every type), the tracker,
    `NamingCard`, `InfoCard "Information"`, on Manga, Book, Movie, TV and
    Cartoon a **Genres** card (`GenresCard`: Genre (Main), Genre (Sub) and
    Label in a card of their own, directly after Information and not
@@ -1849,7 +1851,11 @@ cancellable. Shows owner link, `MediaTypeFilter`, list name, badges
 (`list_type`, most-recommended, Default, "{n} steps"), an **admin-only**
 dashed strip (`AdminActions`, no caption) with **Edit this order** at its
 left end, linking to `/orders`, `OrderGuide` (filter all / essentials / no-optional,
-section blocks, list remark) and "Other orders for {owner}".
+section blocks, list remark) and "Other orders for {owner}". The header's
+`FollowOrderButton` carries the follow's importance picker. For a viewer who
+follows the order, every step of the guide has a **Skip** / **Skipped**
+toggle beside it (`OrderGuide`'s `skips`, read from `GET /api/order/follows`),
+and a skipped step's row is dimmed.
 `MediaTypeFilter` is the scope above the title drawn as type pills, in the
 dashboard type filter's pill style. On a cross-type order it reads
 "Cross-type" then **All** plus one toggle pill per type in the order. Picking a

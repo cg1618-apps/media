@@ -24,6 +24,7 @@ from app.dependencies import get_db
 from app.routers._patching import apply_column_patch
 from app.services.domain import order_follow as follow_progress
 from app.services.domain.order import (
+    DEFAULT_IMPORTANCE,
     ITEM_IMPORTANCE,
     MEDIA_TYPE_MODELS,
     VALID_ORDER_MEDIA_TYPES,
@@ -31,6 +32,7 @@ from app.services.domain.order import (
     entry_exists,
     first_section_break,
     list_candidate_entries,
+    normalize_importance,
     resolve_items,
 )
 from app.services.rbac.enforcement import (
@@ -1641,9 +1643,12 @@ def _owner_of(db: Session, db_list: models.OrderList) -> dict:
     raise HTTPException(status_code=500, detail="Order has no owner.")
 
 
-def _follow_steps(db: Session, db_list: models.OrderList, viewer) -> List[dict]:
+def _follow_steps(
+    db: Session, db_list: models.OrderList, viewer, follow=None
+) -> List[dict]:
     """
-    The order's steps as the viewer sees them, each with its state.
+    The order's steps as the viewer sees them, each with its state and, when
+    `follow` is given, whether the follower has marked it to skip.
 
     Only the fields a follower's views draw are kept; the entries' public_id
     and the parts' names are looked up once for the whole order.
@@ -1666,6 +1671,7 @@ def _follow_steps(db: Session, db_list: models.OrderList, viewer) -> List[dict]:
     )
     steps = [
         {
+            "step_id": s.get("system_id"),
             "media_type": s.get("media_type"),
             "entry_id": s.get("entry_id"),
             "public_id": public_ids.get(s.get("entry_id")),
@@ -1679,10 +1685,19 @@ def _follow_steps(db: Session, db_list: models.OrderList, viewer) -> List[dict]:
         for s in resolved
     ]
     rows = follow_progress.list_rows_for(db, viewer.user_id, entry_ids)
-    return follow_progress.annotate_states(steps, rows)
+    return follow_progress.annotate_states(steps, rows, _skipped_ids(follow))
 
 
-def _follow_heading(db: Session, db_list: models.OrderList) -> dict:
+def _skipped_ids(follow) -> set:
+    """step_id of every step the follow skips; empty for no follow."""
+    if follow is None:
+        return set()
+    return {skip.step_id for skip in follow.skips}
+
+
+def _follow_heading(
+    db: Session, db_list: models.OrderList, follow: models.OrderFollow
+) -> dict:
     return {
         "list": {
             "system_id": db_list.system_id,
@@ -1691,19 +1706,26 @@ def _follow_heading(db: Session, db_list: models.OrderList) -> dict:
             "auto_source": db_list.auto_source,
         },
         "owner": _owner_of(db, db_list),
+        "importance": normalize_importance(follow.importance),
     }
 
 
-def _follow_summary(db: Session, db_list: models.OrderList, viewer) -> dict:
-    states = _follow_steps(db, db_list, viewer)
-    return {**_follow_heading(db, db_list), **follow_progress.summarize(states)}
+def _follow_summary(
+    db: Session, db_list: models.OrderList, follow: models.OrderFollow, viewer
+) -> dict:
+    states = _follow_steps(db, db_list, viewer, follow)
+    return {
+        **_follow_heading(db, db_list, follow),
+        "skipped": sorted(_skipped_ids(follow), key=str),
+        **follow_progress.summarize(states, follow.importance),
+    }
 
 
-def _followed_lists(db: Session, viewer) -> List[models.OrderList]:
+def _followed_lists(db: Session, viewer) -> List[tuple]:
     """
-    The caller's followed orders, oldest follow first, without those whose
-    owning group the session's mode hides. The follow row stays; a wider mode
-    lists it again.
+    The caller's (order, follow) pairs, oldest follow first, without those
+    whose owning group the session's mode hides. The follow row stays; a wider
+    mode lists it again.
     """
     return (
         _visible_lists(db.query(models.OrderList), db, viewer)
@@ -1711,10 +1733,28 @@ def _followed_lists(db: Session, viewer) -> List[models.OrderList]:
             models.OrderFollow,
             models.OrderFollow.list_id == models.OrderList.system_id,
         )
+        .add_entity(models.OrderFollow)
         .filter(models.OrderFollow.user_id == viewer.user_id)
         .order_by(models.OrderFollow.created_at.asc())
         .all()
     )
+
+
+def _own_follow_or_404(
+    db: Session, db_list: models.OrderList, viewer
+) -> models.OrderFollow:
+    """The caller's follow of this order. 404 when they do not follow it."""
+    follow = (
+        db.query(models.OrderFollow)
+        .filter(
+            models.OrderFollow.user_id == viewer.user_id,
+            models.OrderFollow.list_id == db_list.system_id,
+        )
+        .first()
+    )
+    if follow is None:
+        raise HTTPException(status_code=404, detail="Not following this order.")
+    return follow
 
 
 @router.get(
@@ -1728,8 +1768,8 @@ def get_my_follows(
 ):
     """Every order the caller follows, with done / total, now and up next."""
     return [
-        _follow_summary(db, db_list, viewer)
-        for db_list in _followed_lists(db, viewer)
+        _follow_summary(db, db_list, follow, viewer)
+        for db_list, follow in _followed_lists(db, viewer)
     ]
 
 
@@ -1744,18 +1784,21 @@ def get_my_follows_for_entry(
     viewer: Viewer = Depends(require_self_list),
 ):
     """
-    The followed orders that step through `entry_id`, each occurrence with the
-    steps either side of it. Empty when no followed order contains the entry.
+    The followed orders that step through `entry_id`, each occurrence with
+    what is next from it and the lookahead behind that. Empty when no followed
+    order contains the entry.
     """
     contexts = []
-    for db_list in _followed_lists(db, viewer):
-        states = _follow_steps(db, db_list, viewer)
-        occurrences = follow_progress.occurrences_of(states, entry_id)
+    for db_list, follow in _followed_lists(db, viewer):
+        states = _follow_steps(db, db_list, viewer, follow)
+        occurrences = follow_progress.occurrences_of(
+            states, entry_id, follow.importance
+        )
         if not occurrences:
             continue
         contexts.append(
             {
-                **_follow_heading(db, db_list),
+                **_follow_heading(db, db_list, follow),
                 "total": len(states),
                 "occurrences": occurrences,
             }
@@ -1770,13 +1813,21 @@ def get_my_follows_for_entry(
 )
 def follow_order(
     system_id: str,
+    payload: Optional[schemas.OrderFollowRequest] = Body(None),
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(require_self_list),
 ):
     """
     Follows the order, replacing whichever order of the same group the caller
-    followed before. Idempotent: following the followed order changes nothing.
+    followed before. Idempotent: following the followed order changes nothing
+    but the importance, when the body names one.
+
+    The body's `importance` sets the follow's rung; omitted, a new follow is
+    "Normal" and an existing one keeps its own. Replacing the group's follow
+    drops its skips, which named the other order's steps.
     """
+    importance = payload.importance if payload is not None else None
+    _validate_importance(importance)
     db_list = _get_visible_list_or_404(db, system_id, viewer)
     owner = {column: getattr(db_list, column) for column in _OWNER_COLUMNS}
 
@@ -1794,18 +1845,27 @@ def follow_order(
         .first()
     )
     if existing is None:
-        db.add(
-            models.OrderFollow(
-                user_id=viewer.user_id, list_id=db_list.system_id, **owner
-            )
+        existing = models.OrderFollow(
+            user_id=viewer.user_id,
+            list_id=db_list.system_id,
+            importance=importance or DEFAULT_IMPORTANCE,
+            **owner,
         )
-    elif existing.list_id != db_list.system_id:
-        # The group's one row is repointed rather than deleted and inserted
-        # again, so uq_order_follow_group is never in question.
-        existing.list_id = db_list.system_id
-        existing.updated_at = get_taipei_now()
+        db.add(existing)
+    else:
+        if existing.list_id != db_list.system_id:
+            # The group's one row is repointed rather than deleted and
+            # inserted again, so uq_order_follow_group is never in question.
+            # Its skips named the other order's steps, so they go.
+            existing.list_id = db_list.system_id
+            existing.skips.clear()
+            existing.updated_at = get_taipei_now()
+        if importance is not None and importance != existing.importance:
+            existing.importance = importance
+            existing.updated_at = get_taipei_now()
     db.commit()
-    return _follow_summary(db, db_list, viewer)
+    db.refresh(existing)
+    return _follow_summary(db, db_list, existing, viewer)
 
 
 @router.delete("/lists/{system_id}/follow", summary="Unfollow Order")
@@ -1828,3 +1888,78 @@ def unfollow_order(
         raise HTTPException(status_code=404, detail="Not following this order.")
     db.commit()
     return {"status": "success", "message": "Unfollowed."}
+
+
+def _order_step_or_404(
+    db: Session, db_list: models.OrderList, step_id: uuid.UUID, viewer
+) -> dict:
+    """
+    The order's step `step_id`, as the guide resolves it for this viewer.
+
+    A step the viewer's mode hides is as unknown as one that is not in the
+    order at all: both answer 404.
+    """
+    for step in _resolved_steps(db, db_list, viewer):
+        if step.get("system_id") == step_id:
+            return step
+    raise HTTPException(status_code=404, detail="No such step in this order.")
+
+
+def _skip_columns(db_list: models.OrderList, step_id: uuid.UUID) -> dict:
+    """How a skip names its step: the order_item, or a generated step's entry."""
+    if db_list.auto_source:
+        return {"item_id": None, "media_id": step_id}
+    return {"item_id": step_id, "media_id": None}
+
+
+@router.put(
+    "/lists/{system_id}/follow/skips/{step_id}",
+    response_model=schemas.OrderFollowSummary,
+    summary="Skip a Step of a Followed Order",
+)
+def skip_step(
+    system_id: str,
+    step_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_self_list),
+):
+    """
+    Marks one step of an order the caller follows to skip, so it is never
+    their next step. Idempotent. 404 when the caller does not follow the
+    order, or the step is not one of its steps.
+    """
+    db_list = _get_visible_list_or_404(db, system_id, viewer)
+    follow = _own_follow_or_404(db, db_list, viewer)
+    _order_step_or_404(db, db_list, step_id, viewer)
+    if step_id not in _skipped_ids(follow):
+        follow.skips.append(
+            models.OrderFollowSkip(**_skip_columns(db_list, step_id))
+        )
+        db.commit()
+        db.refresh(follow)
+    return _follow_summary(db, db_list, follow, viewer)
+
+
+@router.delete(
+    "/lists/{system_id}/follow/skips/{step_id}",
+    response_model=schemas.OrderFollowSummary,
+    summary="Stop Skipping a Step of a Followed Order",
+)
+def unskip_step(
+    system_id: str,
+    step_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(require_self_list),
+):
+    """
+    Clears the caller's skip mark on one step. Idempotent: a step that is not
+    skipped stays not skipped. 404 when the caller does not follow the order.
+    """
+    db_list = _get_visible_list_or_404(db, system_id, viewer)
+    follow = _own_follow_or_404(db, db_list, viewer)
+    for skip in list(follow.skips):
+        if skip.step_id == step_id:
+            follow.skips.remove(skip)
+    db.commit()
+    db.refresh(follow)
+    return _follow_summary(db, db_list, follow, viewer)

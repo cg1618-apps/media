@@ -50,6 +50,7 @@ from app.models.note import Note
 from app.models.note_mark import NoteMark
 from app.models.order import (
     OrderFollow,
+    OrderFollowSkip,
     OrderItem,
     OrderList,
     OrderSection,
@@ -130,6 +131,7 @@ __all__ = [
     "OrderItem",
     "OrderSection",
     "OrderFollow",
+    "OrderFollowSkip",
     "MediaRelation",
     "Person",
     "PersonRole",
