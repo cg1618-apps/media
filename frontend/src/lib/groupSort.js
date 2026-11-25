@@ -54,3 +54,21 @@ export function compareGroups(a, b, sort, type) {
   }
   return byTitle(a, b, type);
 }
+
+/**
+ * The sorts a grouping-tier list offers, as SortControl options: Title, and
+ * for a viewer with a list of its own (`ownData`) My rating and Expectation,
+ * which run best first. Shared by the three group libraries and the
+ * collection hub's member grid.
+ */
+export function groupSortOptions(ownData) {
+  return [
+    { value: "title", label: "Title" },
+    ...(ownData
+      ? [
+          { value: "my_rating", label: "My rating", descending: true },
+          { value: "expectation", label: "Expectation", descending: true },
+        ]
+      : []),
+  ];
+}

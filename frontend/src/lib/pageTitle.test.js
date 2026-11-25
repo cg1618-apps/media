@@ -14,7 +14,7 @@ describe("routeTitle", () => {
     expect(routeTitle("/library/anime")).toBe("Anime Library");
     expect(routeTitle("/library/anime-movie")).toBe("Anime Movie Library");
     expect(routeTitle("/library/hentai")).toBe("Hentai Library");
-    expect(routeTitle("/library/seiyuu")).toBe("Seiyuu Library");
+    expect(routeTitle("/library/person")).toBe("Person Library");
   });
 
   it("names the pages that have no nav row", () => {

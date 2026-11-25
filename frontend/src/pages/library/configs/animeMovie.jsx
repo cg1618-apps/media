@@ -19,8 +19,9 @@ import { compareTitles } from "../../../lib/naming";
 import { ANIME_MOVIE_RELEASE_TYPES, FILM_RELEASE_STATUSES } from "../../../config/fieldOptions";
 import {
   exclusiveSourceFilter,
-  rangeFilter,
   genreFilters,
+  myRatingFilter,
+  rangeFilter,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
 
@@ -100,6 +101,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
     exclusiveSourceFilter(),
     // Runtime in minutes: the film's length.
     rangeFilter("runtime", "Runtime", (x) => x.length_min, { unit: "min" }),
+    myRatingFilter({ advanced: true }),
     ...genreFilters(),
   ],
 
@@ -107,6 +109,7 @@ const ANIME_MOVIE_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       compare: compareTitle,
     },
     {

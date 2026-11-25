@@ -153,3 +153,20 @@ describe("PublisherLibrary and the viewer's own rating", () => {
     expect(screen.getByText("My Rating")).toBeInTheDocument();
   });
 });
+
+describe("PublisherLibrary list view", () => {
+  it("draws a table of name, kind, country, entry types, credits and my rating", async () => {
+    renderPage();
+    await screen.findByText("木棉花");
+    await userEvent.click(screen.getByRole("button", { name: "Table view" }));
+    const table = screen.getByRole("table");
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual([
+      "Publisher", "Kind", "Country", "Entry types", "Credits", "My",
+    ]);
+    const row = within(table).getByText("木棉花").closest("tr");
+    // Credited on anime and offered on manga: both kinds.
+    expect(within(row).getByText("台灣出版社")).toBeInTheDocument();
+    expect(within(row).getByText("台灣代理商")).toBeInTheDocument();
+    expect(within(row).getByText("Taiwan")).toBeInTheDocument();
+  });
+});

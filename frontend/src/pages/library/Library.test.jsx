@@ -10,6 +10,8 @@ import { LIBRARY_CONFIGS } from "./configs";
 
 // What /api/auth/me grants; a test that needs a list holder sets it.
 let permissions = [];
+// The anime list, when a test needs more than Frieren.
+let animeRows = null;
 
 function respond(url) {
   if (url.startsWith("/api/auth/me")) {
@@ -30,7 +32,7 @@ function respond(url) {
       },
     ];
   if (url.startsWith("/api/anime/"))
-    return [
+    return animeRows ?? [
       {
         system_id: "a1",
         anime_name_en: "Frieren",
@@ -46,6 +48,7 @@ function respond(url) {
 
 beforeEach(() => {
   permissions = [];
+  animeRows = null;
   vi.stubGlobal(
     "fetch",
     vi.fn((url) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(respond(String(url))) }))
@@ -171,8 +174,8 @@ describe("a library for a viewer without a list", () => {
     expect(screen.getByText("Release Status")).toBeInTheDocument();
     expect(screen.queryByText("Watch Status")).not.toBeInTheDocument();
 
-    expect(sortLabels()).toContain("Sort: MAL Rating");
-    expect(sortLabels()).not.toContain("Sort: My Rating");
+    expect(sortLabels()).toContain("MAL Rating");
+    expect(sortLabels()).not.toContain("My Rating");
 
     const headers = await openTable();
     expect(headers).toContain("MAL");
@@ -187,11 +190,44 @@ describe("a library for a viewer without a list", () => {
     await waitFor(() => expect(screen.getByText("Watch Status")).toBeInTheDocument());
     expect(screen.getByText("Release Status")).toBeInTheDocument();
 
-    expect(sortLabels()).toContain("Sort: My Rating");
+    expect(sortLabels()).toContain("My Rating");
 
     const headers = await openTable();
     for (const personal of ["MAL", "My", "Watch", "Watch Next", "To Rewatch"]) {
       expect(headers).toContain(personal);
     }
   });
+});
+
+// The toolbar's direction button runs the chosen sort backwards, and a new
+// sort starts in its own natural direction again.
+it("reverses the sort with the direction button, and resets it on a new sort", async () => {
+  animeRows = [
+    { system_id: "a1", anime_name_en: "Alpha", mal_rating: "7.00" },
+    { system_id: "a2", anime_name_en: "Beta", mal_rating: "9.00" },
+  ];
+  mount("/library/anime");
+  await waitFor(() => expect(screen.getByText("Alpha")).toBeInTheDocument());
+  const titles = () => screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+  const reverse = () => screen.getByRole("button", { name: "Reverse order" });
+  expect(titles()).toEqual(["Alpha", "Beta"]);
+  expect(reverse()).toHaveAttribute("title", "Ascending");
+
+  fireEvent.click(reverse());
+  expect(titles()).toEqual(["Beta", "Alpha"]);
+  expect(reverse()).toHaveAttribute("title", "Descending");
+
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "mal_rating" } });
+  expect(titles()).toEqual(["Beta", "Alpha"]);
+  expect(reverse()).toHaveAttribute("aria-pressed", "false");
+  fireEvent.click(reverse());
+  expect(titles()).toEqual(["Alpha", "Beta"]);
+});
+
+it("offers the sorts by their plain names, the caption outside the select", async () => {
+  mount("/library/anime");
+  await waitFor(() => expect(screen.getByText("Frieren")).toBeInTheDocument());
+  const select = screen.getByRole("combobox", { name: "Sort" });
+  expect(select.options[0].textContent).toBe("Title");
+  expect([...select.options].some((o) => o.textContent.startsWith("Sort:"))).toBe(false);
 });

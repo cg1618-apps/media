@@ -1,8 +1,12 @@
 // Frontend: page component file for FranchiseLibrary.
 import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { getDisplayName, cleanString, parseTypes } from "../../utils/media";
-import { compareGroups, expectationTone } from "../../lib/groupSort";
+import { compareGroups, expectationTone, groupSortOptions } from "../../lib/groupSort";
+import { directed } from "../../lib/sortDirection";
+import { useSortState } from "../../hooks/useSortState";
+import LibraryTable from "../../components/layout/LibraryTable";
+import LibraryToolbar from "../../components/layout/LibraryToolbar";
 import { getFranchiseCover, withMediaType } from "../../lib/covers";
 import { entityPath } from "../../lib/entityPath";
 import FranchiseCard from "../../components/cards/FranchiseCard";
@@ -237,55 +241,14 @@ const TABLE_COLUMNS = [
   },
 ];
 
-// Markup and class names mirror the table in LibraryLayout.jsx so the two
-// libraries read as one component rather than two tables that drifted.
 function FranchiseTable({ franchises, columnCtx, showPersonal }) {
-  const navigate = useNavigate();
-  const columns = showPersonal ? TABLE_COLUMNS : withoutPersonal(TABLE_COLUMNS);
   return (
-    <div className="bg-surface border border-border overflow-auto max-h-[75vh]">
-      <table className="w-full text-left">
-        <thead className="bg-surface border-b border-border sticky top-0 z-10">
-          <tr>
-            {columns.map((col, i) => (
-              <th
-                key={col.key}
-                className={`px-4 py-2.5 font-mono text-[10px] font-normal text-text-faint text-center ${
-                  i < columns.length - 1 ? "border-r border-border" : ""
-                } ${col.thClass ?? ""}`}
-              >
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
-          {franchises.map((f) => {
-            const path = entityPath("franchise", f);
-            return (
-              <tr
-                key={f.system_id}
-                onClick={path ? () => navigate(path) : undefined}
-                className={`transition-colors ${
-                  path ? "hover:bg-surface-2 cursor-pointer" : ""
-                }`}
-              >
-                {columns.map((col, i) => (
-                  <td
-                    key={col.key}
-                    className={`px-4 py-2 ${
-                      i < columns.length - 1 ? "border-r border-border" : ""
-                    } ${col.tdClass ?? ""}`}
-                  >
-                    {col.render(f, columnCtx)}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <LibraryTable
+      columns={showPersonal ? TABLE_COLUMNS : withoutPersonal(TABLE_COLUMNS)}
+      rows={franchises}
+      ctx={columnCtx}
+      rowPath={(row) => entityPath("franchise", row)}
+    />
   );
 }
 
@@ -309,7 +272,12 @@ export default function FranchiseLibrary() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentSort, setCurrentSort] = useState("title");
+  const {
+    sort: currentSort,
+    setSort: setCurrentSort,
+    reversed,
+    setReversed,
+  } = useSortState("title");
   const [currentView, setCurrentView] = useState("grid");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
@@ -416,7 +384,7 @@ export default function FranchiseLibrary() {
     // A personal sort left selected by a viewer who cannot see the values
     // would order by nothing; it reads as Title instead.
     const sort = showPersonal ? currentSort : "title";
-    result.sort((a, b) => compareGroups(a, b, sort, "franchise"));
+    result.sort(directed((a, b) => compareGroups(a, b, sort, "franchise"), reversed));
 
     return result;
   }, [
@@ -424,6 +392,7 @@ export default function FranchiseLibrary() {
     allEntriesByFranchise,
     searchQuery,
     currentSort,
+    reversed,
     showPersonal,
     filters,
     progressFilter,
@@ -465,91 +434,37 @@ export default function FranchiseLibrary() {
       {/* Filter strip: flat on the canvas */}
       <div className="border-b border-border sticky top-[var(--nav-h)] z-30 bg-canvas">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-            <div className="flex-1 min-w-0">
-              <h1 className="font-display text-3xl font-semibold text-text leading-none">
-                Franchises
-              </h1>
-              <p className="font-mono text-[11px] text-text-faint mt-1.5">
-                {filteredAndSorted.length} franchise
-                {filteredAndSorted.length !== 1 ? "s" : ""}
-                {searchQuery && ` matching "${searchQuery}"`}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Search */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search franchises..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-3 pr-8 py-1.5 bg-surface border border-border-strong text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    aria-label="Clear search"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted"
-                  >
-                    <i className="fas fa-times text-xs"></i>
-                  </button>
-                )}
-              </div>
-
-              {/* Sort */}
-              <label className="flex items-center gap-2">
-                <Eyebrow>Sort</Eyebrow>
-                <select
-                  value={showPersonal ? currentSort : "title"}
-                  onChange={(e) => setCurrentSort(e.target.value)}
-                  className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
-                >
-                  <option value="title">Title</option>
-                  {showPersonal && (
-                    <>
-                      <option value="my_rating">My rating</option>
-                      <option value="expectation">Expectation</option>
-                    </>
-                  )}
-                </select>
-              </label>
-
-              {/* Filters button */}
-              <button
-                onClick={() => setShowFilters((o) => !o)}
-                className={`px-3 py-1.5 border text-sm font-medium transition-colors ${showFilters ? PILL_ON : PILL_OFF}`}
-              >
-                Filters
-                {activeFilterCount > 0 && (
-                  <span className="ml-1.5 font-mono text-[10px] tabular-nums">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-
-              {/* View toggle */}
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setCurrentView("grid")}
-                  title="Grid view"
-                  aria-label="Grid view"
-                  className={`px-3 py-1.5 border text-sm transition-colors ${currentView === "grid" ? PILL_ON : PILL_OFF}`}
-                >
-                  <i className="fas fa-th-large"></i>
-                </button>
-                <button
-                  onClick={() => setCurrentView("table")}
-                  title="Table view"
-                  aria-label="Table view"
-                  className={`px-3 py-1.5 border text-sm transition-colors ${currentView === "table" ? PILL_ON : PILL_OFF}`}
-                >
-                  <i className="fas fa-list"></i>
-                </button>
-              </div>
-            </div>
+          <div className="mb-3">
+            <h1 className="font-display text-3xl font-semibold text-text leading-none">
+              Franchises
+            </h1>
+            <p className="font-mono text-[11px] text-text-faint mt-1.5">
+              {filteredAndSorted.length} franchise
+              {filteredAndSorted.length !== 1 ? "s" : ""}
+              {searchQuery && ` matching "${searchQuery}"`}
+            </p>
           </div>
+
+          <LibraryToolbar
+            search={{
+              value: searchQuery,
+              onChange: setSearchQuery,
+              placeholder: "Search franchises...",
+            }}
+            sort={{
+              options: groupSortOptions(showPersonal),
+              value: showPersonal ? currentSort : "title",
+              onChange: setCurrentSort,
+              reversed,
+              onReversedChange: setReversed,
+            }}
+            filters={{
+              open: showFilters,
+              onToggle: () => setShowFilters((o) => !o),
+              activeFilterCount,
+            }}
+            view={{ value: currentView, onChange: setCurrentView }}
+          />
 
           {/* Filter panel */}
           {showFilters && (

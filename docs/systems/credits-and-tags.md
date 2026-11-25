@@ -94,7 +94,7 @@ link-column builder never ask `media_credit` for seiyuu rows that will never
 exist there — a seiyuu's actual work lives in `character_casting_voice`, under
 the castings it voices, and is read through `/api/casting` instead. `seiyuu`
 still counts toward `PERSON_ROLES`
-(so it appears in dropdowns and on `/library/seiyuu`) and toward
+(so it appears in dropdowns and under the person library's 聲優 type) and toward
 `CREDIT_ROLE_KEYS`, so every `CREDIT_ROLES` / `CREDIT_ROLE_KEYS` call site
 needs auditing for the same "lives in media_credit" assumption — the one
 filter in `credit_roles_for()` is not assumed to catch every site. See

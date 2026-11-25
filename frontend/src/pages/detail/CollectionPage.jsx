@@ -15,7 +15,10 @@ import {
   getDisplayName,
   getNamingFields,
 } from "../../utils/media";
-import { compareGroups } from "../../lib/groupSort";
+import { compareGroups, groupSortOptions } from "../../lib/groupSort";
+import { directed } from "../../lib/sortDirection";
+import { useSortState } from "../../hooks/useSortState";
+import SortControl from "../../components/layout/SortControl";
 import {
   MY_RATINGS,
   FRANCHISE_EXPECTATIONS,
@@ -67,7 +70,12 @@ export default function CollectionPage() {
   const [activeTab, setActiveTab] = useState("Franchises");
   // The member franchises' rating and expectation are the viewer's own, so
   // without own data only the title sort is offered and applied.
-  const [memberSort, setMemberSort] = useState("title");
+  const {
+    sort: memberSort,
+    setSort: setMemberSort,
+    reversed,
+    setReversed,
+  } = useSortState("title");
   const sort = ownData ? memberSort : "title";
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -176,8 +184,9 @@ export default function CollectionPage() {
     [members],
   );
   const displayedMembers = useMemo(
-    () => [...members].sort((a, b) => compareGroups(a, b, sort, "franchise")),
-    [members, sort],
+    () =>
+      [...members].sort(directed((a, b) => compareGroups(a, b, sort, "franchise"), reversed)),
+    [members, sort, reversed],
   );
 
   // The heading's name, which the browser tab shows too.
@@ -351,19 +360,13 @@ export default function CollectionPage() {
           ) : (
             <>
             <div className="flex flex-wrap gap-2 mb-4 items-center">
-              <select
+              <SortControl
+                options={groupSortOptions(ownData)}
                 value={sort}
-                onChange={(e) => setMemberSort(e.target.value)}
-                className={SELECT_CLS}
-              >
-                <option value="title">Sort: title</option>
-                {ownData && (
-                  <option value="my_rating">Sort: my rating</option>
-                )}
-                {ownData && (
-                  <option value="expectation">Sort: expectation</option>
-                )}
-              </select>
+                onChange={setMemberSort}
+                reversed={reversed}
+                onReversedChange={setReversed}
+              />
             </div>
             <div className={GRID_CLS}>
               {displayedMembers.map((franchise) => (

@@ -273,13 +273,13 @@ export default function App() {
                   />
                   <Route path="/publisher/:publicId/:slug?" element={<Publisher />} />
                 </Route>
-                {/* A seiyuu is a person, so the seiyuu library asks
-                    view.person too. */}
+                {/* A seiyuu is a person: the Person library's Type filter
+                    finds them, and an old /library/seiyuu link lands there. */}
                 <Route element={<ProtectedRoute permission="view.person" />}>
                   <Route path="/library/person" element={<PersonLibrary />} />
                   <Route
                     path="/library/seiyuu"
-                    element={<PersonLibrary role="seiyuu" />}
+                    element={<Navigate to="/library/person" replace />}
                   />
                   <Route path="/person/:publicId/:slug?" element={<Person />} />
                 </Route>

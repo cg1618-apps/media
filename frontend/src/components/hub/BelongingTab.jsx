@@ -6,17 +6,18 @@ import { Fragment, useMemo } from "react";
 import { getDisplayName } from "../../utils/media";
 import { useViewScope } from "../../hooks/useViewScope";
 import {
-  HUB_SORTS,
   applyView,
   chipOptions,
   defaultFilters,
+  hubSortOptions,
   hubTabConfig,
   isFiltered,
 } from "../../lib/hubTabs";
+import SortControl from "../layout/SortControl";
 import { ClearAllButton, Eyebrow } from "../ui/primitives";
 import MediaCard from "../cards/MediaCard";
 import { FilterEmpty } from "./HubStates";
-import { GRID_CLS, SELECT_CLS, Section, pillCls } from "./HubChrome";
+import { GRID_CLS, Section, pillCls } from "./HubChrome";
 import TriStateFilter from "./TriStateFilter";
 
 function Divider() {
@@ -117,20 +118,16 @@ export default function BelongingTab({
   return (
     <Section title={title} count={shown.length}>
       <div className="flex flex-wrap gap-2 mb-4 items-center">
-        <select
-          aria-label="Sort"
+        {/* A new sort starts in its own natural direction. */}
+        <SortControl
+          options={hubSortOptions(config, ownData)}
           value={view.sort}
-          onChange={(e) => onViewChange((v) => ({ ...v, sort: e.target.value }))}
-          className={SELECT_CLS}
-        >
-          {config.sorts
-            .filter((key) => ownData || !HUB_SORTS[key].own)
-            .map((key) => (
-              <option key={key} value={key}>
-                Sort: {HUB_SORTS[key].label}
-              </option>
-            ))}
-        </select>
+          onChange={(sort) =>
+            onViewChange((v) => (v.sort === sort ? v : { ...v, sort, reversed: false }))
+          }
+          reversed={Boolean(view.reversed)}
+          onReversedChange={(reversed) => onViewChange((v) => ({ ...v, reversed }))}
+        />
 
         {config.filters.map((f) => {
           if (f.kind === "tri") {

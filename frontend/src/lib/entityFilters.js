@@ -1,6 +1,8 @@
-// Frontend: the FilterDefs of the entity libraries - character, person (and
-// its seiyuu view), studio and publisher (which adds a Kind group, see
-// PUBLISHER_KINDS).
+// Frontend: the FilterDefs of the entity libraries - character, person,
+// studio and publisher (which adds a Kind group, see PUBLISHER_KINDS).
+//
+// Every library opens its filters with Entry type and closes its ordinary
+// ones with My Rating; what sits between is the entity's own.
 //
 // Every entity library filters one list the API already returned,
 // client-side, with the same FilterDef machinery the media libraries use
@@ -16,11 +18,12 @@
 // but one whose entries are all of restricted types. So an entity only ever
 // credited on a gated type is hidden until Restricted (or one of its types)
 // is ticked, while one nobody has credited yet (a new seiyuu) is still listed.
-import { CHARACTER_ROLES, GENDERS, MY_RATINGS, PERSON_GENDERS } from "../config/fieldOptions";
+import { CHARACTER_ROLES, GENDERS, PERSON_GENDERS } from "../config/fieldOptions";
 import { mediaTypeLabel } from "../config/mediaRegistry";
-import { PERSON_SUB_TABS } from "../components/forms/PersonSubTabBar";
+import { PERSON_SUB_TABS, personTypeLabel } from "../components/forms/PersonSubTabBar";
 import { PUBLISHER_SCOPES } from "../components/forms/PublisherScopePills";
 import { canSeeGatedType, visibleByType } from "./gatedTypes";
+import { UNRATED, myRatingFilter } from "./libraryFilterDefs";
 import {
   CARD_KIND_CHARACTER,
   CARD_KIND_IDENTITY,
@@ -28,7 +31,7 @@ import {
   NO_IDENTITIES,
 } from "./characterCards";
 
-export const UNRATED = "Unrated";
+export { UNRATED };
 export const GENDER_NOT_SET = "Not set";
 export const ROLE_NOT_SET = "Not set";
 export const COUNTRY_NOT_SET = "Not set";
@@ -119,16 +122,26 @@ function mediaTypeDef(auth, types, restricted, typesOf = (item) => item.media_ty
   };
 }
 
-// The viewer's own rating (self.list). Every *FilterDefs takes `{ ownData }`
-// and leaves the group out when it is false: a viewer without self.list has no
-// rating of its own, so the group would offer only chips nothing can match.
-const ratingDef = {
-  key: "myRating",
-  label: "My Rating",
-  type: "set",
-  options: [...MY_RATINGS, UNRATED],
-  match: (item, active) => active.has(item.my_rating || UNRATED),
-};
+// The viewer's own rating (self.list), the last of every library's ordinary
+// filters. Every *FilterDefs takes `{ ownData }` and leaves the group out when
+// it is false: a viewer without self.list has no rating of its own, so the
+// group would offer only chips nothing can match.
+function ratingDefs(ownData) {
+  return ownData ? [myRatingFilter()] : [];
+}
+
+/**
+ * The distinct values `valuesOf(row)` returns across `rows`, the most-carried
+ * first: a value counts once per row that carries it, and a tie reads in name
+ * order.
+ */
+export function valuesByCount(rows, valuesOf) {
+  const counts = new Map();
+  for (const row of rows || []) {
+    for (const v of new Set(valuesOf(row))) counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  return [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a) || a.localeCompare(b));
+}
 
 // Built per call rather than once: GENDERS and PERSON_GENDERS are refreshed in
 // place from /api/constants, and a def frozen at import time would keep the
@@ -157,9 +170,9 @@ function characterRoleDef() {
 
 /**
  * A group over one of a character's tag lists (appearance, trait): the values
- * the loaded rows hold, sorted, plus Not set when a row's list is empty. A
- * row matches when it holds ANY ticked value, or has none and Not set is on.
- * Drawn in the advanced section.
+ * the loaded rows hold, the most-carried first (valuesByCount), plus Not set
+ * last when a row's list is empty. A row matches when it holds ANY ticked
+ * value, or has none and Not set is on. Drawn in the advanced section.
  */
 function tagListDef(key, label) {
   return {
@@ -168,7 +181,7 @@ function tagListDef(key, label) {
     type: "set-dynamic",
     advanced: true,
     deriveOptions: (rows) => {
-      const values = [...new Set(rows.flatMap((r) => r[key] || []))].sort();
+      const values = valuesByCount(rows, (r) => r[key] || []);
       return rows.some((r) => !(r[key] || []).length) ? [...values, TAGS_NOT_SET] : values;
     },
     match: (item, active) => {
@@ -181,11 +194,12 @@ function tagListDef(key, label) {
 }
 
 // Character cards and identity cards, so either can be shown alone. Empty
-// (the default) shows both.
+// (the default) shows both. Advanced, as is the Identities group below.
 const cardKindDef = {
   key: "cardKind",
   label: "Card",
   type: "set",
+  advanced: true,
   options: [CARD_KIND_CHARACTER, CARD_KIND_IDENTITY],
   match: (item, active) =>
     active.has(item.card_kind === "identity" ? CARD_KIND_IDENTITY : CARD_KIND_CHARACTER),
@@ -196,21 +210,22 @@ const hasIdentitiesDef = {
   key: "hasIdentities",
   label: "Identities",
   type: "set",
+  advanced: true,
   options: [HAS_IDENTITIES, NO_IDENTITIES],
   match: (item, active) => active.has(item.has_identities ? HAS_IDENTITIES : NO_IDENTITIES),
 };
 
 /**
- * The character library's defs: entry type, role, rating, gender, and the
- * card kind and identities groups over its character and identity cards; then
- * appearance and trait, in the advanced section.
+ * The character library's defs: entry type, role, gender, rating; then, in the
+ * advanced section, the card kind and identities groups over its character
+ * and identity cards, and appearance and trait.
  */
 export function characterFilterDefs(auth, { ownData = true } = {}) {
   return [
     mediaTypeDef(auth, CHARACTER_MEDIA_TYPES, CHARACTER_RESTRICTED_TYPES),
     characterRoleDef(),
-    ...(ownData ? [ratingDef] : []),
     genderDef(),
+    ...ratingDefs(ownData),
     cardKindDef,
     hasIdentitiesDef,
     tagListDef("appearance", "Appearance"),
@@ -219,41 +234,36 @@ export function characterFilterDefs(auth, { ownData = true } = {}) {
 }
 
 /**
- * The person library's defs: entry type, rating and gender, plus the person
- * types (director, author, ...) the admin sub-tabs split people by, matched
- * against the `roles` each person holds. A library already narrowed to one
- * role (`role`, the seiyuu view) has no Type group: every row holds it.
+ * The person library's defs: entry type, then the person types (director,
+ * author, ...) the admin sub-tabs split people by - matched against the
+ * `roles` each person holds and named in Chinese (personTypeLabel) - then
+ * gender and rating. A seiyuu is found under the Type group's 聲優.
  */
-export function personFilterDefs(auth, role = null, { ownData = true } = {}) {
-  const common = [
-    mediaTypeDef(auth, PERSON_MEDIA_TYPES, PERSON_RESTRICTED_TYPES),
-    ...(ownData ? [ratingDef] : []),
-    genderDef(PERSON_GENDERS),
-  ];
-  if (role) return common;
+export function personFilterDefs(auth, { ownData = true } = {}) {
   const roleTabs = visibleByType(auth, PERSON_SUB_TABS, (t) => t.gatedType);
-  const roleLabels = Object.fromEntries(roleTabs.map((t) => [t.key, t.label]));
   return [
+    mediaTypeDef(auth, PERSON_MEDIA_TYPES, PERSON_RESTRICTED_TYPES),
     {
       key: "role",
       label: "Type",
       type: "set",
       options: roleTabs.map((t) => t.key),
-      optionLabel: (key) => roleLabels[key] ?? key,
+      optionLabel: personTypeLabel,
       match: (item, active) => (item.roles || []).some((r) => active.has(r.role)),
     },
-    ...common,
+    genderDef(PERSON_GENDERS),
+    ...ratingDefs(ownData),
   ];
 }
 
-// The publisher's one country: the countries on record, sorted, plus Not set
-// when a row has none.
+// The publisher's one country: the countries on record, the most-named first
+// (valuesByCount), plus Not set last when a row has none.
 const countryDef = {
   key: "country",
   label: "Country",
   type: "set-dynamic",
   deriveOptions: (rows) => {
-    const countries = [...new Set(rows.map((r) => r.country).filter(Boolean))].sort();
+    const countries = valuesByCount(rows, (r) => (r.country ? [r.country] : []));
     return rows.some((r) => !r.country) ? [...countries, COUNTRY_NOT_SET] : countries;
   },
   match: (item, active) => active.has(item.country || COUNTRY_NOT_SET),
@@ -324,16 +334,16 @@ function studioCountryDef(rows) {
 }
 
 /**
- * The studio library's defs: entry type, rating, country, relation. `studios`
+ * The studio library's defs: entry type, country, relation, rating. `studios`
  * is the list the library filters: which countries get a chip of their own is
  * decided over it.
  */
 export function studioFilterDefs(auth, { ownData = true, studios = [] } = {}) {
   return [
     mediaTypeDef(auth, STUDIO_MEDIA_TYPES, STUDIO_RESTRICTED_TYPES),
-    ...(ownData ? [ratingDef] : []),
     studioCountryDef(studios),
     companyRelationDef,
+    ...ratingDefs(ownData),
   ];
 }
 
@@ -367,15 +377,26 @@ function publisherKindDef() {
 }
 
 /**
- * The publisher library's defs: kind, entry type, rating, country. Kind and
- * entry type both match the types a publisher is credited on OR offered on.
+ * The publisher library's defs: entry type, kind, country, relation, rating.
+ * Kind and entry type both match the types a publisher is credited on OR
+ * offered on.
  */
 export function publisherFilterDefs(auth, { ownData = true } = {}) {
   return [
-    publisherKindDef(),
     mediaTypeDef(auth, PUBLISHER_MEDIA_TYPES, [], publisherTypes),
-    ...(ownData ? [ratingDef] : []),
+    publisherKindDef(),
     countryDef,
     companyRelationDef,
+    ...ratingDefs(ownData),
   ];
+}
+
+/**
+ * The PUBLISHER_KINDS labels a publisher falls under, in PUBLISHER_KINDS
+ * order, then 其他 when a type it covers has no kind - the Kind group's own
+ * matching, as text for the publisher library's list view.
+ */
+export function publisherKindLabels(item) {
+  const keys = new Set(publisherTypes(item).map((t) => KIND_OF_TYPE[t] ?? OTHER_PUBLISHERS.key));
+  return [...PUBLISHER_KINDS, OTHER_PUBLISHERS].filter((k) => keys.has(k.key)).map((k) => k.label);
 }

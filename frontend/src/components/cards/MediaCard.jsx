@@ -25,7 +25,6 @@ import {
   getCardStatusConfig,
   getReleaseFallback,
   formatLength,
-  parseTypes,
   MEDIA_CONFIG,
   getBookProgress,
 } from "../../utils/media";
@@ -157,9 +156,9 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
   }
 
   // Every card but the future one: the outside score sits on the meta line,
-  // not the cover, and the TV show's region and the game's type take the
-  // cover's top-left corner. One look on the libraries and on a franchise's
-  // entries.
+  // not the cover, and the TV show's region and the game's, book's and
+  // comic's type take the cover's top-left corner, opposite the rating stamp.
+  // One look on the libraries and on a franchise's entries.
   return (
     <>
       <RatingStamp
@@ -184,16 +183,21 @@ function PosterBadges({ type, variant, data, franchiseDict }) {
           {data.game_type}
         </div>
       )}
-      {type === "comic" && data.comic_type && (
-        <div className={`absolute bottom-1 right-1 ${OVERLAY_CLS}`}>
-          {data.comic_type}
-        </div>
+      {type === "book" && data.type && (
+        <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>{data.type}</div>
       )}
-      <PlatformIcons
-        sources={data.sources}
-        linked={false}
-        className={`absolute bottom-1 left-1 z-10 ${PLATFORM_BOX_CLS}`}
-      />
+      {type === "comic" && data.comic_type && (
+        <div className={`absolute top-1 left-1 ${OVERLAY_CLS}`}>{data.comic_type}</div>
+      )}
+      {/* A comic card is its cover, type, rating, name, year and tracker
+          only - no platform icons. */}
+      {type !== "comic" && (
+        <PlatformIcons
+          sources={data.sources}
+          linked={false}
+          className={`absolute bottom-1 left-1 z-10 ${PLATFORM_BOX_CLS}`}
+        />
+      )}
     </>
   );
 }
@@ -260,17 +264,15 @@ function LibraryMeta({ type, data, scoreField }) {
     );
   }
 
+  // The type sits on the cover (PosterBadges); the serialization status is
+  // not on the card.
   if (type === "book") {
     return (
       <div className="mb-1 flex items-end justify-between gap-1">
         <div className="flex flex-col gap-1 min-w-0 flex-1">
-          {(data.type || data.serialization_status || data.version) && (
+          {data.version && (
             <div className="flex items-center gap-1 flex-wrap">
-              {data.type && <Chip>{data.type}</Chip>}
-              {data.serialization_status && (
-                <Chip>{data.serialization_status}</Chip>
-              )}
-              {data.version && <Chip tone="muted">{data.version}</Chip>}
+              <Chip tone="muted">{data.version}</Chip>
             </div>
           )}
           <span className="font-mono text-[10px] text-text-faint truncate">
@@ -289,37 +291,13 @@ function LibraryMeta({ type, data, scoreField }) {
     );
   }
 
+  // The release year alone, at the line's left edge; the type is on the
+  // cover (PosterBadges) and the title is the EN name.
   if (type === "comic") {
-    // events is a comma-joined multi-select sharing franchise_type's idiom;
-    // show the first and count the rest.
-    const events = parseTypes(data.events);
     return (
-      <div className="font-mono text-[10px] text-text-faint mb-1 flex flex-col gap-1 min-w-0">
-        {data.comic_name_cn && (
-          <span
-            className="truncate font-sans normal-case tracking-normal"
-            title={data.comic_name_cn}
-          >
-            {data.comic_name_cn}
-          </span>
-        )}
-        <div className="flex items-center justify-between gap-1">
-          {data.volume_label && <Chip>{data.volume_label}</Chip>}
-          <span className="truncate">{yearRange(data)}</span>
-        </div>
-        {data.era && <Chip className="self-start">{data.era}</Chip>}
-        {events.length > 0 && (
-          <div
-            className="flex items-center gap-1 min-w-0"
-            title={events.join(", ")}
-          >
-            <span className="truncate">{events[0]}</span>
-            {events.length > 1 && (
-              <span className="shrink-0">+{events.length - 1}</span>
-            )}
-          </div>
-        )}
-      </div>
+      <MetaLine className="mb-1">
+        <span className="truncate pr-1">{releaseYear(data.release_date) || "?"}</span>
+      </MetaLine>
     );
   }
 

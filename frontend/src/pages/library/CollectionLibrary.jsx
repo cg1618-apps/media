@@ -7,7 +7,10 @@ import { useIncrementalList } from "../../hooks/useIncrementalList";
 import { useViewScope } from "../../hooks/useViewScope";
 import { getSortName, cleanString } from "../../utils/media";
 import { compareTitles } from "../../lib/naming";
-import { compareGroups } from "../../lib/groupSort";
+import { compareGroups, groupSortOptions } from "../../lib/groupSort";
+import { directed } from "../../lib/sortDirection";
+import { useSortState } from "../../hooks/useSortState";
+import LibraryToolbar from "../../components/layout/LibraryToolbar";
 import { getCollectionCover, withMediaType } from "../../lib/covers";
 import CollectionCard from "../../components/cards/CollectionCard";
 import { Eyebrow } from "../../components/ui/primitives";
@@ -20,7 +23,12 @@ export default function CollectionLibrary() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentSort, setCurrentSort] = useState("my_rating");
+  const {
+    sort: currentSort,
+    setSort: setCurrentSort,
+    reversed,
+    setReversed,
+  } = useSortState("my_rating");
   // A collection's rating and expectation are the viewer's own (self.list).
   // Without the key neither sort is offered and the library sorts by title -
   // the chosen sort, my rating by default, would order by values the server
@@ -121,10 +129,10 @@ export default function CollectionLibrary() {
       ].some((n) => n && cleanString(n).includes(qClean));
     });
 
-    result.sort((a, b) => compareGroups(a, b, sort, "collection"));
+    result.sort(directed((a, b) => compareGroups(a, b, sort, "collection"), reversed));
 
     return result;
-  }, [allCollections, searchQuery, sort]);
+  }, [allCollections, searchQuery, sort, reversed]);
 
   // Search, filter and sort see every item; the grid draws them a batch at a
   // time, so a long library does not mount every card - and its cover - at once.
@@ -156,58 +164,32 @@ export default function CollectionLibrary() {
       {/* Filter strip: flat on the canvas */}
       <div className="border-b border-border sticky top-[var(--nav-h)] z-30 bg-canvas">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-            <div className="flex-1 min-w-0">
-              <h1 className="font-display text-3xl font-semibold text-text leading-none">
-                Collections
-              </h1>
-              <p className="font-mono text-[11px] text-text-faint mt-1.5">
-                {filteredAndSorted.length} collection
-                {filteredAndSorted.length !== 1 ? "s" : ""}
-                {searchQuery && ` matching "${searchQuery}"`}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Search */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search collections..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-3 pr-8 py-1.5 bg-surface border border-border-strong text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand transition w-44 sm:w-56"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    aria-label="Clear search"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted"
-                  >
-                    <i className="fas fa-times text-xs"></i>
-                  </button>
-                )}
-              </div>
-
-              {/* Sort */}
-              <label className="flex items-center gap-2">
-                <Eyebrow>Sort</Eyebrow>
-                <select
-                  value={sort}
-                  onChange={(e) => setCurrentSort(e.target.value)}
-                  className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
-                >
-                  <option value="title">Title</option>
-                  {showPersonal && (
-                    <>
-                      <option value="my_rating">My rating</option>
-                      <option value="expectation">Expectation</option>
-                    </>
-                  )}
-                </select>
-              </label>
-            </div>
+          <div className="mb-3">
+            <h1 className="font-display text-3xl font-semibold text-text leading-none">
+              Collections
+            </h1>
+            <p className="font-mono text-[11px] text-text-faint mt-1.5">
+              {filteredAndSorted.length} collection
+              {filteredAndSorted.length !== 1 ? "s" : ""}
+              {searchQuery && ` matching "${searchQuery}"`}
+            </p>
           </div>
+
+          {/* A collection has no type, so there is no filter. */}
+          <LibraryToolbar
+            search={{
+              value: searchQuery,
+              onChange: setSearchQuery,
+              placeholder: "Search collections...",
+            }}
+            sort={{
+              options: groupSortOptions(showPersonal),
+              value: sort,
+              onChange: setCurrentSort,
+              reversed,
+              onReversedChange: setReversed,
+            }}
+          />
         </div>
       </div>
 
