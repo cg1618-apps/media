@@ -1,7 +1,7 @@
 // Frontend: the chip panel that renders a list of FilterDefs (the shape is
 // documented in hooks/useLibraryState.js). Used by LibraryLayout, the random
 // picker and the entity libraries (character, person, studio, publisher).
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { ClearAllButton, Eyebrow } from "../ui/primitives";
 import {
@@ -108,6 +108,48 @@ export function FilterToggleButton({ open, onToggle, activeFilterCount, classNam
 }
 
 // ---------------------------------------------------------------------------
+// OptionsHelp — the circled "?" after a hinted def's label
+// ---------------------------------------------------------------------------
+// Hovering or focusing it lists every option with its hint, so what each chip
+// stands for can be read at once rather than one chip title at a time.
+function OptionsHelp({ label, options, optionLabel, optionHint }) {
+  const [open, setOpen] = useState(false);
+  const tipId = useId();
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        aria-label={`What the ${label} options mean`}
+        aria-describedby={open ? tipId : undefined}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        className="text-text-faint hover:text-text focus-visible:outline-none focus-visible:text-text"
+      >
+        <i className="fas fa-circle-question text-[11px]" aria-hidden="true"></i>
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          id={tipId}
+          className="absolute left-0 top-full mt-1 z-20 w-72 border border-border-strong bg-surface px-3 py-2 shadow-lg font-sans"
+        >
+          <dl className="space-y-1.5 text-xs">
+            {options.map((v) => (
+              <div key={v}>
+                <dt className="font-medium text-text">{optionLabel ? optionLabel(v) : v}</dt>
+                <dd className="text-text-muted">{optionHint(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // FilterGroup — one def: a checkbox for a boolean, else a labelled chip row
 // ---------------------------------------------------------------------------
 function FilterGroup({ fd, filters, toggleFilter, dynamicFilterOptions }) {
@@ -138,7 +180,17 @@ function FilterGroup({ fd, filters, toggleFilter, dynamicFilterOptions }) {
 
   return (
     <div>
-      <Eyebrow className="mb-1.5">{fd.label}</Eyebrow>
+      <Eyebrow className="mb-1.5 flex items-center gap-1.5">
+        {fd.label}
+        {fd.optionHint && (
+          <OptionsHelp
+            label={fd.label}
+            options={options}
+            optionLabel={fd.optionLabel}
+            optionHint={fd.optionHint}
+          />
+        )}
+      </Eyebrow>
       <div className="flex flex-wrap gap-1.5">
         {options.map((v) => (
           <FilterTag

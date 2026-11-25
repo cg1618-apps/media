@@ -224,9 +224,13 @@ caller gets parent chips with no extra wiring. A parent with no children is
 not drawn. The character, person and studio libraries use it for
 **Restricted** over the gated media types.
 
-A set-type def may carry `optionHint(value)`: the chip's hover `title`. The
-watch libraries' Watch Status uses it to list the stored statuses each chip
-includes (`watchStatusFilter` in `lib/libraryFilterDefs.js`).
+A set-type def may carry `optionHint(value)`: the chip's hover `title`. A
+def that has one also gets a circled **?** (`fa-circle-question`) after its
+label, a button named "What the {label} options mean"; hovering or focusing
+it opens a tooltip that lists every option with its hint, so the whole
+vocabulary reads at once. The watch libraries' Watch Status uses it to list
+the stored statuses each chip includes (`watchStatusFilter` in
+`lib/libraryFilterDefs.js`).
 
 A def flagged `advanced: true` is drawn in the **advanced section** instead,
 after every ordinary def, behind an **Advanced filters** toggle

@@ -703,7 +703,9 @@ movie, movie, TV show, cartoon and hentai — `watchStatusFilter(type)` in
 `lib/libraryFilterDefs.js`. Its chips run Might Watch, Planned, Watching,
 Completed, Dropped, each a group of stored statuses through
 `WATCHING_STATUS_GROUP`, and each chip's hover title (`optionHint`) lists the
-statuses it includes in that type's vocabulary (`watchingStatusesFor`):
+statuses it includes in that type's vocabulary (`watchingStatusesFor`). The
+circled **?** after the **Watch Status** label shows the whole table below
+on hover or focus:
 
 | Chip | Includes |
 |---|---|

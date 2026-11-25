@@ -129,6 +129,35 @@ it("gives a chip its def's hint as a hover title", () => {
   );
 });
 
+// A def with option hints marks its label with a circled "?"; hovering or
+// focusing it lists every option with what it includes. A def with no hints
+// gets no mark.
+it("puts a help mark after a hinted def's label that explains every option", async () => {
+  const user = userEvent.setup();
+  render(<AdvancedHarness />);
+  const help = screen.getByRole("button", { name: "What the Status options mean" });
+  expect(help.querySelector(".fa-circle-question")).not.toBeNull();
+  expect(screen.queryByRole("tooltip")).toBeNull();
+
+  await user.hover(help);
+  const tip = screen.getByRole("tooltip");
+  expect(help).toHaveAttribute("aria-describedby", tip.id);
+  expect(tip).toHaveTextContent("Planned");
+  expect(tip).toHaveTextContent("Includes: Planned things");
+  expect(tip).toHaveTextContent("Done");
+  expect(tip).toHaveTextContent("Includes: Done things");
+
+  await user.unhover(help);
+  expect(screen.queryByRole("tooltip")).toBeNull();
+
+  await user.tab();
+  while (document.activeElement !== help) await user.tab();
+  expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /Advanced filters/ }));
+  expect(screen.queryByRole("button", { name: "What the Genre options mean" })).toBeNull();
+});
+
 it("keeps advanced filters collapsed until the button opens them", async () => {
   const user = userEvent.setup();
   render(<AdvancedHarness />);
