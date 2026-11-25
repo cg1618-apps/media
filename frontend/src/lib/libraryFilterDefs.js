@@ -2,8 +2,8 @@
 // watch-status and airing-status filters and the tag filters of the advanced
 // section. The
 // FilterDef shape itself is documented in hooks/useLibraryState.js.
-import { AIRING_STATUSES, watchingStatusesFor } from "../config/fieldOptions";
-import { WATCHING_STATUS_GROUP } from "../config/statusGroups";
+import { AIRING_STATUSES, READING_STATUSES, watchingStatusesFor } from "../config/fieldOptions";
+import { READING_STATUS_GROUP, WATCHING_STATUS_GROUP } from "../config/statusGroups";
 
 // ---------------------------------------------------------------------------
 // Watch status
@@ -55,6 +55,73 @@ export function watchStatusFilter(type) {
     optionHint: (group) => watchStatusHint(type, group),
     match: (item, active) =>
       active.has(WATCHING_STATUS_GROUP[item.watching_status] ?? NO_STATUS_GROUP),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Read status
+// ---------------------------------------------------------------------------
+
+// The read-status chips, in the order a title moves through them.
+export const READ_STATUS_FILTER_GROUPS = [
+  "Might Read",
+  "Planned",
+  "Reading",
+  "Completed",
+  "Dropped",
+];
+
+// A row with no status counts as Might Read, so its chip says so.
+const NO_READ_STATUS_GROUP = "Might Read";
+
+/** The hover hint of one read-status chip: the statuses it includes. */
+export function readStatusHint(group) {
+  const statuses = READING_STATUSES.filter((s) => READING_STATUS_GROUP[s] === group).join(", ");
+  return group === NO_READ_STATUS_GROUP
+    ? `Includes: ${statuses}, and no status`
+    : `Includes: ${statuses}`;
+}
+
+/**
+ * The Read Status filter of manga and book. Personal: it reads the viewer's
+ * own list row. Each chip's hint - and the circled ? after the label that
+ * lists them all - is computed on hover, as the watch libraries' is.
+ */
+export function readStatusFilter() {
+  return {
+    key: "readingStatus",
+    label: "Read Status",
+    personal: true,
+    type: "set-grouped",
+    groupOptions: READ_STATUS_FILTER_GROUPS,
+    optionHint: readStatusHint,
+    match: (item, active) =>
+      active.has(READING_STATUS_GROUP[item.reading_status] ?? NO_READ_STATUS_GROUP),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Vocabulary filters
+// ---------------------------------------------------------------------------
+
+/**
+ * A set filter over one column drawn from a vocabulary: its chips are the
+ * values the library holds, in the vocabulary's own order, and any value
+ * outside the vocabulary (a legacy one) after them in name order - so an
+ * unused value draws no empty chip and an unexpected one stays filterable.
+ */
+export function vocabularyFilter(key, label, field, vocabulary) {
+  return {
+    key,
+    label,
+    type: "set-dynamic",
+    deriveOptions: (data) => {
+      const held = new Set(data.map((d) => d[field]).filter(Boolean));
+      const known = vocabulary.filter((v) => held.has(v));
+      const rest = [...held].filter((v) => !vocabulary.includes(v)).sort((a, b) => a.localeCompare(b));
+      return [...known, ...rest];
+    },
+    match: (item, active) => active.has(item[field]),
   };
 }
 
@@ -123,6 +190,11 @@ export function tagFilter(key, label, field) {
 /** Exclusive Source, drawn first in the advanced section where a type has it. */
 export function exclusiveSourceFilter(field = "exclusive_source") {
   return tagFilter("exclusiveSource", "Exclusive Source", field);
+}
+
+/** Publisher TW: manga's and book's Taiwanese publisher credit. */
+export function publisherTwFilter() {
+  return tagFilter("publisherTw", "Publisher TW", "publisher_tw");
 }
 
 /** Label: the eight mainstream types and game. */

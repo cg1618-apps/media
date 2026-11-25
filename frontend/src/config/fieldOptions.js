@@ -201,23 +201,26 @@ export const TV_REGIONS = ["歐美劇", "韓劇", "日劇", "陸劇", "台劇", 
 
 export const MANGA_REGIONS = ["日漫", "韓漫", "國漫", "台漫", "其他"];
 
-export const BOOK_REGIONS = ["JP", "CN", "TW", "KR", "Western"];
+export const BOOK_REGIONS = ["Western", "JP", "CN", "KR", "TW"];
 
-export const BOOK_TYPES = ["輕小說", "小說", "網路小說", "短篇集", "指南/設定集", "其他"];
+export const BOOK_TYPES = ["小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他"];
 
 export const COMIC_TYPES = ["Ongoing", "Limited", "One-Shot", "Annual"];
 
+// Comic's and h-comic's. Manga shares book's list below.
 export const MANGA_SERIALIZATION_STATUSES = ["連載中", "停更", "腰斬", "完結"];
 
+// Book's and manga's, in the order a run moves through them - the order the
+// forms and the library filters list them in.
 export const BOOK_SERIALIZATION_STATUSES = [
+  "未出",
   "連載中",
   "連載中 (不穩定)",
   "連載中 (有生之年)",
   "停更",
+  "可能更多",
   "完結",
   "腰斬",
-  "可能更多",
-  "未出",
 ];
 
 // Progress display uses {value, label} pairs — the stored value is a short code.

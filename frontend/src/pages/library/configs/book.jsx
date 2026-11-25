@@ -10,10 +10,18 @@ import {
   readButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
-import { READING_STATUS_GROUP, getBookProgress } from "../../../utils/media";
+import { getBookProgress } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
 import {
+  BOOK_REGIONS,
+  BOOK_SERIALIZATION_STATUSES,
+  BOOK_TYPES,
+} from "../../../config/fieldOptions";
+import {
   genreFilters,
+  publisherTwFilter,
+  readStatusFilter,
+  vocabularyFilter,
 } from "../../../lib/libraryFilterDefs";
 
 function getTitle(n)   {
@@ -57,40 +65,17 @@ const BOOK_LIBRARY_CONFIG = {
   },
 
   filterDefs: [
-    {
-      key: "serializationStatus",
-      label: "Serialization Status",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.serialization_status).filter(Boolean))].sort(),
-      match: (item, active) => active.has(item.serialization_status),
-    },
-    {
-      key: "readingStatus",
-      label: "Read Status",
-      personal: true,
-      type: "set-grouped",
-      groupOptions: ["Reading", "Planned", "Completed", "Dropped", "Might Read"],
-      match: (item, active) =>
-        active.has(READING_STATUS_GROUP[item.reading_status] ?? "Might Read"),
-    },
-    {
-      key: "region",
-      label: "Region",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.region).filter(Boolean))].sort(),
-      match: (item, active) => active.has(item.region),
-    },
-    {
-      key: "type",
-      label: "Type",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.type).filter(Boolean))].sort(),
-      match: (item, active) => active.has(item.type),
-    },
+    vocabularyFilter(
+      "serializationStatus",
+      "Serialization Status",
+      "serialization_status",
+      BOOK_SERIALIZATION_STATUSES,
+    ),
+    readStatusFilter(),
+    vocabularyFilter("type", "Type", "type", BOOK_TYPES),
+    vocabularyFilter("region", "Region", "region", BOOK_REGIONS),
     // Advanced section (FilterPanel draws it collapsed).
+    publisherTwFilter(),
     ...genreFilters(),
   ],
 
