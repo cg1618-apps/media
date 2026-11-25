@@ -205,7 +205,8 @@ export const TV_REGIONS = ["歐美劇", "韓劇", "日劇", "陸劇", "台劇", 
 
 export const MANGA_REGIONS = ["日漫", "韓漫", "國漫", "台漫", "其他"];
 
-export const BOOK_REGIONS = ["Western", "JP", "CN", "KR", "TW"];
+// Named in Chinese; app/utils/constants.py is the authority.
+export const BOOK_REGIONS = ["歐美", "日本", "中國", "韓國", "台灣"];
 
 export const BOOK_TYPES = ["小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他"];
 

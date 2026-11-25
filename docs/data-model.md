@@ -491,10 +491,11 @@ names live in `book_unit` rows, one per unit.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `book_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
-| `region` | String | yes | | BOOK_REGIONS (Western / JP / CN / KR / TW) |
+| `region` | String | yes | | BOOK_REGIONS (歐美 / 日本 / 中國 / 韓國 / 台灣) |
 | `type` | String | yes | | BOOK_TYPES (小說 / 輕小說 / 網路小說 / 短篇集 / 指南/設定集 / 其他); also selects which `book_unit.unit_kind`s the editor offers - see `entry-types.md` - and which books Statistics' Novel section counts |
 | `version` | String | yes | | Edition (free text) |
 | `is_main` | String | yes | | |
+| `anime_studio` | String | yes | | The studio that animated the book's adaptation, as `manga.anime_studio`: a plain column, not a credit |
 | `serialization_status` | String | yes | | BOOK_SERIALIZATION_STATUSES (未出 / 連載中 / 連載中 (不穩定) / 連載中 (有生之年) / 停更 / 可能更多 / 完結 / 腰斬), shared with manga |
 | `vol_total_original` | Float | yes | | Volumes in the original run (JP/KR). Not derived - `book_unit` volume rows are optional enrichment and never feed this column (Decision B, see business-rules.md) |
 | `vol_total_tw` | Float | yes | | Volumes published in Taiwan. Same rule: never derived from `book_unit` rows |

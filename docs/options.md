@@ -109,7 +109,7 @@ type it serves is seeable.
 | `MOVIE_TYPES` | `Reality`, `Animation` | movie type | `movie_type` |
 | `TV_REGIONS` | `歐美劇`, `韓劇`, `日劇`, `陸劇`, `台劇`, `動畫` | `tv_shows.region` (formerly `Region (TV Show)` option category) | `tv_region` |
 | `MANGA_REGIONS` | `日漫`, `韓漫`, `國漫`, `台漫`, `其他` | `manga.region` (formerly `Region (Manga)` option category) | `manga_region` |
-| `BOOK_REGIONS` | `JP`, `CN`, `TW`, `KR`, `Western` | `book.region` | `book_region` |
+| `BOOK_REGIONS` | `歐美`, `日本`, `中國`, `韓國`, `台灣` | `book.region` | `book_region` |
 | `BOOK_TYPES` | `輕小說`, `小說`, `網路小說`, `短篇集`, `指南/設定集`, `其他` | `book.type`; also the Plan page book grouping, the unit kinds a book offers (below), and which books Statistics' Novel section counts (`輕小說`, `小說`, `網路小說`, `短篇集`) | `book_type` |
 | `COMIC_TYPES` | `Ongoing`, `Limited`, `One-Shot`, `Annual` | `comic.comic_type` | `comic_type` |
 | `GAME_TYPES` | `Base Game`, `DLC`, `Expansion`, `Bundle` | `games.game_type`, `h_game.game_type`; `Base Game` is the value `ck_games_base_no_parent` / `ck_h_game_base_no_parent` name | `game_type` |

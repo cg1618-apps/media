@@ -22,7 +22,8 @@ const PAGES = [
   { name: "Anime", type: "anime", Page: Anime },
   { name: "Anime Movie", type: "anime-movie", Page: AnimeMovie },
   { name: "Manga", type: "manga", Page: Manga },
-  { name: "Book", type: "book", Page: Book, entry: { units: [] } },
+  // Book draws it under Production instead.
+  { name: "Book", type: "book", Page: Book, entry: { units: [] }, after: "production" },
   { name: "Movie", type: "movie", Page: Movie },
   { name: "TV", type: "tv-show", Page: TV },
   { name: "Cartoon", type: "cartoon", Page: Cartoon },
@@ -72,7 +73,7 @@ function mount(type, Page) {
 
 const card = (title) => screen.getByRole("heading", { name: title }).closest("section");
 
-describe.each(PAGES)("$name detail page — Genres card", ({ type, Page, entry }) => {
+describe.each(PAGES)("$name detail page — Genres card", ({ type, Page, entry, after = "information" }) => {
   const base = { system_id: "x1", public_id: "x1", ...entry };
 
   it("shows the tags in the Genres card, not in Information", async () => {
@@ -90,15 +91,16 @@ describe.each(PAGES)("$name detail page — Genres card", ({ type, Page, entry }
     expect(within(info).queryByText("Label")).not.toBeInTheDocument();
   });
 
-  it("draws the Genres card directly below the Information card", async () => {
+  it(`draws the Genres card directly below the ${after} section`, async () => {
     mockFetch(type, { ...base, ...TAGS });
-    mount(type, Page);
+    const { container } = mount(type, Page);
     await screen.findByRole("heading", { name: "Information" });
-    const info = card("Information");
     const genres = card("Genres");
-    // Each card sits in its own contents section; the Genres one is next.
-    const infoBlock = info.parentElement;
-    expect(infoBlock.nextElementSibling).toBe(genres.parentElement);
+    // Each card sits in its own contents section, found by its id even when
+    // it drew nothing; the Genres one is next.
+    expect(container.querySelector(`section#${after}`).nextElementSibling).toBe(
+      genres.parentElement,
+    );
   });
 
   it("renders no Genres card when no tag is set", async () => {

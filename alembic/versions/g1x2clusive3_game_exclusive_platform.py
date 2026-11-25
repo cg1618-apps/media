@@ -15,7 +15,7 @@ Reversible: the downgrade deletes the category's values, and with them their
 scope rows and any tag rows naming them (both cascade).
 
 Revision ID: g1x2clusive3
-Revises: r1e2lcascade3
+Revises: b1o2okregion3
 """
 
 from typing import Sequence, Union
@@ -25,7 +25,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "g1x2clusive3"
-down_revision: Union[str, Sequence[str], None] = "r1e2lcascade3"
+down_revision: Union[str, Sequence[str], None] = "b1o2okregion3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

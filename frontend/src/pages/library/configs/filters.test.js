@@ -294,6 +294,6 @@ it("puts a book's Type above Region, each in its vocabulary's order", () => {
     defs.find((fd) => fd.key === key).deriveOptions([...values].reverse().map((v) => ({ [field]: v })));
   const TYPES = ["小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他"];
   expect(derive("type", "type", TYPES)).toEqual(TYPES);
-  const REGIONS = ["Western", "JP", "CN", "KR", "TW"];
+  const REGIONS = ["歐美", "日本", "中國", "韓國", "台灣"];
   expect(derive("region", "region", REGIONS)).toEqual(REGIONS);
 });
