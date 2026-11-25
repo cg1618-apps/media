@@ -18,7 +18,7 @@ import {
   parseTypes,
 } from "../../utils/media";
 import InfoCard from "../../components/info/InfoCard";
-import { creditLabel, creditValue } from "../../components/info/PersonLinks";
+import GenresCard from "../../components/info/GenresCard";
 import {
   publisherLabel,
   publisherValue,
@@ -427,21 +427,24 @@ export default function Comic() {
               <InfoCard
                 title="Information"
                 fields={[
+                  // The genres are on the Genres card and the reading status
+                  // on the tracker.
                   [
+                    {
+                      label: publisherLabel(comic, "出版商"),
+                      value: publisherValue(comic),
+                    },
                     { label: "Type", value: comic.comic_type },
-                    { label: "Volume Label", value: comic.volume_label },
                     { label: "Continuity", value: comic.continuity },
+                    { label: "Era", value: comic.era },
                   ],
-                  [{ label: "Era", value: comic.era }],
                   [
                     {
                       label: "Serialization Status",
                       value: comic.serialization_status,
                     },
-                    { label: "Reading Status", value: comic.reading_status },
-                  ],
-                  [
                     { label: "Release Year", value: yearRange },
+                    { label: "Volume Label", value: comic.volume_label },
                     {
                       label: "Issue Total",
                       value:
@@ -450,58 +453,15 @@ export default function Comic() {
                           : null,
                     },
                   ],
-                  { label: "Genre (Main)", value: comic.genre_main },
-                  { label: "Genre (Sub)", value: comic.genre_sub },
-                  { label: "Label", value: comic.label },
                 ]}
               />
             </TocSection>
             <TocSection id="events" label="Events">
               {events.length > 0 && <EventsCard events={events} />}
             </TocSection>
-            <TocSection id="production" label="Production">
-              {(comic.writer ||
-                comic.artist ||
-                comic.publisher ||
-                comic.imprint ||
-                comic.publisher_refs?.length > 0) && (
-                <InfoCard
-                  title="Production"
-                  fields={[
-                    ...(comic.writer
-                      ? [
-                          {
-                            label: creditLabel(comic, "author", "Writer"),
-                            value: creditValue(comic, "author", comic.writer),
-                          },
-                        ]
-                      : []),
-                    ...(comic.artist
-                      ? [
-                          {
-                            label: creditLabel(comic, "illustrator", "Artist"),
-                            value: creditValue(
-                              comic,
-                              "illustrator",
-                              comic.artist,
-                            ),
-                          },
-                        ]
-                      : []),
-                    ...(comic.publisher || comic.publisher_refs?.length
-                      ? [
-                          {
-                            label: publisherLabel(comic, "出版商"),
-                            value: publisherValue(comic),
-                          },
-                        ]
-                      : []),
-                    ...(comic.imprint
-                      ? [{ label: "Imprint", value: comic.imprint }]
-                      : []),
-                  ]}
-                />
-              )}
+            {/* Genres last; a comic has no Production card. */}
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={comic} />
             </TocSection>
           </div>
 

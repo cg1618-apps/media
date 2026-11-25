@@ -113,7 +113,7 @@ const ADVANCED_KEYS = {
   cartoon: ["genreMain", "genreSub", "label"],
   manga: ["genreMain", "genreSub", "label"],
   book: ["genreMain", "genreSub", "label"],
-  comic: ["genreMain", "genreSub", "label"],
+  comic: ["genreMain", "genreSub", "label", "era", "events"],
   game: ["gameGenre", "gameTheme", "label"],
   "h-game": ["gameGenre", "gameTheme", "hGenrePlot", "hGenreAppearance", "hGenreRelation"],
   "h-comic": ["hGenrePlot", "hGenreAppearance", "hGenreRelation"],
@@ -133,12 +133,18 @@ describe.each(Object.entries(ADVANCED_KEYS))("the %s advanced section", (type, k
     expect(defs.slice(firstAdvanced).every((fd) => fd.advanced)).toBe(true);
   });
 
+  // The one exception is comic, whose Era and Event filters follow its
+  // genres, at the owner's choice.
   it("puts the genre-related filters at the bottom", () => {
     const GENRE_KEYS = new Set([
       "genreMain", "genreSub", "label", "gameGenre", "gameTheme",
       "hGenrePlot", "hGenreAppearance", "hGenreRelation",
     ]);
-    const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
+    const AFTER_GENRES = { comic: ["era", "events"] };
+    const advanced = defs
+      .filter((fd) => fd.advanced)
+      .map((fd) => fd.key)
+      .filter((k) => !(AFTER_GENRES[type] || []).includes(k));
     const firstGenre = advanced.findIndex((k) => GENRE_KEYS.has(k));
     expect(firstGenre).toBeGreaterThan(-1);
     expect(advanced.slice(firstGenre).every((k) => GENRE_KEYS.has(k))).toBe(true);
@@ -237,4 +243,19 @@ describe("the TV show library's filters", () => {
 it("offers a cartoon's Airing Type in the order TV, Movie, Special", () => {
   const def = LIBRARY_CONFIGS.cartoon.filterDefs.find((fd) => fd.key === "airingType");
   expect(def.options).toEqual(["TV", "Movie", "Special"]);
+});
+
+it("filters a comic by era and by any of its events, most-carried first", () => {
+  const defs = LIBRARY_CONFIGS.comic.filterDefs;
+  const byKey = (key) => defs.find((fd) => fd.key === key);
+  const items = [
+    { system_id: "a", era: "Modern", events: "Civil War, Secret Wars" },
+    { system_id: "b", era: "Silver", events: "Secret Wars" },
+    { system_id: "c", era: "Modern", events: null },
+  ];
+  expect(byKey("era").advanced).toBe(true);
+  expect(byKey("events").advanced).toBe(true);
+  expect(byKey("era").deriveOptions(items)).toEqual(["Modern", "Silver"]);
+  expect(byKey("events").deriveOptions(items)).toEqual(["Secret Wars", "Civil War"]);
+  expect(applyFilterDefs(items, defs, active(defs, "events", ["Civil War"])).map((i) => i.system_id)).toEqual(["a"]);
 });
