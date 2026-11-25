@@ -17,8 +17,20 @@ in exactly one of three states:
 - **pending** - everything else: no list row, a Plan to / Might status,
   Paused, and so on.
 
-"Up next" is the EARLIEST pending step in reading order, even when later
-steps are done: a gap is exactly what the follower needs to see.
+What is NEXT is decided by `next_steps`, the one place both the dashboard
+and the entry page's panel read it from. A follow carries an importance, and
+only steps at or above it are candidates (Optional < Normal < Recommended <
+Essential); a step the viewer has skipped is never one, and nor is a step that
+is done or already active - an active step is "now", not "next". From the
+dashboard's point of view the next step is the earliest candidate, even when
+later steps are done: a gap is exactly what the follower needs to see. From an
+entry's point of view it is the first candidate after that entry's step.
+
+The direct next may be followed by a short lookahead, so a follower reading a
+Normal or Optional next still sees the next step that matters: the first
+Recommended-or-Essential candidate after it, and, when that one is
+Recommended, the first Essential after that. A Recommended next is followed by
+the next Essential; an Essential next by nothing.
 
 Which steps exist is not decided here. The router hands over the same
 resolved steps the guide draws (resolve_items for a hand-built order, the
@@ -32,6 +44,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app import models
+from app.services.domain.order import ITEM_IMPORTANCE, normalize_importance
 from app.utils.constants import (
     COMPLETED_PLAY_STATUSES,
     COMPLETED_READ_STATUSES,
@@ -74,6 +87,20 @@ ACTIVE_STATUSES = frozenset(
         PlayStatus.PASSIVE_PLAYING,
     )
 )
+
+# Rank on the importance ladder, lowest first. ITEM_IMPORTANCE lists the rungs
+# highest first, so the rank is read off it backwards.
+IMPORTANCE_RANK = {
+    value: rank for rank, value in enumerate(reversed(ITEM_IMPORTANCE))
+}
+RECOMMENDED_RANK = IMPORTANCE_RANK["Recommended"]
+ESSENTIAL_RANK = IMPORTANCE_RANK["Essential"]
+
+
+def importance_rank(value: Any) -> int:
+    """The rung's rank; anything unrecognised ranks as Normal."""
+    return IMPORTANCE_RANK[normalize_importance(value)]
+
 
 # The user_media_list column a step's ep_start / ep_end are measured against.
 # Mirrors the range units the guide labels (frontend OrderGuide.jsx):
@@ -125,9 +152,15 @@ def list_rows_for(
 
 
 def annotate_states(
-    steps: List[Dict[str, Any]], rows: Dict[UUID, Any]
+    steps: List[Dict[str, Any]],
+    rows: Dict[UUID, Any],
+    skipped: Iterable[Any] = (),
 ) -> List[Dict[str, Any]]:
-    """Copies of `steps`, each carrying `number` (1-based) and `state`."""
+    """
+    Copies of `steps`, each carrying `number` (1-based), `state` and
+    `skipped` - whether the step's `step_id` is among the follow's skips.
+    """
+    skipped = set(skipped)
     out = []
     for number, step in enumerate(steps, start=1):
         row = rows.get(step.get("entry_id"))
@@ -135,40 +168,87 @@ def annotate_states(
         field = UNIT_FIELDS.get(step.get("media_type"))
         units = getattr(row, field, None) if (row is not None and field) else None
         out.append(
-            {**step, "number": number, "state": step_state(step, status, units)}
+            {
+                **step,
+                "number": number,
+                "state": step_state(step, status, units),
+                "skipped": step.get("step_id") in skipped,
+            }
         )
     return out
 
 
-def summarize(states: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """done / total, every active step, and the earliest pending step."""
+def _is_candidate(step: Dict[str, Any]) -> bool:
+    """Not done, not already in progress, and not skipped."""
+    return step["state"] == PENDING and not step.get("skipped")
+
+
+def _first_candidate(
+    states: List[Dict[str, Any]], start: int, min_rank: int
+) -> Tuple[int, Optional[Dict[str, Any]]]:
+    """(index, step) of the first candidate from `start` at `min_rank` or above."""
+    for index in range(start, len(states)):
+        step = states[index]
+        if _is_candidate(step) and importance_rank(step.get("importance")) >= min_rank:
+            return index, step
+    return -1, None
+
+
+def next_steps(
+    states: List[Dict[str, Any]],
+    importance: Any,
+    after: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    The direct next step and the lookahead behind it.
+
+    `importance` is the follow's; `after` is the index in `states` of the step
+    the viewer is standing on, or None to read from the start of the order.
+    Returns {"next": step or None, "coming_up": [steps]}. Each lookahead step
+    sits on a higher rung than the one before it, so the list holds at most
+    two: a Recommended and then an Essential.
+    """
+    start = 0 if after is None else after + 1
+    index, direct = _first_candidate(states, start, importance_rank(importance))
+    coming_up: List[Dict[str, Any]] = []
+    if direct is None:
+        return {"next": None, "coming_up": coming_up}
+
+    rank = importance_rank(direct.get("importance"))
+    while rank < ESSENTIAL_RANK:
+        index, step = _first_candidate(
+            states, index + 1, max(rank + 1, RECOMMENDED_RANK)
+        )
+        if step is None:
+            break
+        coming_up.append(step)
+        rank = importance_rank(step.get("importance"))
+    return {"next": direct, "coming_up": coming_up}
+
+
+def summarize(states: List[Dict[str, Any]], importance: Any) -> Dict[str, Any]:
+    """done / total, every active step, and the next step from the start."""
     return {
         "done": sum(1 for s in states if s["state"] == DONE),
         "total": len(states),
         "now": [s for s in states if s["state"] == ACTIVE],
-        "up_next": next((s for s in states if s["state"] == PENDING), None),
+        "up_next": next_steps(states, importance)["next"],
     }
 
 
 def occurrences_of(
-    states: List[Dict[str, Any]], entry_id: UUID
+    states: List[Dict[str, Any]], entry_id: UUID, importance: Any
 ) -> List[Dict[str, Any]]:
     """
-    Every step of the order naming `entry_id`, with its neighbours.
+    Every step of the order naming `entry_id`, with what is next from it.
 
     A split run (A ep 1-10 -> B -> A ep 11-12) names one entry twice, and the
-    two halves sit between different steps, so each occurrence carries its own
-    previous and next rather than being folded into one.
+    two halves sit at different places, so each occurrence carries its own
+    next and lookahead rather than being folded into one.
     """
     found = []
     for index, step in enumerate(states):
         if step.get("entry_id") != entry_id:
             continue
-        found.append(
-            {
-                "step": step,
-                "previous": states[index - 1] if index > 0 else None,
-                "next": states[index + 1] if index + 1 < len(states) else None,
-            }
-        )
+        found.append({"step": step, **next_steps(states, importance, after=index)})
     return found

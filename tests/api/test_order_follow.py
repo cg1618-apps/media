@@ -10,8 +10,10 @@ Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid
+from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app import models
@@ -70,8 +72,25 @@ def _step(db, lst, entry, position, **kw):
     return item
 
 
-def _follow(client, lst):
-    return client.put(f"/api/order/lists/{lst.system_id}/follow")
+def _follow(client, lst, importance=None):
+    body = {"importance": importance} if importance else None
+    return client.put(f"/api/order/lists/{lst.system_id}/follow", json=body)
+
+
+def _skip_url(lst, step_id):
+    return f"/api/order/lists/{lst.system_id}/follow/skips/{step_id}"
+
+
+def _follow_row(db, user_id, lst):
+    db.expire_all()
+    return (
+        db.query(models.OrderFollow)
+        .filter(
+            models.OrderFollow.user_id == user_id,
+            models.OrderFollow.list_id == lst.system_id,
+        )
+        .one()
+    )
 
 
 def _follows(client):
@@ -539,24 +558,36 @@ class TestBuiltInOrder:
 
 
 class TestEntryContext:
-    def test_a_split_run_reports_each_occurrence_with_its_neighbours(
+    def test_a_split_run_reports_each_occurrence_with_its_own_next(
         self, user_client, split_run, anime_a
     ):
-        _follow(user_client, split_run)
+        # An Optional follow, so the Optional B is a candidate.
+        _follow(user_client, split_run, importance="Optional")
         response = user_client.get(f"/api/order/follows/entry/{anime_a.system_id}")
         assert response.status_code == 200, response.text
 
         (ctx,) = response.json()
         assert ctx["total"] == 3
+        assert ctx["importance"] == "Optional"
         first, second = ctx["occurrences"]
         assert first["step"]["number"] == 1
         assert first["step"]["note"] == "first half"
-        assert first["previous"] is None
         assert first["next"]["display_name"] == "B"
         assert first["next"]["note"] == "side story"
         assert second["step"]["number"] == 3
-        assert second["previous"]["importance"] == "Optional"
         assert second["next"] is None
+        assert "previous" not in first
+
+    def test_a_normal_follow_passes_over_the_optional_step(
+        self, user_client, split_run, anime_a
+    ):
+        _follow(user_client, split_run)
+        (ctx,) = user_client.get(
+            f"/api/order/follows/entry/{anime_a.system_id}"
+        ).json()
+        first = ctx["occurrences"][0]
+        assert first["next"]["number"] == 3
+        assert first["next"]["importance"] == "Normal"
 
     def test_section_name_travels_with_a_step(
         self, user_client, db_session, split_run, movie_b
@@ -583,6 +614,307 @@ class TestEntryContext:
         # Followed nothing yet: the entry is in two orders, neither followed.
         response = user_client.get(f"/api/order/follows/entry/{anime_a.system_id}")
         assert response.json() == []
+
+
+@pytest.fixture
+def ladder(db_session, sample_franchise):
+    """
+    The owner's example as an order: F, G (Optional), H, I, J (Recommended),
+    K, L (Essential). Nobody has a list row, so every step is pending.
+    """
+    entries = {
+        name: _entry(db_session, models.Anime, sample_franchise, anime_name_en=name)
+        for name in "FGHIJKL"
+    }
+    rungs = {"G": "Optional", "J": "Recommended", "L": "Essential"}
+    lst = _list(db_session, sample_franchise, "Ladder")
+    items = {}
+    for position, (name, entry) in enumerate(entries.items(), start=1):
+        items[name] = _step(
+            db_session, lst, entry, position, importance=rungs.get(name, "Normal")
+        )
+    return SimpleNamespace(list=lst, entries=entries, items=items)
+
+
+def _on(client, entry):
+    (ctx,) = client.get(f"/api/order/follows/entry/{entry.system_id}").json()
+    (occurrence,) = ctx["occurrences"]
+    return occurrence
+
+
+def _names(occurrence):
+    nxt = occurrence["next"]
+    return (
+        nxt["display_name"] if nxt else None,
+        [s["display_name"] for s in occurrence["coming_up"]],
+    )
+
+
+class TestPanelNext:
+    def test_the_owners_example_on_f(self, user_client, ladder):
+        _follow(user_client, ladder.list)
+        assert _names(_on(user_client, ladder.entries["F"])) == ("H", ["J", "L"])
+
+    def test_each_row_carries_its_importance_and_step_id(self, user_client, ladder):
+        _follow(user_client, ladder.list)
+        occurrence = _on(user_client, ladder.entries["F"])
+        assert occurrence["next"]["importance"] == "Normal"
+        assert occurrence["next"]["step_id"] == str(ladder.items["H"].system_id)
+        assert [s["importance"] for s in occurrence["coming_up"]] == [
+            "Recommended",
+            "Essential",
+        ]
+
+    def test_the_dashboard_reads_the_same_rule(self, user_client, ladder):
+        # From the start of the order, a Recommended follow passes over every
+        # Normal and Optional step to J.
+        _follow(user_client, ladder.list, importance="Recommended")
+        (row,) = _follows(user_client)
+        assert row["up_next"]["display_name"] == "J"
+
+
+class TestImportance:
+    def test_a_new_follow_is_normal(self, user_client, db_session, plain_user, split_run):
+        _follow(user_client, split_run)
+        assert _follow_row(db_session, plain_user.id, split_run).importance == "Normal"
+        (row,) = _follows(user_client)
+        assert row["importance"] == "Normal"
+
+    def test_a_follow_may_name_its_importance(
+        self, user_client, db_session, plain_user, split_run
+    ):
+        response = _follow(user_client, split_run, importance="Recommended")
+        assert response.status_code == 200, response.text
+        assert response.json()["importance"] == "Recommended"
+        follow = _follow_row(db_session, plain_user.id, split_run)
+        assert follow.importance == "Recommended"
+
+    def test_following_again_changes_the_importance(
+        self, user_client, db_session, plain_user, split_run
+    ):
+        _follow(user_client, split_run, importance="Essential")
+        _follow(user_client, split_run, importance="Optional")
+        follow = _follow_row(db_session, plain_user.id, split_run)
+        assert follow.importance == "Optional"
+
+    def test_following_again_without_a_body_keeps_the_importance(
+        self, user_client, db_session, plain_user, split_run
+    ):
+        _follow(user_client, split_run, importance="Essential")
+        _follow(user_client, split_run)
+        follow = _follow_row(db_session, plain_user.id, split_run)
+        assert follow.importance == "Essential"
+
+    def test_an_unknown_importance_is_refused(
+        self, user_client, db_session, split_run
+    ):
+        response = _follow(user_client, split_run, importance="Crucial")
+        assert response.status_code == 400
+        assert db_session.query(models.OrderFollow).count() == 0
+
+    def test_the_importance_decides_up_next(self, user_client, split_run):
+        # Every step is Normal or Optional: an Optional follow starts at step
+        # 1, a Recommended one has nothing to be next.
+        _follow(user_client, split_run, importance="Optional")
+        assert _follows(user_client)[0]["up_next"]["number"] == 1
+        _follow(user_client, split_run, importance="Recommended")
+        assert _follows(user_client)[0]["up_next"] is None
+
+    def test_another_users_follow_keeps_its_importance(
+        self, user_client, client, db_session, plain_user, split_run
+    ):
+        # The other account may follow and set ITS rung; it reaches only its
+        # own row. The mirror: the member's own call above did change theirs.
+        _follow(user_client, split_run, importance="Essential")
+        make_viewer(db_session, client, "other_rung", default_user_permissions())
+        assert _follow(client, split_run, importance="Optional").status_code == 200
+
+        assert _follow_row(db_session, plain_user.id, split_run).importance == (
+            "Essential"
+        )
+
+    def test_the_importance_column_defaults_to_normal_in_the_database(
+        self, db_session, plain_user, split_run, sample_franchise
+    ):
+        db_session.execute(
+            text(
+                "INSERT INTO order_follow (system_id, user_id, list_id, franchise_id)"
+                " VALUES (:id, :user, :list, :franchise)"
+            ),
+            {
+                "id": uuid.uuid4(),
+                "user": plain_user.id,
+                "list": split_run.system_id,
+                "franchise": sample_franchise.system_id,
+            },
+        )
+        assert _follow_row(db_session, plain_user.id, split_run).importance == "Normal"
+
+
+class TestSkips:
+    def test_a_skipped_step_is_never_next(self, user_client, ladder):
+        _follow(user_client, ladder.list)
+        response = user_client.put(_skip_url(ladder.list, ladder.items["H"].system_id))
+        assert response.status_code == 200, response.text
+        assert response.json()["skipped"] == [str(ladder.items["H"].system_id)]
+
+        # H skipped: I is the next Normal step, and the lookahead is unchanged.
+        assert _names(_on(user_client, ladder.entries["F"])) == ("I", ["J", "L"])
+        occurrence = _on(user_client, ladder.entries["H"])
+        assert occurrence["step"]["skipped"] is True
+
+    def test_skipping_is_idempotent(self, user_client, db_session, ladder):
+        _follow(user_client, ladder.list)
+        url = _skip_url(ladder.list, ladder.items["H"].system_id)
+        user_client.put(url)
+        assert user_client.put(url).status_code == 200
+        assert db_session.query(models.OrderFollowSkip).count() == 1
+
+    def test_unskipping_restores_the_step(self, user_client, db_session, ladder):
+        _follow(user_client, ladder.list)
+        url = _skip_url(ladder.list, ladder.items["H"].system_id)
+        user_client.put(url)
+        response = user_client.delete(url)
+        assert response.status_code == 200
+        assert response.json()["skipped"] == []
+        assert _names(_on(user_client, ladder.entries["F"])) == ("H", ["J", "L"])
+        # And again: clearing what is not skipped changes nothing.
+        assert user_client.delete(url).status_code == 200
+
+    def test_a_skip_on_a_step_of_another_order_is_404(
+        self, user_client, ladder, second_order
+    ):
+        _follow(user_client, ladder.list)
+        (foreign,) = second_order.items
+        response = user_client.put(_skip_url(ladder.list, foreign.system_id))
+        assert response.status_code == 404
+
+    def test_skipping_in_an_order_not_followed_is_404(self, user_client, ladder):
+        response = user_client.put(
+            _skip_url(ladder.list, ladder.items["H"].system_id)
+        )
+        assert response.status_code == 404
+
+    def test_unfollowing_drops_the_skips(self, user_client, db_session, ladder):
+        _follow(user_client, ladder.list)
+        user_client.put(_skip_url(ladder.list, ladder.items["H"].system_id))
+        user_client.delete(f"/api/order/lists/{ladder.list.system_id}/follow")
+        assert db_session.query(models.OrderFollowSkip).count() == 0
+
+        _follow(user_client, ladder.list)
+        assert _names(_on(user_client, ladder.entries["F"]))[0] == "H"
+
+    def test_following_another_order_of_the_group_drops_the_skips(
+        self, user_client, db_session, ladder, second_order
+    ):
+        _follow(user_client, ladder.list)
+        user_client.put(_skip_url(ladder.list, ladder.items["H"].system_id))
+        _follow(user_client, second_order)
+        db_session.expire_all()
+        assert db_session.query(models.OrderFollowSkip).count() == 0
+
+    def test_deleting_the_step_deletes_its_skip(
+        self, user_client, db_session, ladder
+    ):
+        _follow(user_client, ladder.list)
+        user_client.put(_skip_url(ladder.list, ladder.items["H"].system_id))
+        db_session.execute(
+            text("DELETE FROM order_item WHERE system_id = :id"),
+            {"id": ladder.items["H"].system_id},
+        )
+        assert db_session.query(models.OrderFollowSkip).count() == 0
+
+    def test_a_built_in_orders_step_is_skipped_by_its_entry(
+        self, user_client, db_session, sample_franchise, anime_a, movie_b
+    ):
+        built_in = _list(
+            db_session,
+            sample_franchise,
+            "Release Order",
+            list_type="Release",
+            auto_source="release",
+        )
+        _follow(user_client, built_in)
+        first = _follows(user_client)[0]["up_next"]
+        response = user_client.put(_skip_url(built_in, first["step_id"]))
+        assert response.status_code == 200, response.text
+
+        (skip,) = db_session.query(models.OrderFollowSkip).all()
+        assert (skip.item_id, str(skip.media_id)) == (None, first["step_id"])
+        (row,) = _follows(user_client)
+        assert row["up_next"]["step_id"] != first["step_id"]
+
+    def test_the_database_refuses_a_skip_naming_no_step(
+        self, user_client, db_session, plain_user, ladder
+    ):
+        _follow(user_client, ladder.list)
+        follow = _follow_row(db_session, plain_user.id, ladder.list)
+        db_session.add(models.OrderFollowSkip(follow_id=follow.system_id))
+        with pytest.raises(IntegrityError):
+            db_session.flush()
+        db_session.rollback()
+
+
+class TestSkipPermission:
+    """
+    A skip is the follower's own. Every refusal below has something to refuse:
+    the order exists, the member follows it, and the step is one of its steps
+    - so what decides is who is asking. The mirror case, the member skipping
+    the same step, answers 200 and writes the row.
+    """
+
+    @pytest.fixture
+    def followed(self, user_client, ladder):
+        assert _follow(user_client, ladder.list).status_code == 200
+        return ladder
+
+    def test_the_follower_may_skip(self, user_client, db_session, followed):
+        url = _skip_url(followed.list, followed.items["H"].system_id)
+        assert user_client.put(url).status_code == 200
+        assert db_session.query(models.OrderFollowSkip).count() == 1
+
+    def test_a_guest_is_refused(self, user_client, client, db_session, followed):
+        url = _skip_url(followed.list, followed.items["H"].system_id)
+        client.cookies.clear()
+        assert client.put(url).status_code == 401
+        assert client.delete(url).status_code == 401
+        assert db_session.query(models.OrderFollowSkip).count() == 0
+
+    def test_another_user_cannot_skip_on_the_members_follow(
+        self, user_client, client, db_session, plain_user, followed
+    ):
+        make_viewer(db_session, client, "other_skipper", default_user_permissions())
+        url = _skip_url(followed.list, followed.items["H"].system_id)
+        # They do not follow the order: nothing of theirs to write to, and the
+        # member's follow is not theirs.
+        assert client.put(url).status_code == 404
+        assert db_session.query(models.OrderFollowSkip).count() == 0
+
+    def test_another_users_skip_lands_on_their_own_follow(
+        self, user_client, client, db_session, plain_user, followed
+    ):
+        make_viewer(db_session, client, "other_follower2", default_user_permissions())
+        _follow(client, followed.list)
+        url = _skip_url(followed.list, followed.items["H"].system_id)
+        assert client.put(url).status_code == 200
+
+        mine = _follow_row(db_session, plain_user.id, followed.list)
+        assert mine.skips == []
+        assert _names(_on(user_client, followed.entries["F"]))[0] == "H"
+
+    def test_another_user_cannot_unskip_the_members_skip(
+        self, user_client, client, db_session, followed
+    ):
+        url = _skip_url(followed.list, followed.items["H"].system_id)
+        user_client.put(url)
+        make_viewer(db_session, client, "other_unskipper", default_user_permissions())
+        assert client.delete(url).status_code == 404
+        assert db_session.query(models.OrderFollowSkip).count() == 1
+
+    def test_an_admin_account_is_refused(self, admin_client, db_session, followed):
+        url = _skip_url(followed.list, followed.items["H"].system_id)
+        assert admin_client.put(url).status_code == 401
+        assert db_session.query(models.OrderFollowSkip).count() == 0
 
 
 # ---------------------------------------------------------------------------
@@ -633,3 +965,125 @@ class TestSheets:
         (follow,) = db_session.query(models.OrderFollow).all()
         assert follow.user_id == plain_user.id
         assert follow.list_id == split_run.system_id
+
+    def _pull_follow(self, db_session, monkeypatch, headers, row):
+        from app.services.pipelines import pull
+
+        monkeypatch.setattr(
+            pull, "get_all_raw_rows", lambda tab: {"Order Follow": [headers, row]}[tab]
+        )
+        return pull.execute_pull_specific(db_session, "Order Follow", log_action=False)
+
+    def test_the_importance_travels(
+        self, db_session, monkeypatch, plain_user, split_run, sample_franchise
+    ):
+        headers = ["system_id", "list_id", "franchise_id", "importance", "username"]
+        row = [
+            str(uuid.uuid4()), str(split_run.system_id),
+            str(sample_franchise.system_id), "Recommended", plain_user.username,
+        ]
+        result = self._pull_follow(db_session, monkeypatch, headers, row)
+        assert result["status"] == "success", result
+        (follow,) = db_session.query(models.OrderFollow).all()
+        assert follow.importance == "Recommended"
+
+    def test_a_sheet_without_the_column_restores_a_normal_follow(
+        self, db_session, monkeypatch, plain_user, split_run, sample_franchise
+    ):
+        headers = ["system_id", "list_id", "franchise_id", "username"]
+        row = [
+            str(uuid.uuid4()), str(split_run.system_id),
+            str(sample_franchise.system_id), plain_user.username,
+        ]
+        result = self._pull_follow(db_session, monkeypatch, headers, row)
+        assert result["status"] == "success", result
+        (follow,) = db_session.query(models.OrderFollow).all()
+        assert follow.importance == "Normal"
+
+    def test_a_sheet_without_the_column_keeps_an_existing_importance(
+        self, user_client, db_session, monkeypatch, plain_user, split_run,
+        sample_franchise,
+    ):
+        _follow(user_client, split_run, importance="Essential")
+        existing = _follow_row(db_session, plain_user.id, split_run)
+        headers = ["system_id", "list_id", "franchise_id", "username"]
+        row = [
+            str(existing.system_id), str(split_run.system_id),
+            str(sample_franchise.system_id), plain_user.username,
+        ]
+        result = self._pull_follow(db_session, monkeypatch, headers, row)
+        assert result["status"] == "success", result
+        assert _follow_row(db_session, plain_user.id, split_run).importance == (
+            "Essential"
+        )
+
+
+class TestSkipSheets:
+    """Skips travel on their own tab, naming the follow by (username, list_id)."""
+
+    def test_the_tab_names_the_follow_not_its_uuid(self):
+        from app.services.pipelines.tabs import TAB_BY_NAME, TAB_NAMES
+
+        tab = TAB_BY_NAME["Order Follow Skip"]
+        assert "follow_id" in tab.drop_columns
+        assert [name for name, _fn in tab.extra_columns] == ["username", "list_id"]
+        assert TAB_NAMES.index("Order Follow") < TAB_NAMES.index("Order Follow Skip")
+        assert TAB_NAMES.index("Order Item") < TAB_NAMES.index("Order Follow Skip")
+
+    def test_backup_writes_the_followers_name_and_the_order(
+        self, user_client, db_session, plain_user, ladder
+    ):
+        from app.services.pipelines.tabs import TAB_BY_NAME
+
+        _follow(user_client, ladder.list)
+        user_client.put(_skip_url(ladder.list, ladder.items["H"].system_id))
+        (skip,) = db_session.query(models.OrderFollowSkip).all()
+        values = {
+            name: fn(skip, db_session)
+            for name, fn in TAB_BY_NAME["Order Follow Skip"].extra_columns
+        }
+        assert values == {
+            "username": plain_user.username,
+            "list_id": str(ladder.list.system_id),
+        }
+
+    def _pull(self, db_session, monkeypatch, headers, row):
+        from app.services.pipelines import pull
+
+        monkeypatch.setattr(
+            pull,
+            "get_all_raw_rows",
+            lambda tab: {"Order Follow Skip": [headers, row]}[tab],
+        )
+        return pull.execute_pull_specific(
+            db_session, "Order Follow Skip", log_action=False
+        )
+
+    HEADERS = ["system_id", "item_id", "media_id", "username", "list_id"]
+
+    def test_a_row_is_restored_onto_the_local_follow(
+        self, user_client, db_session, monkeypatch, plain_user, ladder
+    ):
+        _follow(user_client, ladder.list)
+        row = [
+            str(uuid.uuid4()), str(ladder.items["H"].system_id), "",
+            plain_user.username, str(ladder.list.system_id),
+        ]
+        result = self._pull(db_session, monkeypatch, self.HEADERS, row)
+        assert result["status"] == "success", result
+
+        follow = _follow_row(db_session, plain_user.id, ladder.list)
+        assert [s.item_id for s in follow.skips] == [ladder.items["H"].system_id]
+        assert _names(_on(user_client, ladder.entries["F"]))[0] == "I"
+
+    def test_a_row_whose_follow_is_not_here_is_skipped(
+        self, db_session, monkeypatch, plain_user, ladder
+    ):
+        # The order and the user exist; only the follow does not.
+        row = [
+            str(uuid.uuid4()), str(ladder.items["H"].system_id), "",
+            plain_user.username, str(ladder.list.system_id),
+        ]
+        result = self._pull(db_session, monkeypatch, self.HEADERS, row)
+        assert db_session.query(models.OrderFollowSkip).count() == 0
+        assert result["status"] == "success", result

@@ -23,6 +23,7 @@ from app.models import (
     Meme,
     Movies,
     Note,
+    OrderFollow,
     OrderList,
     Quote,
     ResourceNode,
@@ -300,6 +301,13 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "series_id",
         "collection_id",
     ),  # uq_order_follow_group
+    # One row per step per follow. follow_id is resolved from the row's
+    # (username, list_id) before this match runs, so it is a local uuid.
+    "Order Follow Skip": (
+        "follow_id",
+        "item_id",
+        "media_id",
+    ),  # uq_order_follow_skip_step
     # Mints its own uuid but cites an entry id, which is the same in every
     # database. option_id IS part of the key (unlike the parent tabs above,
     # whose own uuid never appears in it): two "main" rows on the same entry
@@ -1496,6 +1504,7 @@ def execute_pull_specific(
             "Plan Next",
             "Seasonal",
             "Order Follow",
+            "Order Follow Skip",
             "User Rating",
             "User Book Unit Rating",
             "Note Mark",
@@ -1526,6 +1535,32 @@ def execute_pull_specific(
                 rows_skipped += 1
                 continue
             clean_header_dict["user_id"] = owner
+
+        # A skip names its follow by (user, list), resolved just above and
+        # carried in the sheet; neither is a column of the skip row. A row
+        # whose follow is not here - the follow was not restored, or names an
+        # order this database lacks - is skipped and reported.
+        if tab_name == "Order Follow Skip":
+            user_id = clean_header_dict.pop("user_id")
+            list_id = clean_header_dict.pop("list_id", None)
+            follow = (
+                db.query(OrderFollow)
+                .filter(
+                    OrderFollow.user_id == user_id,
+                    OrderFollow.list_id == list_id,
+                )
+                .first()
+                if list_id is not None
+                else None
+            )
+            if follow is None:
+                unresolved_refs.append(
+                    f"Order Follow Skip: no follow of order {list_id} by "
+                    f"{raw_header_dict.get('username')!r} here; row skipped"
+                )
+                rows_skipped += 1
+                continue
+            clean_header_dict["follow_id"] = follow.system_id
 
         # A mark is stored only while it holds something, as the write path
         # keeps it (note_marks.write_mark): a cell that is not an object of

@@ -432,9 +432,13 @@ columns.
   `ComingNext` (the dashboard's next-season block; its selection is the pure
   `selectComingNext` in `lib/comingNext.js`), `FollowedOrders` (the
   dashboard's followed orders, under Coming Next), `FollowedOrderPanel`
-  (where the entry sits in the viewer's followed orders, under every entry
-  detail page's header), `FollowOrderButton` (the Follow / Following toggle),
-  `FollowedStep` (one step line shared by those two views),
+  (what is next from the entry in the viewer's followed orders, under every
+  entry detail page's header: the direct next, then the lookahead under a
+  dashed "Coming up" rule), `FollowOrderButton` (the Follow / Following
+  toggle with the follow's importance picker, `FOLLOW_IMPORTANCE_OPTIONS`),
+  `FollowedStep` (one step line shared by those two views; given `listId`
+  it adds the skip toggle), `SkipToggle` (the follower's Skip / Skipped mark
+  on one step, on the panel and on the order page's guide),
   `RelationsSection` (its optional `onRows` prop is handed every row the card
   loads, so the h-comic page names the hentai its derived animation status
   comes from without a second request), `OrderSection` (its order chips on
