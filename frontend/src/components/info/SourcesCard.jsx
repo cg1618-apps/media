@@ -60,6 +60,16 @@ function tagValues(...fields) {
   ];
 }
 
+// A game's exclusive platform family and its Font Awesome icon - the brand
+// marks for the three console makers, a computer and a phone for the rest.
+const GAME_EXCLUSIVE_ICONS = {
+  Nintendo: "fa-brands fa-nintendo-switch",
+  PlayStation: "fa-brands fa-playstation",
+  Xbox: "fa-brands fa-xbox",
+  PC: "fa-solid fa-desktop",
+  Mobile: "fa-solid fa-mobile-screen-button",
+};
+
 // A fixed 16px slot, empty when the source has no icon. The white tile keeps
 // the dark-on-transparent favicons (Wikipedia, FX, E-Hentai) legible in dark
 // mode. A cover fills the slot instead: it is a photo, not a transparent mark,
@@ -209,6 +219,7 @@ export default function SourcesCard({
   originalSourceAsAccess = false,
   exclusiveSource,
   serializationPlatform,
+  gameExclusive,
   coverUrl,
 }) {
   // Never re-sort - the server already ordered these by `position`
@@ -262,7 +273,10 @@ export default function SourcesCard({
   // games and h-games, and an h-game's two DLsite pages.
   const hasStorefront = Boolean(steamLink || dlsiteLinkJp || dlsiteLinkTw);
 
+  const exclusivePlatform = (gameExclusive || "").trim();
+
   const hasAny =
+    Boolean(exclusivePlatform) ||
     hasAccess ||
     hasStorefront ||
     referenceRows.length > 0 ||
@@ -287,6 +301,25 @@ export default function SourcesCard({
 
   return (
     <Slip title="Sources" padded={false}>
+      {/* A game's exclusive platform: a section of its own, above Where to
+          Play. */}
+      {exclusivePlatform && (
+        <section aria-label="Exclusive Source">
+          <div className="px-4 pt-2.5 pb-1 font-mono text-[10px] text-text-faint">
+            Exclusive Source
+          </div>
+          <div className={PLAIN_CLS}>
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="w-4 h-4 shrink-0 flex items-center justify-center text-text">
+                {GAME_EXCLUSIVE_ICONS[exclusivePlatform] && (
+                  <i className={GAME_EXCLUSIVE_ICONS[exclusivePlatform]} aria-hidden="true" />
+                )}
+              </span>
+              <span className="truncate text-text">{exclusivePlatform}</span>
+            </span>
+          </div>
+        </section>
+      )}
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 border-b border-border">
           {tags.map((tag) => (

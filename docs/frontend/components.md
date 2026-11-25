@@ -517,7 +517,10 @@ columns.
   drawn after MyAnimeList as "E-Hentai"), `steamLink` (a storefront, not a reference
   database) beside the **access** rows instead — the access section renders
   for a `steamLink` alone, so a game whose only place to play is its Steam
-  page still gets one; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
+  page still gets one; a game's `gameExclusive` (its `exclusive_platform`)
+  leads the card in an **Exclusive Source** section of its own, above Where to
+  Play, with a Font Awesome mark - the PlayStation, Xbox and Nintendo Switch
+  brand icons, a desktop for PC, a phone for Mobile; an h-game's `dlsiteLinkJp` / `dlsiteLinkTw` render
   beside it the same way, as "DLsite (JP)" / "DLsite (TW)" — and the tag-field props (`originalSource`,
   `exclusiveSource`) as `Tag` chips above them — except
   an `exclusiveSource` that names one of the `main` access rows, which moves that

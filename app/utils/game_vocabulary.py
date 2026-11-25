@@ -335,3 +335,25 @@ def seed_game_vocabulary(db: Session) -> None:
         _ensure_scope(db, option, "game", created)
 
     db.flush()
+
+
+# The platform families a game may be exclusive to, in picker order. Its own
+# category, scoped to game alone: the brand-level Game Platform values above
+# are consoles and storefronts, and this field names a family.
+EXCLUSIVE_PLATFORM_CATEGORY = "Exclusive Platform"
+EXCLUSIVE_PLATFORMS: tuple[str, ...] = ("Nintendo", "PlayStation", "Xbox", "PC", "Mobile")
+
+
+def seed_exclusive_platforms(db: Session) -> None:
+    """Insert the five Exclusive Platform values, scoped to game. Idempotent."""
+    for sort_order, value in enumerate(EXCLUSIVE_PLATFORMS):
+        option = _option(db, EXCLUSIVE_PLATFORM_CATEGORY, value)
+        created = option is None
+        if created:
+            option = models.SystemOption(
+                category=EXCLUSIVE_PLATFORM_CATEGORY, value=value, sort_order=sort_order
+            )
+            db.add(option)
+            db.flush()
+        _ensure_scope(db, option, "game", created)
+    db.flush()

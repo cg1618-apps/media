@@ -264,6 +264,14 @@ TAG_FIELDS: dict[str, TagField] = {
         "game_theme", "Theme", "Game Theme", ("game", "h-game")
     ),
     "game_mode": TagField("game_mode", "Mode", "Game Mode", ("game",)),
+    # The one platform family a game is exclusive to - Nintendo, PlayStation,
+    # Xbox, PC or Mobile (game_vocabulary.EXCLUSIVE_PLATFORMS). A game's own
+    # field rather than anime's exclusive_source: that one draws from the
+    # streaming Platform vocabulary and must match a main access row, and a
+    # game has no access rows. Blank means not exclusive. Single-valued.
+    "exclusive_platform": TagField(
+        "exclusive_platform", "Exclusive Source", "Exclusive Platform", ("game",)
+    ),
     "combat_mode": TagField(
         "combat_mode", "Combat Mode", "Combat Mode", ("game",)
     ),

@@ -202,6 +202,10 @@ def test_h_game_credits_and_tag_fields():
         assert cr.TAG_FIELDS[key].media_types == ("game", "h-game")
     for key in ("game_mode", "combat_mode", "game_platform"):
         assert cr.TAG_FIELDS[key].media_types == ("game",)
+    exclusive = cr.TAG_FIELDS["exclusive_platform"]
+    assert exclusive.media_types == ("game",)
+    assert exclusive.category == "Exclusive Platform"
+    assert exclusive.label == "Exclusive Source"
 
 
 def test_unoverridden_labels_fall_back_to_the_role_label():

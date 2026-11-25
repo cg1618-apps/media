@@ -963,3 +963,12 @@ describe("is_pinged", () => {
     expect("is_pinged" in build({ is_pinged: true })).toBe(false);
   });
 });
+
+// A game's Exclusive Source travels as the exclusive_platform tag, one value.
+describe("a game's exclusive platform", () => {
+  it("loads from and saves to the exclusive_platform tag", () => {
+    expect(creditsResponseToForm("game", { credits: {}, tags: { exclusive_platform: ["PC"] } }).exclusive_platform).toBe("PC");
+    expect(buildCreditsPayload("game", { exclusive_platform: "Nintendo" }).tags.exclusive_platform).toEqual(["Nintendo"]);
+    expect(buildCreditsPayload("game", { exclusive_platform: "" }).tags.exclusive_platform).toEqual([]);
+  });
+});
