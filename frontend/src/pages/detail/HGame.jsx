@@ -52,7 +52,6 @@ import { useToast } from "../../hooks/useToast";
 import { useOwnTrackerSave } from "../../hooks/useOwnTrackerSave";
 import { entityPath } from "../../lib/entityPath";
 import { hours } from "../../lib/gameHours";
-import { releaseYear } from "../../lib/releaseDate";
 import { FALLBACK_SVG, getCoverUrl, getDisplayName } from "../../utils/media";
 import ChoiceGraphCard from "../../components/game-choices/ChoiceGraphCard";
 import { NotesProvider } from "../notes/NotesContext";
@@ -252,21 +251,10 @@ export default function HGame() {
     hGame.h_game_name_en && hGame.h_game_name_en !== titleMain ? hGame.h_game_name_en : null;
   const imageUrl = getCoverUrl(hGame.cover_image_file);
   const franchiseName = franchise ? getDisplayName(franchise, "franchise") : null;
-  const year = releaseYear(hGame.release_date);
   // The cover rule shows achievements: with no playtime recorded, it is the
   // one progress figure an h-game has.
   const ach = achievements(hGame);
 
-  const eyebrow = [
-    "H-Game",
-    hGame.game_type,
-    hGame.playstyle,
-    hGame.release_status,
-    hGame.completion_level,
-    year,
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
 
   const num = (v) => (v != null ? String(v) : null);
 
@@ -390,10 +378,9 @@ export default function HGame() {
 
           {/* ========== RIGHT COLUMN ========== */}
           <div className="lg:col-span-3 space-y-10">
+            {/* No eyebrow above the title: what it repeated is on the Information
+                card, and the breadcrumb names the type. */}
             <header>
-              <div className="font-mono text-[11px] text-text-muted mb-3">
-                {eyebrow}
-              </div>
               <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
                 {titleMain}
               </h1>

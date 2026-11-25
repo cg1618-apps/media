@@ -10,6 +10,7 @@ import {
 import hentaiCompletionGroups from "./hentaiCompletions";
 import { useAuth } from "../../contexts/AuthContext";
 import { visibleByType } from "../../lib/gatedTypes";
+import { BOOK_REGIONS } from "../../config/fieldOptions";
 
 const COMPLETION_TABS = [
   { key: "anime", label: "Anime" },
@@ -1180,12 +1181,10 @@ export default function StatsCompletions({
       {/* Novel tab: the books of a novel type, not guides or other books */}
       {completionsTab === "book" &&
         (() => {
+          // One group per book region, in the vocabulary's order, and
+          // Others for a book with none or one outside it.
           const NOVEL_GROUPS = [
-            { key: "JP", label: "JP" },
-            { key: "CN", label: "CN" },
-            { key: "TW", label: "TW" },
-            { key: "KR", label: "KR" },
-            { key: "Western", label: "Western" },
+            ...BOOK_REGIONS.map((region) => ({ key: region, label: region })),
             { key: "others", label: "Others" },
           ];
           const completed = novelsOnly(allBook)
@@ -1195,18 +1194,11 @@ export default function StatsCompletions({
             .sort(
               (a, b) => new Date(b.completed_at) - new Date(a.completed_at),
             );
-          const novelGrouped = {
-            JP: [],
-            CN: [],
-            TW: [],
-            KR: [],
-            Western: [],
-            others: [],
-          };
+          const novelGrouped = Object.fromEntries(
+            NOVEL_GROUPS.map(({ key }) => [key, []]),
+          );
           completed.forEach((n) => {
-            const key = ["JP", "CN", "TW", "KR", "Western"].includes(n.region)
-              ? n.region
-              : "others";
+            const key = BOOK_REGIONS.includes(n.region) ? n.region : "others";
             novelGrouped[key].push(n);
           });
 

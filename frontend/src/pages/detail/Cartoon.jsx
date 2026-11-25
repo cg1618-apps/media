@@ -164,14 +164,6 @@ export default function Cartoon() {
   const progress = epTotal ? epFin / epTotal : epFin > 0 ? 1 : 0;
   const progressPct = epTotal ? Math.round(progress * 100) : null;
 
-  const eyebrow = [
-    "Cartoon",
-    cartoon.airing_type,
-    cartoon.airing_status,
-    cartoon.season_part,
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
 
   const imdbScore =
     cartoon.imdb_rating && cartoon.imdb_rating !== "N/A"
@@ -304,10 +296,9 @@ export default function Cartoon() {
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
           {/* Header */}
+          {/* No eyebrow above the title: what it repeated is on the Information
+              card, and the breadcrumb names the type. */}
           <header>
-            <div className="font-mono text-[11px] text-text-muted mb-3">
-              {eyebrow}
-            </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>

@@ -298,9 +298,9 @@ Detail page (`pages/detail/*.jsx`):
 ```
 Anime  /  <title>                Report a problem  ← Eyebrow breadcrumb; the report link for self.requests (provisional)
 [ Admin .... Edit  Mark completed  Mark airing  Autofill ]   ← dashed strip, admin only
-┌─────────┐  Anime · TV · Finished Airing · SPR 2021    ← Eyebrow line
-│  cover  │  <Title in display face>
-│   [A]   │  subtitle (muted)
+┌─────────┐  <Title in display face>                   ← nothing above it
+│  cover  │  subtitle (muted)
+│   [A]   │
 │─────────│  ───────────────────────────────
 │ progress│  Franchise <link>   Series <link>
 └─────────┘  8.35 │ #274 │ 85 │ #74 │ #364   ← ScoreBlock
@@ -322,11 +322,12 @@ filter chips, `brand` on the current one, scrolling sideways inside itself;
 pinned under the nav on a detail page, unpinned on the dashboard, whose own
 sticky headers already hold that strip.
 
-The anime movie page draws no eyebrow line: its type, release status, runtime
-and date are each on the Information card, and the breadcrumb names the type.
+No media detail page draws an eyebrow line above the title: the type,
+status and dates such a line would repeat are on the Information card, and
+the breadcrumb names the type. The title is the first thing in the header.
 
 A detail page's cover carries **no spine strip** - neither the type, which the
-breadcrumb (and the eyebrow line, where there is one) already names, nor the
+breadcrumb already names, nor the
 entry's id. That holds
 for every detail page: the twelve media types, the collection, franchise and
 series hubs (`HeroCover`), and the person, studio, publisher, character and

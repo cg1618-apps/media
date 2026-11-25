@@ -413,9 +413,6 @@ export default function Manga() {
   const progress = chTotal ? chFin / chTotal : chFin > 0 ? 1 : 0;
   const progressPct = chTotal ? Math.round(progress * 100) : null;
 
-  const eyebrow = ["Manga", manga.region, manga.serialization_status]
-    .filter(Boolean)
-    .join("  ·  ");
 
   return (
     <DetailContents>
@@ -535,10 +532,9 @@ export default function Manga() {
         {/* ========== RIGHT COLUMN ========== */}
         <div className="lg:col-span-3 space-y-10">
           {/* Header */}
+          {/* No eyebrow above the title: what it repeated is on the Information
+              card, and the breadcrumb names the type. */}
           <header>
-            <div className="font-mono text-[11px] text-text-muted mb-3">
-              {eyebrow}
-            </div>
             <h1 className="font-display text-5xl sm:text-6xl font-semibold text-text leading-[0.95] mb-2">
               {titleMain}
             </h1>

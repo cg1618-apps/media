@@ -285,7 +285,10 @@ kinds of older name onto the current ones before anything parses a row
   Voice, Media Relation (both ends), Person Role, Publisher Scope, System
   Option Scope, Note and Meme; a `novel/` cover path on Media and Book becomes
   `book/`; the Book tab's old `type` vocabulary maps `Light Novel` → `輕小說`,
-  `Novel` → `小說`, `Web` → `網路小說`, `Other` → `其他`; the Franchise tab's
+  `Novel` → `小說`, `Web` → `網路小說`, `Other` → `其他`, and its English
+  `region` codes their Chinese names, `Western` → `歐美`, `JP` → `日本`,
+  `CN` → `中國`, `KR` → `韓國`, `TW` → `台灣` (`BOOK_REGION_RENAMES`); the
+  Franchise tab's
   `Novel` franchise-type token becomes `Book` (token-wise, never listed twice)
   and a `type_covers` choice under `Novel` moves to `Book` unless one is
   already filed there; and System Configs' `form_defaults:novel` and
