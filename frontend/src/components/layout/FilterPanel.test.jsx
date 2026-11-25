@@ -228,11 +228,11 @@ it("draws a range filter as two number inputs that set it", async () => {
       match: () => true,
     },
   ];
-  let latest;
   function Harness() {
     const state = useFilterState(defs, []);
-    latest = state.filters;
     return (
+      <>
+      <output data-testid="range-state">{JSON.stringify(state.filters.hltb)}</output>
       <FilterPanel
         filterDefs={defs}
         filters={state.filters}
@@ -241,6 +241,7 @@ it("draws a range filter as two number inputs that set it", async () => {
         activeFilterCount={state.activeFilterCount}
         dynamicFilterOptions={{}}
       />
+      </>
     );
   }
   render(<Harness />);
@@ -248,7 +249,7 @@ it("draws a range filter as two number inputs that set it", async () => {
   const min = screen.getByRole("spinbutton", { name: "HLTB Main + Extra minimum" });
   const max = screen.getByRole("spinbutton", { name: "HLTB Main + Extra maximum" });
   await user.type(max, "40");
-  expect(latest.hltb).toEqual({ min: "", max: "40" });
+  expect(JSON.parse(screen.getByTestId("range-state").textContent)).toEqual({ min: "", max: "40" });
   expect(min).toHaveValue(null);
   expect(screen.getByRole("button", { name: /Advanced filters/ })).toHaveTextContent("1");
 });
