@@ -2,10 +2,9 @@
 //
 // The "Genres" InfoCard of the anime, anime movie, movie, TV, cartoon, manga
 // and book detail pages - directly below Information, and on manga and book
-// below Production - seven of the types that
-// carry the three shared classification tags (GENRE_LABEL_TYPES in
-// lib/genreLabelFields.js; comic carries them too but its page does not draw
-// this card):
+// below Production - seven of the types that carry the three shared
+// classification tags (GENRE_LABEL_TYPES in lib/genreLabelFields.js) - and of
+// comic, the eighth, after its Events card:
 // Genre (Main) and Genre (Sub) side by side, Label below - the card the
 // game page draws for its own Genre / Theme / Label, set apart from the
 // Information card so the tags are not read as facts about the release.

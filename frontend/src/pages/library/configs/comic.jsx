@@ -6,10 +6,11 @@ import {
   readButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { releaseScore } from "../../../lib/releaseDate";
-import { READING_STATUS_GROUP, parseTypes } from "../../../utils/media";
+import { READING_STATUS_GROUP } from "../../../utils/media";
 import { compareTitles } from "../../../lib/naming";
 import {
   genreFilters,
+  tagFilter,
 } from "../../../lib/libraryFilterDefs";
 
 // EN leads for comics, matching Comic.display_name on the backend and
@@ -61,28 +62,12 @@ const COMIC_LIBRARY_CONFIG = {
       match: (item, active) =>
         active.has(READING_STATUS_GROUP[item.reading_status] ?? "Might Read"),
     },
-    {
-      key: "era",
-      label: "Era",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.era).filter(Boolean))].sort(),
-      match: (item, active) => active.has(item.era),
-    },
-    {
-      // events is comma-joined multi-value, so both the option list and the
-      // match test work over the split list rather than the raw column - the
-      // one filter here that cannot compare a single field.
-      key: "events",
-      label: "Event",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.flatMap((d) => parseTypes(d.events)))].sort(),
-      match: (item, active) =>
-        parseTypes(item.events).some((ev) => active.has(ev)),
-    },
-    // Advanced section (FilterPanel draws it collapsed).
+    // Advanced section (FilterPanel draws it collapsed). Era and Event follow
+    // the genres here - the one library where something does. Events is a
+    // comma-joined multi-value column, which tagFilter splits.
     ...genreFilters(),
+    tagFilter("era", "Era", "era"),
+    tagFilter("events", "Event", "events"),
   ],
 
   sortDefs: [
