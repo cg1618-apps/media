@@ -231,7 +231,8 @@ describe("Anime detail page — release", () => {
 
   // The airing type sits beside 本傳/外傳, the episode count and runtime
   // beside the airing status, and the season leads the row of dates it is
-  // derived from. Original / Remake is shown for a remake alone.
+  // derived from. Original / Remake is shown for a remake alone. The genres
+  // are in a Genres card of their own (GenresBlock.test.jsx).
   it("lays the Information card out in these rows", async () => {
     mockFetch({ ...BASE_ANIME, original_or_remake: "Original" }, []);
     mount();
@@ -240,9 +241,6 @@ describe("Anime detail page — release", () => {
       ["本傳/外傳", "Airing Type", "Season Part"],
       ["Airing Status", "Total Episodes", "Runtime (min)"],
       ["Release Season", "Release Date JP", "Release Date TW"],
-      ["Genre (Main)"],
-      ["Genre (Sub)"],
-      ["Label"],
     ]);
   });
 

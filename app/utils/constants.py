@@ -163,12 +163,12 @@ MOVIE_TYPES: tuple[str, ...] = ("Reality", "Animation")
 # Formerly the "Region (TV Show)" / "Region (Manga)" option categories.
 TV_REGIONS: tuple[str, ...] = ("歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫")
 MANGA_REGIONS: tuple[str, ...] = ("日漫", "韓漫", "國漫", "台漫", "其他")
-BOOK_REGIONS: tuple[str, ...] = ("JP", "CN", "TW", "KR", "Western")
+BOOK_REGIONS: tuple[str, ...] = ("Western", "JP", "CN", "KR", "TW")
 
 # A book's `type`. The three kinds of novel and 短篇集 are what the statistics
 # count as their Novel section; a guide or setting book, and 其他, are books
 # that are not novels.
-BOOK_TYPES: tuple[str, ...] = ("輕小說", "小說", "網路小說", "短篇集", "指南/設定集", "其他")
+BOOK_TYPES: tuple[str, ...] = ("小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他")
 
 # Unit kinds a book can hold. A plain map rather than a system_option
 # category: code branches on these (which kinds the editor offers, which
@@ -203,16 +203,20 @@ BOOK_UNIT_KEY_PREFIX = {
 
 COMIC_TYPES: tuple[str, ...] = ("Ongoing", "Limited", "One-Shot", "Annual")
 
+# Comic's and h-comic's serialization statuses. Manga does not use this list
+# any more: it shares book's, below.
 MANGA_SERIALIZATION_STATUSES: tuple[str, ...] = ("連載中", "停更", "腰斬", "完結")
+# Book's and manga's, in the order a run moves through them. The forms and the
+# library filters both read it in this order.
 BOOK_SERIALIZATION_STATUSES: tuple[str, ...] = (
+    "未出",
     "連載中",
     "連載中 (不穩定)",
     "連載中 (有生之年)",
     "停更",
+    "可能更多",
     "完結",
     "腰斬",
-    "可能更多",
-    "未出",
 )
 
 CARTOON_AIRING_TYPES: tuple[str, ...] = ("TV", "Movie", "Special")

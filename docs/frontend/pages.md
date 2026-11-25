@@ -667,8 +667,8 @@ viewer. In the table below the personal defs are marked *(p)*.
 | movie | no | airingStatus "Release Status" · movieType (Reality/Animation) · watchingStatus *(p)* | title, release_date (year of `release_date_usa` only), my_rating *(p)*, imdb_rating | franchise, title, status, my *(p)*, imdb, director, release, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | tv-show | no | airingStatus: set (Not Yet Aired/Airing/Finished Airing/Canceled) · watchingStatus *(p)* · airingType: set (TV/Special) and region: set-dynamic on one line, Airing Type at the left | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title, season, status, ep *(p)*, my *(p)*, imdb, imdb_show, watch *(p)*, watch_next *(p)*, to_rewatch *(p)* |
 | cartoon | yes | airingStatus: set (as anime) · airingType: set (TV/Movie/Special) · watchingStatus *(p)* · officialSource: set-dynamic | title, release_date, my_rating *(p)*, imdb_rating, imdb_series_rating | franchise, title_cn, title_en, type, season, airing, ep *(p)*, source, my *(p)*, imdb, imdb_show, watch *(p)* |
-| manga | yes | serializationStatus: set-dynamic · readingStatus: set-grouped *(p)* · region: set-dynamic | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch *(p)*, vol *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
-| book | yes | serializationStatus · readingStatus *(p)* · region · type: set-dynamic | title, release_date (jp→tw), end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getBookProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
+| manga | yes | serializationStatus (BOOK_SERIALIZATION_STATUSES order) · readingStatus: set-grouped *(p)* · region (MANGA_REGIONS order: 日漫 韓漫 國漫 台漫 其他) | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch *(p)*, vol *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
+| book | yes | serializationStatus (BOOK_SERIALIZATION_STATUSES order) · readingStatus *(p)* · type (BOOK_TYPES order: 小說 輕小說 網路小說 短篇集 指南/設定集 其他) · region (BOOK_REGIONS order: Western JP CN KR TW) | title, release_date (jp→tw), end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getBookProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | comic | yes | comicType: set-dynamic · readingStatus *(p)* · era: set-dynamic · events: set-dynamic (multi-value via `parseTypes`) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
 | game | yes | gameType: set-dynamic · playingStatus: set-grouped (Playing / Planned / Completed / Dropped / Might Play, via `PLAYING_STATUS_GROUP`) *(p)* · ownership: set-dynamic *(p)* · releaseStatus: set-dynamic | title (EN-first, `getSortName`), release_date, hours_played ("Playtime"), metacritic_score ("Metacritic", highest first, unscored last), my_rating *(p)* | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
 
@@ -687,7 +687,8 @@ it:
 | anime, anime-movie | Exclusive Source (`exclusive_source`) · Genre Main (`genre_main`) · Genre Sub (`genre_sub`) · Label (`label`) |
 | movie | Exclusive Source (`original_source`, the field a movie labels Exclusive Source) · Genre Main · Genre Sub · Label |
 | tv-show | Original Source (`source_official`, its sheet header) · Genre Main · Genre Sub · Label |
-| cartoon, manga, book, comic | Genre Main · Genre Sub · Label |
+| manga, book | Publisher TW (`publisher_tw`) · Genre Main · Genre Sub · Label |
+| cartoon, comic | Genre Main · Genre Sub · Label |
 | game | Genre (`game_genre`) · Theme (`game_theme`) · Label (`label`) |
 | h-game | Genre (`game_genre`) · Theme (`game_theme`) · Genre Plot (`h_genre_plot`) · Genre Appearance (`h_genre_appearance`) · Genre Relation (`h_genre_relation`) |
 | h-comic, hentai | Genre Plot · Genre Appearance · Genre Relation |
@@ -721,6 +722,19 @@ on hover or focus:
 | Watching | Active Watching, Passive Watching, Paused |
 | Completed | Completed, Completed (解說) |
 | Dropped | Temp Dropped, Dropped, Won't Watch |
+
+**Read Status on manga and book is the same kind of def**, `readStatusFilter()`:
+chips Might Read, Planned, Reading, Completed, Dropped through
+`READING_STATUS_GROUP`, each with its included statuses as a hint and the
+circled **?** after the label listing them all - Might Read is Might Read and
+a row with no status; Planned, Plan to Read; Reading, Active Reading, Passive
+Reading and Paused; Completed, Completed and Completed (解說); Dropped, Temp
+Dropped, Dropped and Won't Read.
+
+**A vocabulary column's chips follow the vocabulary** on manga and book -
+Serialization Status, Region and Type, through `vocabularyFilter(key, label,
+field, vocabulary)`: only the values the library holds, in the vocabulary's
+own order, with any value outside it (a legacy one) after them in name order.
 
 **My Rating breaks a tie on the type's public score, then on the title**
 (`myRatingSort({ publicScore, title })` in `libraryColumns.jsx`): MAL for
@@ -1471,8 +1485,8 @@ Top to bottom:
    | | `airing_status` is `Airing` | **Mark finished airing** → `Finished Airing` |
    | Movie, Anime Movie | `release_status` is `Not Released` | **Mark released** → `release_status` `Released` |
    | An Anime or Cartoon whose `airing_type` is `Movie` | `airing_status` is `Not Yet Aired` | **Mark released** → `Finished Airing` |
-   | Book | `serialization_status` is `未出` | **Mark serializing** → `連載中` |
-   | Manga, Comic, H-Comic, Book | `serialization_status` is `連載中` (on Book also `連載中 (不穩定)` / `連載中 (有生之年)`) | **Mark finished serializing** → `完結` |
+   | Manga, Book | `serialization_status` is `未出` | **Mark serializing** → `連載中` |
+   | Manga, Comic, H-Comic, Book | `serialization_status` is `連載中` (on Manga and Book also `連載中 (不穩定)` / `連載中 (有生之年)`) | **Mark finished serializing** → `完結` |
    | Game, H-Game | `release_status` is `Unreleased` or `Early Access` | **Mark released** → `Released` |
 
    An empty status, `Canceled`/`Cancelled`, `停更`, `腰斬` and a game's
@@ -1620,11 +1634,11 @@ status select, which goes through `/api/me/list`.
 
 | Page | Information card | Production card | Extras |
 |---|---|---|---|
-| Anime | in rows: 本傳/外傳, Airing Type, Season Part, and Original / Remake for a remake alone (an original says nothing); Airing Status, Total Episodes (with cumulative), Runtime (min); Release Season, Release Date JP/TW; then Genre main, Genre sub and Label a row each. Season Part carries a special's episode after it - `Season 2 第13集` from `season_part` and `ep_special`, `第13集` alone when there is no season part - and there is no Special Episodes row | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | remark lives only in Notes (no textarea); Cast placeholder; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
-| AnimeMovie | in rows: Release Status, Release Type, Runtime; Release Date (an ONA) or Release Date JP/TW; then Genre main, Genre sub and Label a row each | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | no series query; Cast placeholder; no eyebrow line above the title; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
+| Anime | in rows: 本傳/外傳, Airing Type, Season Part, and Original / Remake for a remake alone (an original says nothing); Airing Status, Total Episodes (with cumulative), Runtime (min); Release Season, Release Date JP/TW. Season Part carries a special's episode after it - `Season 2 第13集` from `season_part` and `ep_special`, `第13集` alone when there is no season part - and there is no Special Episodes row | Studio, 台灣代理商 (linked `publisher_refs`), Director, Producer, Music | **Genres** card (`GenresCard`) below Information; remark lives only in Notes (no textarea); Cast placeholder; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
+| AnimeMovie | in rows: Release Status, Release Type, Runtime; Release Date (an ONA) or Release Date JP/TW | Studio, 台灣代理商 (linked; the row this page gained in the publisher migration — it had none before), Director | **Genres** card (`GenresCard`) below Information; no series query; Cast placeholder; no eyebrow line above the title; the Sources card leads with the exclusive source's row, "Netflix (Exclusive)" |
 | Movie | 本傳/外傳 and Movie Type; Director and Runtime; Release Status, Release Date TW and USA - three rows | — | **Genres** card (`GenresCard`); inline IMDb score block; no eyebrow line above the title |
 | TV | in rows: Region, 本傳 / 外傳 and Season (Season only when set); Airing Type, Airing Status, Release Date; Total Ep, Runtime (min) | — | **Genres** card (`GenresCard`); IMDb block with this season's rating, and the whole show's beside it when there is one |
-| Cartoon | + Airing Type, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
+| Cartoon | in rows: 本傳 / 外傳, Airing Type and Season (Season only when set); Airing Status, Release Date; Total Ep, Runtime Per Ep (min) | — | **Genres** card (`GenresCard`); IMDb block as TV's |
 | Manga | Region, 本傳/外傳, Serialization Status/Platform, Release/End Date, Volume/Chapter Total | 作者 or 原作/作畫, 台灣出版社 (linked), Anime Studio (card shown only when any value) | **Genres** card (`GenresCard`), between Information and Production |
 | Book | in rows: Region, Type, 本傳 / 外傳, Version (only when set); Serialization Status, Release Date JP (only when set), Release Date TW, End Date; Total Volumes (JP/KR), Vol Total (TW), Arc Total, Chapter Total, each only when set and the row only when any is | in rows: Author, Illustrator (only when set); 台灣出版社 (linked), Anime Studio - the card drawn when any of them is set | **Genres** card (`GenresCard`), below Production; **Units** card (`BookUnitsEditor` over the `units` relationship — volume/arc/story/chapter rows with a key, CN/EN name and, on an arc, a chapter count; a `manage.catalog` holder gets the editor with drag-to-reorder/add/remove and a Save → PATCH carrying each unit's own fields only (`bookUnitPayload`), everyone else a plain list keyed by each row's server-computed `display_key`. For a holder of `self.list` each row of that list carries the viewer's own rating select (`MY_RATINGS`, saved on change) and remark field (saved on blur), both through `useSaveMyBookUnit` → `PUT /api/me/book-units/{unit_id}`; an account holding both keys gets the editor and, under it, that list headed **My ratings**. The admin holds no `self.list` and gets no such control. Hidden entirely for a viewer when the book has no units) |
 | Comic | Type, Volume Label, Continuity, Era, Serialization/Reading Status, Release Year, Issue Total, Genre main/sub, Label | Writer, Artist, 出版商 (linked, conditional), Imprint | **Events** card (red pills); no `RelationsSection`, no `ScoreBlock` |

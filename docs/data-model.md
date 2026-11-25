@@ -456,7 +456,7 @@ Manga, manhwa, manhua. Model: `Manga`. CHECKs: `ck_manga_release_date_iso`,
 | `manga_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
 | `region` | String | yes | | MANGA_REGIONS |
 | `is_main` | String | yes | | |
-| `serialization_status` | String | yes | | MANGA_SERIALIZATION_STATUSES |
+| `serialization_status` | String | yes | | BOOK_SERIALIZATION_STATUSES, shared with book (comic and h-comic keep MANGA_SERIALIZATION_STATUSES) |
 | `vol_total` | Float | yes | | |
 | `ch_total` | Float | yes | | |
 | `mal_rating` | Float | yes | | |
@@ -491,12 +491,12 @@ names live in `book_unit` rows, one per unit.
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `book_name_en` / `_cn` / `_roman` / `_jp` / `_alt` | String | yes | | |
-| `region` | String | yes | | BOOK_REGIONS |
-| `type` | String | yes | | BOOK_TYPES (輕小說 / 小說 / 網路小說 / 短篇集 / 指南/設定集 / 其他); also selects which `book_unit.unit_kind`s the editor offers - see `entry-types.md` - and which books Statistics' Novel section counts |
+| `region` | String | yes | | BOOK_REGIONS (Western / JP / CN / KR / TW) |
+| `type` | String | yes | | BOOK_TYPES (小說 / 輕小說 / 網路小說 / 短篇集 / 指南/設定集 / 其他); also selects which `book_unit.unit_kind`s the editor offers - see `entry-types.md` - and which books Statistics' Novel section counts |
 | `version` | String | yes | | Edition (free text) |
 | `is_main` | String | yes | | |
 | `anime_studio` | String | yes | | The studio that animated the book's adaptation, as `manga.anime_studio`: a plain column, not a credit |
-| `serialization_status` | String | yes | | BOOK_SERIALIZATION_STATUSES |
+| `serialization_status` | String | yes | | BOOK_SERIALIZATION_STATUSES (未出 / 連載中 / 連載中 (不穩定) / 連載中 (有生之年) / 停更 / 可能更多 / 完結 / 腰斬), shared with manga |
 | `vol_total_original` | Float | yes | | Volumes in the original run (JP/KR). Not derived - `book_unit` volume rows are optional enrichment and never feed this column (Decision B, see business-rules.md) |
 | `vol_total_tw` | Float | yes | | Volumes published in Taiwan. Same rule: never derived from `book_unit` rows |
 | `arc_total` | Float | yes | | **Derived**: count of the book's `book_unit` rows with `unit_kind = 'arc'`, recomputed on every create/update/patch (`derive_book_catalog`, called unconditionally by the router). Still a stored column - null on a book with no arc rows, and null on every volume-only type (see below) |
