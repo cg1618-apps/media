@@ -13,6 +13,7 @@ import { getCoverUrl, FALLBACK_SVG } from "../../utils/media";
 import RelationsSection from "../../components/tracker/RelationsSection";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import MarkCompletedButton from "../../components/tracker/MarkCompletedButton";
 import AdminActions from "../../components/layout/AdminActions";
 import AnimeNotes from "./AnimeNotes";
 import InfoCard from "../../components/info/InfoCard";
@@ -241,7 +242,9 @@ export default function Anime() {
           end={
             <>
               <MarkReleaseButton type="anime" entry={anime} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-              <Button
+              <MarkCompletedButton
+                type="anime"
+                entry={anime}
                 onClick={async () => {
                   if (!isAdmin) return;
                   try {
@@ -257,9 +260,7 @@ export default function Anime() {
                     showToast("error", "Update failed");
                   }
                 }}
-              >
-                Mark completed
-              </Button>
+              />
             </>
           }
         />

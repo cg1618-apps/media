@@ -20,6 +20,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { useHighlightGroupOrderSaver } from "../../api/mutations/useMyHighlightGroupOrder";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import MarkCompletedButton from "../../components/tracker/MarkCompletedButton";
 import AdminActions from "../../components/layout/AdminActions";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
@@ -325,7 +326,7 @@ export default function HGame() {
             end={
               <>
                 <MarkReleaseButton type="h-game" entry={hGame} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-                <Button onClick={markCompleted}>Mark completed</Button>
+                <MarkCompletedButton type="h-game" entry={hGame} onClick={markCompleted} />
               </>
             }
           />

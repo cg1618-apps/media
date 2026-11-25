@@ -5,6 +5,7 @@ import NeedsWorkBadge from "../../components/needs-work/NeedsWorkBadge";
 import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import MarkCompletedButton from "../../components/tracker/MarkCompletedButton";
 import AdminActions from "../../components/layout/AdminActions";
 import { useAuth } from "../../contexts/AuthContext";
 import FollowedOrderPanel from "../../components/tracker/FollowedOrderPanel";
@@ -456,7 +457,9 @@ export default function Manga() {
           end={
             <>
               <MarkReleaseButton type="manga" entry={manga} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-              <Button
+              <MarkCompletedButton
+                type="manga"
+                entry={manga}
                 onClick={async () => {
                   if (!isAdmin) return;
                   try {
@@ -472,9 +475,7 @@ export default function Manga() {
                     showToast("error", "Update failed");
                   }
                 }}
-              >
-                Mark completed
-              </Button>
+              />
             </>
           }
         />

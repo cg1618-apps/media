@@ -1476,7 +1476,11 @@ Top to bottom:
    passes its own buttons and handlers; the strip owns only the layout.
    **Edit** → `/modify?id={id}`; **Autofill & update** runs the type's
    single-entry fill; **Mark completed** → `POST {apiEndpoint}/{id}/complete`
-   then refetch; the **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
+   then refetch. It is `components/tracker/MarkCompletedButton.jsx`, and it
+   is absent while the viewer's status on the entry - the type's
+   `MEDIA_CONFIG[type].statusField` - is already a completed one
+   (`isCompleted` in `lib/mediaTabs.js`: Completed or Completed (解說)).
+   The **release button** (`components/tracker/MarkReleaseButton.jsx`, rules
    in `lib/releaseAction.js`) moves the entry one step along its release
    axis, and is absent when there is no next step. It is the one control
    that edits the work and the viewer's row together, so `saveRelease` (from

@@ -19,6 +19,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 
 import { endpoints } from "../../api/endpoints";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import MarkCompletedButton from "../../components/tracker/MarkCompletedButton";
 import AdminActions from "../../components/layout/AdminActions";
 import { EpisodeStepper, PausedAtInput } from "../../components/tracker/MyTrackerCard";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
@@ -302,7 +303,7 @@ export default function Hentai() {
           end={
             <>
               <MarkReleaseButton type="hentai" entry={hentai} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-              <Button onClick={markCompleted}>Mark completed</Button>
+              <MarkCompletedButton type="hentai" entry={hentai} onClick={markCompleted} />
             </>
           }
         />
