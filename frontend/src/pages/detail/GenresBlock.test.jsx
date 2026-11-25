@@ -1,4 +1,4 @@
-// The seven detail pages that set Genre (Main), Genre (Sub) and 標籤 Label in
+// The seven detail pages that set Genre (Main), Genre (Sub) and Label in
 // a Genres card of their own (GenresCard) rather than inside the Information
 // card: the tags sit in the Genres card and not in Information, and with no
 // tag set there is no Genres card at all.
@@ -81,13 +81,13 @@ describe.each(PAGES)("$name detail page — Genres card", ({ type, Page, entry }
     await screen.findByRole("heading", { name: "Information" });
 
     const genres = card("Genres");
-    for (const text of ["Genre (Main)", "Fantasy, Romance", "Genre (Sub)", "Isekai", "標籤 Label", "必看"]) {
+    for (const text of ["Genre (Main)", "Fantasy, Romance", "Genre (Sub)", "Isekai", "Label", "必看"]) {
       expect(within(genres).getByText(text)).toBeInTheDocument();
       expect(screen.getAllByText(text)).toHaveLength(1);
     }
     const info = card("Information");
     expect(within(info).queryByText("Genre (Main)")).not.toBeInTheDocument();
-    expect(within(info).queryByText("標籤 Label")).not.toBeInTheDocument();
+    expect(within(info).queryByText("Label")).not.toBeInTheDocument();
   });
 
   it("draws the Genres card directly below the Information card", async () => {

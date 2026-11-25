@@ -64,7 +64,7 @@ export default function ContentLabelPicker({
   onLoaded,
   // Called instead of `onChange` when the ADMIN ticks or unticks, so a page
   // can tell an edit from a load - Add and Modify carry an edit through to
-  // the 標籤 Label tags (hooks/useLabelTagSync.js), and a load must not.
+  // the Label tags (hooks/useLabelTagSync.js), and a load must not.
   onEdit,
 }) {
   const [labels, setLabels] = useState([]);

@@ -550,7 +550,7 @@ Tier 2 category:
 |---|---|---|---|
 | `genre_main` | Genre Main | `Genre Main` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic |
 | `genre_sub` | Genre Sub | `Genre Sub` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic |
-| `label` | 標籤 Label | `Label` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game |
+| `label` | Label | `Label` | anime, anime-movie, movie, tv-show, cartoon, manga, book, comic, game |
 | `original_source` | Original Source (labelled Exclusive Source on movie) | `Platform` | tv-show, cartoon, movie, h-comic |
 | `exclusive_source` | Exclusive Source | `Platform` | anime, anime-movie |
 | `serialization_platform` | Serialization Platform | `Serialization Platform` | manga, book |

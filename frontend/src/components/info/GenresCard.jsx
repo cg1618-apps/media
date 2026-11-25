@@ -5,7 +5,7 @@
 // carry the three shared classification tags (GENRE_LABEL_TYPES in
 // lib/genreLabelFields.js; comic carries them too but its page does not draw
 // this card):
-// Genre (Main) and Genre (Sub) side by side, 標籤 Label below - the card the
+// Genre (Main) and Genre (Sub) side by side, Label below - the card the
 // game page draws for its own Genre / Theme / Label, set apart from the
 // Information card so the tags are not read as facts about the release.
 //
@@ -32,7 +32,7 @@ export default function GenresCard({ item }) {
           { label: "Genre (Main)", value: item.genre_main },
           { label: "Genre (Sub)", value: item.genre_sub },
         ],
-        { label: "標籤 Label", value: item.label },
+        { label: "Label", value: item.label },
       ]}
     />
   );

@@ -126,7 +126,7 @@ def test_link_fields_are_read_only_on_the_write_path(owner_client, client, db_se
 
 def test_anime_carries_the_label_tag_and_its_sheet_column(client, db_session):
     """
-    標籤 Label is scoped to anime and never had a legacy string column, so it
+    Label is scoped to anime and never had a legacy string column, so it
     is served - and backed up - under its own key.
     """
     a = _anime(db_session, "標籤測試")

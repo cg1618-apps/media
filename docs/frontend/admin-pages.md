@@ -343,7 +343,7 @@ work.
 
 **Genres & Labels.** Anime, anime movie, movie, TV show, cartoon, manga,
 book and comic each carry a **Genres & Labels** section — Genre Main, Genre
-Sub and 標籤 Label — drawn by `forms/GenreLabelFields.jsx` after Information
+Sub and Label — drawn by `forms/GenreLabelFields.jsx` after Information
 (`GENRE_LABEL_TYPES` in `lib/genreLabelFields.js`). Each picker offers only its
 category's values scoped to that type or to no type, so a genre added on a
 manga is not offered on a movie; game keeps its own Genre, Theme and Label,
@@ -1156,7 +1156,7 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   fail every later step — the cast, the enrichment, the reload. `saveCredits`
   only records the entry (`pendingLabels`), and `handleSave` writes the set
   once the type's own save has run.
-- **The label picker and the 標籤 Label field move together**, on the nine
+- **The label picker and the Label field move together**, on the nine
   types with that field, because the server keeps a label and its tag in step
   (NSFW `nsfw`, 輕微色情 `ecchi`, 擦邊肉番 `erotica`). Ticking a label adds its
   tag at the end of the field and unticking removes it; adding one of the

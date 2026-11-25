@@ -1,4 +1,4 @@
-// Frontend: keep the Add and Modify forms' 標籤 Label field and their
+// Frontend: keep the Add and Modify forms' Label field and their
 // ContentLabelPicker selection in step, live (lib/labelTags.js has the rule).
 //
 // The page holds the labels once and a form per type, so it hands this hook

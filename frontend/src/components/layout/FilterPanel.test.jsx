@@ -129,6 +129,35 @@ it("gives a chip its def's hint as a hover title", () => {
   );
 });
 
+// A def with option hints marks its label with a circled "?"; hovering or
+// focusing it lists every option with what it includes. A def with no hints
+// gets no mark.
+it("puts a help mark after a hinted def's label that explains every option", async () => {
+  const user = userEvent.setup();
+  render(<AdvancedHarness />);
+  const help = screen.getByRole("button", { name: "What the Status options mean" });
+  expect(help.querySelector(".fa-circle-question")).not.toBeNull();
+  expect(screen.queryByRole("tooltip")).toBeNull();
+
+  await user.hover(help);
+  const tip = screen.getByRole("tooltip");
+  expect(help).toHaveAttribute("aria-describedby", tip.id);
+  expect(tip).toHaveTextContent("Planned");
+  expect(tip).toHaveTextContent("Includes: Planned things");
+  expect(tip).toHaveTextContent("Done");
+  expect(tip).toHaveTextContent("Includes: Done things");
+
+  await user.unhover(help);
+  expect(screen.queryByRole("tooltip")).toBeNull();
+
+  await user.tab();
+  while (document.activeElement !== help) await user.tab();
+  expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+  await user.click(screen.getByRole("button", { name: /Advanced filters/ }));
+  expect(screen.queryByRole("button", { name: "What the Genre options mean" })).toBeNull();
+});
+
 it("keeps advanced filters collapsed until the button opens them", async () => {
   const user = userEvent.setup();
   render(<AdvancedHarness />);
@@ -151,4 +180,35 @@ it("keeps advanced filters collapsed until the button opens them", async () => {
 it("draws no advanced button for defs with nothing advanced", () => {
   render(<Harness />);
   expect(screen.queryByRole("button", { name: /Advanced filters/ })).not.toBeInTheDocument();
+});
+
+// Consecutive defs that share a `row` are drawn side by side in one row, the
+// first at the left; a def with no row keeps a row of its own.
+it("draws defs that share a row side by side, in def order", () => {
+  const defs = [
+    { key: "status", label: "Status", type: "set", options: ["On"], match: () => true },
+    { key: "kind", label: "Kind", type: "set", options: ["TV"], row: "kind", match: () => true },
+    { key: "region", label: "Region", type: "set", options: ["US"], row: "kind", match: () => true },
+  ];
+  function Harness() {
+    const state = useFilterState(defs, []);
+    return (
+      <FilterPanel
+        filterDefs={defs}
+        filters={state.filters}
+        toggleFilter={state.toggleFilter}
+        clearFilters={state.clearFilters}
+        activeFilterCount={state.activeFilterCount}
+        dynamicFilterOptions={{}}
+      />
+    );
+  }
+  render(<Harness />);
+  const kindGroup = screen.getByText("Kind").parentElement;
+  const regionGroup = screen.getByText("Region").parentElement;
+  const statusGroup = screen.getByText("Status").parentElement;
+  expect(kindGroup.parentElement).toBe(regionGroup.parentElement);
+  expect(kindGroup.parentElement.className).toMatch(/\bflex\b/);
+  expect(kindGroup.nextElementSibling).toBe(regionGroup);
+  expect(statusGroup.parentElement).not.toBe(kindGroup.parentElement);
 });

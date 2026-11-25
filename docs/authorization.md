@@ -264,7 +264,7 @@ content labels and field groups and nothing else, so there is nowhere
   It never hides anything new: `nsfw` is shown from `normal`, and every other
   label is hidden at or below it. The reference says so per label
   (`also_carries`).
-- **A label and its 標籤 Label tag are kept in step on an entry, both
+- **A label and its Label tag are kept in step on an entry, both
   ways** (`app/services/domain/label_tags.py`). `nsfw`, `ecchi` and
   `erotica` each have a tag (`tag` in `labels.py`): NSFW, 輕微色情, 擦邊肉番.
   On the nine types with the Label field, the entry label PUT rewrites the
