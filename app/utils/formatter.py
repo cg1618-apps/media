@@ -1125,6 +1125,8 @@ def parse_book_from_sheet(raw: dict) -> dict:
         "type": parse_from_sheet(raw.get("type"), str),
         "version": parse_from_sheet(raw.get("version"), str),
         "is_main": parse_from_sheet(raw.get("is_main"), str),
+        # Absent from a tab backed up before the column existed: None.
+        "anime_studio": parse_from_sheet(raw.get("anime_studio"), str),
         "serialization_status": parse_from_sheet(raw.get("serialization_status"), str),
         "vol_total_original": parse_from_sheet(raw.get("vol_total_original"), float),
         "vol_total_tw": parse_from_sheet(raw.get("vol_total_tw"), float),

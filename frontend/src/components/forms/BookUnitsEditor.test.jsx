@@ -268,3 +268,56 @@ describe("release dates and cover", () => {
     ]);
   });
 });
+
+// A new unit's key is prefilled as its kind's next key - "Vol 1", "Arc 2" -
+// counted within that kind, so a volume after two arcs is still "Vol 1".
+describe("prefilled unit keys", () => {
+  const row = (unit_kind, unit_key, position) => ({
+    unit_kind, position, unit_key, name_cn: "", name_en: "", ch_count: "",
+  });
+
+  it("prefills the first volume as Vol 1 and the next arc as Arc 3", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<BookUnitsEditor items={[]} bookType="輕小說" onChange={onChange} />);
+    fireEvent.click(screen.getByText("+ Add volume"));
+    expect(onChange).toHaveBeenLastCalledWith([expect.objectContaining({ unit_key: "Vol 1" })]);
+
+    rerender(
+      <BookUnitsEditor
+        items={[row("arc", "Arc 1", 1), row("arc", "Prologue", 2)]}
+        bookType="網路小說"
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByText("+ Add arc"));
+    expect(onChange.mock.lastCall[0][2]).toEqual(expect.objectContaining({ unit_key: "Arc 3", position: 3 }));
+  });
+
+  it("counts within the kind on a mixed type", () => {
+    const onChange = vi.fn();
+    render(
+      <BookUnitsEditor
+        items={[row("story", "Story 1", 1), row("story", "Story 2", 2)]}
+        bookType="其他"
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getByText("+ Add unit"));
+    expect(onChange.mock.lastCall[0][2]).toEqual(expect.objectContaining({ unit_kind: "volume", unit_key: "Vol 1" }));
+  });
+
+  it("moves a still-prefilled key to the new kind, and leaves a typed one alone", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <BookUnitsEditor items={[row("volume", "Vol 1", 1)]} bookType="其他" onChange={onChange} />,
+    );
+    fireEvent.change(screen.getByLabelText(/^Kind for /), { target: { value: "story" } });
+    expect(onChange.mock.lastCall[0][0]).toEqual(expect.objectContaining({ unit_kind: "story", unit_key: "Story 1" }));
+
+    rerender(
+      <BookUnitsEditor items={[row("volume", "Extra", 1)]} bookType="其他" onChange={onChange} />,
+    );
+    fireEvent.change(screen.getByLabelText(/^Kind for /), { target: { value: "story" } });
+    expect(onChange.mock.lastCall[0][0]).toEqual(expect.objectContaining({ unit_kind: "story", unit_key: "Extra" }));
+  });
+});

@@ -953,6 +953,8 @@ export default function Modify() {
       type: n.type || "",
       version: n.version || "",
       is_main: n.is_main || "",
+      // A plain column, as manga's is - not a credit loaded separately.
+      anime_studio: n.anime_studio || "",
       serialization_status: n.serialization_status || "",
       reading_status: n.reading_status || md("book").reading_status,
       progress_display: n.progress_display || "",

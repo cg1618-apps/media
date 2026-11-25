@@ -311,3 +311,33 @@ describe("RestrictedPrefillEditor", () => {
     expect(onChange).toHaveBeenCalledWith(["ToonGod"]);
   });
 });
+
+// A manga's or book's main sources are its serialization platforms: the main
+// row offers every Serialization Platform value - whatever type it is scoped
+// to, since the vocabulary is scoped to manga alone - and no streaming
+// Platform value.
+describe.each(["manga", "book"])("SourcesEditor on a %s", (mediaType) => {
+  const withMagazines = {
+    options: [
+      ...sources.options,
+      { category: "Serialization Platform", value: "週刊少年Jump", scopes: ["manga"], usages: [] },
+      { category: "Serialization Platform", value: "Pixiv", scopes: [], usages: [] },
+    ],
+  };
+
+  it("offers the serialization platforms as main sources", () => {
+    render(
+      <SourcesEditor
+        value={[{ kind: "access", bucket: "main", name: "", url: "", available: null }]}
+        onChange={vi.fn()}
+        mediaType={mediaType}
+        sources={withMagazines}
+      />,
+    );
+    const [nameSelect] = screen.getAllByRole("combobox");
+    const names = within(nameSelect).getAllByRole("option").map((o) => o.textContent);
+    expect(names).toContain("週刊少年Jump");
+    expect(names).toContain("Pixiv");
+    expect(names).not.toContain("Netflix");
+  });
+});

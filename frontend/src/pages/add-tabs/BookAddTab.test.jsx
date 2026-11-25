@@ -205,3 +205,21 @@ describe("BookAddTab — release dates", () => {
     expect(input(container, "Release Date TW").value).toBe("2020");
   });
 });
+
+// A book names the studio that animated its adaptation, as a manga does: an
+// Anime Studio field beside Publisher TW, saved as anime_studio.
+describe("BookAddTab — Anime Studio", () => {
+  it("offers Anime Studio beside Publisher TW", () => {
+    const { container } = renderTab();
+    const label = [...container.querySelectorAll("label")].find((l) => l.textContent === "Anime Studio");
+    expect(label).toBeDefined();
+    const publisher = [...container.querySelectorAll("label")].find((l) => l.textContent === "Publisher TW");
+    expect(label.closest(".grid")).toBe(publisher.closest(".grid"));
+  });
+
+  it("is carried into the save payload", async () => {
+    const { bookFieldsPayload } = await import("../../lib/payloads");
+    expect(bookFieldsPayload({ anime_studio: "Shaft" }).anime_studio).toBe("Shaft");
+    expect(bookFieldsPayload({ anime_studio: "" }).anime_studio).toBeNull();
+  });
+});
