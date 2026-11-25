@@ -622,6 +622,7 @@ export function bookFieldsPayload(f, { defaultStatus } = {}) {
     type: f.type || null,
     version: f.version || null,
     is_main: f.is_main || null,
+    anime_studio: f.anime_studio || null,
     serialization_status: f.serialization_status || null,
     reading_status: f.reading_status || defaultStatus || "Might Read",
     progress_display: f.progress_display || null,

@@ -495,6 +495,7 @@ names live in `book_unit` rows, one per unit.
 | `type` | String | yes | | BOOK_TYPES (輕小說 / 小說 / 網路小說 / 短篇集 / 指南/設定集 / 其他); also selects which `book_unit.unit_kind`s the editor offers - see `entry-types.md` - and which books Statistics' Novel section counts |
 | `version` | String | yes | | Edition (free text) |
 | `is_main` | String | yes | | |
+| `anime_studio` | String | yes | | The studio that animated the book's adaptation, as `manga.anime_studio`: a plain column, not a credit |
 | `serialization_status` | String | yes | | BOOK_SERIALIZATION_STATUSES |
 | `vol_total_original` | Float | yes | | Volumes in the original run (JP/KR). Not derived - `book_unit` volume rows are optional enrichment and never feed this column (Decision B, see business-rules.md) |
 | `vol_total_tw` | Float | yes | | Volumes published in Taiwan. Same rule: never derived from `book_unit` rows |
