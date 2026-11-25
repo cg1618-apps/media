@@ -15,7 +15,7 @@ spelling.
 Reversible: the downgrade maps the five names back to the codes.
 
 Revision ID: b1o2okregion3
-Revises: r1e2lcascade3
+Revises: b1o2okstudio3
 """
 
 import json
@@ -26,7 +26,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "b1o2okregion3"
-down_revision: Union[str, Sequence[str], None] = "r1e2lcascade3"
+down_revision: Union[str, Sequence[str], None] = "b1o2okstudio3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
