@@ -63,6 +63,7 @@ function characterToForm(c) {
     photo_file: c.photo_file || "",
     photo_focus: c.photo_focus || null,
     mal_link: c.mal_link || "",
+    anilist_link: c.anilist_link || "",
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: c.my_rating || "",
     ...firstsToForm(c),
@@ -186,6 +187,7 @@ export default function CharacterModifyTab({
             photo_file: characterForm.photo_file || null,
             photo_focus: characterForm.photo_focus || null,
             mal_link: characterForm.mal_link?.trim() || null,
+            anilist_link: characterForm.anilist_link?.trim() || null,
             ...firstsPayload(characterForm),
             photo_fallback_entry_id: characterForm.photo_fallback_entry_id || null,
             ...characterTagsPayload(characterForm),

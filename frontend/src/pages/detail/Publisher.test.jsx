@@ -10,7 +10,7 @@ import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
-// The remark list and personal notes are NotesTemplate's to test; here only
+// The remark list, resources and personal notes are NotesTemplate's to test; here only
 // that the page hands it this record as the owner.
 vi.mock("../notes/NotesTemplate", () => ({
   default: ({ ownerType, ownerId }) => (
@@ -38,7 +38,7 @@ const PUBLISHER = {
   credit_count: 0,
 };
 
-function mockFetch(publisher = PUBLISHER) {
+function mockFetch(publisher = PUBLISHER, entries = { groups: [] }) {
   global.fetch = vi.fn((url, init = {}) => {
     if (init.method === "PUT") {
       const body = JSON.parse(init.body);
@@ -62,7 +62,7 @@ function mockFetch(publisher = PUBLISHER) {
       });
     }
     if (String(url).endsWith("/entries")) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ groups: [] }) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(entries) });
     }
     return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(publisher) });
   });
@@ -123,8 +123,69 @@ describe("Publisher detail page", () => {
     expect(within(profile).queryByText("MAL")).not.toBeInTheDocument();
   });
 
-  // The remark list and personal notes are this publisher's notes block.
-  it("draws the remark list and personal notes for this publisher", async () => {
+  it("sets the profile on one row: country, types, active", async () => {
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    // Every field sits on the one row, in this order.
+    const row = within(profile).getByText("Country").closest(".grid");
+    expect([...row.children].map((field) => field.firstChild.textContent)).toEqual([
+      "Country",
+      "Types",
+      "Active",
+    ]);
+    expect(row.parentElement.children).toHaveLength(1);
+    expect(row).toHaveTextContent("Since 1992");
+  });
+
+  it("lists the website in the links card, not in the profile", async () => {
+    mockFetch({ ...PUBLISHER, website_url: "https://www.e-muse.com.tw/" });
+    renderPage();
+    const links = await screen.findByRole("region", { name: "Links" });
+    expect(within(links).getByRole("link", { name: "Website" })).toHaveAttribute(
+      "href",
+      "https://www.e-muse.com.tw/",
+    );
+    const profile = screen.getByText("Profile").closest("section");
+    expect(within(profile).queryByText("Website")).toBeNull();
+  });
+
+  it("sets the credited-entry count on the kind line above the name", async () => {
+    renderPage();
+    await screen.findByRole("heading", { level: 1, name: "木棉花" });
+    expect(screen.getByText("0 credited entries").parentElement).toHaveTextContent(
+      /^Publisher/,
+    );
+  });
+
+  it("draws a manga credit with its release date and MAL score", async () => {
+    mockFetch(PUBLISHER, {
+      groups: [
+        {
+          media_type: "manga",
+          label: "Manga",
+          nav_path: "/manga",
+          entries: [
+            {
+              system_id: "m1",
+              display_name: "Frieren",
+              release_date: "2020-04-28",
+              mal_rating: 9.1,
+            },
+          ],
+        },
+      ],
+    });
+    renderPage();
+    expect(await screen.findByRole("link", { name: "Frieren" })).toHaveAttribute(
+      "href",
+      "/manga/m1",
+    );
+    expect(screen.getByText("2020-04-28")).toBeInTheDocument();
+    expect(screen.getByTitle("MAL score")).toHaveTextContent("9.1");
+  });
+
+  // The remark list, resources and personal notes are this publisher's notes block.
+  it("draws the remark list, resources and personal notes for this publisher", async () => {
     renderPage();
     const notes = await screen.findByTestId("entity-notes");
     expect(notes).toHaveAttribute("data-owner-type", "publisher");

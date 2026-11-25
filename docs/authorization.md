@@ -302,7 +302,7 @@ The matrix above is the grants; this is what holding one means.
 | A viewer may… | `guest` | `shared` | `user` | `super` | `admin` |
 |---|---|---|---|---|---|
 | browse entries of a type — the library lists and detail pages, collection, franchise, series and order pages | yes | yes | yes | yes | **never** |
-| open the pages of one entity kind, and follow the links to them: studios (`view.studio`), publishers (`view.publisher`), people and the seiyuu library (`view.person`), characters and their identities (`view.character`) | — (seeded off) | — (seeded off) | — (seeded off) | yes | **never** |
+| open the pages of one entity kind, and follow the links to them: studios (`view.studio`), publishers (`view.publisher`), people, seiyuu among them (`view.person`), characters and their identities (`view.character`) | — (seeded off) | — (seeded off) | — (seeded off) | yes | **never** |
 | search (`view.search`) | — | — | yes | yes | **never** |
 | open the Random Picker and read its saved defaults (`view.random_picker`) | **never** | **always** | **always** | **always** | **never** |
 | open Statistics and read its catalogue counts (`view.statistics`) | **never** | **always** | **always** | **always** | **never** |
@@ -462,7 +462,7 @@ The `view` family, as the role editor labels it (`VIEW_PERMISSION_LABELS`):
 |---|---|---|
 | `view.studio` | View Studios | every read on `/api/studio`. In the SPA: the studio library and pages, and studio names on other pages rendered as links rather than plain text |
 | `view.publisher` | View Publishers | every read on `/api/publisher`. In the SPA: the publisher library and pages, and publisher names rendered as links |
-| `view.person` | View People | every read on `/api/person`, the seiyuu library's `?role=seiyuu` included. In the SPA: the person and seiyuu libraries, person pages, and staff, author and voice-cast names rendered as links |
+| `view.person` | View People | every read on `/api/person`, `?role=` included. In the SPA: the person library (seiyuu are found there under its Type filter), person pages, and staff, author and voice-cast names rendered as links |
 | `view.character` | View Characters | every read on `/api/character` and `/api/character-identity`. In the SPA: the character library, character and identity pages, character and identity names rendered as links, and the Characters tab on franchise and series pages |
 | `view.search` | Search | `GET /api/search/`. In the SPA: the nav search and `/search` |
 | `view.random_picker` | Random Picker | `GET /api/random-picker-defaults/{mode}`. In the SPA: every `/random` route and the Random Picker nav row. Locked per role: on for `super`, `user` and `shared`, off for `guest` and `admin` - no other key draws that line but `view.statistics` |
@@ -1758,8 +1758,8 @@ rows per owner - written under `manage.catalog` and read by everyone who can
 see the owner, a logged-out visitor included. A member's own notes on an
 entry, a group or an entity go in 個人筆記 `personal_notes`, which is
 personal; there is no per-account remark route. An entity - studio,
-publisher, person, character, identity - owns these two sections and no
-other, and is seen as its own page is: its view permission (an identity's is
+publisher, person, character, identity - owns these two sections and 資源
+Resources (`resources`), and no other, and is seen as its own page is: its view permission (an identity's is
 `view.character`) and `shared_record_visible`; anything else is **404 "Owner
 not found."**
 

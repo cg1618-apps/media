@@ -703,10 +703,12 @@ per-entry `watch_order` Float column, which has been dropped.
 | `PUT`    | `/items/{item_id}`            | Admin  | Full update of one step. Body: `OrderItemUpdate`.                                                                                             |
 | `PATCH`  | `/items/{item_id}`            | Admin  | Partial update (episode range, optional flag, note). Body: raw JSON dict.                                                                          |
 | `DELETE` | `/items/{item_id}`            | Admin  | Remove one step.                                                                                                                                   |
-| `GET`    | `/follows`                    | `self.list` | The caller's followed orders, each a `OrderFollowSummary`: `list`, `owner` (`tier`, `system_id`, `public_id`, `display_name`), `done`, `total`, `now` (every active step) and `up_next` (the earliest pending step, or null). |
-| `GET`    | `/follows/entry/{entry_id}`   | `self.list` | The followed orders that step through one entry (`media.system_id`), each a `OrderEntryFollow`: `list`, `owner`, `total` and one `occurrences` element per step naming the entry, with `step`, `previous` and `next`. `[]` when none does. |
-| `PUT`    | `/lists/{system_id}/follow`   | `self.list` | Follow the order (`public_id` or UUID), replacing the caller's follow of another order in the same group. Idempotent. Answers the order's `OrderFollowSummary`. 404 on an unknown order. |
-| `DELETE` | `/lists/{system_id}/follow`   | `self.list` | Unfollow. 404 when the order is unknown or not followed. |
+| `GET`    | `/follows`                    | `self.list` | The caller's followed orders, each a `OrderFollowSummary`: `list`, `owner` (`tier`, `system_id`, `public_id`, `display_name`), `importance` (the follow's rung), `skipped` (the step ids it skips), `done`, `total`, `now` (every active step) and `up_next` (the first pending, unskipped step at or above the follow's importance, or null). |
+| `GET`    | `/follows/entry/{entry_id}`   | `self.list` | The followed orders that step through one entry (`media.system_id`), each a `OrderEntryFollow`: `list`, `owner`, `importance`, `total` and one `occurrences` element per step naming the entry, with `step`, `next` (the direct next from that step) and `coming_up` (the next Recommended and/or Essential steps after it). `[]` when none does. |
+| `PUT`    | `/lists/{system_id}/follow`   | `self.list` | Follow the order (`public_id` or UUID), replacing the caller's follow of another order in the same group and dropping that follow's skips. Optional body `OrderFollowRequest` `{importance}`: a new follow takes it or `Normal`, an existing one changes to it or keeps its own. Idempotent. Answers the order's `OrderFollowSummary`. 404 on an unknown order, 400 on an unknown importance. |
+| `DELETE` | `/lists/{system_id}/follow`   | `self.list` | Unfollow; the follow's skips go with it. 404 when the order is unknown or not followed. |
+| `PUT`    | `/lists/{system_id}/follow/skips/{step_id}` | `self.list` | Mark one step of a followed order to skip. `step_id` is the step's `system_id` from the order detail. Idempotent. Answers the order's `OrderFollowSummary`. 404 when the order is unknown or not followed, or the step is not one of its steps for this viewer. |
+| `DELETE` | `/lists/{system_id}/follow/skips/{step_id}` | `self.list` | Clear a skip mark. Idempotent. Answers the order's `OrderFollowSummary`. 404 when the order is unknown or not followed. |
 | `PUT`    | `/lists/{system_id}/reorder`  | Admin  | Renumber positions to 1..N, and optionally re-file each step into a part. Body: `OrderReorder` (`item_ids`, optional `section_ids`, optional `section_positions`). 400 unless the payload names every item of the list exactly once, if `section_positions` names a part twice or misses one, or if the order would split a part. |
 
 `OrderReorder.section_ids` is optional and runs parallel to `item_ids` —
@@ -922,9 +924,9 @@ business-rules.md.
 
 | Method   | Path           | Description |
 | -------- | -------------- | ----------- |
-| `GET`    | `/kinds`       | The vocabulary: `scopes`, `kinds`, `allowed_scopes` per kind and media type, `size_groups`, and `platform_groups` (`{"game": ["PC", "Console", "Handheld Console", "Switch"]}`). |
+| `GET`    | `/kinds`       | The vocabulary: `scopes`, `kinds`, `allowed_scopes` per kind and media type, `size_groups`, and `platform_groups` (`{"game": [...], "h-game": [...]}`, each `["PC", "Console", "Handheld Console", "Switch"]`). |
 | `GET`    | `/`            | The caller's rows. Optional `media_type`, `scope`, `kind`. A row whose entry is hidden from the caller is left out; one whose target was deleted reads `missing: true`. |
-| `POST`   | `/`            | Plan something. Body: `media_type`, `scope`, `target_id`, optional `remark`, `kind` (default `next`) and `platform_group`. 409 when already planned under that kind; 422 for an unknown kind, or a `platform_group` that is not one of `platform_groups` or sits on anything but a game's `next` row. |
+| `POST`   | `/`            | Plan something. Body: `media_type`, `scope`, `target_id`, optional `remark`, `kind` (default `next`) and `platform_group`. 409 when already planned under that kind; 422 for an unknown kind, or a `platform_group` that is not one of `platform_groups` or sits on anything but a game's or an h-game's `next` row. |
 | `PATCH`  | `/{system_id}` | Body `{platform_group}`: files one of the caller's own rows under a group, or `null` back under none. Same 422s as create; 404 for another user's row or a hidden target. |
 | `DELETE` | `/target`      | Un-plan by `scope`, `media_type`, `target_id` and `kind`. |
 | `DELETE` | `/{system_id}` | Un-plan by row id. |
@@ -1161,9 +1163,9 @@ seven media tables. Reads are public. Every write — create, reorder, edit and 
 Like Meme, a note's owner may be a media entry **or** one of the three
 grouping tiers — the same hyphenated `owner_type` values. A note may also be
 owned by one of the five entities - `studio`, `publisher`, `person`,
-`character`, `identity` - but only in the `remark` and `personal_notes`
-sections; any other section on an entity is refused as not applying to that
-owner type (422).
+`character`, `identity` - but only in the `remark`, `personal_notes` and
+`resources` sections; any other section on an entity is refused as not
+applying to that owner type (422).
 
 A hidden owner answers **404 "Owner not found."** on the read and on every
 write: a label-hidden entry, or a collection, franchise or series hidden by
@@ -1719,7 +1721,7 @@ derived from `(role, media_type)`, never stored.
 | `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline edits. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is `男` or `女` (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` or `imdb_link` in the body re-derives its id; `PATCH` never calls MAL or TMDB. Returns the full `PersonResponse`. |
 | `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL-then-TMDB fill `PUT` runs, without a save — `mal_id` and `imdb_id` are derived from their links, then the empty columns are filled from MAL's people record and then from TMDB's person record, each when its id is present; a column that holds a value is never overwritten. **422**, with nothing fetched, only when the person has neither a MAL link nor an IMDb link, whatever role they hold. A failed fetch is logged and swallowed, as on save, so the unchanged person comes back with 200. 404 if absent or hidden. Returns `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. Their gallery of works is emptied too, each picture's image and file deleted unless something else uses it. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
-| `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows, moves every club membership onto the survivor and appends the loser's gallery of works after the survivor's own (a picture the survivor already shows is dropped), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark rows and every account's personal notes - move onto the survivor, after the survivor's own rows in each section. 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
+| `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows, moves every club membership onto the survivor and appends the loser's gallery of works after the survivor's own (a picture the survivor already shows is dropped), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark and Resources rows and every account's personal rows - move onto the survivor, after the survivor's own rows in each section. 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
 | `GET`    | `/{system_id}/clubs` | `view.person` | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
 | `PUT`    | `/{system_id}/clubs` | Admin  | Replace the clubs this person belongs to. Body: `ClubsReplace` (`{club_ids: [uuid, ...]}`). Each must be a person the writer may see (422 `Unknown club(s)` otherwise), hold the `club` role (422) and not be this person (422). A new membership joins the end of that club's member list; memberships of clubs the writer cannot see are kept. Returns the new `List[MembershipRef]`. |
 | `GET`    | `/{system_id}/members` | `view.person` | A club's members, as `List[MembershipRef]` in the club's order. Hidden members are omitted; `[]` for a person who is not a club; 404 if the club is absent or hidden. |
@@ -1738,7 +1740,7 @@ not a connection: it never makes a hidden club or artist visible
 **Response model:** `PersonResponse` — the four name columns,
 `display_name_field`, the resolved `display_name`, `gender`, `my_rating` (the
 viewer's own, null without a rating row),
-`photo_file`, `photo_focus`, `photo_fallback_entry_id`, `mal_id`, `mal_link`, `imdb_id`, `imdb_link`, `twitter_link`, `ig_link`, `pixiv_link`, `system_id`, `roles` (every
+`photo_file`, `photo_focus`, `photo_fallback_entry_id`, `mal_id`, `mal_link`, `anilist_link`, `imdb_id`, `imdb_link`, `twitter_link`, `ig_link`, `pixiv_link`, `system_id`, `roles` (every
 `(role, scope)` the person holds, `scope` null for a role held in no media type, `affiliations` (`AffiliationRef[]`, the visible studios they belong to, by name), so the admin form can load the whole set in
 one request) and five fields resolved **for the viewer** from the entries they
 may see (`filter_visible_pairs`), none of them stored:
@@ -1812,11 +1814,17 @@ are keyed by the pair:
 {"groups": [
   {"media_type": "manga", "role": "author", "label": "原作",
    "nav_path": "/manga",
-   "entries": [{"system_id": "...", "display_name": "...",
+   "entries": [{"system_id": "...", "display_name": "...", "public_id": 3,
                 "cover_image_file": "...", "cover_image_focus": "50% 20%",
-                "release_date": "2013-04-06"}]}
+                "release_date": "2013-04-06", "my_rating": "A",
+                "mal_rating": 8.5}]}
 ]}
 ```
+
+Each entry is a credit card, as on the studio endpoint below: the cover and
+name, the primary `release_date`, the viewer's own `my_rating` and the
+type's card columns (`mal_rating`, `metacritic_score`, …) that the person
+page sorts by.
 
 `label` is `credit_label(role, media_type)`, so the heading reads 原作 on a
 manga and Writer on a comic without the page knowing the vocabulary. Entries
@@ -1862,11 +1870,11 @@ role/scope filter — studios have no `person_role` concept.
 | `PATCH`  | `/{system_id}`        | Admin  | Partially update a studio's own columns — the detail page's inline edits. Body: any subset of the `StudioBase` columns as a JSON object. Only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/studio/{id}`. The `PUT` rules are checked before anything is written: `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `StudioResponse`. |
 | `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL fill `PUT` runs, without a save — `mal_id` is derived from `mal_link`, then the empty columns are filled from MAL's producer record; a column that holds a value is never overwritten. **422**, with nothing fetched, when the studio has no MAL link. A failed MAL fetch is logged and swallowed, as on save, so the unchanged studio comes back with 200. 404 if absent or hidden. Returns `StudioResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a studio. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. |
-| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds) and both sides of every relation (dropping one the survivor already holds, whose remark wins, or one to itself), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark rows and every account's personal notes - move onto the survivor, after the survivor's own rows in each section. 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. |
+| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this studio: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds) and both sides of every relation (dropping one the survivor already holds, whose remark wins, or one to itself), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark and Resources rows and every account's personal rows - move onto the survivor, after the survivor's own rows in each section. 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. |
 
 **Response model:** `StudioResponse` — `StudioBase` fields (the four names,
 `display_name_field`, `logo_file`, `logo_focus`, `founded_date`,
-`defunct_date`, `countries`, `website_url`, `mal_id`, `mal_link`) plus
+`defunct_date`, `countries`, `website_url`, `mal_id`, `mal_link`, `anilist_link`) plus
 `system_id`, the viewer's own `my_rating`, the resolved `display_name`, and these fields resolved **for the
 viewer** from the entries they may see, none of them stored:
 
@@ -1966,15 +1974,34 @@ The reverse of `GET /api/credits/{media_type}/{entry_id}`.
         {
           "system_id": "…",
           "display_name": "Violet Evergarden",
+          "public_id": 12,
           "cover_image_file": "…",
           "cover_image_focus": null,
-          "release_date": "2018-01-11"
+          "release_date": "2018-01-11",
+          "my_rating": "S",
+          "airing_type": "TV",
+          "release_season": "Winter",
+          "release_date_jp": "2018-01-11",
+          "release_date_tw": null,
+          "mal_rating": 8.7
         }
       ]
     }
   ]
 }
 ```
+
+Each entry is a **credit card** (`credit_cards`,
+`app/services/domain/credit_cards.py`): what the page's card and its sort
+read, not the whole entry. Every entry carries `system_id`, `display_name`,
+`public_id`, `cover_image_file`, `cover_image_focus`, `release_date` (the
+type's primary release value, `primary_release_value`) and `my_rating` — the
+viewer's own, from their list row, null for a viewer who has not rated it or
+for nobody signed in; never another account's. Beside them, each of
+`airing_type`, `release_type`, `release_season`, `release_date_jp`,
+`release_date_tw`, `mal_rating` and `metacritic_score` that the entry's type
+has as a column (`CARD_COLUMNS`); a type without one leaves the key out, and
+so does a column the viewer's access mode withholds (`gated_columns`).
 
 Groups follow `MEDIA_TABLES` order and a group with no visible entries is
 omitted; entries are newest first, with an undated entry last. A studio is a
@@ -1995,14 +2022,14 @@ uses. `app/routers/publisher.py` mirrors `/api/studio` endpoint for endpoint,
 | -------- | --------------------- | ------ | ------------------------------------------------------------------------------------ |
 | `GET`    | `/?scope=`            | `view.publisher` | List publishers, sorted by `display_name` case-insensitively (in Python — the display name is a per-row choice among four nullable columns). `scope` is a hyphenated media-type key and narrows the list to publishers offered on that type; omitted, it returns **everything, including publishers holding no scope at all** — the admin list page must be able to see a publisher in order to give it one. There is no `/role-scopes` counterpart to person's: one role means `legal_scopes("publisher")` is a constant the frontend holds. |
 | `GET`    | `/{system_id}`        | `view.publisher` | Get one publisher by UUID. 404 if absent or hidden.                              |
-| `GET`    | `/{system_id}/entries`| `view.publisher` | The entries this publisher is credited on, grouped by media type. 404 if the publisher is absent or hidden. |
+| `GET`    | `/{system_id}/entries`| `view.publisher` | The entries this publisher is credited on, grouped by media type, each a credit card - the shape and rules of [`GET /api/studio/{system_id}/entries`](#get-apistudiosystem_identries) (`company_credit_groups`). 404 if the publisher is absent or hidden. |
 | `GET`    | `/{system_id}/related`| `view.publisher` | The related companies - studios and publishers - the viewer may see, as the studio route answers them (`PeerRelationRef[]`, each with its `kind`), with this publisher's side's remark. 404 if the publisher is absent or hidden. Takes a public_id or UUID. |
 | `PUT`    | `/{system_id}/related`| Admin  | Replace this side's related companies, with the studio route's body and rules; an item's `kind` defaults to `publisher` here. Answers as `GET`. |
 | `POST`   | `/`                   | Admin  | Create a publisher, **or return the existing one** under that name — find-or-create for the same reason as studio: the Add/Modify forms POST here through `ensureSourceValues.js` whenever a typed name is not in the suggestion list (every publisher field but a game's, which is pick-only), so a second row would split the credits. Matching is on the normalized name (`find_publisher`), looked up by the body's first name - the first fragment of `name_alt` when that is all it carries; metadata on an existing row is left untouched. Body: `PublisherCreate`. |
 | `PUT`    | `/{system_id}`        | Admin  | Fully update a publisher. Every credit points at the row by id, so a rename here changes what every credited entry shows — no propagation step. Body: `PublisherUpdate`. |
 | `PATCH`  | `/{system_id}`        | Admin  | Partially update a publisher's own columns — the detail page's inline edits. Body: any subset of the `PublisherBase` columns as a JSON object; `scopes` is not a column (edit it through `PUT`). Only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/publisher/{id}`. The `PUT` rules are checked before anything is written: `display_name_field` is `en`/`cn`/`jp`/`alt`, and at least one name survives the patch — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. Same checks as person's `PATCH` (`_entity_patch.prepare_patch`). Returns the full `PublisherResponse`. |
 | `DELETE` | `/{system_id}`        | Admin  | Delete a publisher. Cascades its `media_credit` rows — no `deleted_record` entry is logged. Merge, not delete, is the fix for a duplicate. **Also deletes the publisher's logo object** (see below). |
-| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this publisher: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark rows and every account's personal notes - move onto the survivor, after the survivor's own rows in each section. 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. Returns `credits_moved`. |
+| `POST`   | `/{system_id}/merge`  | Admin  | Merge `source_id` into this publisher: repoints every `media_credit` (dropping one that would duplicate a credit the survivor already holds), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark and Resources rows and every account's personal rows - move onto the survivor, after the survivor's own rows in each section. 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest`. 400 if merging into self. Returns `credits_moved`. |
 
 **Response model:** `PublisherResponse` (`app/schemas/publisher.py`) —
 `PublisherBase` fields (the four names, `display_name_field`,
@@ -2159,14 +2186,14 @@ line for line, plus one deliberate departure — see the `POST` row.
 | `PATCH`  | `/{system_id}`         | Admin  | Partially update a character — the detail page's inline edits. Body: any subset of the `CharacterBase` columns as a JSON object; only the keys sent change; the viewer's rating is written through `PUT /api/me/ratings/character/{id}`. The `PUT` rules are checked before anything is written: `gender` and `role` are their vocabularies (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored — except `appearance` and `trait`, which replace their lists as on `PUT` (`null` is unchanged; anything but a list of strings is a 422). A `mal_link` in the body re-derives `mal_id`; `PATCH` never calls MAL. Returns the full `CharacterResponse`. |
 | `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL fill `PUT` runs, without a save — `mal_id` is derived from `mal_link`, the empty columns are filled from MAL's character record (a column that holds a value is never overwritten), and a null `display_name_field` becomes `cn` when `name_cn` is filled. **422**, with nothing fetched, when the character has no MAL link. A failed MAL fetch is logged and swallowed, as on save, so the unchanged character comes back with 200. 404 if absent or hidden. Returns `CharacterResponse`. |
 | `DELETE` | `/{system_id}?castings=N` | Admin | Delete a character. Cascades its `character_casting` rows, and their voices with them, and its `character_tag` rows. `castings` is **required**: the count the confirmation dialog showed, and a mismatch is a **409** — the same guard shape as `DELETE /api/person?credits=N`. |
-| `POST`   | `/{system_id}/merge`   | Admin  | Merge `source_id` into this character: repoints every casting, then deletes the loser. The loser's identities move to the survivor, after its own, with their cast rows. Castings are matched per identity: only where the survivor already holds a casting of the **same identity** on the same entry (a main row meeting a main row) is the loser's casting there dropped, its voices the survivor's casting lacks are appended to the survivor's, so no seiyuu is lost, and the survivor's casting fills its blank role, credited name, remark and photo from it. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark rows and every account's personal notes - move onto the survivor, after the survivor's own rows in each section. Each tag list ends as the union of both: the survivor's values in their order, then the loser's it lacked. This — not delete — is the fix for a duplicate, since deleting cascades the castings away. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
+| `POST`   | `/{system_id}/merge`   | Admin  | Merge `source_id` into this character: repoints every casting, then deletes the loser. The loser's identities move to the survivor, after its own, with their cast rows. Castings are matched per identity: only where the survivor already holds a casting of the **same identity** on the same entry (a main row meeting a main row) is the loser's casting there dropped, its voices the survivor's casting lacks are appended to the survivor's, so no seiyuu is lost, and the survivor's casting fills its blank role, credited name, remark and photo from it. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark and Resources rows and every account's personal rows - move onto the survivor, after the survivor's own rows in each section. Each tag list ends as the union of both: the survivor's values in their order, then the loser's it lacked. This — not delete — is the fix for a duplicate, since deleting cascades the castings away. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. |
 | `POST`   | `/{system_id}/sync-from-cast` | `manage.catalog` | The character page's **Sync from cast**: one of this character's cast rows replaces the role and photo (with its focus) of the record it casts - the identity it names, else the character; an identity has no role - and its remark is **added** to that record's Remark list (a `remark` note row, written as the caller; `entity_remarks.add_remark`), never twice: a row with the same trimmed text already there is not added again. A value the row does not hold - no role, a blank remark, no photo of its own - leaves the record's alone. A photo that is a library image is attached as well as written to `photo_file`. Body: `{casting_id}`. Returns the `CharacterResponse`. 404 for a cast row that is not this character's or is on an entry the caller cannot see. |
 
 **Response model:** `CharacterResponse` — the four name columns,
 `display_name_field`, the resolved `display_name`, `gender`, `my_rating` (the
 viewer's own),
 `photo_file`, `photo_focus`, `photo_fallback_entry_id`, `role`, `first_mention`,
-`first_appearance`, `first_encounter`, `mal_id`, `mal_link`, `system_id`, the tag
+`first_appearance`, `first_encounter`, `mal_id`, `mal_link`, `anilist_link`, `system_id`, the tag
 lists `appearance` and `trait` (`string[]`, in stored order, `[]` when none —
 always present), `identities` (the character's other identities, below), and five
 fields resolved **for the viewer** from the entries they may see

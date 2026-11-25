@@ -325,6 +325,8 @@ describe("CharacterLibrary", () => {
       const conan = (await screen.findByText("Edogawa Conan")).closest("a");
       expect(within(conan).getByText("Kudo Shinichi")).toBeInTheDocument();
       expect(conan).toHaveAttribute("href", "/identity/3/edogawa-conan");
+      // The Card group sits in the advanced section.
+      await user.click(screen.getByRole("button", { name: /Advanced filters/ }));
       await user.click(screen.getByRole("button", { name: "Characters" }));
       expect(screen.queryByText("Edogawa Conan")).not.toBeInTheDocument();
       expect(screen.getByText("Kudo Shinichi")).toBeInTheDocument();
@@ -365,6 +367,7 @@ describe("CharacterLibrary", () => {
       const user = userEvent.setup();
       renderLibrary();
       await screen.findByText("Edogawa Conan");
+      await user.click(screen.getByRole("button", { name: /Advanced filters/ }));
       await user.click(screen.getByRole("button", { name: "No identities" }));
       expect(screen.queryByText("Edogawa Conan")).not.toBeInTheDocument();
       expect(screen.queryByText("Kudo Shinichi")).not.toBeInTheDocument();
@@ -401,5 +404,22 @@ describe("CharacterLibrary and the viewer's own rating", () => {
     await screen.findByText("Yuki Nagato");
     expect(screen.getByRole("option", { name: "My rating" })).toBeInTheDocument();
     expect(screen.getByText("My Rating")).toBeInTheDocument();
+  });
+});
+
+describe("CharacterLibrary list view", () => {
+  it("draws a table of name, card, role, gender, entry types, appearances and my rating", async () => {
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Yuki Nagato");
+    await user.click(screen.getByRole("button", { name: "Table view" }));
+    const table = screen.getByRole("table");
+    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual([
+      "Character", "Card", "Role", "Gender", "Entry types", "Appearances", "My",
+    ]);
+    const row = within(table).getByText("Yuki Nagato").closest("tr");
+    expect(within(row).getByText("Main")).toBeInTheDocument();
+    expect(within(row).getByText("Character")).toBeInTheDocument();
+    expect(within(row).getByText("3")).toBeInTheDocument();
   });
 });

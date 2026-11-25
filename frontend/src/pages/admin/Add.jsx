@@ -1128,6 +1128,7 @@ export default function Add() {
         photo_file: personForm.photo_file || null,
         photo_focus: personForm.photo_focus || null,
         mal_link: personForm.mal_link?.trim() || null,
+        anilist_link: personForm.anilist_link?.trim() || null,
         imdb_link: personForm.imdb_link?.trim() || null,
         twitter_link: personForm.twitter_link?.trim() || null,
         ig_link: personForm.ig_link?.trim() || null,
@@ -1183,6 +1184,7 @@ export default function Add() {
         photo_file: characterForm.photo_file || null,
         photo_focus: characterForm.photo_focus || null,
         mal_link: characterForm.mal_link?.trim() || null,
+        anilist_link: characterForm.anilist_link?.trim() || null,
         ...firstsPayload(characterForm),
         // Unknown values are created by the character write itself, so no
         // ensureSourceValues here; the refetch below makes them selectable.
@@ -1235,6 +1237,7 @@ export default function Add() {
         defunct_date: studioForm.defunct_date || null,
         mal_id: studioForm.mal_id ? parseInt(studioForm.mal_id, 10) : null,
         mal_link: studioForm.mal_link || null,
+        anilist_link: studioForm.anilist_link?.trim() || null,
       }),
       credentials: "include",
     });

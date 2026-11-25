@@ -858,8 +858,10 @@ from every studio in `StudioAffiliationField` and sent with the person as
 select of "—", 男 and 女 — `PERSON_GENDERS`, a person's whole vocabulary — one
 click picks, clicking the pressed chip clears, and the select follows either
 way; unset saves as null). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
-its `myanimelist.net/people/<id>` path, so there is no id field), the IMDb
-link, then **Twitter Link**, **Instagram Link** and **pixiv Link**
+its `myanimelist.net/people/<id>` path, so there is no id field), an
+**AniList Link** (`anilist_link`, placeholder `https://anilist.co/staff/...`;
+stored as typed, a blank one as null, nothing derived or filled from it), the
+IMDb link, then **Twitter Link**, **Instagram Link** and **pixiv Link**
 (`twitter_link`, `ig_link`, `pixiv_link`, `PERSON_SOCIAL_LINKS`; stored as
 typed, a blank one as null) and the photo. Ticking a type holds it
 with **no media type selected** - `{role, scope: null}`, listed under the type
@@ -891,7 +893,9 @@ vocabulary lacks is created by the character write itself, so the tab runs no
 `ensureSourceValues`; the sources are refetched after the save), a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
 page; the server reads the MAL id from it and, on save, fills the blank names
 and the photo from MAL — see [api.md](../api.md#character--apicharacter)),
-the photo, and a **First Appearances** section
+an **AniList Link** (`anilist_link`, placeholder
+`https://anilist.co/character/...`; stored as typed, a blank one as null,
+nothing filled from it), the photo, and a **First Appearances** section
 (`CharacterFirstsFields`): **First Mention**, **First Appearance** and
 **First Encounter**, free text in the work's own notation (placeholder
 `第1卷 第13章, 1-13, S1 ep 8`), a blank one sent as null. The Role is the character's own. Left blank, it
@@ -1007,8 +1011,10 @@ Chinese, Japanese, Alternative) with a "Display name" select naming which one
 to show, plus logo key, countries (`CountryInput`: any number, a `MultiSelect`
 suggesting the `Country` common options as it is typed into; a country not
 in the list is kept as typed and never added to it), founded/defunct dates
-(`ReleaseDateInput`, so partial precision is allowed), website and MAL
-id/link, with **My Rating** for a list keeper (see "The viewer's
+(`ReleaseDateInput`, so partial precision is allowed), website, MAL
+id/link and **AniList Link** (`anilist_link`, placeholder
+`https://anilist.co/studio/...`; stored as typed, a blank one as null,
+nothing filled from it), with **My Rating** for a list keeper (see "The viewer's
 own rating" above). Submit is blocked client-side until at least one name is filled,
 matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
 find-or-create: posting a name that already exists returns the existing

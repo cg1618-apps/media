@@ -29,8 +29,8 @@ it("hides the native clear wherever a search field draws its own", () => {
     checked.push(relative(SRC, file));
     if (!text.includes("search-own-clear")) offenders.push(relative(SRC, file));
   }
-  // The four entity libraries draw their own cross; an empty list would mean
-  // the scan matched nothing and proved nothing.
-  expect(checked.length).toBeGreaterThanOrEqual(4);
+  // The library toolbar every library draws carries its own cross; an empty
+  // list would mean the scan matched nothing and proved nothing.
+  expect(checked).toContain(join("components", "layout", "LibraryToolbar.jsx"));
   expect(offenders).toEqual([]);
 });

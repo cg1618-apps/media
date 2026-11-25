@@ -113,6 +113,9 @@ class Character(Base, NameFallbackMixin):
     # duplicate is fixed by the merge endpoint, not refused.
     mal_id = Column(Integer, nullable=True, index=True)
     mal_link = Column(String, nullable=True)
+    # The character's AniList page, entered by hand beside mal_link. A plain
+    # link: no id is derived from it and nothing is fetched from it.
+    anilist_link = Column(String, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 

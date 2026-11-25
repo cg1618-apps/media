@@ -7,8 +7,8 @@
 import { useState } from "react";
 import {
   PLAN_TABS,
-  SIZE_GROUPS,
   UNGROUPED_LABELS,
+  planNextGroups,
 } from "../../config/planNextGroups";
 import { groupByBucket } from "../../utils/planNext";
 import { Eyebrow } from "../../components/ui/primitives";
@@ -25,7 +25,7 @@ function byExpectation(a, b) {
   );
 }
 
-export default function PlanWatchNext({ planRows }) {
+export default function PlanWatchNext({ id, planRows }) {
   const [tab, setTab] = useState("anime");
   // A gated type's tab only for a session that may see the type.
   const tabs = visibleByType(useAuth(), PLAN_TABS);
@@ -34,13 +34,12 @@ export default function PlanWatchNext({ planRows }) {
     .filter((r) => r.kind === "next" && r.media_type === tab)
     .sort(byExpectation);
   const grouped = groupByBucket(rows, tab);
-  const labels = Object.fromEntries(
-    (SIZE_GROUPS[tab] ?? []).map((g) => [g.key, g.label]),
-  );
-  const bucketOrder = [...(SIZE_GROUPS[tab] ?? []).map((g) => g.key), "ungrouped"];
+  const groups = planNextGroups(tab);
+  const labels = Object.fromEntries(groups.map((g) => [g.key, g.label]));
+  const bucketOrder = [...groups.map((g) => g.key), "ungrouped"];
 
   return (
-    <section>
+    <section id={id}>
       <h2 className="font-display text-3xl font-semibold text-text leading-none mb-4 pb-3 border-b border-border">
         Do next
       </h2>

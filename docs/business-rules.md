@@ -730,6 +730,14 @@ Entry-level buckets are never stored: a comic run buckets on its own
 franchise's (`entry_bucket` implements this but is currently unused by the app —
 see section 14).
 
+On the Plan page the frontend's `entryBucket` puts anime's airing type first:
+an entry whose `airing_type` is Movie is filed under **Movie**, one with any
+other non-TV airing type (OVA, ONA, Special, or none) under **Others**, and
+only a TV entry inherits a size bucket. An anime series or franchise row with
+no size bucket is filed under **Others** too (`groupRowBucket`). Neither group
+is a size bucket, so neither is stored, derived or overridable. Hentai has no
+airing type and is not grouped.
+
 ---
 
 ## 8. Per-type post-processing (`post_processing.py`)

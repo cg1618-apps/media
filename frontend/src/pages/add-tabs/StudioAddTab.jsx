@@ -120,6 +120,17 @@ export function StudioFields({ studioForm, usf, ownerId }) {
             onChange={(e) => usf("mal_link", e.target.value)}
           />
         </Field>
+        <Field
+          label="AniList Link"
+          hint="The studio's anilist.co/studio/<id> page. Stored as given; nothing is filled from it."
+        >
+          <input
+            className={inputCls}
+            value={studioForm.anilist_link ?? ""}
+            onChange={(e) => usf("anilist_link", e.target.value)}
+            placeholder="https://anilist.co/studio/..."
+          />
+        </Field>
       </div>
       {/* The viewer's own rating, saved through /api/me/ratings by the
           page once the studio itself has saved. */}

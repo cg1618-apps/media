@@ -240,4 +240,12 @@ describe("the filter strip", () => {
     // S, B, then the unrated in name order.
     expect(names()).toEqual(["Ran", "Kudo Shinichi", "Ai", "Bourbon", "Haro"]);
   });
+
+  it("reverses the name order with the direction button", async () => {
+    characters = cast();
+    mount({ scope: "franchise", tierId: "f-1" });
+    await screen.findByRole("region", { name: "Main" });
+    fireEvent.click(screen.getByRole("button", { name: "Reverse order" }));
+    expect(names()).toEqual(["Ran", "Kudo Shinichi", "Haro", "Bourbon", "Ai"]);
+  });
 });

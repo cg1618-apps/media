@@ -130,7 +130,6 @@ describe("NAV_SECTIONS", () => {
       "Studio",
       "Publisher",
       "Person",
-      "Seiyuu",
       "Character",
     ]);
   });
@@ -145,11 +144,20 @@ describe("NAV_SECTIONS", () => {
     ]);
   });
 
-  it("lists Seiyuu with the entities, not under ACG", () => {
+  it("has no Seiyuu row: a seiyuu is found in the Person library", () => {
     const library = NAV_SECTIONS.find((s) => s.key === "library");
-    const animanga = library.columns.find((c) => c.heading === "ACG");
-    expect(animanga.items.map((i) => i.label)).not.toContain("Seiyuu");
-    expect(activeItem("/library/seiyuu").item.label).toBe("Seiyuu");
+    const labels = library.columns.flatMap((c) => c.items.map((i) => i.label));
+    expect(labels).toContain("Person");
+    expect(labels).not.toContain("Seiyuu");
+    expect(library.columns.flatMap((c) => c.items.map((i) => i.to))).not.toContain(
+      "/library/seiyuu",
+    );
+  });
+
+  it("lists Movie above TV Show in the Reality column", () => {
+    const library = NAV_SECTIONS.find((s) => s.key === "library");
+    const reality = library.columns.find((c) => c.heading === "Reality");
+    expect(reality.items.map((i) => i.label)).toEqual(["Movie", "TV Show", "Cartoon", "Comic"]);
   });
 
   it("lists Game in the ACG column", () => {
@@ -630,7 +638,7 @@ describe("visibleSections - the guest scope", () => {
       "/quote",
       "/meme",
       "/library/studio",
-      "/library/seiyuu",
+      "/library/person",
     ];
     const forGuest = routesFor(holdsNothing);
     const forMember = routesFor(holdsMember, memberFeatures);
@@ -646,7 +654,6 @@ describe("visibleSections - the entity rows, one key per kind", () => {
     "/library/studio": "view.studio",
     "/library/publisher": "view.publisher",
     "/library/person": "view.person",
-    "/library/seiyuu": "view.person",
     "/library/character": "view.character",
   };
   const KEYS = [...new Set(Object.values(ENTITY_ROWS))];
@@ -829,7 +836,6 @@ describe("the two permission surfaces agree", () => {
     "/library/publisher": "view.publisher",
     "/library/person": "view.person",
     "/library/character": "view.character",
-    "/library/seiyuu": "view.person",
     "/future-releases": LIBRARY_MEDIA_TYPE_PERMISSIONS,
     "/completions": "self.list",
     "/random": "view.random_picker",

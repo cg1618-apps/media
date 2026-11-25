@@ -10,9 +10,11 @@ rows of the notes `remark` section, not in a `remark` column of its own.
   remarks, each its own row with the links it rests on, ordered and edited in
   the same Notes card, and 個人筆記 Personal Notes beside them for each
   viewer's own.
-- **Only the two sections.** An entity owns `remark` and `personal_notes` and
-  nothing else. The review and analysis sections are about a work, and an
-  entity is not one.
+- **Not the review and analysis sections.** They are about a work, and an
+  entity is not one. Which sections an entity does own is the registry's
+  (`ENTITY_OWNERS` in `app/utils/note_sections.py`); see
+  [2026-11-25-entities-keep-resources.md](2026-11-25-entities-keep-resources.md)
+  for why 資源 Resources is one of them.
 - **The column is dropped, not kept beside the list.** Two places to say one
   thing drift apart, and every reader - the page, the sheet, the cast sync,
   merge - would have to know which one wins. The migration moved each non-blank
@@ -33,7 +35,7 @@ Rejected:
 - **Keep the column and mirror it into a note row.** Two sources of truth, and
   a sync rule for every write path.
 - **A separate `entity_note` table.** A second notes table would need its own
-  API, registry, sheet tab and editor for the same two sections.
+  API, registry, sheet tab and editor for the same sections.
 - **A generic owner pair on `note` for the entities only.** Mixed storage, with
   entity notes surviving their entity as orphans.
 - **Downgrade preserving everything.** The downgrade joins each entity's

@@ -20,8 +20,20 @@ const auth = vi.hoisted(() => ({ held: new Set(["self.list"]) }));
 vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({ isAdmin: false, has: (p) => auth.held.has(p) }),
 }));
+// The frame only: the title, and what FutureReleaseCard puts under it, which
+// is where a manga's next volume and a book's date are drawn.
 vi.mock("../../components/cards/MediaCard", () => ({
-  default: ({ data }) => <div data-testid="media-card">{data.display_name}</div>,
+  default: ({ data, coverBadges, meta }) => (
+    <div data-testid="media-card">
+      <span data-testid="card-title">{data.display_name}</span>
+      {coverBadges}
+      {meta}
+    </div>
+  ),
+  MetaLine: ({ children }) => <div>{children}</div>,
+  OVERLAY_CLS: "",
+  OVERLAY_BRAND_CLS: "",
+  PLATFORM_BOX_CLS: "",
 }));
 vi.mock("../../hooks/useApiQuery", () => ({
   useApiQuery: () => ({ data: { current_season: "SPR 2026" }, isLoading: false, error: null }),
@@ -29,6 +41,16 @@ vi.mock("../../hooks/useApiQuery", () => ({
 
 const listCalls = vi.hoisted(() => []);
 const DATA = vi.hoisted(() => ({
+  franchise: [{ system_id: "f1", franchise_expectation: "Highest" }],
+  "anime-movie": [
+    {
+      system_id: "am1",
+      display_name: "劇場版",
+      release_status: "Not Released",
+      release_date_jp: "2027-04-01",
+      franchise_id: "f1",
+    },
+  ],
   anime: [
     // Earliest release, but only "Might Watch" on the viewer's list.
     {
@@ -125,8 +147,9 @@ function renderPage() {
   );
 }
 
-const cardNames = () => screen.getAllByTestId("media-card").map((c) => c.textContent);
-const cardOf = (name) => screen.getByText(name).parentElement;
+const cardNames = () => screen.getAllByTestId("card-title").map((c) => c.textContent);
+// The card and the markers under it.
+const cardOf = (name) => screen.getByText(name).parentElement.parentElement;
 
 describe("FutureReleases", () => {
   beforeEach(() => {
@@ -157,6 +180,17 @@ describe("FutureReleases", () => {
       renderPage();
       expect(listCalls).toContainEqual({ type: "franchise", enabled: true });
     });
+
+    // Every tab's card, not only the anime one, carries the type and the
+    // viewer's expectation.
+    it("badges an anime movie with its type and its franchise expectation", () => {
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Anime movies" }));
+      const card = cardOf("劇場版");
+      expect(card).toHaveTextContent("Movie");
+      expect(card).toHaveTextContent("Highest");
+      expect(card).toHaveTextContent("2027-04-01");
+    });
   });
 
   describe("without a list", () => {
@@ -180,6 +214,14 @@ describe("FutureReleases", () => {
       renderPage();
       expect(listCalls).toContainEqual({ type: "franchise", enabled: false });
     });
+
+    it("badges an anime movie with its type and no expectation", () => {
+      renderPage();
+      fireEvent.click(screen.getByRole("button", { name: "Anime movies" }));
+      const card = cardOf("劇場版");
+      expect(card).toHaveTextContent("Movie");
+      expect(card).not.toHaveTextContent("Highest");
+    });
   });
 });
 
@@ -197,12 +239,12 @@ describe("books and manga", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name }));
   };
-  // The card, the dates and the units under it.
-  const rowOf = (name) => screen.getByText(name).parentElement.parentElement;
+  // The card, with its dates, and the units under it.
+  const rowOf = (name) => screen.getByText(name).parentElement.parentElement.parentElement;
 
-  it("lists a book whose own release date is ahead", () => {
+  it("lists a book whose own release date is ahead, dated on its card", () => {
     openTab("Books");
-    expect(rowOf("未來之書")).toHaveTextContent("JP 2027-02");
+    expect(rowOf("未來之書")).toHaveTextContent("2027-02");
   });
 
   it("lists a book for an upcoming unit, with the unit under it by name", () => {
@@ -211,9 +253,8 @@ describe("books and manga", () => {
     expect(row).toHaveTextContent("第五卷");
     expect(row).toHaveTextContent("TW 2027-01-10");
     expect(row.querySelector('img[alt="Cover of Vol. 5"]')).not.toBeNull();
-    // The book's own date and the unit already out are not why it is here.
+    // The unit already out is not why it is here.
     expect(row).not.toHaveTextContent("第四卷");
-    expect(row).not.toHaveTextContent("JP 2010");
   });
 
   it("drops a book whose every date, and every unit's, has passed", () => {

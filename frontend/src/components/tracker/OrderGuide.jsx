@@ -2,7 +2,9 @@
 //
 // Used in two places at two densities: compact inside the Franchise/Collection
 // page tab, roomy on the standalone /order/:id page. Guests see it too,
-// so nothing here writes.
+// so nothing here writes - except the follower's own skip mark, drawn beside
+// each step only when the page passes `skips` (the order's page does, for a
+// viewer who follows the order).
 //
 // A step's list status is the viewer's own, so it is drawn only for a holder
 // of self.list (useViewScope().ownData), at the far right of the row. The
@@ -19,6 +21,7 @@ import { useViewScope } from "../../hooks/useViewScope";
 import { getCoverUrl, FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import { Chip, Eyebrow } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
+import SkipToggle from "./SkipToggle";
 
 // The one map of a step's type to its name; the editor reads it too.
 export const TYPE_LABELS = {
@@ -337,7 +340,7 @@ function ImportanceChip({ importance, colourCoded }) {
   return <Chip tone={importance === "Optional" ? "muted" : "ink"}>{importance}</Chip>;
 }
 
-function StepRow({ item, index, roomy, showStatus, colourCoded }) {
+function StepRow({ item, index, roomy, showStatus, colourCoded, skips }) {
   const label = rangeLabel(item);
   const special = specialLabel(item);
   const path = entryPath(item);
@@ -438,15 +441,28 @@ function StepRow({ item, index, roomy, showStatus, colourCoded }) {
       : "border-border bg-surface hover:border-border-strong"
   }`;
 
+  const row = path ? (
+    <Link to={path} className={rowClass}>
+      {body}
+    </Link>
+  ) : (
+    <div className={rowClass}>{body}</div>
+  );
+
+  // The skip toggle sits beside the row, not inside it: the row is a link,
+  // and a button inside a link is neither valid nor reachable on its own.
+  if (!skips) return <li>{row}</li>;
+  const stepId = item.system_id;
   return (
-    <li>
-      {path ? (
-        <Link to={path} className={rowClass}>
-          {body}
-        </Link>
-      ) : (
-        <div className={rowClass}>{body}</div>
-      )}
+    <li className="flex items-center gap-2">
+      <div className={`min-w-0 flex-1 ${skips.skipped.has(stepId) ? "opacity-60" : ""}`}>
+        {row}
+      </div>
+      <SkipToggle
+        listId={skips.listId}
+        step={{ step_id: stepId, skipped: skips.skipped.has(stepId) }}
+        className="shrink-0"
+      />
     </li>
   );
 }
@@ -472,6 +488,10 @@ const FILTERS = [
  * renumber what they leave 1..N, a type filter keeps every step's number from
  * the whole order: the anime steps of an order are read against the full
  * order, so step 7 stays step 7.
+ *
+ * `skips` is `{ listId, skipped }` - the followed order's id and a Set of the
+ * step ids the follower skips - and draws a skip toggle beside every step.
+ * Left out, the guide draws none.
  */
 export default function OrderGuide({
   list,
@@ -480,6 +500,7 @@ export default function OrderGuide({
   fullHref,
   colourCoded = false,
   typeFilter = null,
+  skips = null,
 }) {
   const [filter, setFilter] = useState("all");
   const { ownData } = useViewScope();
@@ -655,6 +676,7 @@ export default function OrderGuide({
                     roomy={roomy}
                     showStatus={ownData}
                     colourCoded={colourCoded}
+                    skips={skips}
                   />
                 ))}
               </ol>
@@ -675,6 +697,7 @@ export default function OrderGuide({
                   roomy={roomy}
                   showStatus={ownData}
                   colourCoded={colourCoded}
+                  skips={skips}
                 />
               ))}
             </ol>

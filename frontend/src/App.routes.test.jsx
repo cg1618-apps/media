@@ -136,6 +136,15 @@ describe("a member-only route", () => {
   }
 });
 
+describe("the retired seiyuu library", () => {
+  it("lands an old /library/seiyuu link on the person library", async () => {
+    asMember();
+    await visit("/library/seiyuu");
+    expect(await screen.findByText("person library page")).toBeInTheDocument();
+    expect(window.location.pathname).toBe("/library/person");
+  });
+});
+
 describe("the catalogue Explore routes", () => {
   // Future Releases and Seasonal read the catalogue, so each asks for any
   // ordinary media type - a guest's nine keys open it, with no list - and a

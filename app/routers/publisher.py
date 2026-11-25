@@ -22,6 +22,7 @@ from app import models, schemas
 from app.dependencies import get_db
 from app.routers._entity_patch import prepare_patch
 from app.routers._patching import apply_column_patch
+from app.services.domain.credit_cards import company_credit_groups
 from app.services.domain.credits import (
     CreditSummary,
     credit_summaries,
@@ -31,7 +32,6 @@ from app.services.domain.merge_fill import finish_merge
 from app.services.domain.peer_relation import COMPANY_RELATIONS
 from app.services.domain.user_rating import ratings_by_owner
 from app.services.integrations.image_manager import delete_cover_image
-from app.services.rbac.enforcement import filter_visible_pairs
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
@@ -45,9 +45,7 @@ from app.services.rbac.shared_visibility import (
     without_hidden_scopes,
 )
 from app.utils.entity_ref import find_entity
-from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.name_normalize import names_of
-from app.utils.release_date import primary_release_value
 
 logger = logging.getLogger(__name__)
 
@@ -278,6 +276,8 @@ def get_publisher_entries(
 ):
     """
     The entries this publisher is credited on, grouped by media type.
+    Each entry is the card the page draws - the type's library card
+    without the tracker - built by services/domain/credit_cards.py.
 
     A publisher hidden from this viewer - every connection hidden, see
     shared_visibility.py - answers 404, as its own page does; a visible
@@ -290,44 +290,7 @@ def get_publisher_entries(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, viewer, models.Publisher, system_id, NOT_FOUND)
 
-    rows = (
-        db.query(models.Media.media_type, models.MediaCredit.media_id)
-        .join(models.Media, models.MediaCredit.media_id == models.Media.system_id)
-        .filter(models.MediaCredit.publisher_id == system_id)
-        .all()
-    )
-    visible = filter_visible_pairs(
-        db, viewer, [(mt, eid) for mt, eid in rows if mt and eid]
-    )
-
-    groups = []
-    for media_type, ref in MEDIA_TABLES.items():
-        ids = [eid for mt, eid in visible if mt == media_type]
-        if not ids:
-            continue
-        entries = db.query(ref.model).filter(ref.model.system_id.in_(ids)).all()
-        payload = [
-            {
-                "system_id": str(entry.system_id),
-                "display_name": entry.display_name,
-                "public_id": entry.public_id,
-                "cover_image_file": getattr(entry, "cover_image_file", None),
-                "cover_image_focus": getattr(entry, "cover_image_focus", None),
-                "release_date": primary_release_value(media_type, entry),
-            }
-            for entry in entries
-        ]
-        # Newest first; an undated entry sorts last, as UNDATED does elsewhere.
-        payload.sort(key=lambda e: e["release_date"] or "", reverse=True)
-        groups.append(
-            {
-                "media_type": media_type,
-                "label": ref.label,
-                "nav_path": ref.nav_path,
-                "entries": payload,
-            }
-        )
-    return {"groups": groups}
+    return {"groups": company_credit_groups(db, viewer, models.MediaCredit.publisher_id, system_id)}
 
 
 # ==========================================

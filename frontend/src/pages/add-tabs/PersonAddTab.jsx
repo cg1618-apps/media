@@ -244,6 +244,17 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
         />
       </Field>
       <Field
+        label="AniList Link"
+        hint="The person's anilist.co/staff/<id> page. Stored as given; nothing is filled from it."
+      >
+        <input
+          className={inputCls}
+          value={personForm.anilist_link ?? ""}
+          onChange={(e) => upf("anilist_link", e.target.value)}
+          placeholder="https://anilist.co/staff/..."
+        />
+      </Field>
+      <Field
         label="IMDb Link"
         hint="The person's imdb.com/name/nm<id> page; the IMDb id is read from it, and TMDB fills what MAL leaves blank."
       >

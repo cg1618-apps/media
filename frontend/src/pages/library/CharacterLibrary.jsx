@@ -2,62 +2,69 @@
 //
 // Characters are a public entity, not a media type — this sits at
 // /library/character as a standalone component, outside LIBRARY_CONFIGS,
-// mirroring PersonLibrary.jsx and StudioLibrary.jsx. Characters carry the
-// same four name columns as Person/Studio (and the same display_name_field
-// choice), so the name-field list is shared rather than copied.
-//
-// Search, filters and sort all run client-side over the one list response.
-// The filters are ordinary FilterDefs (lib/entityFilters.js) drawn by the
-// FilterPanel the media libraries use, opening with nothing ticked.
-import { useState, useEffect, useMemo } from "react";
+// drawn by the EntityLibrary the other entity libraries share. Each character
+// is a card, and so is each of its identities (lib/characterCards.js); the
+// filters, sorts and list view all run over those cards.
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { cleanString, getRatingWeight } from "../../utils/media";
-import { compareTitles, entitySortName } from "../../lib/naming";
-import { endpoints } from "../../api/endpoints";
-import { characterCards } from "../../lib/characterCards";
 import CharacterCard from "../../components/cards/CharacterCard";
-import { Eyebrow } from "../../components/ui/primitives";
-import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
+import EntityLibrary from "../../components/layout/EntityLibrary";
+import { characterColumns } from "../../components/layout/entityColumns";
+import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useEntityFilterState } from "../../hooks/useFilterState";
-import { useIncrementalList } from "../../hooks/useIncrementalList";
-import { applyFilterDefs } from "../../lib/libraryFilters";
+import { characterCards } from "../../lib/characterCards";
 import { characterFilterDefs } from "../../lib/entityFilters";
+import { useEntityHref } from "../../lib/entityPath";
+import { entitySorts } from "../../lib/entitySorts";
+import { withoutPersonal } from "../../lib/libraryScope";
+import { cleanString } from "../../utils/media";
+
+// The count reads in cards; everything else says characters.
+const NOUNS = { one: "card", many: "cards", searchMany: "characters" };
+
+// Searches all four name fields, not just the displayed one: someone looking
+// a character up by their Japanese name must find them even when English is
+// the configured display name. A character's cards answer to the names of
+// all its identities too.
+function matchesSearch(card, q) {
+  return (card.search_names || []).some((n) => cleanString(n).includes(q));
+}
+
+const cardKey = (card) => card.card_id;
 
 export default function CharacterLibrary() {
   const [allCharacters, setAllCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentSort, setCurrentSort] = useState("name");
-  const [showFilters, setShowFilters] = useState(true);
 
   // Each character, then each of its identities as a card of its own.
   const cards = useMemo(() => characterCards(allCharacters), [allCharacters]);
 
   const auth = useAuth();
   // My rating is the viewer's own (self.list): without the key there is no
-  // rating sort or filter at all, and a rating sort reads as Name.
+  // rating sort, filter or column at all.
   const { ownData } = useViewScope();
-  const sort = ownData || currentSort !== "my_rating" ? currentSort : "name";
+  const entityHref = useEntityHref();
   const filterDefs = useMemo(() => characterFilterDefs(auth, { ownData }), [auth, ownData]);
-  const {
-    filters,
-    toggleFilter,
-    clearFilters,
-    resetFilters,
-    isDefault,
-    activeFilterCount,
-    dynamicFilterOptions,
-  } = useEntityFilterState(filterDefs, cards);
+  const sorts = useMemo(
+    () => entitySorts({ count: "casting_count", countLabel: "Appearances", ownData }),
+    [ownData],
+  );
+  const columns = useMemo(
+    () => (ownData ? characterColumns() : withoutPersonal(characterColumns())),
+    [ownData],
+  );
+  // An identity card carries the identity's own public_id and opens its page.
+  const rowPath = useCallback(
+    (card) => entityHref(card.card_kind === "identity" ? "identity" : "character", card),
+    [entityHref],
+  );
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(endpoints.character.list(), {
-          credentials: "include",
-        });
+        const res = await fetch(endpoints.character.list(), { credentials: "include" });
         if (!res.ok) throw new Error("Failed to load data");
         setAllCharacters(await res.json());
       } catch (e) {
@@ -69,172 +76,20 @@ export default function CharacterLibrary() {
     load();
   }, []);
 
-  const filteredAndSorted = useMemo(() => {
-    const qClean = cleanString(searchQuery);
-
-    const searched = cards.filter((c) => {
-      if (!qClean) return true;
-      // Searches all four name fields, not just the displayed one: someone
-      // looking a character up by their Japanese name must find them even
-      // when English is the configured display name. A character's cards
-      // answer to the names of all its identities too.
-      return (c.search_names || []).some((n) => cleanString(n).includes(qClean));
-    });
-    const result = applyFilterDefs(searched, filterDefs, filters);
-
-    result.sort((a, b) => {
-      if (sort === "casting_count") {
-        const diff = (b.casting_count ?? 0) - (a.casting_count ?? 0);
-        if (diff !== 0) return diff;
-      } else if (sort === "my_rating") {
-        const diff = getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-        if (diff !== 0) return diff;
-      }
-      return compareTitles(entitySortName(a), entitySortName(b));
-    });
-
-    return result;
-  }, [cards, searchQuery, sort, filterDefs, filters]);
-
-  // Search, filter and sort see every item; the grid draws them a batch at a
-  // time, so a long library does not mount every card - and its cover - at once.
-  const { visible, hasMore, sentinelRef } = useIncrementalList(filteredAndSorted);
-
-  const narrowed = searchQuery !== "" || activeFilterCount > 0;
-  // The empty state's way out: no search and no filter, not the default -
-  // the default may be exactly what left nothing to show.
-  function showEverything() {
-    setSearchQuery("");
-    clearFilters();
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-brand text-2xl mb-3"></i>
-          <p className="text-text-faint">Loading characters...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center border border-danger bg-danger/10 px-6 py-4 text-danger">
-          <p className="font-bold">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen">
-      {/* Filter strip: flat on the canvas */}
-      <div className="border-b border-border sticky top-[var(--nav-h)] z-30 bg-canvas">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-            <div className="flex-1 min-w-0">
-              <h1 className="font-display text-3xl font-semibold text-text leading-none">
-                Characters
-              </h1>
-              <p className="font-mono text-[11px] text-text-faint mt-1.5">
-                {filteredAndSorted.length}{" "}
-                {filteredAndSorted.length === 1 ? "card" : "cards"}
-                {searchQuery && ` matching "${searchQuery}"`}
-                {activeFilterCount > 0 && " (filtered)"}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative">
-                <input
-                  type="search"
-                  placeholder="Search characters..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-3 pr-8 py-1.5 bg-surface border border-border-strong text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand transition w-44 sm:w-56 search-own-clear"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    aria-label="Clear search"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted"
-                  >
-                    <i className="fas fa-times text-xs"></i>
-                  </button>
-                )}
-              </div>
-
-              <label className="flex items-center gap-2">
-                <Eyebrow>Sort</Eyebrow>
-                <select
-                  value={sort}
-                  onChange={(e) => setCurrentSort(e.target.value)}
-                  className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
-                >
-                  <option value="name">Name</option>
-                  <option value="casting_count">Appearances</option>
-                  {ownData && <option value="my_rating">My rating</option>}
-                </select>
-              </label>
-
-              <FilterToggleButton
-                className="py-1.5"
-                open={showFilters}
-                onToggle={() => setShowFilters((o) => !o)}
-                activeFilterCount={activeFilterCount}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {showFilters && (
-          <FilterPanel
-            filterDefs={filterDefs}
-            filters={filters}
-            toggleFilter={toggleFilter}
-            clearFilters={clearFilters}
-            resetFilters={isDefault ? undefined : resetFilters}
-            activeFilterCount={activeFilterCount}
-            dynamicFilterOptions={dynamicFilterOptions}
-          />
-        )}
-        {filteredAndSorted.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-border-strong">
-            <Eyebrow className="mb-1">Empty</Eyebrow>
-            <p className="text-text-muted text-sm">No characters found</p>
-            <p className="text-sm text-text-faint mt-1">
-              {narrowed ? (
-                <>
-                  Try a different search or filter, or{" "}
-                  <button
-                    onClick={showEverything}
-                    className="text-brand hover:underline"
-                  >
-                    show everything
-                  </button>
-                </>
-              ) : (
-                "No characters in the database yet."
-              )}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {visible.map((character) => (
-                <CharacterCard key={character.card_id} character={character} />
-              ))}
-            </div>
-            {hasMore && <div ref={sentinelRef} aria-hidden="true" />}
-          </>
-        )}
-      </div>
-    </div>
+    <EntityLibrary
+      title="Characters"
+      nouns={NOUNS}
+      items={cards}
+      loading={loading}
+      error={error}
+      filterDefs={filterDefs}
+      matchesSearch={matchesSearch}
+      sorts={sorts}
+      renderCard={(card) => <CharacterCard key={card.card_id} character={card} />}
+      columns={columns}
+      rowPath={rowPath}
+      rowKey={cardKey}
+    />
   );
 }

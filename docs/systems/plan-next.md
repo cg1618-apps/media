@@ -22,7 +22,7 @@ Owner: `app/models/plan_next.py`. The revisions that built it are in [notes/migr
 | `franchise_id` | UUID, nullable, FK `franchise.system_id` `ON DELETE CASCADE` (`fk_plan_next_franchise`) | Franchise-scope owner. |
 | `series_id` | UUID, nullable, FK `series.system_id` `ON DELETE CASCADE` (`fk_plan_next_series`) | Series-scope owner. |
 | `remark` | Text, nullable | Free text such as "after the movie". |
-| `platform_group` | String, nullable | A queued game's group on the Do next tab: one of `PLATFORM_GROUPS` (`PC`, `Console`, `Handheld Console`, `Switch`), or NULL for ungrouped. Only a game's `next` row may hold one - what a game is played on decides when it can be picked up, which is not true of a replay mark or of another type. |
+| `platform_group` | String, nullable | A queued game's or h-game's group on the Do next tab: one of `PLATFORM_GROUPS` (`PC`, `Console`, `Handheld Console`, `Switch`), or NULL for ungrouped. Only a game's or an h-game's `next` row may hold one (`PLATFORM_GROUP_MEDIA_TYPES`) - what a game is played on decides when it can be picked up, which is not true of a replay mark or of another type. |
 | `created_at` / `updated_at` | DateTime | Taipei-time defaults from `app/database.py`. |
 
 Constraints: `ck_plan_next_one_owner`, a `CHECK (num_nonnulls(media_id, franchise_id, series_id) = 1)` so exactly one owner is set; `uq_plan_next_target`, now `UNIQUE NULLS NOT DISTINCT (user_id, kind, media_type, media_id, franchise_id, series_id)` (a franchise can be both queued and marked for rewatch, so `kind` is part of the key, and `NULLS NOT DISTINCT` is needed because two owner columns are NULL on every row); and index `ix_plan_next_user_kind_type` on `(user_id, kind, media_type)`, which is exactly how the Plan page reads one tab of one section for one user.
@@ -142,7 +142,7 @@ Router: `app/routers/plan_next.py`, prefix `/api/plan-next`, registered in `app/
 | --- | --- | --- | --- | --- | --- |
 | GET | `/api/plan-next/kinds` | account | none | `{scopes, kinds, allowed_scopes: {kind: {media_type: [scopes]}}, size_groups: {media_type: [{key, label}]}, platform_groups: {media_type: [groups]}}` | none |
 | GET | `/api/plan-next/` | account | query `media_type?`, `scope?`, `kind?` (all optional filters) | `PlanNextRead[]`, the caller's own | `400` unknown scope |
-| POST | `/api/plan-next/` | admin | body `PlanNextCreate`: `media_type`, `scope`, `target_id`, `remark?`, `kind` (defaults to `"next"`), `platform_group?` | `201` + `PlanNextRead` | `422` unknown kind, or a `platform_group` outside `PLATFORM_GROUPS` or on anything but a game's `next` row; `400` unknown scope or scope not allowed for that type/kind; `404` target does not exist; `409` already planned |
+| POST | `/api/plan-next/` | admin | body `PlanNextCreate`: `media_type`, `scope`, `target_id`, `remark?`, `kind` (defaults to `"next"`), `platform_group?` | `201` + `PlanNextRead` | `422` unknown kind, or a `platform_group` outside `PLATFORM_GROUPS` or on anything but a game's or an h-game's `next` row; `400` unknown scope or scope not allowed for that type/kind; `404` target does not exist; `409` already planned |
 | PATCH | `/api/plan-next/{system_id}` | account | body `PlanNextUpdate`: `platform_group` (`null` is ungrouped) | `PlanNextRead` | `422` as on create; `404` "Plan not found." for another user's row or a hidden target |
 | DELETE | `/api/plan-next/target` | admin | **query params only**: `scope`, `media_type`, `target_id` (required), `kind` (default `next`) | `{"status": "success"}` | `404` "Not planned." |
 | DELETE | `/api/plan-next/{system_id}` | admin | path id | `{"status": "success"}` | `404` "Plan not found." |
@@ -165,9 +165,9 @@ Route `/plan` in `frontend/src/App.jsx`; nav entry under the "Track" section in 
 | --- | --- | --- |
 | Do next | `PlanWatchNext.jsx` | `planRows` where `kind === "next"`, tabs from `PLAN_TABS` |
 | To redo | `PlanToRewatch.jsx` | `planRows` where `kind === "rewatch"`, tabs from `REWATCH_TABS` |
-| Future Releases | `PlanToWatchFuture.jsx` | unreleased entries, not `plan_next` (pre-existing feature) |
+| Plan to do for future releases | `PlanToWatchFuture.jsx` | unreleased entries, not `plan_next`; cards are `FutureReleaseCard` |
 
-`usePlanData.js` fetches every media list plus `GET /api/plan-next/` (own React Query key `["plan-next"]`, kept separate from `["media-list", *]` so the list-cache writers never touch it) and attaches `bucket` and, for group rows, `coverUrl` to each plan row via `withBucket`. Cards render through `PlanNextCard.jsx`.
+`usePlanData.js` fetches every media list plus `GET /api/plan-next/` through `usePlanNextRows` (own React Query key `["plan-next"]`, kept separate from `["media-list", *]` so the list-cache writers never touch it) and attaches `bucket` and, for group rows, a cover to each plan row via `withBucket`. Cards render through `PlanNextCard.jsx`. The page's table of contents is described in [pages.md](../frontend/pages.md).
 
 Within a tab, rows are grouped by bucket (`groupByBucket` in `frontend/src/utils/planNext.js`: every vocabulary bucket always renders, even empty, plus a trailing ungrouped pile) and sorted by `EXPECTATION_WEIGHT = { Highest: 0, High: 1, Medium: 2, Low: 3 }` (unknown → 99) using the `expectation` the API resolved.
 
@@ -175,12 +175,16 @@ Within a tab, rows are grouped by bucket (`groupByBucket` in `frontend/src/utils
 
 | Frontend file | Mirrors | What it holds |
 | --- | --- | --- |
-| `frontend/src/config/planNextGroups.js` | `ALLOWED_SCOPES`, `KINDS`, `SIZE_GROUPS` in `app/utils/plan_next_kinds.py` | `SIZE_GROUPS`, `KINDS`, `ALLOWED_SCOPES`, `scopesFor`, `PLAN_TABS`, `REWATCH_TABS`, `SCOPE_LABELS`, `UNGROUPED_LABELS` |
-| `frontend/src/utils/planNext.js` | `app/services/domain/size_group.py`; `COMIC_BANDS` mirrors the comic row of `SIZE_THRESHOLDS` | `effectiveBucket`, `entryBucket`, `groupByBucket` |
+| `frontend/src/config/planNextGroups.js` | `ALLOWED_SCOPES`, `KINDS`, `SIZE_GROUPS`, `PLATFORM_GROUPS`, `PLATFORM_GROUP_MEDIA_TYPES` in `app/utils/plan_next_kinds.py` | `SIZE_GROUPS`, `PLATFORM_GROUPS`, `PLATFORM_GROUP_TYPES`, `ANIME_AIRING_GROUPS` (frontend only), `planNextGroups`, `KINDS`, `ALLOWED_SCOPES`, `scopesFor`, `PLAN_TABS`, `REWATCH_TABS`, `SCOPE_LABELS`, `UNGROUPED_LABELS` |
+| `frontend/src/utils/planNext.js` | `app/services/domain/size_group.py`; `COMIC_BANDS` mirrors the comic row of `SIZE_THRESHOLDS` | `effectiveBucket`, `entryBucket`, `groupRowBucket`, `groupByBucket` |
 
 There is no runtime guard; `GET /api/plan-next/kinds` is unused by the frontend so the page renders without a vocabulary round-trip. `frontend/src/utils/planNext.test.js` has a table-driven test that guards the two copies. When either side changes, update both and re-run the tests.
 
-The frontend also carries two groupings the backend does not: manga tabs group by the entry's `serialization_status` (完結 / 連載中 / 腰斬 / 停更, empties under "其他") and book tabs by the entry's `type` (網路小說 / 輕小說 / 小說 / 短篇集 / 指南/設定集 / 其他, empties under 其他). These are categorical self-groupings, never derived by Calculate, and live only in `planNextGroups.js` (`SELF_GROUP_COLUMN` in `usePlanData.js` picks the column). Anime-movie has an empty vocabulary and renders one ungrouped list. The game tab groups by the plan row's own `platform_group` (`PLATFORM_GROUPS` in `planNextGroups.js`, mirroring `plan_next_kinds.py`; empties under "Ungrouped"), the one bucket the caller chooses: each game card in Do next carries a picker below it, outside the card's link, which PATCHes the row through `usePlanPlatformGroup` and refetches `["plan-next"]`.
+The frontend also carries two groupings the backend does not: manga tabs group by the entry's `serialization_status` (完結 / 連載中 / 腰斬 / 停更, empties under "其他") and book tabs by the entry's `type` (網路小說 / 輕小說 / 小說 / 短篇集 / 指南/設定集 / 其他, empties under 其他). These are categorical self-groupings, never derived by Calculate, and live only in `planNextGroups.js` (`SELF_GROUP_COLUMN` in `usePlanData.js` picks the column). Anime-movie has an empty vocabulary and renders one ungrouped list.
+
+Anime groups by its airing type before its size: after the three size buckets come **Movie** (an entry whose `airing_type` is Movie) and **Others** (any other non-TV airing type, and a series or franchise row with no size bucket); only a TV entry inherits a size bucket, and one whose group has none lands in the trailing ungrouped pile. These two (`ANIME_AIRING_GROUPS`) are read off the entry at display time, so they are frontend-only and absent from `SIZE_GROUPS`, which the size override dropdown reads: Calculate cannot derive them and an admin cannot set them. Hentai has no airing type and keeps its one ungrouped list.
+
+The game and h-game tabs group by the plan row's own `platform_group` (`PLATFORM_GROUPS` and `PLATFORM_GROUP_TYPES` in `planNextGroups.js`, mirroring `plan_next_kinds.py`; empties under "Ungrouped"), the one bucket the caller chooses: each such card in Do next carries a picker below it (`PlatformGroupSelect`), outside the card's link, which PATCHes the row through `usePlanPlatformGroup` and refetches `["plan-next"]`. The game and h-game detail pages draw the same picker beside the Play Next toggle while the entry is queued (`PlanPlatformGroupField`).
 
 ### PlanKindToggles
 

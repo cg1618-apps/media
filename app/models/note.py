@@ -97,8 +97,9 @@ class Note(Base):
         index=True,
     )
     # The five entities - each a detail page of its own - own a note too, but
-    # only the remark list and personal notes (their sections' `owners`). One
-    # column each, as the tiers have, so a deleted entity takes its notes.
+    # only the remark list, personal notes and resources (their sections'
+    # `owners`). One column each, as the tiers have, so a deleted entity
+    # takes its notes.
     studio_id = Column(
         UUID(as_uuid=True),
         ForeignKey("studio.system_id", ondelete="CASCADE"),

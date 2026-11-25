@@ -23,8 +23,9 @@ import {
 import {
   airingStatusFilter,
   exclusiveSourceFilter,
-  rangeFilter,
   genreFilters,
+  myRatingFilter,
+  rangeFilter,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
 import { compareTitles } from "../../../lib/naming";
@@ -90,12 +91,13 @@ const ANIME_LIBRARY_CONFIG = {
     exclusiveSourceFilter(),
     // Runtime in minutes: minutes per episode.
     rangeFilter("runtime", "Runtime", (x) => x.runtime_min, { unit: "min" }),
+    myRatingFilter({ advanced: true }),
     ...genreFilters(),
   ],
 
   // -- Sorts -----------------------------------------------------------------
   sortDefs: [
-    { key: "title",        label: "Title",        compare: titleCompare },
+    { key: "title",        label: "Title",        ascending: true, compare: titleCompare },
     { key: "release_date", label: "Release Date",  compare: (a, b) => getReleaseSortScore(b) - getReleaseSortScore(a) },
     myRatingSort({ publicScore: malRatingSort, title: titleCompare }),
     malRatingSort,

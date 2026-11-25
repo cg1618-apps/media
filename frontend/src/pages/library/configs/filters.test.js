@@ -103,21 +103,22 @@ describe("the anime library filters", () => {
 });
 
 // Every media-type library has an advanced section: exclusive source (or a
-// TV show's original source) first where the type has one, then the type's
-// own genre and label vocabularies, which always close the section.
+// TV show's original source) first where the type has one, then My Rating,
+// then the type's own genre and label vocabularies, which always close the
+// section.
 const ADVANCED_KEYS = {
-  anime: ["exclusiveSource", "runtime", "genreMain", "genreSub", "label"],
-  "anime-movie": ["exclusiveSource", "runtime", "genreMain", "genreSub", "label"],
-  movie: ["exclusiveSource", "genreMain", "genreSub", "label"],
-  "tv-show": ["originalSource", "genreMain", "genreSub", "label"],
-  cartoon: ["genreMain", "genreSub", "label"],
-  manga: ["publisherTw", "genreMain", "genreSub", "label"],
-  book: ["publisherTw", "genreMain", "genreSub", "label"],
-  comic: ["genreMain", "genreSub", "label", "era", "events"],
-  game: ["isMain", "ownership", "hltbMainExtra", "gameGenre", "gameTheme", "label"],
-  "h-game": ["gameGenre", "gameTheme", "hGenrePlot", "hGenreAppearance", "hGenreRelation"],
-  "h-comic": ["hGenrePlot", "hGenreAppearance", "hGenreRelation"],
-  hentai: ["hGenrePlot", "hGenreAppearance", "hGenreRelation"],
+  anime: ["exclusiveSource", "runtime", "myRating", "genreMain", "genreSub", "label"],
+  "anime-movie": ["exclusiveSource", "runtime", "myRating", "genreMain", "genreSub", "label"],
+  movie: ["exclusiveSource", "myRating", "genreMain", "genreSub", "label"],
+  "tv-show": ["originalSource", "myRating", "genreMain", "genreSub", "label"],
+  cartoon: ["myRating", "genreMain", "genreSub", "label"],
+  manga: ["publisherTw", "myRating", "genreMain", "genreSub", "label"],
+  book: ["publisherTw", "myRating", "genreMain", "genreSub", "label"],
+  comic: ["myRating", "genreMain", "genreSub", "label", "era", "events"],
+  game: ["isMain", "ownership", "hltbMainExtra", "myRating", "gameGenre", "gameTheme", "label"],
+  "h-game": ["myRating", "gameGenre", "gameTheme", "hGenrePlot", "hGenreAppearance", "hGenreRelation"],
+  "h-comic": ["myRating", "hGenrePlot", "hGenreAppearance", "hGenreRelation"],
+  hentai: ["myRating", "hGenrePlot", "hGenreAppearance", "hGenreRelation"],
 };
 
 it("names an advanced section for every library", () => {
@@ -150,10 +151,12 @@ describe.each(Object.entries(ADVANCED_KEYS))("the %s advanced section", (type, k
     expect(advanced.slice(firstGenre).every((k) => GENRE_KEYS.has(k))).toBe(true);
   });
 
-  // The one exception is a game's Ownership, advanced at the owner's choice.
+  // The exceptions are My Rating, above the genres on every library, and a
+  // game's Ownership, both advanced at the owner's choice.
   it("keeps the advanced filters catalogue, not personal", () => {
     const PERSONAL_ADVANCED = { game: ["ownership"] };
-    for (const fd of defs.filter((d) => d.advanced && !(PERSONAL_ADVANCED[type] || []).includes(d.key))) {
+    const personal = (key) => key === "myRating" || (PERSONAL_ADVANCED[type] || []).includes(key);
+    for (const fd of defs.filter((d) => d.advanced && !personal(d.key))) {
       expect(fd.personal).toBeFalsy();
     }
   });
@@ -298,7 +301,7 @@ describe.each(["manga", "book"])("the %s library's filters", (type) => {
 
   it("puts Publisher TW, most-carried first, ahead of the genres", () => {
     const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
-    expect(advanced).toEqual(["publisherTw", "genreMain", "genreSub", "label"]);
+    expect(advanced).toEqual(["publisherTw", "myRating", "genreMain", "genreSub", "label"]);
     expect(byKey("publisherTw").label).toBe("Publisher TW");
     const rows = [{ publisher_tw: "東立, 青文" }, { publisher_tw: "青文" }, { publisher_tw: null }];
     expect(byKey("publisherTw").deriveOptions(rows)).toEqual(["青文", "東立"]);
@@ -345,5 +348,38 @@ describe.each([
     expect(sort.label).toBe("Runtime");
     const rows = [{ id: "a", [field]: 24 }, { id: "b", [field]: null }, { id: "c", [field]: 120 }];
     expect([...rows].sort(sort.compare).map((r) => r.id)).toEqual(["c", "a", "b"]);
+  });
+});
+
+// The genre filter each library's advanced section opens its genres with.
+const FIRST_GENRE_KEYS = ["genreMain", "gameGenre", "hGenrePlot"];
+
+describe.each(Object.entries(LIBRARY_CONFIGS))("the %s My Rating filter", (_type, config) => {
+  const defs = config.filterDefs;
+  const index = defs.findIndex((fd) => fd.key === "myRating");
+  const def = defs[index];
+
+  it("sits directly above the first genre filter, in the same section", () => {
+    const genre = defs.findIndex((fd) => FIRST_GENRE_KEYS.includes(fd.key));
+    expect(genre).toBeGreaterThan(0);
+    expect(index).toBe(genre - 1);
+    expect(def.advanced).toBe(defs[genre].advanced);
+  });
+
+  it("is personal and offers every rating, then Unrated", () => {
+    expect(def.personal).toBe(true);
+    expect(def.options).toEqual(["S", "A+", "A", "B", "C", "D", "E", "F", "Unrated"]);
+  });
+
+  it("keeps a ticked rating and an unrated row under Unrated", () => {
+    const rows = [
+      { system_id: "s", my_rating: "S" },
+      { system_id: "b", my_rating: "B" },
+      { system_id: "none", my_rating: null },
+    ];
+    const ids = (values) =>
+      applyFilterDefs(rows, defs, active(defs, "myRating", values), {}, {}).map((r) => r.system_id);
+    expect(ids(["S"])).toEqual(["s"]);
+    expect(ids(["Unrated", "B"])).toEqual(["b", "none"]);
   });
 });

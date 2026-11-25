@@ -6,10 +6,13 @@
 // either; `scopes` holds the few places where one tier differs (the comic
 // tab, whose franchise strip is built for a shelf of many short runs).
 //
-// A view is { sort, groupBySeries, filters }, where `filters` maps each
+// A view is { sort, reversed, groupBySeries, filters }, where `reversed` runs
+// the sort against its natural direction (SortControl's button) and `filters`
+// maps each
 // filter's key to a Set (a chip filter, empty = no narrowing) or to one of
 // "all" / "yes" / "no" (a tri-state filter, "all" = no narrowing).
 import { primaryReleaseValue, releaseScore } from "./releaseDate";
+import { directed } from "./sortDirection";
 import { getRatingWeight, getSortName } from "../utils/media";
 import { isCompleted } from "./mediaTabs";
 import { COMPLETION_LEVELS, GAME_TYPES } from "../config/fieldOptions";
@@ -44,39 +47,54 @@ const byScoreDesc = (field) => (a, b) => numeric(b[field]) - numeric(a[field]);
 
 /**
  * Every sort a tab can offer. `own` marks a sort on the viewer's own data,
- * offered only to a viewer who keeps a list. `compare` receives the media
- * type for the sorts whose column differs by type; the title is always the
- * tie-break.
+ * offered only to a viewer who keeps a list. `descending` marks a sort whose
+ * natural order runs high to low (SortControl shows it); the dates run old to
+ * new and the title A to Z. `compare` receives the media type for the sorts
+ * whose column differs by type; the title is always the tie-break.
  */
 export const HUB_SORTS = {
-  title: { label: "title", compare: () => 0 },
+  title: { label: "Title", compare: () => 0 },
   release_date: {
-    label: "release date",
+    label: "Release date",
     compare: (a, b, type) =>
       releaseScore(primaryReleaseValue(type, a)) -
       releaseScore(primaryReleaseValue(type, b)),
   },
   my_rating: {
-    label: "my rating",
+    label: "My rating",
     own: true,
+    descending: true,
     compare: (a, b) => getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating),
   },
-  mal_rating: { label: "MAL rating", compare: byScoreDesc("mal_rating") },
-  imdb_rating: { label: "IMDb rating", compare: byScoreDesc("imdb_rating") },
+  mal_rating: { label: "MAL rating", descending: true, compare: byScoreDesc("mal_rating") },
+  imdb_rating: { label: "IMDb rating", descending: true, compare: byScoreDesc("imdb_rating") },
   metacritic_score: {
     label: "Metacritic",
+    descending: true,
     compare: byScoreDesc("metacritic_score"),
   },
   metacritic_user_score: {
     label: "Metacritic user",
+    descending: true,
     compare: byScoreDesc("metacritic_user_score"),
   },
-  hours_played: { label: "hours played", compare: byScoreDesc("hours_played") },
+  hours_played: { label: "Hours played", descending: true, compare: byScoreDesc("hours_played") },
   end_date: {
-    label: "end date",
+    label: "End date",
     compare: (a, b) => releaseScore(a.end_date) - releaseScore(b.end_date),
   },
 };
+
+/** The tab's sorts as SortControl options, without the own ones when `ownData` is false. */
+export function hubSortOptions(config, ownData) {
+  return config.sorts
+    .filter((key) => ownData || !HUB_SORTS[key].own)
+    .map((key) => ({
+      value: key,
+      label: HUB_SORTS[key].label,
+      descending: HUB_SORTS[key].descending,
+    }));
+}
 
 // ── filters ─────────────────────────────────────────────────────────────────
 
@@ -280,6 +298,7 @@ export function defaultView(type, scope) {
   const config = hubTabConfig(type, scope);
   return {
     sort: config.defaultSort,
+    reversed: false,
     groupBySeries: config.groupBySeries ?? false,
     filters: defaultFilters(config),
   };
@@ -313,13 +332,12 @@ export function applyView(type, scope, entries, view) {
   );
   const sort = HUB_SORTS[view.sort] || HUB_SORTS[config.defaultSort];
   const title = (e) => config.title(e) || "";
-  return kept.sort(
-    (a, b) =>
-      sort.compare(a, b, type) ||
-      title(a).localeCompare(
-        title(b),
-        undefined,
-        config.numericTitle ? { numeric: true } : undefined,
-      ),
-  );
+  const compare = (a, b) =>
+    sort.compare(a, b, type) ||
+    title(a).localeCompare(
+      title(b),
+      undefined,
+      config.numericTitle ? { numeric: true } : undefined,
+    );
+  return kept.sort(directed(compare, Boolean(view.reversed)));
 }

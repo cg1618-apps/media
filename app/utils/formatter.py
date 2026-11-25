@@ -380,6 +380,30 @@ def parse_order_follow_from_sheet(raw: dict) -> dict:
         "franchise_id": _uuid_or_none(raw.get("franchise_id")),
         "series_id": _uuid_or_none(raw.get("series_id")),
         "collection_id": _uuid_or_none(raw.get("collection_id")),
+        # Coerced like a step's: a blank or unknown cell restores as "Normal".
+        # A sheet written before the column existed has no header for it, so
+        # Pull leaves the column alone and a new row takes the default.
+        "importance": normalize_importance(
+            parse_from_sheet(raw.get("importance"), str)
+        ),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_order_follow_skip_from_sheet(raw: dict) -> dict:
+    """
+    One skipped step of one follow. follow_id is not in the sheet: the row
+    names its follow by `username` and `list_id`, which pull.py resolves to
+    the local follow - a follow's uuid may differ between databases, since
+    Order Follow is matched by its natural key. item_id and media_id are real
+    FKs whose uuids travel unchanged.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "list_id": _uuid_or_none(raw.get("list_id")),
+        "item_id": _uuid_or_none(raw.get("item_id")),
+        "media_id": _uuid_or_none(raw.get("media_id")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -1764,6 +1788,17 @@ def parse_system_option_from_sheet(raw: dict) -> dict:
     }
 
 
+def _anilist_link_from_sheet(raw: dict) -> dict:
+    """
+    A studio's, person's or character's anilist_link, only when the sheet has
+    the column: a backup from before it existed leaves the local value as it
+    is rather than clearing it, as _firsts_from_sheet does.
+    """
+    if "anilist_link" not in raw:
+        return {}
+    return {"anilist_link": parse_from_sheet(raw.get("anilist_link"), str)}
+
+
 def parse_person_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the Person sheet into typed data ready for
@@ -1790,6 +1825,7 @@ def parse_person_from_sheet(raw: dict) -> dict:
         "remark": parse_from_sheet(raw.get("remark"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        **_anilist_link_from_sheet(raw),
         "imdb_id": parse_from_sheet(raw.get("imdb_id"), str),
         "imdb_link": parse_from_sheet(raw.get("imdb_link"), str),
         "twitter_link": parse_from_sheet(raw.get("twitter_link"), str),
@@ -1846,6 +1882,7 @@ def parse_character_from_sheet(raw: dict) -> dict:
         **_firsts_from_sheet(raw),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        **_anilist_link_from_sheet(raw),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -1966,6 +2003,7 @@ def parse_studio_from_sheet(raw: dict) -> dict:
         "website_url": parse_from_sheet(raw.get("website_url"), str),
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
+        **_anilist_link_from_sheet(raw),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

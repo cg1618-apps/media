@@ -4,7 +4,7 @@ Last verified: 2026-11-25
 
 ## What this is for
 
-Notes are the structured commentary you attach to anything in the library: a media entry (anime, comic, book...), one of the three grouping tiers (collection, franchise, series), or - for 備註 Remark and 個人筆記 Personal Notes only - one of the five entities (studio, publisher, person, character, identity). Every bullet — an advantage, an episode comment, an OP you still need to find, a link to a resource — is one row in the single `note` table, and a backend registry decides which *sections* exist, which owners they apply to, and what each row may contain. The frontend notes page reads that registry and renders it; it does not know section names itself (with two narrow, documented exceptions). An owner's remarks are just one more section, `remark`, read and written in the Notes card like the rest.
+Notes are the structured commentary you attach to anything in the library: a media entry (anime, comic, book...), one of the three grouping tiers (collection, franchise, series), or - for 備註 Remark, 個人筆記 Personal Notes and 資源 Resources only - one of the five entities (studio, publisher, person, character, identity). Every bullet — an advantage, an episode comment, an OP you still need to find, a link to a resource — is one row in the single `note` table, and a backend registry decides which *sections* exist, which owners they apply to, and what each row may contain. The frontend notes page reads that registry and renders it; it does not know section names itself (with two narrow, documented exceptions). An owner's remarks are just one more section, `remark`, read and written in the Notes card like the rest.
 
 ## Model
 
@@ -256,7 +256,7 @@ is all the author's.
 
 ### Section registry
 
-`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all fifteen owners (`ALL_OWNERS`); "Entries" = the twelve media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically. "All + entities" adds the five entities (`ENTITY_OWNERS`: studio, publisher, person, character, identity), which own those two sections and no other. "All but H" leaves out the three gated types (`H_OWNERS`); "All but h-comic, hentai" leaves out two of them — see "The gated types' notes" below the table.
+`NOTE_SECTIONS` in `app/utils/note_sections.py`, in display order. "All" = all fifteen owners (`ALL_OWNERS`); "Entries" = the twelve media types (`ENTRY_OWNERS`). Both derive from `media_resolver`, so a new media type joins them automatically. "All + entities" adds the five entities (`ENTITY_OWNERS`: studio, publisher, person, character, identity), which own those three sections and no other. "All but H" leaves out the three gated types (`H_OWNERS`); "All but h-comic, hentai" leaves out two of them — see "The gated types' notes" below the table.
 
 | Key | Label | Shape | Group / standalone | Owners | Kinds (`kind`) | Statuses | Locator placeholder | Locator req. | Singleton | Content req. |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -330,7 +330,7 @@ is all the author's.
 | `adaptation` | 改編 Adaptation | text_links | flat | anime, anime-movie, tv-show, cartoon, book, series, franchise | — | — | — | no | no | anime, anime-movie, book |
 | `mods_and_tools` | 模組&工具 Mods & Tools | **structured** | tools | game, h-game | — | — | — | no | no | no |
 | `guide_resources` | 攻略資源 Guide Resources | **structured** | tools | game, h-game | — | — | — | no | no | no |
-| `resources` | 資源 Resources | name_links | **standalone** (**tools** for game and h-game) | All | free-text Group (`kind_is_group`) | — | — | no | no | no |
+| `resources` | 資源 Resources | name_links | **standalone** (**tools** for game and h-game) | All + entities | free-text Group (`kind_is_group`) | — | — | no | no | no |
 | `questions` | 問題 Questions | episode_text | **standalone** | All but h-comic, hentai | — | — | "Source, e.g. ep 3" | no | no | **every owner it has** |
 | `quotes` | 名言 Quotes | external | quotes_memes | Entries only, but not H | — | — | — | — | — | — |
 | `memes` | 梗/迷因 Memes | external | quotes_memes | All but H | — | — | — | — | — | — |
@@ -743,7 +743,7 @@ Design rules baked into the registry:
 | **`quotes` is entry-only.** A quote is said in a specific work (`ENTRY_OWNERS`; see the docstring in `app/models/quote.py`). | `NOTE_SECTIONS["quotes"]`. |
 | **`memes` is allowed on all owners**, because a running gag often spans a franchise; `meme` carries the four entry and tier owner columns `note` does, so every one of the fifteen owners is reachable. | `NOTE_SECTIONS["memes"]`. |
 | **Similar sections are deliberately distinct** (`highlights` vs `highlight_episodes` vs `highlight_passages` vs `highlight_moments`; `cinematography` vs `craft`) so they can drift on purpose. | Module docstring of `app/utils/note_sections.py`. |
-| **A game's guide vocabulary is the 攻略 group, not one section.** Twenty sections across five cards (for a game) rather than one with a `kind`, because each is a list kept separately: which build to run is not the same question as where the collectibles are. `guide_resources` holds pointers to somebody else's walkthrough; the site-wide `resources` section (name_links, all owners, standalone) is a separate section games also inherit, and a second card labelled "Resources" would be unreadable — hence distinct keys *and* distinct labels. | The 攻略 run in `NOTE_SECTIONS` and its banner comment. |
+| **A game's guide vocabulary is the 攻略 group, not one section.** Twenty sections across five cards (for a game) rather than one with a `kind`, because each is a list kept separately: which build to run is not the same question as where the collectibles are. `guide_resources` holds pointers to somebody else's walkthrough; the site-wide `resources` section (name_links, every owner and the five entities, standalone) is a separate section games also inherit, and a second card labelled "Resources" would be unreadable — hence distinct keys *and* distinct labels. | The 攻略 run in `NOTE_SECTIONS` and its banner comment. |
 | **The 待辦 buckets are four sections, not one section with a `kind`.** `sort_index` orders rows within one `(owner, section)` pair and `/api/notes/reorder` renumbers the whole section, so a kind-tagged single section could not order items *within* a bucket. Moving an item between buckets is a PATCH of `section`, which appends it to the end of the bucket it lands in. The four are `quick_move`: `/api/notes/sections` serves each one's `move_targets` (the owner's other `quick_move` sections in the same card, in registry order), and every row carries a "Move to…" list of them beside Edit and Delete, so moving one is a single step rather than an edit. | The 待辦 run in `NOTE_SECTIONS` and its banner comment; `NoteSection.quick_move`, `NoteSectionOut.move_targets`. |
 | **劇情列表&任務 records what happens; 解析 records what it means.** The two are separate cards, and `story_other` exists so a stray story observation lands there rather than drifting into Analysis. | `NOTE_GROUPS`. |
 | **`episode_comments` was widened, not duplicated.** A manga is cut into chapters and a game into chapters or parts rather than episodes, but a comment on one segment of the work is the same section, so each gets a `labels` override (manga 各話評論 Chapter Comments, game 各章評論 Part Reviews) and a `locator_placeholders` override rather than a section of its own. An h-game does not take it: it is not reviewed part by part. | `NOTE_SECTIONS["episode_comments"]`. |
@@ -819,7 +819,7 @@ Two sections of the same shape - `text_links`, a list of rows each with the
 links it rests on - told apart by whose rows they are. 備註 Remark is the
 catalogue's: shared, written under `manage.catalog`. 個人筆記 Personal Notes
 is personal-scope, each viewer's own. Both reach **every owner**, the five
-entities included (the only sections an entity owns), and the two
+entities included (which own only these two and 資源 Resources), and the two
 are read as a pair wherever 備註 appears; a test asserts they share an
 `owners` tuple.
 
@@ -838,7 +838,7 @@ adds the cast row's remark to the original's list, under the admin syncing;
 highest-ranked cast row's remark as the first row (see
 [credits-and-tags.md](credits-and-tags.md)). An entity **merge**
 (`move_entity_notes`, called by `merge_fill.finish_merge`) moves the loser's
-rows - remarks and every account's personal notes - onto the survivor, after
+rows - remarks, resources and every account's personal rows - onto the survivor, after
 the survivor's own rows in each section, before the loser is deleted.
 
 ### Music

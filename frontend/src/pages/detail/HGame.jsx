@@ -20,6 +20,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { useHighlightGroupOrderSaver } from "../../api/mutations/useMyHighlightGroupOrder";
 import MarkReleaseButton from "../../components/tracker/MarkReleaseButton";
+import MarkCompletedButton from "../../components/tracker/MarkCompletedButton";
 import AdminActions from "../../components/layout/AdminActions";
 import ContentLabelChips from "../../components/info/ContentLabelChips";
 import InfoCard from "../../components/info/InfoCard";
@@ -29,6 +30,7 @@ import SourcesCard from "../../components/info/SourcesCard";
 import { studioValue } from "../../components/info/StudioLinks";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import DetailContents, { TocSection } from "../../components/layout/DetailContents";
+import PlanPlatformGroupField from "../../components/plan/PlanPlatformGroupField";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import GameCompletionBlock, {
   H_GAME_COMPLETION_AXES,
@@ -325,7 +327,7 @@ export default function HGame() {
             end={
               <>
                 <MarkReleaseButton type="h-game" entry={hGame} title={titleMain} canTrack={ownData} onPatch={saveRelease} />
-                <Button onClick={markCompleted}>Mark completed</Button>
+                <MarkCompletedButton type="h-game" entry={hGame} onClick={markCompleted} />
               </>
             }
           />
@@ -430,6 +432,18 @@ export default function HGame() {
                 canTrack={ownData}
                 onStatusChange={(v) => saveOwn({ playing_status: v }, "Status updated")}
                 onRatingChange={(v) => saveOwn({ my_rating: v || null }, "Rating saved")}
+                watchNext={hGame.play_next}
+                watchNextGroup={
+                  <PlanPlatformGroupField
+                    mediaType="h-game"
+                    entryId={hGame.system_id}
+                    queued={hGame.play_next}
+                  />
+                }
+                watchNextLabel="Play Next"
+                onWatchNextChange={(v) =>
+                  saveOwn({ play_next: v }, v ? "Added to Play Next" : "Removed from Play Next")
+                }
                 toRewatch={hGame.to_replay}
                 rewatchLabel="To Replay"
                 onToRewatchChange={(v) =>

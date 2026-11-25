@@ -184,10 +184,13 @@ export const endpoints = {
     createRelease: () => "/api/order/lists/release",
     backfillRelease: () => "/api/order/lists/release/backfill",
     // The caller's own follows; PUT follows (replacing the group's previous
-    // one), DELETE unfollows.
+    // one) or sets the follow's importance, DELETE unfollows.
     follows: () => "/api/order/follows",
     followsForEntry: (entryId) => `/api/order/follows/entry/${entryId}`,
     follow: (listId) => `/api/order/lists/${listId}/follow`,
+    // PUT marks one step of a followed order to skip, DELETE clears the mark.
+    followSkip: (listId, stepId) =>
+      `/api/order/lists/${listId}/follow/skips/${stepId}`,
   },
 
   mediaRelation: {
@@ -374,6 +377,8 @@ export const endpoints = {
   // behind manage.pipelines, and the read has to be open to any member who
   // can open /statistics.
   planNext: {
+    // Every one of the caller's own plan rows.
+    list: () => "/api/plan-next/",
     // One of the caller's own plan rows: a PATCH of `{platform_group}`.
     row: (systemId) => `/api/plan-next/${systemId}`,
   },

@@ -1,8 +1,9 @@
 """
 Notes on the five entities - studio, publisher, person, character, identity.
 
-An entity owns exactly two sections: the catalogue's 備註 Remark list and each
-viewer's 個人筆記 Personal Notes. It answers to its own view gate, as its page
+An entity owns three sections: the catalogue's 備註 Remark list, each viewer's
+個人筆記 Personal Notes, and 資源 Resources, the mixed list of links an entry
+also keeps. It answers to its own view gate, as its page
 does: a viewer who cannot read the entity cannot read or write its notes, and
 is told 404 exactly as for an entity that does not exist. Deleting the entity
 takes its notes with it.
@@ -45,10 +46,69 @@ def _remark(client, owner_type, owner_id, text="A remark"):
 
 
 @pytest.mark.parametrize("owner_type", ["studio", "publisher", "person", "character", "identity"])
-def test_an_entity_offers_the_remark_list_and_personal_notes_only(owner_client, owner_type):
+def test_an_entity_offers_the_remark_list_personal_notes_and_resources(owner_client, owner_type):
     r = owner_client.get("/api/notes/sections", params={"owner_type": owner_type})
     assert r.status_code == 200
-    assert [s["key"] for s in r.json()] == ["remark", "personal_notes"]
+    sections = r.json()
+    assert [s["key"] for s in sections] == ["remark", "personal_notes", "resources"]
+    # Its own card, as on an entry - only a game folds it into a group.
+    resources = sections[-1]
+    assert resources["standalone"] is True
+    assert resources["group"] is None
+
+
+@pytest.mark.parametrize("owner_type", ["studio", "publisher", "person", "character", "identity"])
+def test_a_resource_is_written_and_read_back_on_every_entity(owner_client, db_session, owner_type):
+    owner = {
+        "studio": lambda: models.Studio(system_id=uuid.uuid4(), name_en="Kyoto Animation"),
+        "publisher": lambda: models.Publisher(system_id=uuid.uuid4(), name_en="Kadokawa"),
+        "person": lambda: models.Person(system_id=uuid.uuid4(), name_en="Aya Hirano"),
+        "character": lambda: models.Character(system_id=uuid.uuid4(), name_en="Haruhi"),
+    }
+    if owner_type == "identity":
+        character = models.Character(system_id=uuid.uuid4(), name_en="Kirito")
+        db_session.add(character)
+        db_session.flush()
+        row = models.CharacterIdentity(
+            system_id=uuid.uuid4(), character_id=character.system_id, name_en="Kirigaya Kazuto"
+        )
+    else:
+        row = owner[owner_type]()
+    db_session.add(row)
+    db_session.commit()
+
+    r = owner_client.post(
+        "/api/notes",
+        json={
+            "owner_type": owner_type,
+            "owner_id": str(row.system_id),
+            "section": "resources",
+            "kind": "Wikis",
+            "title": "Fandom",
+            "links": [{"url": "https://example.fandom.com/wiki/X"}],
+        },
+    )
+    assert r.status_code == 201, r.text
+    rows = owner_client.get(
+        "/api/notes", params={"owner_type": owner_type, "owner_id": str(row.system_id)}
+    ).json()
+    assert [(n["section"], n["kind"], n["title"]) for n in rows] == [("resources", "Wikis", "Fandom")]
+    assert rows[0]["links"] == [{"text": None, "url": "https://example.fandom.com/wiki/X"}]
+
+
+def test_a_guest_cannot_read_or_write_an_entitys_resources(client, owner_client, studio):
+    payload = {
+        "owner_type": "studio",
+        "owner_id": str(studio.system_id),
+        "section": "resources",
+        "title": "Official site",
+        "links": [{"url": "https://www.kyotoanimation.co.jp/"}],
+    }
+    # The owner can - the mirror case that makes the guest's refusal the gate's.
+    assert owner_client.post("/api/notes", json=payload).status_code == 201
+    r = client.get("/api/notes", params={"owner_type": "studio", "owner_id": str(studio.system_id)})
+    assert r.status_code == 404
+    assert client.post("/api/notes", json=payload).status_code in (401, 404)
 
 
 def test_a_remark_is_written_and_read_back_on_a_character(owner_client, character):

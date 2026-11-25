@@ -340,7 +340,16 @@ face below; one mono line for date or year and count; no hover zoom, the
 border darkens on hover.
 
 Library and list pages: the filter bar is a flat strip on the canvas;
-tables use hairline rows with mono headers.
+tables use hairline rows with mono headers. Every library draws the one
+`LibraryToolbar` row - a search field taking the remaining width, then the
+sort, the Filters button and the grid / table toggle where the library has
+them - and every table is the one `LibraryTable`.
+
+Sorting: **every sortable list uses the one `SortControl`**
+(`components/layout/SortControl.jsx`) - a mono "Sort" caption outside the
+select, the options in plain words ("Title", not "Sort: Title"), and a
+direction button beside it that reverses the chosen sort and shows, by its
+icon and title, whether the list now runs ascending or descending.
 
 Filters: **every filter set has a "Clear all"** that resets the whole set
 at once — the one `ClearAllButton` (`components/ui/primitives.jsx`), a mono

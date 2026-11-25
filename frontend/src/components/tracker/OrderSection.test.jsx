@@ -27,6 +27,7 @@ vi.mock("../../hooks/useToast", () => ({
 vi.mock("../../api/mutations/useOrderFollows", () => ({
   useOrderFollows: () => ({ data: [] }),
   useToggleFollow: () => ({ mutate: vi.fn(), isPending: false }),
+  useSetFollowImportance: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 const ORDER = {

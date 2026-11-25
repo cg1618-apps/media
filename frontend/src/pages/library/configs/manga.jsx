@@ -14,6 +14,7 @@ import { compareTitles } from "../../../lib/naming";
 import { BOOK_SERIALIZATION_STATUSES, MANGA_REGIONS } from "../../../config/fieldOptions";
 import {
   genreFilters,
+  myRatingFilter,
   publisherTwFilter,
   readStatusFilter,
   vocabularyFilter,
@@ -64,6 +65,7 @@ const MANGA_LIBRARY_CONFIG = {
     vocabularyFilter("region", "Region", "region", MANGA_REGIONS),
     // Advanced section (FilterPanel draws it collapsed).
     publisherTwFilter(),
+    myRatingFilter({ advanced: true }),
     ...genreFilters(),
   ],
 
@@ -71,6 +73,7 @@ const MANGA_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       compare: compareTitle,
     },
     {

@@ -1,14 +1,14 @@
 # Orders
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 ## What this is for
 
-An order is a named, ordered guide through a group of media entries — "watch A ep 1-10, then movie B, then A ep 11-12" — owned by one franchise, series or collection. It replaced the old per-entry `watch_order` float (dropped in `alembic/versions_archive/drop_entry_watch_order.py`), which could not span media types, hold more than one order per franchise, or split one entry across two steps. Orders come in two flavours: **hand-built** lists whose steps are stored rows, and **built-in** ("generated") lists whose steps are computed from release dates every time they are read. Every viewer that reads the catalogue can read every order whose owning group it may see; every write to an order is a catalogue editor's (`manage.catalog`). A signed-in member may **follow** one order per group and read their progress through it — see [Following](#following).
+An order is a named, ordered guide through a group of media entries — "watch A ep 1-10, then movie B, then A ep 11-12" — owned by one franchise, series or collection. It replaced the old per-entry `watch_order` float (dropped in `alembic/versions_archive/drop_entry_watch_order.py`), which could not span media types, hold more than one order per franchise, or split one entry across two steps. Orders come in two flavours: **hand-built** lists whose steps are stored rows, and **built-in** ("generated") lists whose steps are computed from release dates every time they are read. Every viewer that reads the catalogue can read every order whose owning group it may see; every write to an order is a catalogue editor's (`manage.catalog`). A signed-in member may **follow** one order per group, at an importance of their choosing, mark steps of it to skip, and read their progress through it — see [Following](#following).
 
 ## Model
 
-Three tables, defined in `app/models/order.py`, plus the per-user `order_follow` described under [Following](#following). Migrations: `alembic/versions/t3u4v5w6x7y8_add_order_tables.py` (list + item), `ws1e2c3t4i5n_add_order_section.py` (section), `x7y8z9a0b1c2_add_order_auto_source.py`, `wo_item_importance.py`, `wo_flatten_section_order.py`, `wo_series_owner_series_and_no_builtin.py` (series owner + `collection.no_built_in_orders`).
+Three tables, defined in `app/models/order.py`, plus the per-user `order_follow` and `order_follow_skip` described under [Following](#following). Migrations: `alembic/versions/t3u4v5w6x7y8_add_order_tables.py` (list + item), `ws1e2c3t4i5n_add_order_section.py` (section), `x7y8z9a0b1c2_add_order_auto_source.py`, `wo_item_importance.py`, `wo_flatten_section_order.py`, `wo_series_owner_series_and_no_builtin.py` (series owner + `collection.no_built_in_orders`).
 
 ### `order_list` — one order
 
@@ -115,7 +115,7 @@ Reads apply RBAC (`app/services/rbac/enforcement.py`). An order whose owning col
 
 ## API
 
-Router: `app/routers/order.py`, prefix `/api/order`. Schemas: `app/schemas/order.py`. Writes are `Depends(require_manage_catalog)` (401 for guests, proved throughout `tests/api/test_order.py`). The four follow routes are each `Depends(require_self_list)` instead and act on the caller's own rows only (`tests/api/test_order_follow.py`).
+Router: `app/routers/order.py`, prefix `/api/order`. Schemas: `app/schemas/order.py`. Writes are `Depends(require_manage_catalog)` (401 for guests, proved throughout `tests/api/test_order.py`). The six follow routes are each `Depends(require_self_list)` instead and act on the caller's own rows only (`tests/api/test_order_follow.py`).
 
 | Method | Path | Auth | Params / body | Response | Errors |
 | --- | --- | --- | --- | --- | --- |
@@ -138,10 +138,12 @@ Router: `app/routers/order.py`, prefix `/api/order`. Schemas: `app/schemas/order
 | PUT | `/sections/{id}` | admin | `OrderSectionUpdate` | section | 404, 400 generated |
 | PATCH | `/sections/{id}` | admin | dict | section | 404, 400 generated |
 | DELETE | `/sections/{id}` | admin | — | `{status, message}`; steps become unfiled (SET NULL) | 404, 400 generated |
-| GET | `/follows` | `self.list` | — | `[OrderFollowSummary]`: the caller's followed orders, oldest follow first, each with `list`, `owner`, `done`, `total`, `now`, `up_next` | 401 |
-| GET | `/follows/entry/{entry_id}` | `self.list` | path: an entry's `media.system_id` | `[OrderEntryFollow]`: each followed order stepping through the entry, with `list`, `owner`, `total` and one `occurrences` element per step naming it (`step`, `previous`, `next`); `[]` when none does | 401, 422 bad uuid |
-| PUT | `/lists/{id}/follow` | `self.list` | — (`id` is a `public_id` or UUID) | `OrderFollowSummary` for that order; replaces the caller's follow of another order in the same group; idempotent | 401, 404 |
-| DELETE | `/lists/{id}/follow` | `self.list` | — | `{status, message}` | 401, 404 order unknown or not followed |
+| GET | `/follows` | `self.list` | — | `[OrderFollowSummary]`: the caller's followed orders, oldest follow first, each with `list`, `owner`, `importance`, `skipped` (step ids), `done`, `total`, `now`, `up_next` | 401 |
+| GET | `/follows/entry/{entry_id}` | `self.list` | path: an entry's `media.system_id` | `[OrderEntryFollow]`: each followed order stepping through the entry, with `list`, `owner`, `importance`, `total` and one `occurrences` element per step naming it (`step`, `next`, `coming_up`); `[]` when none does | 401, 422 bad uuid |
+| PUT | `/lists/{id}/follow` | `self.list` | optional `OrderFollowRequest` `{importance}` (`id` is a `public_id` or UUID) | `OrderFollowSummary` for that order; replaces the caller's follow of another order in the same group, dropping its skips; idempotent. A new follow takes the body's importance or `Normal`; an existing one changes to the body's, or keeps its own when the body names none | 401, 404, 400 unknown importance |
+| DELETE | `/lists/{id}/follow` | `self.list` | — | `{status, message}`; the follow's skips go with it | 401, 404 order unknown or not followed |
+| PUT | `/lists/{id}/follow/skips/{step_id}` | `self.list` | `step_id`: the step's `system_id` as the detail endpoint gives it (an `order_item` id, or a built-in step's entry id) | `OrderFollowSummary`; marks the step to skip; idempotent | 401, 404 order unknown, not followed, or no such step for this viewer |
+| DELETE | `/lists/{id}/follow/skips/{step_id}` | `self.list` | as above | `OrderFollowSummary`; clears the mark; idempotent | 401, 404 order unknown or not followed |
 
 Frontend endpoint map: `frontend/src/api/endpoints.js` (`endpoints.order.*`).
 
@@ -157,20 +159,23 @@ Frontend endpoint map: `frontend/src/api/endpoints.js` (`endpoints.order.*`).
 
 ## Sheets
 
-Backup writes and Pull restores four tabs, registered in `app/services/pipelines/tabs.py` in restore order **Order List → Order Section → Order Item → Order Follow** (after every media tab, since items cite entries). Columns are every model column, taken dynamically by `app/services/pipelines/backup.py` (`tab.model.__table__.columns`); parsers are `parse_order_list_from_sheet`, `parse_order_section_from_sheet`, `parse_order_item_from_sheet` in `app/utils/formatter.py`.
+Backup writes and Pull restores five tabs, registered in `app/services/pipelines/tabs.py` in restore order **Order List → Order Section → Order Item → Order Follow → Order Follow Skip** (after every media tab, since items cite entries). Columns are every model column, taken dynamically by `app/services/pipelines/backup.py` (`tab.model.__table__.columns`); parsers are `parse_order_list_from_sheet`, `parse_order_section_from_sheet`, `parse_order_item_from_sheet` in `app/utils/formatter.py`.
 
 | Tab | Restore behaviour (`app/services/pipelines/pull.py`) |
 | --- | --- |
 | Order List | Owner ids are strict UUIDs (junk → None → single-owner check would fail). An id-less row is matched on `list_name` + `franchise_id` + `collection_id` and updated in place. |
 | Order Section | `list_id` strict UUID; an unparseable id becomes None. |
 | Order Item | `entry_id` unparseable → None (shows as a missing step); `section_id` unparseable → None (step restores unfiled); `importance` coerced via `normalize_importance` so a blank or pre-column cell restores as "Normal". Items have no natural key, so an id-less item row always inserts. |
-| Order Follow | After Order Item. `user_id` is dropped for `username` and resolved by Pull exactly as Plan Next's is (an unknown name skips the row and is reported). The natural key is `uq_order_follow_group` - `(user_id, franchise_id, series_id, collection_id)` - so a sheet row for a group the user already follows locally repoints that row rather than colliding with it. Parser: `parse_order_follow_from_sheet`. |
+| Order Follow | After Order Item. `user_id` is dropped for `username` and resolved by Pull exactly as Plan Next's is (an unknown name skips the row and is reported). The natural key is `uq_order_follow_group` - `(user_id, franchise_id, series_id, collection_id)` - so a sheet row for a group the user already follows locally repoints that row rather than colliding with it. `importance` is coerced via `normalize_importance`; a sheet without the column leaves an existing follow's importance alone and gives a new one the `Normal` default. Parser: `parse_order_follow_from_sheet`. |
+| Order Follow Skip | After Order Follow. `follow_id` is dropped: the row names its follow by `username` and `list_id`, because Order Follow is matched by its natural key and a follow's uuid may differ between databases. Pull resolves the user, then the follow of that order by that user; a row whose follow is not here is skipped and reported. `item_id` / `media_id` travel unchanged. The natural key is `uq_order_follow_skip_step`. Parser: `parse_order_follow_skip_from_sheet`. |
 
 Sheet-sync schemas (`Order*SheetSync`) live in `app/schemas/order.py`.
 
 ## Following
 
 A signed-in member holding `self.list` may follow an order. A follow is per user, and a user follows **at most one order per group** — the franchise, series or collection that owns it. Following another order of the same group replaces the first; unfollowing deletes the row. A built-in order is followed like any other.
+
+A follow carries an **importance**, one of the four rungs a step carries: the lowest rung the follower wants shown as next. A follow at `Recommended` passes over every `Normal` and `Optional` step; at `Optional` it passes over none. A new follow is `Normal` unless the follower picks another, and the follower may change it at any time. A follower may also mark any step of an order they follow to **skip**; a skipped step is never next. Both are the follower's own and read by nobody else.
 
 ### `order_follow`
 
@@ -180,11 +185,26 @@ A signed-in member holding `self.list` may follow an order. A follow is per user
 | `user_id` | UUID | no | FK `users.id` ON DELETE CASCADE (`fk_order_follow_user`), indexed |
 | `list_id` | UUID | no | FK `order_list.system_id` ON DELETE CASCADE (`fk_order_follow_list`), indexed |
 | `franchise_id` / `series_id` / `collection_id` | UUID | yes | The followed order's owner, copied at follow time. Each an FK to its tier, ON DELETE CASCADE |
+| `importance` | String | no | `Essential` \| `Recommended` \| `Normal` \| `Optional`, server default `Normal`. Validated by `PUT /lists/{id}/follow` (400 otherwise) |
 | `created_at` / `updated_at` | DateTime | yes | Taipei time |
 
-Constraints: `ck_order_follow_one_owner` (`num_nonnulls(franchise_id, series_id, collection_id) = 1`) and `uq_order_follow_group`, **UNIQUE NULLS NOT DISTINCT** `(user_id, franchise_id, series_id, collection_id)` — the one-per-group rule, held by the database. NULLS NOT DISTINCT because two of the three owner columns are NULL on every row. The owner is copied rather than read through `list_id` so the rule can be a constraint, and the copy stays true because a list's owner cannot change (see Rules). Migration: `alembic/versions/w1o2follow34_order_follow.py`.
+Constraints: `ck_order_follow_one_owner` (`num_nonnulls(franchise_id, series_id, collection_id) = 1`) and `uq_order_follow_group`, **UNIQUE NULLS NOT DISTINCT** `(user_id, franchise_id, series_id, collection_id)` — the one-per-group rule, held by the database. NULLS NOT DISTINCT because two of the three owner columns are NULL on every row. The owner is copied rather than read through `list_id` so the rule can be a constraint, and the copy stays true because a list's owner cannot change (see Rules). Migrations: `alembic/versions/w1o2follow34_watch_order_follow.py` (the table), `o1f2ollowimp3_order_follow_importance_and_skips.py` (`importance`).
 
-`PUT /lists/{id}/follow` finds the caller's row for the order's group and repoints its `list_id`, or inserts one; it never deletes and re-inserts, so the unique constraint is never in question.
+`PUT /lists/{id}/follow` finds the caller's row for the order's group and repoints its `list_id`, or inserts one; it never deletes and re-inserts, so the unique constraint is never in question. Repointing clears the row's skips, which named the other order's steps.
+
+### `order_follow_skip`
+
+One row per step a follow skips. Model `OrderFollowSkip`, migration `o1f2ollowimp3_order_follow_importance_and_skips.py`.
+
+| Column | Type | Null | Notes |
+| --- | --- | --- | --- |
+| `system_id` | UUID | PK | indexed |
+| `follow_id` | UUID | no | FK `order_follow.system_id` ON DELETE CASCADE (`fk_order_follow_skip_follow`), indexed |
+| `item_id` | UUID | yes | A hand-built order's step: FK `order_item.system_id` ON DELETE CASCADE (`fk_order_follow_skip_item`) |
+| `media_id` | UUID | yes | A built-in order's step, named by its entry: FK `media.system_id` ON DELETE CASCADE (`fk_order_follow_skip_media`) |
+| `created_at` / `updated_at` | DateTime | yes | Taipei time |
+
+Constraints: `ck_order_follow_skip_one_step` (`num_nonnulls(item_id, media_id) = 1`) and `uq_order_follow_skip_step`, **UNIQUE NULLS NOT DISTINCT** `(follow_id, item_id, media_id)`. The API names either kind of step by one `step_id` - the `system_id` the detail endpoint gives it - and `_skip_columns` stores it in the column the order's kind calls for. Skips live and die with the follow: unfollowing, following another order of the group, deleting the step or deleting the entry each take them. Why it is a table and why it does not survive a refollow: [`../notes/decisions/2026-11-25-follow-importance-and-skips.md`](../notes/decisions/2026-11-25-follow-importance-and-skips.md).
 
 ### Progress
 
@@ -198,22 +218,32 @@ Computed on every read, per viewer, from the viewer's own `user_media_list` rows
 
 The unit count is `UNIT_FIELDS`: `ep_fin` for anime, TV show, cartoon and hentai; `issue_fin` for comic; `ch_fin` for manga and book. A type with no unit count (movies, games, h-comic, h-game) is done by status alone.
 
-`done / total` counts steps. **Now** is every active step — there may be several. **Up next** is the **earliest pending step in reading order**, even when later steps are done: a skipped step is exactly what the follower needs to see. Optional steps are not skipped; the step carries its `importance` and the views show it. Each step is numbered 1..N over the steps the viewer can see.
+`done / total` counts steps, skipped ones included. **Now** is every active step — there may be several. Each step is numbered 1..N over the steps the viewer can see, and carries its `importance`, its `step_id` and whether it is `skipped`.
+
+### What is next
+
+Decided in one place, `next_steps` in `app/services/domain/order_follow.py`, which both the dashboard and the entry page read, so the two cannot disagree. A step is a **candidate** when it is pending (not done and not already active — an active step is "now", not "next"), not skipped, and at or above the follow's importance on the ladder `Optional < Normal < Recommended < Essential`.
+
+- **Direct next** is the first candidate after the step the viewer stands on. On the dashboard (`up_next`) the viewer stands before the first step, so it is the earliest candidate in reading order, even when later steps are done: a gap is exactly what the follower needs to see.
+- **Coming up** is the lookahead behind it, also candidates only. A `Normal` or `Optional` next is followed by the first `Recommended`-or-`Essential` step after it, and, when that one is `Recommended`, by the first `Essential` after that. A `Recommended` next is followed by the first `Essential` after it. An `Essential` next is followed by nothing. So an `Essential` that comes before the next `Recommended` is shown alone.
+
+Example, a `Normal` follow standing on F of F, G (Optional), H, I, J (Recommended), K, L (Essential): next is H, coming up J then L. `tests/unit/test_order_follow_next.py` holds it verbatim with every other case.
 
 ### Entry context and split runs
 
-`GET /follows/entry/{entry_id}` answers one element per followed order that steps through the entry. An entry that appears in several steps of one order (a split run) gets one **occurrence** per step, each with its own `previous` and `next`, because the two halves sit between different neighbours. Each step carries `number`, `state`, `media_type`, `entry_id`, the entry's `public_id` (for its link), `display_name`, `ep_start` / `ep_end`, `importance`, `note` and `section_name` (the part it sits in, or null).
+`GET /follows/entry/{entry_id}` answers one element per followed order that steps through the entry, with the follow's `importance`. An entry that appears in several steps of one order (a split run) gets one **occurrence** per step, each with its own `next` and `coming_up`, read from that step's place, because the two halves sit at different places. Each step carries `number`, `state`, `step_id`, `skipped`, `media_type`, `entry_id`, the entry's `public_id` (for its link), `display_name`, `ep_start` / `ep_end`, `importance`, `note` and `section_name` (the part it sits in, or null).
 
 ### UI
 
 | Surface | File | Notes |
 | --- | --- | --- |
-| Follow / Following toggle | `frontend/src/components/tracker/FollowOrderButton.jsx` | On `OrderPage.jsx`'s header and beside the selected order in `OrderSection.jsx`. The section marks the group's followed order "Following" in its chips, its dropdown and its single-order label. Drawn only for `has("self.list")` |
-| Entry detail panel | `frontend/src/components/tracker/FollowedOrderPanel.jsx` | Mounted directly under the `<header>` of all twelve entry detail pages. Its eyebrow names the feature by the page's `mediaType` (`orderNoun`, `frontend/src/lib/orderNoun.js`): "Following Play Order" on the Game page, "Following Order" everywhere else - one feature and one kind of order underneath. A brand-ruled band, deliberately not a `Slip` like Relations in the left column. "Following Order: order (group) · step N / total", then per occurrence the previous step, this step and the next, each with its range, importance chip, part name and note. Renders nothing when no followed order holds the entry |
+| Follow / Following toggle | `frontend/src/components/tracker/FollowOrderButton.jsx` | On `OrderPage.jsx`'s header and beside the selected order in `OrderSection.jsx`, the two places a follow is made. An importance picker sits before the button ("Every step", "Normal and up", "Recommended and up", "Essential only"; `FOLLOW_IMPORTANCE_OPTIONS`): before following it chooses the rung the follow starts at, `Normal` by default; once following, changing it changes the follow's rung at once. The section marks the group's followed order "Following" in its chips, its dropdown and its single-order label. Drawn only for `has("self.list")` |
+| Skip toggle | `frontend/src/components/tracker/SkipToggle.jsx` | "Skip" / "Skipped" (`aria-pressed`), the follower's own mark. Beside every step of the entry panel, and beside every step of the order page's guide for a viewer who follows that order (`OrderGuide`'s `skips` prop); a skipped step's row is dimmed there. Outside the step's link, never inside it |
+| Entry detail panel | `frontend/src/components/tracker/FollowedOrderPanel.jsx` | Mounted directly under the `<header>` of all twelve entry detail pages. Its eyebrow is "Following order" on every type - an order may mix watching, reading and playing. A brand-ruled band, deliberately not a `Slip` like Relations in the left column. "Following order: order (group) · step N / total · <importance>", then per occurrence the **Next** step and, under a dashed rule captioned "Coming up", the lookahead steps, each with its range, importance chip, part name, note and skip toggle. "Nothing left after this step." when there is no next. Renders nothing when no followed order holds the entry |
 | Dashboard | `frontend/src/components/tracker/FollowedOrders.jsx` | "Followed orders (n)", directly under Coming Next on `/`, collapsed by default, gated on `self.list` as Coming Next is, and listed in the contents as "Followed orders" (`schedule-follows`). One row per order: group · order (linked), `done / total` with a progress rule, every **Now** step and the **Next** step, notes left to the order page |
-| Shared step line | `frontend/src/components/tracker/FollowedStep.jsx` | Used by the panel and the dashboard so a step reads the same in both; the range label is `rangeLabel` from `OrderGuide.jsx` |
+| Shared step line | `frontend/src/components/tracker/FollowedStep.jsx` | Used by the panel and the dashboard so a step reads the same in both; the range label is `rangeLabel` from `OrderGuide.jsx`. Given `listId` (the panel does, the dashboard does not), it adds the skip toggle |
 
-Hooks: `frontend/src/api/mutations/useOrderFollows.js` — `useOrderFollows`, `useEntryFollows`, `useToggleFollow`, all under the query key prefix `["order-follows"]`, which every follow or unfollow invalidates.
+Hooks: `frontend/src/api/mutations/useOrderFollows.js` — `useOrderFollows`, `useEntryFollows`, `useToggleFollow`, `useSetFollowImportance`, `useToggleSkip`, all under the query key prefix `["order-follows"]`, which every follow, unfollow, importance change and skip invalidates.
 
 ## Krakoan reading orders
 
@@ -226,5 +256,6 @@ Hooks: `frontend/src/api/mutations/useOrderFollows.js` — `useOrderFollows`, `u
 - `app/services/rbac/enforcement.py` — `apply_entry_visibility`, `drop_hidden_rows`.
 - `app/utils/data_control_utils.py` — "Order" branch of `log_deleted_record`.
 - `tests/api/test_order_hidden_owner.py` — an order or relations scope whose owning group is hidden reads as missing.
-- `tests/api/test_order_follow.py` — following: one per group, per user, permission, every progress rule, visibility, built-in orders, entry context, Sheets.
+- `tests/api/test_order_follow.py` — following: one per group, per user, permission, every progress rule, visibility, built-in orders, entry context, importance, skips and their refusals, Sheets.
+- `tests/unit/test_order_follow_next.py` — what is next: the importance ladder, the direct next and the lookahead.
 - `tests/api/test_order.py` — the behavioural spec (≈150 tests across lists, built-ins, series owners, opt-out, candidates, parts, contiguity, duplication).

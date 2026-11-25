@@ -96,7 +96,7 @@ Users            ->  before  User Media List   (user_media_list.user_id)
 Media            ->  before  User Media List   (user_media_list.media_id)
 Media            ->  before  the twelve media tabs (detail.system_id -> media)
 Collection -> Franchise -> Series -> Media
-Order List -> Order Section -> Order Item -> Order Follow
+Order List -> Order Section -> Order Item -> Order Follow -> Order Follow Skip
 Person / Studio / Publisher / Character / Content Label -> the media tabs
 Character -> Character Identity -> Character Casting
 Users, Collection / Franchise / Series, Character / Person / Studio / Publisher -> User Rating
@@ -108,7 +108,7 @@ Collection, Franchise, Series, Media -> Needs Work
 ```
 
 `Users` is first because nothing in the sheet points at it, and `Plan Next`,
-`Seasonal`, `Order Follow`, `User Rating`, `User Book Unit Rating`, `User Highlight Group Order`, `Game Copy`, `Game Choice Mark`, `Note Mark` and `User Favorite` all carry a NOT NULL `user_id`. The enforcement is
+`Seasonal`, `Order Follow`, `User Rating`, `User Book Unit Rating`, `User Highlight Group Order`, `Game Copy`, `Game Choice Mark`, `Note Mark` and `User Favorite` all carry a NOT NULL `user_id`, and `Order Follow Skip` names its follow by `username`. The enforcement is
 `tests/api/test_sheet_restore_order.py`; move the tab rather than weaken the
 test. It is first for a second reason too: every tab that files a row under
 the [installation owner](#the-installation-owner) reads the owner from the
@@ -199,23 +199,24 @@ reader's half without an owner and says so the same way
 | 45 | `Order Section` | `OrderSection` | Read from `Watch Order Section` likewise |
 | 46 | `Order Item` | `OrderItem` | Read from `Watch Order Item` likewise |
 | 47 | `Order Follow` | `OrderFollow` | Read from `Watch Order Follow` likewise |
-| 48 | `Media Relation` | `MediaRelation` |  |
-| 49 | `Plan Next` | `PlanNext` |  |
-| 50 | `Quote` | `Quote` |  |
-| 51 | `Character Casting` | `CharacterCasting` |  |
-| 52 | `Character Casting Voice` | `CharacterCastingVoice` |  |
-| 53 | `Meme` | `Meme` |  |
-| 54 | `User Favorite` | `UserFavorite` |  |
-| 55 | `Note` | `Note` |  |
-| 56 | `Note Mark` | `NoteMark` |  |
-| 57 | `Needs Work` | `NeedsWork` |  |
-| 58 | `Resources` | `ResourceNode` |  |
-| 59 | `Media Source` | `MediaSource` |  |
-| 60 | `Media Content Label` | `MediaContentLabel` |  |
-| 61 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 62 | `Collection Content Label` | `CollectionContentLabel` |  |
-| 63 | `Series Content Label` | `SeriesContentLabel` |  |
-| 64 | `Seasonal` | `Seasonal` |  |
+| 48 | `Order Follow Skip` | `OrderFollowSkip` |  |
+| 49 | `Media Relation` | `MediaRelation` |  |
+| 50 | `Plan Next` | `PlanNext` |  |
+| 51 | `Quote` | `Quote` |  |
+| 52 | `Character Casting` | `CharacterCasting` |  |
+| 53 | `Character Casting Voice` | `CharacterCastingVoice` |  |
+| 54 | `Meme` | `Meme` |  |
+| 55 | `User Favorite` | `UserFavorite` |  |
+| 56 | `Note` | `Note` |  |
+| 57 | `Note Mark` | `NoteMark` |  |
+| 58 | `Needs Work` | `NeedsWork` |  |
+| 59 | `Resources` | `ResourceNode` |  |
+| 60 | `Media Source` | `MediaSource` |  |
+| 61 | `Media Content Label` | `MediaContentLabel` |  |
+| 62 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 63 | `Collection Content Label` | `CollectionContentLabel` |  |
+| 64 | `Series Content Label` | `SeriesContentLabel` |  |
+| 65 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -380,7 +381,7 @@ runs on a restore.
 cell - a sheet backed up before the column existed - restores as `false`.
 
 **`Plan Next`, `Seasonal`, `Order Follow`, `User Rating` and `User Book Unit Rating`** drop `user_id` for `username` too, for the same
-reason (the follow and the two rating tabs have carried `username` from their first day, so they meet the fallback below only for a hand-built sheet). Pull falls back to `_restore_owner_id` — the [installation owner](#the-installation-owner), and with none the row is skipped and counted — **only** when the header is absent
+reason (the follow and the two rating tabs have carried `username` from their first day, so they meet the fallback below only for a hand-built sheet). **`Order Follow Skip`** drops `follow_id` and writes `username` and `list_id` in its place: a follow is matched by its natural key, so its uuid may differ between databases, and Pull finds the local follow of that order by that user. A row whose follow is not here is skipped and reported. `Order Follow`'s `importance` restores as written, coerced to `Normal` when blank or unknown; a sheet backed up before the column existed leaves a local follow's importance alone and gives a new one `Normal`. Pull falls back to `_restore_owner_id` — the [installation owner](#the-installation-owner), and with none the row is skipped and counted — **only** when the header is absent
 altogether, which means a sheet written before the column existed and in which
 everything did belong to one person. A `username` that is present and names
 nobody skips the row and lands in `unresolved_refs` rather than being quietly
@@ -618,17 +619,21 @@ since a person's vocabulary is `男` / `女`
 vocabularies applied to the stored rows), so a backup from before then cannot
 bring the free text back. Both tabs carry `photo_fallback_entry_id`, a plain
 entry uuid like `cover_entry_id`; a cell that is not a uuid restores as blank.
-`Person` carries its link columns too — `mal_id`, `mal_link`, `imdb_id`,
+`Person` carries its link columns too — `mal_id`, `mal_link`, `anilist_link`, `imdb_id`,
 `imdb_link`, `twitter_link`, `ig_link` and `pixiv_link` — restored as they are, and the Person parser names every
 column the tab writes (`tests/api/test_person_tmdb.py` walks the model to
 prove it), so none is dropped on a Pull.
+`Studio`, `Person` and `Character` each carry `anilist_link`, the entity's
+AniList page, restored as it is - except that a sheet with no such column, a
+backup from before it existed, leaves the local value as it is rather than
+clearing it (`formatter._anilist_link_from_sheet`).
 `Franchise` and `Series` carry `alone_reviewed_media_id` the same way (the
 review queue's single-entry check); a sheet with no such column - a backup
 from before it existed - leaves the local value as it is rather than
 clearing it.
 `Character` also carries `role` (`CHARACTER_ROLES`); a value outside the list
-restores as blank. It carries `mal_id` and `mal_link` too, restored as they
-are, as on `Person`, and the three free-text firsts, `first_mention`,
+restores as blank. It carries `mal_id`, `mal_link` and `anilist_link` too,
+restored as they are, as on `Person`, and the three free-text firsts, `first_mention`,
 `first_appearance` and `first_encounter`. Each first restores only when the
 sheet has its column: a backup from before they existed leaves the local
 values as they are rather than clearing them, as `alone_reviewed_media_id`

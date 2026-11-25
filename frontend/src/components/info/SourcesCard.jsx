@@ -89,7 +89,9 @@ function SourceIcon({ src, cover = false }) {
   );
 }
 
-function SourceLink({ href, icon, cover, children, title }) {
+// One external link row - shared with EntityLinksCard, so an entity's links
+// read exactly as an entry's sources do.
+export function SourceLink({ href, icon, cover, children, title }) {
   return (
     <a
       href={href}

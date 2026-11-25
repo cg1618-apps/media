@@ -168,6 +168,20 @@ describe("TV detail page release step", () => {
   });
 });
 
+describe("TV detail page Mark completed", () => {
+  // The mirror of the release-step test above, which draws the button for an
+  // unfinished show: the same editor's toolbar on a finished one leaves it out.
+  it("is not drawn once the viewer's watching status is Completed", async () => {
+    mockFetch(
+      { ...SHOW, watching_status: "Completed" },
+      { admin: true, permissions: ["manage.catalog", "self.list"] },
+    );
+    mount();
+    expect(await screen.findByRole("button", { name: "Edit" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Mark completed" })).toBeNull();
+  });
+});
+
 describe("TV detail page information", () => {
   it("shows the airing type and the runtime", async () => {
     mockFetch({ ...SHOW, airing_type: "Special", runtime_min: 47 });

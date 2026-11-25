@@ -1,7 +1,7 @@
 """
 A queued game's platform group on /api/plan-next: set on create, changed by
-PATCH, refused on anything but a game's "next" row and on a value outside
-PLATFORM_GROUPS.
+PATCH, refused on anything but a game's or an h-game's "next" row and on a
+value outside PLATFORM_GROUPS.
 
 Requires PostgreSQL (the run's own database). See tests/api/conftest.py. The
 client is `super_client` for the reason test_plan_next_kind_api.py gives: an
@@ -29,6 +29,15 @@ def seeded_movie(db_session):
     db_session.add(movie)
     db_session.flush()
     return movie.system_id
+
+
+@pytest.fixture
+def seeded_h_game(super_client):
+    # Through the API, so the gated type's content label is stamped as it is
+    # on every real h-game; super_client sits in a mode that sees the type.
+    res = super_client.post("/api/h-game/", json={"h_game_name_cn": "Test H-Game"})
+    assert res.status_code == 201, res.text
+    return res.json()["system_id"]
 
 
 def _plan(client, target_id, media_type="game", **extra):
@@ -91,6 +100,25 @@ def test_only_a_game_takes_a_group(super_client, seeded_movie):
     ).status_code == 200
 
 
+def test_an_h_game_plan_takes_a_group_as_a_game_does(super_client, seeded_h_game):
+    res = _plan(super_client, seeded_h_game, media_type="h-game", platform_group="PC")
+    assert res.status_code == 201, res.text
+    assert res.json()["platform_group"] == "PC"
+    res = super_client.patch(
+        f"/api/plan-next/{res.json()['system_id']}", json={"platform_group": "Switch"}
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["platform_group"] == "Switch"
+
+
+def test_an_h_game_replay_mark_takes_no_group(super_client, seeded_h_game):
+    # The mirror: the same h-game takes a group on its "next" row above.
+    res = _plan(
+        super_client, seeded_h_game, media_type="h-game", kind="rewatch", platform_group="PC"
+    )
+    assert res.status_code == 422
+
+
 def test_a_replay_mark_takes_no_group(super_client, seeded_game):
     res = _plan(super_client, seeded_game, kind="rewatch", platform_group="PC")
     assert res.status_code == 422
@@ -112,6 +140,5 @@ def test_another_users_plan_is_404(super_client, db_session, plain_user, seeded_
 
 def test_kinds_serves_the_platform_groups(super_client):
     body = super_client.get("/api/plan-next/kinds").json()
-    assert body["platform_groups"] == {
-        "game": ["PC", "Console", "Handheld Console", "Switch"]
-    }
+    groups = ["PC", "Console", "Handheld Console", "Switch"]
+    assert body["platform_groups"] == {"game": groups, "h-game": groups}

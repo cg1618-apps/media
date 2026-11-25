@@ -147,6 +147,22 @@ def _list_row_public_id(row: Any, db: Session) -> Optional[int]:
     return media.public_id if media else None
 
 
+def _skip_follow(row: Any, db: Session) -> Optional["models.OrderFollow"]:
+    return db.get(models.OrderFollow, row.follow_id)
+
+
+def _skip_row_username(row: Any, db: Session) -> Optional[str]:
+    """A skip's owner by name, read through its follow."""
+    follow = _skip_follow(row, db)
+    return _row_username(follow, db) if follow else None
+
+
+def _skip_row_list_id(row: Any, db: Session) -> Optional[str]:
+    """The followed order a skip belongs to; its uuid travels."""
+    follow = _skip_follow(row, db)
+    return str(follow.list_id) if follow else None
+
+
 def _row_username(row: Any, db: Session) -> Optional[str]:
     """
     Whose row this is, by name.
@@ -405,6 +421,19 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_order_follow_from_sheet,
         drop_columns=("user_id",),
         extra_columns=(("username", _row_username),),
+    ),
+    # Right after Order Follow, which every row hangs off. The follow is named
+    # by (username, list_id) rather than by follow_id: Order Follow matches by
+    # its natural key, so the follow's uuid may differ here and there.
+    SheetTab(
+        "Order Follow Skip",
+        models.OrderFollowSkip,
+        f.parse_order_follow_skip_from_sheet,
+        drop_columns=("follow_id",),
+        extra_columns=(
+            ("username", _skip_row_username),
+            ("list_id", _skip_row_list_id),
+        ),
     ),
     # FK-less (media_type, id) pairs: both endpoints must already exist.
     SheetTab("Media Relation", models.MediaRelation, f.parse_media_relation_from_sheet),

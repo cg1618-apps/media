@@ -117,7 +117,7 @@ describe("game library filters and sorts", () => {
 
   it("keeps Main/Remake, Ownership and HLTB in the advanced section, ahead of the genres", () => {
     const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
-    expect(advanced).toEqual(["isMain", "ownership", "hltbMainExtra", "gameGenre", "gameTheme", "label"]);
+    expect(advanced).toEqual(["isMain", "ownership", "hltbMainExtra", "myRating", "gameGenre", "gameTheme", "label"]);
     expect(byKey("ownership").personal).toBe(true);
     expect(byKey("isMain").deriveOptions(reversed("is_main", ["Main", "Remake", "Remaster"])))
       .toEqual(["Main", "Remake", "Remaster"]);
