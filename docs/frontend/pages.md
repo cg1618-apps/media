@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -711,10 +711,18 @@ statuses it includes in that type's vocabulary (`watchingStatusesFor`):
 **My Rating breaks a tie on the type's public score, then on the title**
 (`myRatingSort({ publicScore, title })` in `libraryColumns.jsx`): MAL for
 anime, anime movie, manga and book; IMDb (`imdb_rating`) for movie, TV show
-and cartoon; Metacritic for game - each higher first, unscored last - and the
+and cartoon (on the last two that is the season's episode average); Metacritic for game - each higher first, unscored last - and the
 library's own title order after it. Comic, H-Comic, H-Game and Hentai carry
 no public score and go from my rating straight to the title. An entry carries
 no expectation, so that tie-break is the group libraries' alone (below).
+
+**TV shows and cartoons carry two IMDb sorts**, listed right after My
+Rating: **IMDb Rating** (`imdb_series_rating`, the whole show's) and then
+**IMDb AVG Rating** (`imdb_rating`, the season's - the average of its
+episodes' ratings). A movie's one IMDb sort is **IMDb Rating**. The library
+card's score reads the same way: the show's rating with the season's average
+in brackets, "9.5 (avg 9.4)", or the entry's own score alone when there is no
+show rating (a cartoon movie).
 
 All default to the `title` sort. **Every library's title sort reads the English name first** — `getSortName` for the media types and the three groups, `entitySortName` (`name_en`, then `display_name`) for studios, publishers, people and characters — and compares through `compareTitles` (`lib/naming.js`), an `Intl.Collator` fixed to `en`, so a Latin title sorts before a CJK one whatever the browser's language (a `zh-TW` browser's own collation puts Han first). `configs/titleSort.test.js` runs every config's title sort under a `zh-TW` default. `Library.test.jsx` pins the twelve config
 keys, requires more than three table columns and a `my_rating` sort per
@@ -1329,8 +1337,8 @@ Every tab but Game and H-Game has a **Completed** All / Yes / No control
 | H-Comic | release date, title, my rating | none | no region tag on the cover |
 | Book | title, my rating, MAL, release date, end date | **小說** All / Yes / No (Yes = `type` 輕小說, 小說 or 網路小說; No = anything else, untyped included) | no region tag on the cover |
 | Comic | franchise hub: release date, title, my rating; series hub: title, my rating, release date, end date | franchise hub: comic type, era; series hub: serialization | no type-specific layout |
-| TV Show | release date, title, my rating, IMDb | none | region top-left, IMDb right of the release date, no airing status |
-| Cartoon | release date, title, my rating, IMDb | airing type | no type-specific layout |
+| TV Show | release date, title, my rating, IMDb | none | region top-left, IMDb right of the release date as the show's rating with the season's episode average in brackets ("9.5 (avg 9.4)"; the entry's own score alone when there is no show rating), no airing status |
+| Cartoon | release date, title, my rating, IMDb | airing type | IMDb right of the release date, as on a TV show |
 | Game | release date, title, my rating, Metacritic, Metacritic user, hours played | completion level — Main Story, Main + Extras, Completionist, Post-game, Not completed (`completion_level` empty) — **instead of** Completed; game type chips from the types the list holds, in vocabulary order | game type top-left on the cover, release date above the play-hours row, Metacritic and Metacritic user stacked on the right |
 | H-Game | release date, title, my rating | as Game | game type top-left, release date in place of the play-style line; no Metacritic (no such columns) |
 

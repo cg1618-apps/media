@@ -2,6 +2,7 @@ import {
   airingStatusColumn,
   franchiseColumn,
   imdbRatingColumn,
+  imdbAvgRatingSort,
   imdbRatingSort,
   imdbSeriesRatingSort,
   myRatingColumn,
@@ -83,8 +84,8 @@ const CARTOON_LIBRARY_CONFIG = {
       compare: (a, b) => new Date(b.release_date).getTime() - new Date(a.release_date).getTime(),
     },
     myRatingSort({ publicScore: imdbRatingSort, title: compareTitle }),
-    imdbRatingSort,
     imdbSeriesRatingSort,
+    imdbAvgRatingSort,
   ],
 
   tableColumns: [
