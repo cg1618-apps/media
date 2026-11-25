@@ -244,6 +244,29 @@ function AdvancedFilters({ defs, filters, groupProps }) {
 }
 
 // ---------------------------------------------------------------------------
+// FilterRows — the ordinary defs, consecutive defs sharing a `row` side by side
+// ---------------------------------------------------------------------------
+function FilterRows({ defs, groupProps }) {
+  const rows = [];
+  for (const fd of defs) {
+    const last = rows[rows.length - 1];
+    if (fd.row && last?.row === fd.row) last.defs.push(fd);
+    else rows.push({ row: fd.row, defs: [fd] });
+  }
+  return rows.map(({ row, defs: rowDefs }) =>
+    rowDefs.length === 1 ? (
+      <FilterGroup key={rowDefs[0].key} fd={rowDefs[0]} {...groupProps} />
+    ) : (
+      <div key={row} className="flex flex-wrap items-start gap-x-10 gap-y-3">
+        {rowDefs.map((fd) => (
+          <FilterGroup key={fd.key} fd={fd} {...groupProps} />
+        ))}
+      </div>
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // FilterPanel — renders all FilterDef groups for the current config
 // ---------------------------------------------------------------------------
 // `resetFilters` is optional: a caller that opens on a default other than
@@ -290,9 +313,7 @@ export default function FilterPanel({
         </div>
       </div>
 
-      {filterDefs.filter((fd) => !fd.advanced).map((fd) => (
-        <FilterGroup key={fd.key} fd={fd} {...groupProps} />
-      ))}
+      <FilterRows defs={filterDefs.filter((fd) => !fd.advanced)} groupProps={groupProps} />
 
       {advancedDefs.length > 0 && (
         <AdvancedFilters

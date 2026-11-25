@@ -181,3 +181,34 @@ it("draws no advanced button for defs with nothing advanced", () => {
   render(<Harness />);
   expect(screen.queryByRole("button", { name: /Advanced filters/ })).not.toBeInTheDocument();
 });
+
+// Consecutive defs that share a `row` are drawn side by side in one row, the
+// first at the left; a def with no row keeps a row of its own.
+it("draws defs that share a row side by side, in def order", () => {
+  const defs = [
+    { key: "status", label: "Status", type: "set", options: ["On"], match: () => true },
+    { key: "kind", label: "Kind", type: "set", options: ["TV"], row: "kind", match: () => true },
+    { key: "region", label: "Region", type: "set", options: ["US"], row: "kind", match: () => true },
+  ];
+  function Harness() {
+    const state = useFilterState(defs, []);
+    return (
+      <FilterPanel
+        filterDefs={defs}
+        filters={state.filters}
+        toggleFilter={state.toggleFilter}
+        clearFilters={state.clearFilters}
+        activeFilterCount={state.activeFilterCount}
+        dynamicFilterOptions={{}}
+      />
+    );
+  }
+  render(<Harness />);
+  const kindGroup = screen.getByText("Kind").parentElement;
+  const regionGroup = screen.getByText("Region").parentElement;
+  const statusGroup = screen.getByText("Status").parentElement;
+  expect(kindGroup.parentElement).toBe(regionGroup.parentElement);
+  expect(kindGroup.parentElement.className).toMatch(/\bflex\b/);
+  expect(kindGroup.nextElementSibling).toBe(regionGroup);
+  expect(statusGroup.parentElement).not.toBe(kindGroup.parentElement);
+});

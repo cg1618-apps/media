@@ -10,6 +10,7 @@ import {
   watchButtonColumn,
 } from "../../../components/layout/libraryColumns";
 import { compareTitles } from "../../../lib/naming";
+import { CARTOON_AIRING_TYPES } from "../../../config/fieldOptions";
 import {
   airingStatusFilter,
   genreFilters,
@@ -49,9 +50,8 @@ const CARTOON_LIBRARY_CONFIG = {
     {
       key: "airingType",
       label: "Airing Type",
-      type: "set-dynamic",
-      deriveOptions: (data) =>
-        [...new Set(data.map((d) => d.airing_type).filter(Boolean))].sort(),
+      type: "set",
+      options: CARTOON_AIRING_TYPES,
       match: (item, active) => active.has(item.airing_type),
     },
     watchStatusFilter("cartoon"),

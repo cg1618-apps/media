@@ -232,6 +232,11 @@ vocabulary reads at once. The watch libraries' Watch Status uses it to list
 the stored statuses each chip includes (`watchStatusFilter` in
 `lib/libraryFilterDefs.js`).
 
+An ordinary def may carry `row: "<name>"`: consecutive defs with the same
+row are drawn side by side on one line, in def order, with a gap between
+them (`FilterRows`); a def with no row keeps a line of its own. The TV show
+library puts Airing Type and Region on one row, Airing Type at the left.
+
 A def flagged `advanced: true` is drawn in the **advanced section** instead,
 after every ordinary def, behind an **Advanced filters** toggle
 (`aria-expanded`) that opens collapsed each time the panel mounts — so every

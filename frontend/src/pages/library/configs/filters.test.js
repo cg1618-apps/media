@@ -102,13 +102,14 @@ describe("the anime library filters", () => {
   });
 });
 
-// Every media-type library has an advanced section: exclusive source first
-// where the type has one, then the type's own genre and label vocabularies.
+// Every media-type library has an advanced section: exclusive source (or a
+// TV show's original source) first where the type has one, then the type's
+// own genre and label vocabularies, which always close the section.
 const ADVANCED_KEYS = {
   anime: ["exclusiveSource", "genreMain", "genreSub", "label"],
   "anime-movie": ["exclusiveSource", "genreMain", "genreSub", "label"],
   movie: ["exclusiveSource", "genreMain", "genreSub", "label"],
-  "tv-show": ["genreMain", "genreSub", "label"],
+  "tv-show": ["originalSource", "genreMain", "genreSub", "label"],
   cartoon: ["genreMain", "genreSub", "label"],
   manga: ["genreMain", "genreSub", "label"],
   book: ["genreMain", "genreSub", "label"],
@@ -130,6 +131,17 @@ describe.each(Object.entries(ADVANCED_KEYS))("the %s advanced section", (type, k
     expect(defs.filter((fd) => fd.advanced).map((fd) => fd.key)).toEqual(keys);
     const firstAdvanced = defs.findIndex((fd) => fd.advanced);
     expect(defs.slice(firstAdvanced).every((fd) => fd.advanced)).toBe(true);
+  });
+
+  it("puts the genre-related filters at the bottom", () => {
+    const GENRE_KEYS = new Set([
+      "genreMain", "genreSub", "label", "gameGenre", "gameTheme",
+      "hGenrePlot", "hGenreAppearance", "hGenreRelation",
+    ]);
+    const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
+    const firstGenre = advanced.findIndex((k) => GENRE_KEYS.has(k));
+    expect(firstGenre).toBeGreaterThan(-1);
+    expect(advanced.slice(firstGenre).every((k) => GENRE_KEYS.has(k))).toBe(true);
   });
 
   it("keeps the advanced filters catalogue, not personal", () => {
@@ -185,4 +197,44 @@ describe.each(["anime", "tv-show", "cartoon", "hentai"])("the %s airing-status f
         : def.options;
     expect(options).toEqual(ORDER);
   });
+});
+
+// A TV show's Original Source is a multi-value tag field, served under its
+// sheet header source_official; Airing Type offers TV first, and shares a
+// row with Region, drawn to its left.
+describe("the TV show library's filters", () => {
+  const defs = LIBRARY_CONFIGS["tv-show"].filterDefs;
+  const byKey = (key) => defs.find((fd) => fd.key === key);
+
+  it("filters by original source, any chosen value", () => {
+    const items = [
+      { system_id: "t1", source_official: "Netflix, HBO" },
+      { system_id: "t2", source_official: "HBO" },
+      { system_id: "t3", source_official: null },
+    ];
+    expect(byKey("originalSource").label).toBe("Original Source");
+    expect(byKey("originalSource").deriveOptions(items)).toEqual(["HBO", "Netflix"]);
+    const picked = applyFilterDefs(items, defs, active(defs, "originalSource", ["Netflix"]));
+    expect(picked.map((i) => i.system_id)).toEqual(["t1"]);
+  });
+
+  it("offers Airing Type with TV first, on Region's row and left of it", () => {
+    const airing = byKey("airingType");
+    expect(airing.options[0]).toBe("TV");
+    expect(airing.options).toContain("Special");
+    const keys = defs.map((fd) => fd.key);
+    expect(keys.indexOf("region")).toBe(keys.indexOf("airingType") + 1);
+    expect(airing.row).toBeTruthy();
+    expect(byKey("region").row).toBe(airing.row);
+    const items = [
+      { system_id: "a", airing_type: "TV" },
+      { system_id: "b", airing_type: "Special" },
+    ];
+    expect(applyFilterDefs(items, defs, active(defs, "airingType", ["Special"])).map((i) => i.system_id)).toEqual(["b"]);
+  });
+});
+
+it("offers a cartoon's Airing Type in the order TV, Movie, Special", () => {
+  const def = LIBRARY_CONFIGS.cartoon.filterDefs.find((fd) => fd.key === "airingType");
+  expect(def.options).toEqual(["TV", "Movie", "Special"]);
 });

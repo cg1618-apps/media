@@ -14,8 +14,10 @@ import { compareTitles } from "../../../lib/naming";
 import {
   airingStatusFilter,
   genreFilters,
+  tagFilter,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
+import { TV_SHOW_AIRING_TYPES } from "../../../config/fieldOptions";
 
 function getTitle(s)   { return s.tv_name_cn || s.tv_name_en || s.tv_name_alt || ""; }
 function getSortKey(s) { return s.tv_name_en || s.tv_name_alt || s.tv_name_cn || ""; }
@@ -45,15 +47,27 @@ const TV_LIBRARY_CONFIG = {
   filterDefs: [
     airingStatusFilter(),
     watchStatusFilter("tv-show"),
+    // Airing Type and Region share a line, Airing Type at the left.
+    {
+      key: "airingType",
+      label: "Airing Type",
+      type: "set",
+      options: TV_SHOW_AIRING_TYPES,
+      row: "kind",
+      match: (item, active) => active.has(item.airing_type),
+    },
     {
       key: "region",
       label: "Region",
       type: "set-dynamic",
+      row: "kind",
       deriveOptions: (data) =>
         [...new Set(data.map((d) => d.region).filter(Boolean))].sort(),
       match: (item, active) => active.has(item.region),
     },
-    // Advanced section (FilterPanel draws it collapsed).
+    // Advanced section (FilterPanel draws it collapsed). A TV show's original
+    // source is served under its sheet header, source_official.
+    tagFilter("originalSource", "Original Source", "source_official"),
     ...genreFilters(),
   ],
 
