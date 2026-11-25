@@ -7,6 +7,13 @@ import Identity from "./Identity";
 // Reassigned per test: a guest by default, an admin where a test says so.
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// The remark list and personal notes are NotesTemplate's to test; here only
+// that the page hands it this record as the owner.
+vi.mock("../notes/NotesTemplate", () => ({
+  default: ({ ownerType, ownerId }) => (
+    <div data-testid="entity-notes" data-owner-type={ownerType} data-owner-id={ownerId} />
+  ),
+}));
 // The page is behind its kind's view key, so its viewer holds the entity
 // keys and the cards on it link (useEntityHref).
 const ENTITY_KEYS = ["view.studio", "view.publisher", "view.person", "view.character"];
@@ -186,7 +193,7 @@ describe("Identity detail page", () => {
     );
   });
 
-  it("shows the character's role, tags and MAL with the identity's gender and remark", async () => {
+  it("shows the character's role, tags and MAL with the identity's gender", async () => {
     renderPage();
     const profile = (await screen.findByText("Profile")).closest("section");
     await waitFor(() => expect(within(profile).getByText("Main")).toBeInTheDocument());
@@ -199,7 +206,14 @@ describe("Identity detail page", () => {
     );
     expect(within(profile).getByText("男")).toBeInTheDocument();
     expect(within(profile).queryByText("女")).toBeNull();
-    expect(within(profile).getByText("Shrunk by APTX 4869.")).toBeInTheDocument();
+  });
+
+  // The remark list and personal notes are this identity's notes block.
+  it("draws the remark list and personal notes for this identity", async () => {
+    renderPage();
+    const notes = await screen.findByTestId("entity-notes");
+    expect(notes).toHaveAttribute("data-owner-type", "identity");
+    expect(notes.getAttribute("data-owner-id")).toBeTruthy();
   });
 
   it("links the character's MyAnimeList page beside the name", async () => {
@@ -239,7 +253,6 @@ describe("Identity detail page", () => {
     expect(await screen.findByRole("heading", { name: "Edogawa Conan" })).toBeInTheDocument();
     const profile = screen.getByText("Profile").closest("section");
     expect(within(profile).getByText("男")).toBeInTheDocument();
-    expect(within(profile).getByText("Shrunk by APTX 4869.")).toBeInTheDocument();
     // The character card still links, from what the identity itself carries.
     const section = screen.getByRole("heading", { name: /^Character/ }).closest("section");
     expect(within(section).getByRole("link", { name: /Kudo Shinichi/ })).toHaveAttribute(

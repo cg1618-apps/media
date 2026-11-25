@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.utils.media_resolver import OWNER_TABLES
+from app.utils.media_resolver import NOTE_OWNER_TABLES
 from app.utils.note_sections import (
     FIELD_CHOICE_NODE,
     FIELD_LINKS,
@@ -723,7 +723,7 @@ def validate_note_payload(payload: NoteBase, allow_empty: bool = False) -> None:
     edited. A PATCH can never empty a row that says something.
     """
     owner_type = payload.owner_type
-    if owner_type not in OWNER_TABLES:
+    if owner_type not in NOTE_OWNER_TABLES:
         raise ValueError(f"Unknown owner_type '{owner_type}'.")
 
     section = section_by_key(payload.section or "")

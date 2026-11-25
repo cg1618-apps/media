@@ -397,7 +397,7 @@ def patch_character(
     admin: Viewer = Depends(require_manage_catalog),
 ):
     """
-    Partially updates a character - the detail page's inline remark edit.
+    Partially updates a character - the detail page's inline edits.
     Only the keys sent change. The viewer's rating is not a column here; it
     is written through PUT /api/me/ratings/character/{id}.
 
@@ -599,7 +599,7 @@ def sync_character_from_cast(
     ):
         raise HTTPException(status_code=404, detail="Cast row not found.")
 
-    casting_sync.sync_character_from_cast(db, character, casting)
+    casting_sync.sync_character_from_cast(db, character, casting, author_id=admin.user_id)
     db.commit()
     db.refresh(character)
     return character_response(db, character, admin)

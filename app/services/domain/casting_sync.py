@@ -41,6 +41,7 @@ from app.services.domain.casting import (
     fallback_photo,
     fill_character_roles,
 )
+from app.services.domain.entity_remarks import add_remark, has_remark
 from app.utils.character_roles import CHARACTER_ROLES
 
 # (character_id, identity_id) - identity_id None is the main identity.
@@ -194,13 +195,18 @@ class CastSyncError(ValueError):
 
 
 def sync_character_from_cast(
-    db: Session, character: models.Character, casting: models.CharacterCasting
+    db: Session,
+    character: models.Character,
+    casting: models.CharacterCasting,
+    author_id=None,
 ) -> None:
     """
     Replaces the cast row's original with the row's values: the identity's
-    remark and photo when the row names one, otherwise the character's role,
-    remark and photo. A value the row does not hold - no role, a blank
-    remark, no photo of its own - leaves the original's alone.
+    photo when the row names one, otherwise the character's role and photo.
+    The row's remark is added to the original's Remark list (by `author_id`,
+    the admin syncing) rather than replacing anything, and is not added twice.
+    A value the row does not hold - no role, a blank remark, no photo of its
+    own - leaves the original's alone.
     """
     if casting.character_id != character.system_id:
         raise CastSyncError("That cast row is not one of this character's.")
@@ -213,7 +219,13 @@ def sync_character_from_cast(
     if identity is None and casting.role in CHARACTER_ROLES:
         character.role = casting.role
     if not _blank(casting.remark):
-        target.remark = casting.remark
+        add_remark(
+            db,
+            "identity" if identity is not None else "character",
+            target.system_id,
+            casting.remark,
+            author_id,
+        )
     if casting.photo_file:
         _set_photo(db, target, casting.photo_file, casting.photo_focus)
 
@@ -268,8 +280,9 @@ def fill_cast_and_characters(db: Session) -> dict:
 
     Cast rows to their originals first: an empty character role takes the
     highest-ranked role its rows carry (fill_character_roles), and an empty
-    remark or photo on a character - or on an identity - takes the value of
-    its highest-ranked row that has one, ties to the oldest. Only the rows
+    photo on a character - or on an identity - takes the value of its
+    highest-ranked row that has one, ties to the oldest, and an original with
+    no Remark row takes that row's remark as its first. Only the rows
     casting that very record count: an identity's rows fill the identity,
     the main identity's fill the character.
 
@@ -320,10 +333,10 @@ def fill_cast_and_characters(db: Session) -> dict:
             continue
         kind = "identity" if identity_id else "character"
         ranked = sorted(rows, key=lambda c: (_role_rank(c.role), _created(c)))
-        if _blank(original.remark):
+        # An original whose Remark list is empty takes its best row's remark.
+        if not has_remark(db, kind, original.system_id):
             source = next((c for c in ranked if not _blank(c.remark)), None)
-            if source is not None:
-                original.remark = source.remark
+            if source is not None and add_remark(db, kind, original.system_id, source.remark):
                 counts[f"{kind}_remark"] += 1
         if not original.photo_file:
             source = next((c for c in ranked if c.photo_file), None)

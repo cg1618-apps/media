@@ -302,14 +302,6 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <MyRatingFields kind="person" form={personForm} update={upf} />
       </div>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={3}
-          value={personForm.remark ?? ""}
-          onChange={(e) => upf("remark", e.target.value)}
-        />
-      </Field>
     </div>
   );
 }

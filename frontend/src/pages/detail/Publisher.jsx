@@ -11,8 +11,9 @@
 // mal_id/mal_link at all - and a Types row naming the media types it is
 // offered on (`scopes`).
 //
-// An admin gets the controls Person.jsx has (EntityProfileControls): Quick
-// edit and the remark, PATCHed in place. My rating is the viewer's own, set
+// An admin gets the controls Person.jsx has (EntityProfileControls): the jump
+// to the full editor. The remark list and personal notes are a notes block
+// (NotesTemplate, owner type "publisher"). My rating is the viewer's own, set
 // by a holder of self.list through PUT /api/me/ratings.
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -21,14 +22,13 @@ import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { releaseYear } from "../../lib/releaseDate";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
+import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
 import RelatedRecords from "../../components/info/RelatedRecords";
 import NamingCard from "../../components/info/NamingCard";
 import {
   AdminToolbar,
   RatingSelect,
-  RemarkEditor,
-  useEntityPatch,
 } from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp, eyebrowCls } from "../../components/ui/primitives";
@@ -56,7 +56,6 @@ export default function Publisher() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
-  const patch = useEntityPatch("publisher", publisher?.system_id, setPublisher);
   // My rating is the viewer's own (self.list), saved through /api/me/ratings.
   const { ownData: canRate } = useViewScope();
   const saveMyRating = useMyRatingSaver("publisher", publisher?.system_id, setPublisher);
@@ -218,17 +217,11 @@ export default function Publisher() {
                   </a>
                 ) : null,
               },
-              ...(isAdmin ? [] : [{ label: "Remark", value: publisher.remark }]),
             ]}
           />
 
-          {isAdmin && (
-            <RemarkEditor
-              systemId={publisher.system_id}
-              remark={publisher.remark}
-              onSave={(v) => patch({ remark: v }, "Remark saved")}
-            />
-          )}
+          {/* The remark list and personal notes (app/utils/note_sections.py). */}
+          <NotesTemplate ownerType="publisher" ownerId={publisher.system_id} />
 
           <RelatedRecords
             type="publisher"

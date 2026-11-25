@@ -1080,18 +1080,21 @@ alone), a "Profile" `InfoCard` (gender; the types they are offered under, by
 their `PERSON_SUB_TABS` labels — Director, Music / Composer; **Affiliation**, the
 studios they belong to as links; MAL as an external
 link reading `Person #<mal_id>`; IMDb the same way, reading the `nm…` id;
-Twitter, Instagram and pixiv as links reading the URL; and for a non-admin the
-remark), (admin) a **Remarks** textarea, then one section per group. Every
-external link is shown to every viewer of the page.
+Twitter, Instagram and pixiv as links reading the URL), the **Notes** block,
+then one section per group. Every external link is shown to every viewer of
+the page.
+
+**Notes** (`NotesTemplate ownerType="person"`, `ownerId` the person's
+`system_id`) sit under the Profile card: the 備註 Remark list and 個人筆記
+Personal Notes, the only two sections an entity owns, read and written as on
+any notes page ([systems/notes.md](../systems/notes.md)); a guest sees no personal section.
 
 The admin controls are `components/info/EntityProfileControls.jsx`, shared
 with the character, studio and publisher pages. The rating select is the
 viewer's own and drawn for a holder of `self.list`, not by `isAdmin`: it
 sends `PUT /api/me/ratings/person/{system_id}` `{my_rating}` on change
 (Unrated sends null) and folds the answer into the page's state
-(`useMyRatingSaver`). The remark (admin) PATCHes `{remark}` on blur, an
-emptied one as null and an untouched one not at all, to
-`PATCH /api/person/{system_id}`, and the response becomes the page's state.
+(`useMyRatingSaver`).
 
 The one difference from the studio page: a person may hold several roles, so
 `/entries` groups by **(media type, role)** and each heading is the group's
@@ -1146,13 +1149,14 @@ order (`tagChips`) ("—" when empty, like every unset row), and a **MAL** row: 
 link. The layout and the admin controls — Edit
 to `/modify?id=<system_id>&type=character`, **Autofill & update** for a
 character with a MAL link (`POST /api/character/{system_id}/autofill`, as on
-the person page), and the Remarks textarea,
-PATCHing `/api/character/{system_id}`, and the viewer's own My rating select
+the person page), and the viewer's own My rating select
 (`self.list`, `PUT /api/me/ratings/character/{system_id}`) — are the person
 page's, as is the Naming card in place of a list of other names. The photo
 is `display_photo_file`: the photo, else a casting photo (the chosen entry's,
 then the newest visible), else an entry cover (the same order), else
-`FALLBACK_SVG`.
+`FALLBACK_SVG`. Under the First Appearances card, the character's **Notes**
+(`NotesTemplate ownerType="character"`) hold its Remark list and Personal
+Notes, as on the person page.
 
 The one structural difference from the person page: `GET
 /api/character/{id}/entries` groups **by media type only**, because a
@@ -1170,7 +1174,7 @@ here" inside it, same rule the person and studio pages follow.
 **Identities.** A character with other identities draws an **Identities**
 section after the profile: one card per identity
 (`components/info/IdentityCard.jsx`) with its
-photo (`display_photo_file`), display name, its other non-empty names (the four name columns but the displayed one), resolved gender and remark, each
+photo (`display_photo_file`), display name, its other non-empty names (the four name columns but the displayed one) and resolved gender, each
 card a link to the identity's own page (below); an identity with no
 `public_id` in the response renders as plain markup. The appearances list shows one card **per
 cast row**, keyed by `casting_id`: an entry the character is cast in under two
@@ -1185,7 +1189,7 @@ File `pages/detail/Identity.jsx`, route `/identity/:publicId/:slug?`. The
 public page for one of a character's other identities (Edogawa Conan of Kudo
 Shinichi), hand-built beside `Character.jsx` and shaped like it: an identity
 is its character under another name, so the page shows what the character
-page does. The names, photo, gender, remark and firsts are the identity's own; the
+page does. The names, photo, gender, firsts and notes are the identity's own; the
 role, the appearance and trait tags, the rating and the MAL link are the
 character's. `GET /api/character-identity/{id}` by the URL's public id comes
 first, and its failing is the page's 404 ("Identity not found."). Then two
@@ -1206,18 +1210,19 @@ the character's `my_rating` stamp on it, read-only, and a **Naming** card
 display name, its appearance count and the character's **MyAnimeList**
 button (`MalButton`), a "Profile" `InfoCard` — **Role**, then **Gender**
 (`display_gender`, the character's when the identity sets none), then
-**Appearance** and **Trait** (`tagChips`) and **MAL** from the character, and
-the identity's **Remark**, shown to everyone — with a faint line under it,
+**Appearance** and **Trait** (`tagChips`) and **MAL** from the character —
+with a faint line under it,
 "Role, tags, rating and MAL are <character>'s." Under it a **First
 Appearances** `InfoCard` lists the identity's own firsts, only those set, and
-is left out when none is; the character's firsts never show here. Then a **Character** section:
+is left out when none is; the character's firsts never show here. Then the
+identity's own **Notes** (`NotesTemplate ownerType="identity"`, its Remark
+list and Personal Notes - never the character's), then a **Character** section:
 the character's own card, labelled **Character** and linking to its page, then
 its other identities, labelled **Identity**, this one left out — all
-`IdentityCard`s; the character's card never shows the character's remark.
+`IdentityCard`s.
 Then one section per media type the entries endpoint returned. Nothing is
-edited in place: an identity has no `PATCH` route and its rating is the
-character's, set on the character's page, so there is no rating select and no
-remarks textarea.
+edited in place but the notes: an identity has no `PATCH` route and its rating
+is the character's, set on the character's page, so there is no rating select.
 
 The appearance sections are the character page's: `/entries` answers the same shape,
 narrowed to the cast rows that name this identity, a group the viewer may see
@@ -1237,8 +1242,8 @@ call failing is not, a breadcrumb back to `/library/publisher`, the admin
 strip with Edit to `/modify?id=<system_id>&type=publisher`, the
 logo-plus-rating left column with the viewer's own My rating select
 (`self.list`, `PUT /api/me/ratings/publisher/{system_id}`) and the Naming
-card, the Remarks textarea for an admin (the remark row for anyone else),
-PATCHing `/api/publisher/{system_id}`, the **Related companies** slip
+card, the **Notes** block (`NotesTemplate ownerType="publisher"`, the Remark
+list and Personal Notes), the **Related companies** slip
 (`RelatedRecords type="publisher"`), and one section per group the entries
 endpoint returned rendered as the same local `CreditCard`.
 
@@ -1253,15 +1258,15 @@ studio page's.
 
 File `pages/detail/Studio.jsx`. The public profile for one studio, built by
 hand beside the media detail pages rather than from their shape: a studio has
-no franchise, no tracker and no notes.
+no franchise and no tracker, and of the notes only the two an entity owns.
 
 Two raw fetches: `GET /api/studio/{id}` by the URL's public id, then
 `GET /api/studio/{id}/entries` by the `system_id` it returns. The studio call
 failing is the page's 404 (rendered through `MediaLoadingState`, as the media
 pages render theirs); the entries call failing is not, since a profile
-without its credits is still worth showing. The admin controls write back
-through PATCH and take the response as the page's state, so plain `fetch`
-serves where the media detail pages need TanStack hooks.
+without its credits is still worth showing. Autofill and the rating select
+take their response as the page's state, so plain `fetch` serves where the
+media detail pages need TanStack hooks.
 
 Layout:
 
@@ -1281,8 +1286,9 @@ Layout:
    as on the person and character pages; none without one), a "Profile"
    `InfoCard` (countries, comma-joined in order; `founded – defunct`, or `Since founded` while the
    studio is still working, and no invented span when both are empty;
-   website and MAL — `Producer #<mal_id>` — as external links; the remark
-   for a non-admin), (admin) the **Remarks** textarea, the **Related
+   website and MAL — `Producer #<mal_id>` — as external links), the
+   **Notes** block (`NotesTemplate ownerType="studio"`: the Remark list and
+   Personal Notes, a guest seeing no personal section), the **Related
    companies** slip (`RelatedRecords type="studio"`: studios and publishers,
    each marked with its kind), the **People** slip (`AffiliatedPeople`, the
    people affiliated with the studio; none drawn when there are none), then
@@ -1292,8 +1298,7 @@ Layout:
 
 The controls are `EntityProfileControls`, the person page's: the
 viewer's own rating select (`self.list`) sends
-`PUT /api/me/ratings/studio/{system_id}` on change, and the admin's remark
-PATCHes `{remark}` on blur to `PATCH /api/studio/{system_id}`.
+`PUT /api/me/ratings/studio/{system_id}` on change.
 
 Empty `groups` renders "No credited entries" as an ordinary empty state, not
 an error: that is exactly what a viewer whose permissions hide every one of

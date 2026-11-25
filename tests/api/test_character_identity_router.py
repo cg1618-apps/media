@@ -54,10 +54,10 @@ def test_put_updates_fields_but_not_the_character(owner_client, character, secon
     created = _create(owner_client, character)
     r = owner_client.put(
         f"{BASE}{created['system_id']}",
-        json={"name_en": "Conan", "remark": "glasses", "character_id": str(second_character.system_id)},
+        json={"name_en": "Conan", "name_alt": "glasses", "character_id": str(second_character.system_id)},
     )
     assert r.status_code == 200
-    assert r.json()["remark"] == "glasses"
+    assert r.json()["name_alt"] == "glasses"
     assert r.json()["character_id"] == str(character.system_id)
 
 

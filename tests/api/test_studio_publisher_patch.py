@@ -1,6 +1,6 @@
 """
 PATCH /api/studio/{id} and PATCH /api/publisher/{id}: the detail pages'
-inline rating and remark edits, under the rules PUT enforces.
+inline rating and name edits, under the rules PUT enforces.
 
 Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
@@ -34,23 +34,23 @@ def _patch(client, kind, entity, body):
 def test_patch_changes_only_the_keys_sent(owner_client, record, kind):
     # A studio names any number of countries; a publisher one.
     field, value = ("countries", ["Japan"]) if kind == "studio" else ("country", "Japan")
-    r = _patch(owner_client, kind, record[kind], {field: value, "remark": "Kept"})
+    r = _patch(owner_client, kind, record[kind], {field: value, "name_alt": "Kept"})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body[field] == value
-    assert body["remark"] == "Kept"
+    assert body["name_alt"] == "Kept"
     assert body["name_en"] == record[kind].name_en
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_patch_returns_the_full_response(owner_client, record, kind):
-    body = _patch(owner_client, kind, record[kind], {"remark": "x"}).json()
+    body = _patch(owner_client, kind, record[kind], {"name_alt": "x"}).json()
     for key in ("public_id", "display_name", "credit_count", "media_types", "restricted"):
         assert key in body
 
 
 def test_publisher_patch_keeps_its_scopes(owner_client, record):
-    body = _patch(owner_client, "publisher", record["publisher"], {"remark": "x"}).json()
+    body = _patch(owner_client, "publisher", record["publisher"], {"name_alt": "x"}).json()
     assert body["scopes"] == ["game"]
 
 
@@ -79,12 +79,12 @@ def test_patch_refuses_what_put_would_refuse(owner_client, record, kind, body):
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_a_guest_cannot_patch(client, record, kind):
-    assert _patch(client, kind, record[kind], {"remark": "x"}).status_code == 401
+    assert _patch(client, kind, record[kind], {"name_alt": "x"}).status_code == 401
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_a_signed_in_non_admin_cannot_patch(user_client, record, kind):
-    assert _patch(user_client, kind, record[kind], {"remark": "x"}).status_code in (
+    assert _patch(user_client, kind, record[kind], {"name_alt": "x"}).status_code in (
         401,
         403,
     )
@@ -92,7 +92,7 @@ def test_a_signed_in_non_admin_cannot_patch(user_client, record, kind):
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_patching_an_unknown_id_is_404(owner_client, kind):
-    r = owner_client.patch(f"/api/{kind}/{uuid.uuid4()}", json={"remark": "x"})
+    r = owner_client.patch(f"/api/{kind}/{uuid.uuid4()}", json={"name_alt": "x"})
     assert r.status_code == 404
 
 

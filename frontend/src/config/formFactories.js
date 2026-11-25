@@ -642,7 +642,6 @@ export const defaultStudio = () => ({
   defunct_date: "",
   mal_id: "",
   mal_link: "",
-  remark: "",
 });
 
 // A publisher carries the same shape as a studio minus the two MAL columns:
@@ -661,7 +660,6 @@ export const defaultPublisher = () => ({
   website_url: "",
   founded_date: "",
   defunct_date: "",
-  remark: "",
   // Which media types offer this publisher. Empty means offered NOWHERE, not
   // everywhere - see PublisherScope in app/models/staff.py.
   scopes: [],
@@ -685,7 +683,6 @@ export const defaultPerson = () => ({
   // The studios the person belongs to, as {system_id, display_name} refs;
   // sent as studio_ids.
   affiliations: [],
-  remark: "",
 });
 
 // Identical in shape to a person today, but kept separate: the two are
@@ -703,7 +700,6 @@ export const defaultCharacter = () => ({
   photo_focus: null,
   pending_image_id: null,
   mal_link: "",
-  remark: "",
   // Free text; lib/characterForm.js's firstsPayload sends a blank one as null.
   first_mention: "",
   first_appearance: "",

@@ -5,7 +5,7 @@ import dataclasses
 import pytest
 
 from app.utils import note_sections as ns
-from app.utils.media_resolver import OWNER_TABLES
+from app.utils.media_resolver import NOTE_OWNER_TABLES, OWNER_TABLES
 
 
 def test_every_section_has_a_known_shape():
@@ -32,7 +32,12 @@ def test_section_keys_are_unique():
 def test_every_owner_is_a_real_owner_table():
     for sec in ns.NOTE_SECTIONS:
         for owner in sec.owners:
-            assert owner in OWNER_TABLES, f"{sec.key} names unknown owner {owner}"
+            assert owner in NOTE_OWNER_TABLES, f"{sec.key} names unknown owner {owner}"
+
+
+def test_an_entity_owns_the_remark_list_and_personal_notes_only():
+    for owner in ns.ENTITY_OWNERS:
+        assert [s.key for s in ns.NOTE_SECTIONS if owner in s.owners] == ["remark", "personal_notes"]
 
 
 def test_no_section_is_a_singleton():

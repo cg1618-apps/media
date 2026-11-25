@@ -47,7 +47,6 @@ function personToForm(p) {
     ig_link: p.ig_link || "",
     pixiv_link: p.pixiv_link || "",
     affiliations: p.affiliations || [],
-    remark: p.remark || "",
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: p.my_rating || "",
     photo_fallback_entry_id: p.photo_fallback_entry_id || null,
@@ -181,7 +180,6 @@ export default function PersonModifyTab({ initialId = null } = {}) {
           twitter_link: personForm.twitter_link?.trim() || null,
           ig_link: personForm.ig_link?.trim() || null,
           pixiv_link: personForm.pixiv_link?.trim() || null,
-          remark: personForm.remark || null,
           photo_fallback_entry_id: personForm.photo_fallback_entry_id || null,
           // PUT replaces the whole role set, so this must be every type the
           // person holds, not just the sub-tab's one.

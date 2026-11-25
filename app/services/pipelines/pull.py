@@ -60,6 +60,13 @@ from app.services.domain.credits import (
     replace_credits,
     replace_tags,
 )
+from app.services.domain.entity_remarks import (
+    ENTITY_TABS as ENTITY_REMARK_TABS,
+)
+from app.services.domain.entity_remarks import (
+    convert_stashed_remarks,
+    stash_legacy_remark,
+)
 from app.services.domain.gated_labels import enforce_gated_label_invariants
 from app.services.domain.h_comic import (
     enforce_h_comic_invariants,
@@ -667,6 +674,10 @@ def unexpected_headers(tab_name: str, headers: list) -> list[str]:
     known |= RENAMED_HEADERS.get(tab_name, frozenset())
     known |= RETIRED_HEADERS.get(tab_name, frozenset())
     known |= legacy_personal_headers(tab_name)
+    # An entity's remark is no column any more, but an older tab's is read
+    # and filed as a Remark row (convert_stashed_remarks).
+    if tab_name in ENTITY_REMARK_TABS:
+        known.add("remark")
     media_type = _MEDIA_TYPE_FOR_TAB.get(tab_name)
     if media_type:
         for role in credit_roles_for(media_type):
@@ -751,7 +762,10 @@ def _restore_owner_id(db: Session):
     return installation_owner_id(db)
 
 
-_NOTE_OWNER_COLUMNS = ("media_id", "collection_id", "franchise_id", "series_id")
+_NOTE_OWNER_COLUMNS = (
+    "media_id", "collection_id", "franchise_id", "series_id",
+    "studio_id", "publisher_id", "person_id", "character_id", "identity_id",
+)
 
 _NOTE_TIER_COLUMNS = {
     "collection": "collection_id",
@@ -2414,6 +2428,12 @@ def execute_pull_specific(
         legacy_personal = (
             pop_legacy_personal(tab_name, clean_header_dict) or legacy_note_values
         )
+        # An entity tab backed up before e1n2tremark3 still carries `remark`:
+        # held aside, and stashed under the row's own id once it exists, to
+        # become a Remark row after the tabs are in (convert_stashed_remarks).
+        legacy_remark = (
+            clean_header_dict.get("remark") if tab_name in ENTITY_REMARK_TABS else None
+        )
 
         clean_header_dict = drop_non_columns(Model, clean_header_dict)
 
@@ -2480,6 +2500,13 @@ def execute_pull_specific(
                 except AmbiguousNameError as e:
                     credit_conflicts.append(f"{tab_name} [{field_key}]: {e}")
                     logger.warning("Ambiguous %s on '%s' row: %s", field_key, tab_name, e)
+
+        if legacy_remark:
+            if entry.system_id is None:
+                db.flush()
+            stash_legacy_remark(
+                db, tab_name, {"system_id": entry.system_id, "remark": legacy_remark}
+            )
 
         if legacy_personal:
             if entry.system_id is None:
@@ -2567,6 +2594,12 @@ def execute_pull_specific(
         db.commit()
     elif tab_name in LABEL_TAG_RECONCILE_TABS:
         reconcile_label_tags(db)
+        db.commit()
+    # An older entity tab's remarks, as Remark rows of entities whose list is
+    # still empty. Pull All runs it again after the Note tab (which restores
+    # the lists themselves), so either order ends with each remark once.
+    if tab_name in ENTITY_REMARK_TABS:
+        convert_stashed_remarks(db)
         db.commit()
 
     logger.info("Successfully pulled and upserted %s records from '%s'.", processed, tab_name)
@@ -2674,6 +2707,10 @@ def execute_pull_all(
         # A tab that could not be read is re-pulled later, and its Franchise
         # tab brings the ACG back to be split again.
         split_acg_franchise_types(db)
+        db.commit()
+        # Any older entity remark the entity tabs stashed and their own pass
+        # could not file yet.
+        convert_stashed_remarks(db)
         db.commit()
 
     except Exception as e:

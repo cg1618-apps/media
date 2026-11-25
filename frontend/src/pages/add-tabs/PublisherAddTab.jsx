@@ -133,14 +133,6 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <MyRatingFields kind="publisher" form={publisherForm} update={upf} />
       </div>
-      <Field label="Remark">
-        <textarea
-          className={inputCls}
-          rows={2}
-          value={publisherForm.remark ?? ""}
-          onChange={(e) => upf("remark", e.target.value)}
-        />
-      </Field>
     </div>
   );
 }

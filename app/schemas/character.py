@@ -29,7 +29,6 @@ class CharacterBase(BaseModel):
     # What the character is to their story overall - CHARACTER_ROLES or None.
     # When None, a cast save or Calculate fills it from the castings' roles.
     role: Optional[str] = None
-    remark: Optional[str] = None
     # Where the character is first named, first shown and first met by the
     # main character - free text, see app/models/character.py.
     first_mention: Optional[str] = None
@@ -120,7 +119,6 @@ class IdentityBase(BaseModel):
     # None is "the same as the character's" - resolved into display_gender
     # on read, never copied.
     gender: Optional[str] = None
-    remark: Optional[str] = None
     # The identity's own firsts; never the character's.
     first_mention: Optional[str] = None
     first_appearance: Optional[str] = None

@@ -41,18 +41,18 @@ def _patch(client, kind, entity, body):
 @pytest.mark.parametrize("kind", KINDS)
 def test_patch_changes_only_the_keys_sent(owner_client, record, kind):
     entity = record[kind]
-    r = _patch(owner_client, kind, entity, {"gender": "女", "remark": "Kept note"})
+    r = _patch(owner_client, kind, entity, {"gender": "女", "name_alt": "Kept note"})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["gender"] == "女"
-    assert body["remark"] == "Kept note"
+    assert body["name_alt"] == "Kept note"
     assert body["name_cn"] in ("一花", "測試")
     assert body["name_en"] == entity.name_en
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_patch_returns_the_full_response(owner_client, record, kind):
-    body = _patch(owner_client, kind, record[kind], {"remark": "x"}).json()
+    body = _patch(owner_client, kind, record[kind], {"name_alt": "x"}).json()
     for key in ("display_photo_file", "media_types", "restricted", "public_id"):
         assert key in body
 
@@ -103,35 +103,35 @@ def test_patch_may_clear_one_name_but_not_the_last(owner_client, record, kind):
 @pytest.mark.parametrize("kind", KINDS)
 @pytest.mark.parametrize("column", ["system_id", "public_id", "created_at"])
 def test_patch_refuses_server_columns(owner_client, record, kind, column):
-    r = _patch(owner_client, kind, record[kind], {column: None, "remark": "x"})
+    r = _patch(owner_client, kind, record[kind], {column: None, "name_alt": "x"})
     assert r.status_code == 422
     assert column in r.json()["detail"]
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_patch_ignores_a_key_that_is_not_a_column(owner_client, record, kind):
-    r = _patch(owner_client, kind, record[kind], {"display_name": "x", "remark": "y"})
+    r = _patch(owner_client, kind, record[kind], {"display_name": "x", "name_alt": "y"})
     assert r.status_code == 200, r.text
-    assert r.json()["remark"] == "y"
+    assert r.json()["name_alt"] == "y"
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_a_guest_cannot_patch(client, record, kind):
-    assert _patch(client, kind, record[kind], {"remark": "x"}).status_code == 401
+    assert _patch(client, kind, record[kind], {"name_alt": "x"}).status_code == 401
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_a_signed_in_non_admin_cannot_patch(user_client, db_session, record, kind):
     """401, not 403: require_permission answers an insufficient permission
     with 401 on purpose (see test_fx_rates.py)."""
-    assert _patch(user_client, kind, record[kind], {"remark": "x"}).status_code == 401
+    assert _patch(user_client, kind, record[kind], {"name_alt": "x"}).status_code == 401
     db_session.expire_all()
-    assert db_session.get(type(record[kind]), record[kind].system_id).remark is None
+    assert db_session.get(type(record[kind]), record[kind].system_id).name_alt is None
 
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_patching_a_missing_record_is_a_404(owner_client, kind):
-    r = owner_client.patch(f"/api/{kind}/{uuid.uuid4()}", json={"remark": "x"})
+    r = owner_client.patch(f"/api/{kind}/{uuid.uuid4()}", json={"name_alt": "x"})
     assert r.status_code == 404
 
 

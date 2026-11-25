@@ -98,7 +98,6 @@ class Character(Base, NameFallbackMixin):
     # set. Calculate All's cast sync also fills a casting's empty role from
     # it (domain/casting_sync.py).
     role = Column(String, nullable=True)
-    remark = Column(Text, nullable=True)
     # Where the character first turns up, as free text in whatever notation
     # the work uses ("第1卷 第13章", "1-13", "S1 ep 8"). first_mention: first
     # talked about or named, before being seen. first_appearance: first shown
@@ -286,7 +285,6 @@ class CharacterIdentity(Base, NameFallbackMixin):
     # One of constants.GENDERS, or NULL: the same as the character's,
     # resolved on read (services/domain/character_identities.py), never copied.
     gender = Column(String, nullable=True)
-    remark = Column(Text, nullable=True)
     # The identity's own firsts, as on Character - never the character's:
     # a disguise is usually met long after the character it hides.
     first_mention = Column(Text, nullable=True)

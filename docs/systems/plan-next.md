@@ -1,6 +1,6 @@
 # Plan Next
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 ## What this is for
 
@@ -27,7 +27,7 @@ Owner: `app/models/plan_next.py`. The revisions that built it are in [notes/migr
 
 Constraints: `ck_plan_next_one_owner`, a `CHECK (num_nonnulls(media_id, franchise_id, series_id) = 1)` so exactly one owner is set; `uq_plan_next_target`, now `UNIQUE NULLS NOT DISTINCT (user_id, kind, media_type, media_id, franchise_id, series_id)` (a franchise can be both queued and marked for rewatch, so `kind` is part of the key, and `NULLS NOT DISTINCT` is needed because two owner columns are NULL on every row); and index `ix_plan_next_user_kind_type` on `(user_id, kind, media_type)`, which is exactly how the Plan page reads one tab of one section for one user.
 
-There is **no collection scope**. `SCOPES` is `("entry", "series", "franchise")`, so the disjoint set is three columns rather than four; a `collection_id` here could never be written, because the API rejects any scope outside `SCOPES`. `note` and `meme` resolve through the full `OWNER_TABLES` and carry a fourth owner column for collections.
+There is **no collection scope**. `SCOPES` is `("entry", "series", "franchise")`, so the disjoint set is three columns rather than four; a `collection_id` here could never be written, because the API rejects any scope outside `SCOPES`. `meme` resolves through the full `OWNER_TABLES` and `note` through `NOTE_OWNER_TABLES`, which adds the five entities; both carry a fourth owner column for collections.
 
 `scope` and `target_id` survive as **derived read-only properties** on the model. `OWNER_COLUMN` maps a scope to its column, `owner_kwargs(scope, target_id)` builds the constructor argument, and `scope_for_columns(...)` reads the direction back - all in `app/utils/plan_next_kinds.py`. They stay because they are the API's wire format, the key `drop_hidden_rows` reads, and what the Plan page's JSON and the Google Sheets tab carry: the fact is stored once and read two ways.
 

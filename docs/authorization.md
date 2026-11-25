@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 ## What this is for
 
@@ -1237,7 +1237,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | option lists (`/api/options/`, `/api/options/{category}`) and option writes | `routers/options.py` (`_visible_options`) — [Shared records](#shared-records) |
 | collections (list, detail, writes) | `routers/collection.py` (`apply_collection_visibility`, `collection_visible`) — hidden by its own labels; 404 "Collection not found." on detail, `PUT` and `PATCH`, "Collection not found" on `DELETE` |
 | series (list, detail, writes) | `routers/series.py` (`apply_series_visibility`, `series_visible`) — hidden by its own labels or a hidden franchise above it; rating and expectation are the viewer's own, as on franchises and collections - see [Ratings and expectations](#ratings-and-expectations-user_rating) |
-| notes for an owner | `routers/note.py` → 404 for a hidden entry, collection, franchise or series owner (`tier_visible`, `require_visible_owner`), personal sections - the six highlight sections among them - return only the viewer's own rows (none for a logged-out viewer) |
+| notes for an owner | `routers/note.py` → 404 for a hidden entry, collection, franchise or series owner (`tier_visible`, `require_visible_owner`), and for an entity owner (studio, publisher, person, character, identity) that is missing, is claimed as the wrong entity type, lacks the viewer's view permission (`view.studio`, `view.publisher`, `view.person`, `view.character` - an identity answers to `view.character`) or fails `shared_record_visible` (`_entity_visible`), on reads and writes alike; personal sections - the six highlight sections among them - return only the viewer's own rows (none for a logged-out viewer) |
 | quotes (list, grouped, by id) | `routers/quote.py` — every read behind the `quotes_memes` feature (`require_feature_quotes_memes`), then `drop_hidden_rows` |
 | memes (list, grouped, by id) | `routers/meme.py` — every read behind the `quotes_memes` feature; a meme on a hidden entry, collection, franchise or series is dropped; writes use `require_visible_owner` |
 | plan-next rows | `routers/plan_next.py` |
@@ -1756,8 +1756,12 @@ h-game's highlight group order is per account too, in
 **A remark is the catalogue's.** `remark` is a shared list - any number of
 rows per owner - written under `manage.catalog` and read by everyone who can
 see the owner, a logged-out visitor included. A member's own notes on an
-entry or a group go in 個人筆記 `personal_notes`, which is personal; there is
-no per-account remark route.
+entry, a group or an entity go in 個人筆記 `personal_notes`, which is
+personal; there is no per-account remark route. An entity - studio,
+publisher, person, character, identity - owns these two sections and no
+other, and is seen as its own page is: its view permission (an identity's is
+`view.character`) and `shared_record_visible`; anything else is **404 "Owner
+not found."**
 
 ## Admin routes
 

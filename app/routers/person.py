@@ -143,7 +143,6 @@ def _to_response(
         photo_file=person.photo_file,
         photo_focus=person.photo_focus,
         photo_fallback_entry_id=media.photo_fallback_entry_id,
-        remark=person.remark,
         mal_id=person.mal_id,
         mal_link=person.mal_link,
         imdb_id=person.imdb_id,
@@ -880,7 +879,7 @@ def patch_person(
 ):
     """
     Partially updates a person's own columns - the detail page's inline
-    remark edit. Only the keys sent change; roles are not a column and are
+    inline edit. Only the keys sent change; roles are not a column and are
     edited through PUT. The viewer's rating is written through
     PUT /api/me/ratings/person/{id}.
 

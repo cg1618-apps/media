@@ -12,6 +12,13 @@ import { ToastProvider } from "../../hooks/useToast";
 
 let auth;
 vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+// The remark list and personal notes are NotesTemplate's to test; here only
+// that the page hands it this record as the owner.
+vi.mock("../notes/NotesTemplate", () => ({
+  default: ({ ownerType, ownerId }) => (
+    <div data-testid="entity-notes" data-owner-type={ownerType} data-owner-id={ownerId} />
+  ),
+}));
 // Toasts are recorded rather than rendered: ToastProvider draws nothing.
 const toast = vi.hoisted(() => ({ showToast: vi.fn() }));
 vi.mock("../../hooks/useToast", () => ({
@@ -252,13 +259,20 @@ describe("Person detail page", () => {
     expect(await screen.findByText("Director, Music / Composer")).toBeInTheDocument();
   });
 
-  it("shows a guest the remark and rating as text, with no admin controls", async () => {
+  // The remark list and personal notes are this person's notes block.
+  it("draws the remark list and personal notes for this person", async () => {
+    renderPage();
+    const notes = await screen.findByTestId("entity-notes");
+    expect(notes).toHaveAttribute("data-owner-type", "person");
+    expect(notes.getAttribute("data-owner-id")).toBeTruthy();
+  });
+
+  it("shows a guest the rating as text, with no admin controls", async () => {
     renderPage();
     await screen.findByRole("heading", { name: "Hayao Miyazaki" });
     expect(screen.queryByRole("button", { name: "Edit this person" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("My rating")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Remark")).not.toBeInTheDocument();
-    expect(screen.getByText("Retired, twice.")).toBeInTheDocument();
     expect(screen.getByLabelText("Rating S")).toBeInTheDocument();
   });
 
@@ -410,16 +424,6 @@ describe("Person detail page", () => {
     });
 
 
-    it("saves the remark on blur", async () => {
-      const user = userEvent.setup();
-      renderPage();
-      const box = await screen.findByLabelText("Remark");
-      await user.clear(box);
-      await user.type(box, "Retired, thrice.");
-      fireEvent.blur(box);
-      await waitFor(() => expect(patchCalls()).toHaveLength(1));
-      expect(JSON.parse(patchCalls()[0][1].body)).toEqual({ remark: "Retired, thrice." });
-    });
   });
 });
 

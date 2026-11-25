@@ -48,7 +48,6 @@ function identityToForm(i) {
     name_alt: i.name_alt || "",
     display_name_field: i.display_name_field || "",
     gender: i.gender || "",
-    remark: i.remark || "",
     ...firstsToForm(i),
     photo_file: i.photo_file || "",
     photo_focus: i.photo_focus || null,
