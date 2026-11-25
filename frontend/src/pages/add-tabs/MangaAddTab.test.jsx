@@ -100,6 +100,17 @@ beforeEach(() => {
 });
 
 describe("Manga form", () => {
+  // Manga shares book's serialization statuses, in the order a run moves
+  // through them, on Add and Modify alike.
+  it.each(["add", "modify"])("%s offers every serialization status, in order", (mode) => {
+    renderTab(mode);
+    const select = screen.getByLabelText("Serialization Status");
+    const values = [...select.querySelectorAll("option")].map((o) => o.value).filter(Boolean);
+    expect(values).toEqual([
+      "未出", "連載中", "連載中 (不穩定)", "連載中 (有生之年)", "停更", "可能更多", "完結", "腰斬",
+    ]);
+  });
+
   it("Add renders the canonical sections in order", () => {
     const { container } = renderTab("add");
     expect(sections(container)).toEqual(SECTIONS);

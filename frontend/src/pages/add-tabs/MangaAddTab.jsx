@@ -27,9 +27,9 @@ import { getSourceValues, parseTypes } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import { ANIME_STUDIO_SOURCE } from "../../config/formFields/fieldMeta";
 import {
+  BOOK_SERIALIZATION_STATUSES,
   IS_MAIN,
   MANGA_REGIONS,
-  MANGA_SERIALIZATION_STATUSES,
   MY_RATINGS,
   READING_STATUSES,
 } from "../../config/fieldOptions";
@@ -143,7 +143,8 @@ export function MangaFormBody({ f, u, sources, ownerId }) {
         {select(
           "serialization_status",
           "Serialization Status",
-          MANGA_SERIALIZATION_STATUSES,
+          // Manga shares book's serialization statuses.
+          BOOK_SERIALIZATION_STATUSES,
         )}
       </div>
       <div className={ROW2}>

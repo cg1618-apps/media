@@ -11,6 +11,8 @@ from app.services.pipelines.legacy_names import (
     type_covers,
 )
 from app.utils.constants import (
+    BOOK_REGIONS,
+    BOOK_SERIALIZATION_STATUSES,
     BOOK_TYPES,
     BOOK_UNIT_KINDS_BY_TYPE,
     BOOK_VOLUME_ONLY_TYPES,
@@ -22,7 +24,27 @@ from app.utils.name_normalize import name_slot_for
 
 
 def test_the_types():
-    assert BOOK_TYPES == ("輕小說", "小說", "網路小說", "短篇集", "指南/設定集", "其他")
+    # The order the Type filter and the form's dropdown list them in.
+    assert BOOK_TYPES == ("小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他")
+
+
+def test_the_regions():
+    assert BOOK_REGIONS == ("Western", "JP", "CN", "KR", "TW")
+
+
+def test_the_serialization_statuses_in_order_of_a_run():
+    # Manga and book share this list; the form and the library filter both
+    # read it in this order.
+    assert BOOK_SERIALIZATION_STATUSES == (
+        "未出",
+        "連載中",
+        "連載中 (不穩定)",
+        "連載中 (有生之年)",
+        "停更",
+        "可能更多",
+        "完結",
+        "腰斬",
+    )
 
 
 def test_every_type_has_its_unit_kinds():
