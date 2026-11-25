@@ -12,6 +12,7 @@ import { releaseScore } from "../../../lib/releaseDate";
 import {
   gameGenreFilters,
   hGenreFilters,
+  myRatingFilter,
 } from "../../../lib/libraryFilterDefs";
 
 // CN leads, as everywhere but comic; lib/naming.js holds the one chain.
@@ -109,6 +110,7 @@ const H_GAME_LIBRARY_CONFIG = {
     setFilter("releaseStatus", "Release", "release_status"),
     { ...setFilter("usefulness", "Usefulness", "usefulness"), personal: true },
     // Advanced section (FilterPanel draws it collapsed).
+    myRatingFilter({ advanced: true }),
     ...gameGenreFilters(),
     ...hGenreFilters(),
   ],
@@ -117,6 +119,7 @@ const H_GAME_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       compare: compareTitle,
     },
     {

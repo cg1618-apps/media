@@ -1,59 +1,59 @@
 // Frontend: page component file for PublisherLibrary.
 //
 // Publishers are a public entity, not a media type — this sits at
-// /library/publisher as a standalone component, outside LIBRARY_CONFIGS,
-// mirroring StudioLibrary.jsx.
-//
-// Shaped after StudioLibrary with one deliberate divergence: the list URL
-// comes from endpoints.publisher.list() rather than a hardcoded literal, so
-// the route lives in one place.
-import { useState, useEffect, useMemo } from "react";
+// /library/publisher as a standalone component, outside LIBRARY_CONFIGS, drawn
+// by the EntityLibrary the other entity libraries share. The list URL comes
+// from endpoints.publisher.list(), so the route lives in one place.
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import { PublisherCard } from "../../components/cards/StaffCard";
+import EntityLibrary from "../../components/layout/EntityLibrary";
+import { publisherColumns } from "../../components/layout/entityColumns";
 import { endpoints } from "../../api/endpoints";
-import { cleanString, getRatingWeight } from "../../utils/media";
-import { compareTitles, entitySortName, STUDIO_NAME_FIELDS } from "../../lib/naming";
-import { Eyebrow } from "../../components/ui/primitives";
-import FilterPanel, { FilterToggleButton } from "../../components/layout/FilterPanel";
 import { useAuth } from "../../contexts/AuthContext";
 import { useViewScope } from "../../hooks/useViewScope";
-import { useEntityFilterState } from "../../hooks/useFilterState";
-import { useIncrementalList } from "../../hooks/useIncrementalList";
-import { applyFilterDefs } from "../../lib/libraryFilters";
 import { publisherFilterDefs } from "../../lib/entityFilters";
+import { useEntityHref } from "../../lib/entityPath";
+import { entitySorts } from "../../lib/entitySorts";
+import { withoutPersonal } from "../../lib/libraryScope";
+import { STUDIO_NAME_FIELDS } from "../../lib/naming";
+import { cleanString } from "../../utils/media";
+
+const NOUNS = { one: "publisher", many: "publishers" };
+
+function matchesSearch(publisher, q) {
+  return STUDIO_NAME_FIELDS.some(
+    ({ field }) => publisher[field] && cleanString(publisher[field]).includes(q),
+  );
+}
 
 export default function PublisherLibrary() {
   const [allPublishers, setAllPublishers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentSort, setCurrentSort] = useState("name");
-  const [showFilters, setShowFilters] = useState(true);
 
   const auth = useAuth();
   // My rating is the viewer's own (self.list): without the key there is no
-  // rating sort or filter at all, and a rating sort reads as Name.
+  // rating sort, filter or column at all.
   const { ownData } = useViewScope();
-  const sort = ownData || currentSort !== "my_rating" ? currentSort : "name";
+  const entityHref = useEntityHref();
   const filterDefs = useMemo(() => publisherFilterDefs(auth, { ownData }), [auth, ownData]);
-  const {
-    filters,
-    toggleFilter,
-    clearFilters,
-    resetFilters,
-    isDefault,
-    activeFilterCount,
-    dynamicFilterOptions,
-  } = useEntityFilterState(filterDefs, allPublishers);
+  const sorts = useMemo(
+    () => entitySorts({ count: "credit_count", countLabel: "Credits", ownData }),
+    [ownData],
+  );
+  const columns = useMemo(
+    () => (ownData ? publisherColumns() : withoutPersonal(publisherColumns())),
+    [ownData],
+  );
+  const rowPath = useCallback((p) => entityHref("publisher", p), [entityHref]);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(endpoints.publisher.list(), {
-          credentials: "include",
-        });
+        const res = await fetch(endpoints.publisher.list(), { credentials: "include" });
         if (!res.ok) throw new Error("Failed to load data");
-        const publishers = await res.json();
-        setAllPublishers(publishers);
+        setAllPublishers(await res.json());
       } catch (e) {
         setError(e.message);
       } finally {
@@ -63,172 +63,21 @@ export default function PublisherLibrary() {
     load();
   }, []);
 
-  const filteredAndSorted = useMemo(() => {
-    const qClean = cleanString(searchQuery);
-
-    const searched = allPublishers.filter((p) => {
-      if (!qClean) return true;
-      return STUDIO_NAME_FIELDS.some(
-        ({ field }) => p[field] && cleanString(p[field]).includes(qClean),
-      );
-    });
-    const result = applyFilterDefs(searched, filterDefs, filters);
-
-    result.sort((a, b) => {
-      if (sort === "credit_count") {
-        const diff = (b.credit_count ?? 0) - (a.credit_count ?? 0);
-        if (diff !== 0) return diff;
-      } else if (sort === "my_rating") {
-        const diff = getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating);
-        if (diff !== 0) return diff;
-      }
-      return compareTitles(entitySortName(a), entitySortName(b));
-    });
-
-    return result;
-  }, [allPublishers, searchQuery, sort, filterDefs, filters]);
-
-  // Search, filter and sort see every item; the grid draws them a batch at a
-  // time, so a long library does not mount every card - and its cover - at once.
-  const { visible, hasMore, sentinelRef } = useIncrementalList(filteredAndSorted);
-
-  const narrowed = searchQuery !== "" || activeFilterCount > 0;
-  // The empty state's way out: no search and no filter, not the default -
-  // the default may be exactly what left nothing to show.
-  function showEverything() {
-    setSearchQuery("");
-    clearFilters();
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-brand text-2xl mb-3"></i>
-          <p className="text-text-faint">Loading publishers...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center border border-danger bg-danger/10 px-6 py-4 text-danger">
-          <p className="font-bold">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen">
-      {/* Filter strip: flat on the canvas */}
-      <div className="border-b border-border sticky top-[var(--nav-h)] z-30 bg-canvas">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-            <div className="flex-1 min-w-0">
-              <h1 className="font-display text-3xl font-semibold text-text leading-none">
-                Publishers
-              </h1>
-              <p className="font-mono text-[11px] text-text-faint mt-1.5">
-                {filteredAndSorted.length} publisher
-                {filteredAndSorted.length !== 1 ? "s" : ""}
-                {searchQuery && ` matching "${searchQuery}"`}
-                {activeFilterCount > 0 && " (filtered)"}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Search */}
-              <div className="relative">
-                <input
-                  type="search"
-                  placeholder="Search publishers..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-3 pr-8 py-1.5 bg-surface border border-border-strong text-sm text-text placeholder:text-text-faint focus:outline-none focus:ring-2 focus:ring-brand transition w-44 sm:w-56 search-own-clear"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    aria-label="Clear search"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted"
-                  >
-                    <i className="fas fa-times text-xs"></i>
-                  </button>
-                )}
-              </div>
-
-              {/* Sort */}
-              <label className="flex items-center gap-2">
-                <Eyebrow>Sort</Eyebrow>
-                <select
-                  value={sort}
-                  onChange={(e) => setCurrentSort(e.target.value)}
-                  className="bg-surface border border-border-strong px-3 py-1.5 text-sm text-text focus:outline-none focus:ring-2 focus:ring-brand transition"
-                >
-                  <option value="name">Name</option>
-                  <option value="credit_count">Credits</option>
-                  {ownData && <option value="my_rating">My rating</option>}
-                </select>
-              </label>
-
-              <FilterToggleButton
-                className="py-1.5"
-                open={showFilters}
-                onToggle={() => setShowFilters((o) => !o)}
-                activeFilterCount={activeFilterCount}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {showFilters && (
-          <FilterPanel
-            filterDefs={filterDefs}
-            filters={filters}
-            toggleFilter={toggleFilter}
-            clearFilters={clearFilters}
-            resetFilters={isDefault ? undefined : resetFilters}
-            activeFilterCount={activeFilterCount}
-            dynamicFilterOptions={dynamicFilterOptions}
-          />
-        )}
-        {filteredAndSorted.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-border-strong">
-            <Eyebrow className="mb-1">Empty</Eyebrow>
-            <p className="text-text-muted text-sm">No publishers found</p>
-            <p className="text-sm text-text-faint mt-1">
-              {narrowed ? (
-                <>
-                  Try a different search or filter, or{" "}
-                  <button
-                    onClick={showEverything}
-                    className="text-brand hover:underline"
-                  >
-                    show everything
-                  </button>
-                </>
-              ) : (
-                "No publishers in the database yet."
-              )}
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {visible.map((publisher) => (
-                <PublisherCard key={publisher.system_id} publisher={publisher} />
-              ))}
-            </div>
-            {hasMore && <div ref={sentinelRef} aria-hidden="true" />}
-          </>
-        )}
-      </div>
-    </div>
+    <EntityLibrary
+      title="Publishers"
+      nouns={NOUNS}
+      items={allPublishers}
+      loading={loading}
+      error={error}
+      filterDefs={filterDefs}
+      matchesSearch={matchesSearch}
+      sorts={sorts}
+      renderCard={(publisher) => (
+        <PublisherCard key={publisher.system_id} publisher={publisher} />
+      )}
+      columns={columns}
+      rowPath={rowPath}
+    />
   );
 }

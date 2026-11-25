@@ -10,6 +10,7 @@ import { compareTitles, getSortName } from "../../../lib/naming";
 import {
   gameGenreFilters,
   labelFilter,
+  myRatingFilter,
   playStatusFilter,
   rangeFilter,
   tagFilter,
@@ -121,6 +122,7 @@ const GAME_LIBRARY_CONFIG = {
       match: (item, active) => active.has(item.ownership),
     },
     rangeFilter("hltbMainExtra", "HLTB Main + Extra", (g) => g.hltb_main_extra, { unit: "h" }),
+    myRatingFilter({ advanced: true }),
     ...gameGenreFilters(),
     labelFilter(),
   ],
@@ -129,6 +131,7 @@ const GAME_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       // Sorted on the English name first (getSortName), as every other
       // library is; the card still shows the CN-first title.
       compare: compareTitle,

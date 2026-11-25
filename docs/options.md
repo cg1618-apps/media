@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-24
+Last verified: 2026-11-25
 
 ## What this is for
 
@@ -515,8 +515,8 @@ everywhere) is what makes the two tables read differently.
 five and `"character_casting"` for `seiyuu`, and `credit_roles_for(media_type)`
 filters to `credited_via == "media_credit"` so `/api/credits` and the sheet
 link-column builder never go looking for seiyuu rows there. A seiyuu still
-gets a `person_role` row (so they appear in dropdowns and on
-`/library/seiyuu` before their first casting exists), but their actual work is
+gets a `person_role` row (so they appear in dropdowns and under the person library's 聲優 type
+before their first casting exists), but their actual work is
 read through `/api/casting`, keyed off `character_casting` and its
 `character_casting_voice` rows - see
 [systems/credits-and-tags.md](systems/credits-and-tags.md).

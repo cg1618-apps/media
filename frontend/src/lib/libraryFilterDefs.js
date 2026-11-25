@@ -4,6 +4,7 @@
 // FilterDef shape itself is documented in hooks/useLibraryState.js.
 import {
   AIRING_STATUSES,
+  MY_RATINGS,
   PLAYING_STATUSES,
   READING_STATUSES,
   watchingStatusesFor,
@@ -125,6 +126,33 @@ export function playStatusFilter() {
     groupMap: PLAYING_STATUS_GROUP,
     noStatusGroup: "Might Play",
   });
+}
+
+// ---------------------------------------------------------------------------
+// My rating
+// ---------------------------------------------------------------------------
+
+// The chip for a row the viewer has not rated.
+export const UNRATED = "Unrated";
+
+/**
+ * The viewer's own rating: a chip per rating, best first, then Unrated for a
+ * row with none. Personal, since the rating is the viewer's own list value.
+ * The media libraries draw it in the advanced section, directly above the
+ * genre filters (`advanced: true`); the entity libraries draw it last among
+ * their ordinary filters. Built per call: MY_RATINGS is refreshed in place
+ * from /api/constants.
+ */
+export function myRatingFilter({ advanced = false } = {}) {
+  return {
+    key: "myRating",
+    label: "My Rating",
+    personal: true,
+    advanced,
+    type: "set",
+    options: [...MY_RATINGS, UNRATED],
+    match: (item, active) => active.has(item.my_rating || UNRATED),
+  };
 }
 
 // ---------------------------------------------------------------------------

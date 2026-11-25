@@ -12,7 +12,7 @@
 // off both mean no restriction; Character starts on. 其他 is every gender that
 // is not 男 or 女, unset included, so that all three on really is everything.
 // The sort - name, or my rating for a viewer with own data - applies inside
-// each role group.
+// each role group, in the direction SortControl's button sets.
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -23,7 +23,9 @@ import CharacterCard from "../cards/CharacterCard";
 import { useViewScope } from "../../hooks/useViewScope";
 import { getRatingWeight } from "../../lib/formatters";
 import { ClearAllButton, Eyebrow } from "../ui/primitives";
-import { SELECT_CLS, pillCls } from "./HubChrome";
+import { pillCls } from "./HubChrome";
+import SortControl from "../layout/SortControl";
+import { useSortState } from "../../hooks/useSortState";
 import { HubEmpty, HubLoading } from "./HubStates";
 
 const KINDS = [
@@ -42,7 +44,16 @@ function restricts(selected, chipCount) {
   return selected.size > 0 && selected.size < chipCount;
 }
 
-function visibleCards(cards, kinds, genders, sort) {
+// The sorts the tab offers: name, A to Z, and for a viewer with own data my
+// rating, best first.
+function characterSortOptions(ownData) {
+  return [
+    { value: "name", label: "Name" },
+    ...(ownData ? [{ value: "my_rating", label: "My rating", descending: true }] : []),
+  ];
+}
+
+function visibleCards(cards, kinds, genders, sort, reversed) {
   let shown = cards;
   if (restricts(kinds, KINDS.length)) {
     shown = shown.filter((card) => kinds.has(card.card_kind));
@@ -60,7 +71,7 @@ function visibleCards(cards, kinds, genders, sort) {
   if (sort === "my_rating") {
     shown = [...shown].sort((a, b) => getRatingWeight(a.my_rating) - getRatingWeight(b.my_rating));
   }
-  return shown;
+  return reversed ? [...shown].reverse() : shown;
 }
 
 function toggle(setter, value) {
@@ -80,7 +91,7 @@ export default function HubCharacters({ scope, tierId }) {
   const { ownData } = useViewScope();
   const [kinds, setKinds] = useState(() => new Set(DEFAULT_KINDS));
   const [genders, setGenders] = useState(() => new Set());
-  const [sort, setSort] = useState("name");
+  const { sort, setSort, reversed, setReversed } = useSortState("name");
   const { data, isLoading, error } = useQuery({
     queryKey: ["tier-characters", scope, tierId],
     queryFn: () => fetchJson(endpoints.character.list(`${scope}_id=${tierId}`)),
@@ -111,7 +122,7 @@ export default function HubCharacters({ scope, tierId }) {
   const shownGroups = groups
     .map((group) => ({
       ...group,
-      cards: visibleCards(group.cards, kinds, genders, effectiveSort),
+      cards: visibleCards(group.cards, kinds, genders, effectiveSort, reversed),
     }))
     .filter((group) => group.cards.length > 0);
   const anyChipOn = kinds.size > 0 || genders.size > 0;
@@ -119,15 +130,14 @@ export default function HubCharacters({ scope, tierId }) {
   return (
     <div>
       <div className="flex flex-wrap gap-2 mb-4 items-center">
-        {ownData && (
-          <>
-            <select value={sort} onChange={(e) => setSort(e.target.value)} className={SELECT_CLS}>
-              <option value="name">Sort: name</option>
-              <option value="my_rating">Sort: my rating</option>
-            </select>
-            <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
-          </>
-        )}
+        <SortControl
+          options={characterSortOptions(ownData)}
+          value={effectiveSort}
+          onChange={setSort}
+          reversed={reversed}
+          onReversedChange={setReversed}
+        />
+        <span className="w-px h-4 bg-border-strong" aria-hidden="true"></span>
         {KINDS.map(([value, label]) => (
           <button
             key={value}

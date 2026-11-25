@@ -17,6 +17,25 @@ import { ALL_TAB } from "../../lib/entityScopes";
 import { visibleByType } from "../../lib/gatedTypes";
 import SubTabBar from "./SubTabBar";
 
+// The Chinese name each person type is called by outside the admin tabs: the
+// person library's Type filter and list column, and the credit section
+// titles of a person page. A type with none (Club) reads its `label`.
+export const PERSON_TYPE_LABELS_ZH = {
+  seiyuu: "聲優",
+  author: "作家",
+  illustrator: "畫家",
+  director: "導演",
+  producer: "製片",
+  composer: "作曲",
+};
+
+/** The reader-facing name of person type `key`: Chinese where it has one. */
+export function personTypeLabel(key) {
+  return (
+    PERSON_TYPE_LABELS_ZH[key] ?? PERSON_SUB_TABS.find((t) => t.key === key)?.label ?? key
+  );
+}
+
 export const PERSON_SUB_TABS = [
   { key: "director", label: "Director", icon: "fa-clapperboard" },
   { key: "producer", label: "Producer", icon: "fa-briefcase" },

@@ -14,6 +14,7 @@ import { CARTOON_AIRING_TYPES } from "../../../config/fieldOptions";
 import {
   airingStatusFilter,
   genreFilters,
+  myRatingFilter,
   watchStatusFilter,
 } from "../../../lib/libraryFilterDefs";
 
@@ -64,6 +65,7 @@ const CARTOON_LIBRARY_CONFIG = {
       match: (item, active) => active.has(item.source_official),
     },
     // Advanced section (FilterPanel draws it collapsed).
+    myRatingFilter({ advanced: true }),
     ...genreFilters(),
   ],
 
@@ -71,6 +73,7 @@ const CARTOON_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       compare: compareTitle,
     },
     {

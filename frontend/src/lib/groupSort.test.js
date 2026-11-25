@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compareGroups, getExpectationWeight } from "./groupSort";
+import { compareGroups, getExpectationWeight, groupSortOptions } from "./groupSort";
 
 const f = (name, expectation, rating) => ({
   franchise_name_en: name,
@@ -91,5 +91,17 @@ describe("compareGroups on a collection", () => {
     ];
     const sorted = [...rows].sort((a, b) => compareGroups(a, b, "my_rating", "collection"));
     expect(sorted.map((r) => r.collection_name_en)).toEqual(["B", "A"]);
+  });
+});
+
+describe("groupSortOptions", () => {
+  it("offers Title alone to a viewer without a list", () => {
+    expect(groupSortOptions(false)).toEqual([{ value: "title", label: "Title" }]);
+  });
+
+  it("adds My rating and Expectation, both best first, for a viewer with one", () => {
+    const options = groupSortOptions(true);
+    expect(options.map((o) => o.value)).toEqual(["title", "my_rating", "expectation"]);
+    expect(options.map((o) => Boolean(o.descending))).toEqual([false, true, true]);
   });
 });

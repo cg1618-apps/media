@@ -19,6 +19,7 @@ import {
 } from "../../../config/fieldOptions";
 import {
   genreFilters,
+  myRatingFilter,
   publisherTwFilter,
   readStatusFilter,
   vocabularyFilter,
@@ -76,6 +77,7 @@ const BOOK_LIBRARY_CONFIG = {
     vocabularyFilter("region", "Region", "region", BOOK_REGIONS),
     // Advanced section (FilterPanel draws it collapsed).
     publisherTwFilter(),
+    myRatingFilter({ advanced: true }),
     ...genreFilters(),
   ],
 
@@ -83,6 +85,7 @@ const BOOK_LIBRARY_CONFIG = {
     {
       key: "title",
       label: "Title",
+      ascending: true,
       compare: compareTitle,
     },
     {
