@@ -84,9 +84,11 @@ describe("the anime library filters", () => {
     { system_id: "c", genre_main: "冒險", genre_sub: "校園, 異世界", label: "很多福利, 會跳OP" },
   ];
 
-  it("derives each tag filter's chips from the comma-joined values", () => {
-    expect(byKey("genreMain").deriveOptions(items)).toEqual(["冒險", "奇幻", "日常"].sort((a, b) => a.localeCompare(b)));
-    expect(byKey("genreSub").deriveOptions(items)).toEqual(["校園", "異世界"].sort((a, b) => a.localeCompare(b)));
+  // Most-carried first: 冒險 and 異世界 are on two entries each.
+  it("derives each tag filter's chips from the comma-joined values, most-carried first", () => {
+    expect(byKey("genreMain").deriveOptions(items)).toEqual(["冒險", ...["奇幻", "日常"].sort((a, b) => a.localeCompare(b))]);
+    expect(byKey("genreSub").deriveOptions(items)).toEqual(["異世界", "校園"]);
+    expect(byKey("label").deriveOptions(items)).toEqual(["會跳OP", "很多福利"]);
     expect(byKey("exclusiveSource").deriveOptions(items)).toEqual(["Netflix"]);
   });
 

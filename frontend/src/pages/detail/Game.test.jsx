@@ -260,7 +260,7 @@ describe("Game detail page — Replace", () => {
     expect([...body.children].map((row) => row.textContent)).toEqual([
       "Genre角色扮演, 冒險",
       "Theme奇幻",
-      "標籤 Label神作",
+      "Label神作",
     ]);
 
     const production = await card("Production & Release");

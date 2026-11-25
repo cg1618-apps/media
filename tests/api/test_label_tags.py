@@ -1,5 +1,5 @@
 """
-A content label and its 標籤 Label tag, kept in step on an entry, both ways
+A content label and its Label tag, kept in step on an entry, both ways
 (app/services/domain/label_tags.py).
 
   label write   PUT /api/content-labels/entry/...  -> the tags follow

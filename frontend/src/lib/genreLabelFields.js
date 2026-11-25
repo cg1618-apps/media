@@ -1,5 +1,5 @@
 // Frontend: the three shared classification tags - Genre Main, Genre Sub and
-// 標籤 Label - as anime, anime-movie, movie, tv-show, cartoon, manga, book and
+// Label - as anime, anime-movie, movie, tv-show, cartoon, manga, book and
 // comic carry them. Game carries only Label, under its own Genre / Theme, so
 // it is not listed here.
 //
@@ -28,7 +28,7 @@ export const GENRE_LABEL_TYPES = [
 export const GENRE_LABEL_FIELDS = [
   { key: "genre_main", category: "Genre Main", label: "Genre Main", placeholder: "Select genres..." },
   { key: "genre_sub", category: "Genre Sub", label: "Genre Sub", placeholder: "Select sub-genres..." },
-  { key: "label", category: "Label", label: "標籤 Label", placeholder: "Select labels..." },
+  { key: "label", category: "Label", label: "Label", placeholder: "Select labels..." },
 ];
 
 /** The three form keys, for TagReplace (components/forms/TagReplace.jsx). */

@@ -275,7 +275,7 @@ def replace_entry_labels(
         {"media_id": entry_id},
         entry_id,
         payload,
-        # The 標籤 Label tags of nsfw, ecchi and erotica follow the set
+        # The Label tags of nsfw, ecchi and erotica follow the set
         # (services/domain/label_tags.py), on the types with that field.
         after_write=lambda keys: sync_tags_to_labels(db, media_type, entry_id, keys),
     )
