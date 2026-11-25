@@ -519,10 +519,13 @@ tab. The scope chip above the results names a scope only when
 hand-typed `?scope=` for a type the viewer cannot see names nothing.
 `characters: true` is what adds the `character` bucket, for a viewer
 holding `view.character`; this page is the only caller that sends it.
-Results are copied into local state so a card's `onUpdated` can replace a row
-without a refetch.
+Results are copied into local state, one object keyed by bucket, so a card's
+`onUpdated` can replace a row without a refetch. Every section the page can
+draw is one row of the module's `SECTIONS` list (bucket, tab, heading, the
+count line's word, how its rows are drawn); the count line, the tab counts,
+the sections and the contents are all built from it.
 
-Layout: a sticky header "Search Results for “q”" + scope pill + a count line
+Layout: a sticky header (the "Search results" eyebrow over “q”) + scope pill + a count line
 ("n collections · n anime · …", non-empty buckets only), and under it a tab
 bar — `HubTabs` (`components/hub/HubChrome.jsx`), the hub pages' underline
 tabs, with one group labelled "Results" and a count on each tab:
@@ -533,14 +536,29 @@ tabs, with one group labelled "Results" and a count on each tab:
   labelled "{franchise_type} Franchise"), **Series**, **Anime** (sub-grouped
   TV / ONA, Movies, Other by `airing_type`), **Anime Movies**, **Movies**,
   **TV Shows**, **Cartoons**, **Manga**, **Book**, **Comic**, **Game**,
-  **H-Comic**, **H-Game**, **Hentai** — all `MediaCard` grids.
+  **H-Comic**, **H-Game**, **Hentai** — each a grid of `MediaCard` drawn as
+  its library draws it (`LibraryLayout`'s grid and the card's own defaults,
+  gated types included), so a search card and a library card are the same
+  card.
 - **People & companies** — **People**, **Studios** and **Publishers**,
   `PersonCard` / `StudioCard` / `PublisherCard` grids
-  (`components/cards/StaffCard.jsx`, the same cards the three libraries use)
+  (`components/cards/StaffCard.jsx`) on the libraries' `gap-4` grid,
   linking to `/person/:id`, `/studio/:id` and `/publisher/:id`.
-- **Characters** — a `CharacterCard` grid (`components/cards/CharacterCard.jsx`,
-  the character library's card) linking to `/character/:id`. One card per
-  character: identities are not separate results.
+- **Characters** — the character library's cards: `characterCards`
+  (`lib/characterCards.js`) over the bucket, drawn by `CharacterCard`, so
+  each matched character is followed by a dashed card for each of its other
+  identities, linking to `/identity/:id`. The search matches characters'
+  names; the count line, the tab and the section count characters, not
+  cards.
+
+**Contents.** The active tab's sections are listed on the right, as on the
+detail pages: the shared `TableOfContents` in an `xl:`-only `w-40` column
+(the container widens to `88rem` there), and below `xl` a `ContentsBar` of
+chips inside the sticky header, unpinned itself because the header holds
+it. Each section is a `TocSection` with id `search-<bucket>`, labelled with
+its heading, and `useScrollSpy` marks the current one. Its anchor offset is
+the nav's height plus the sticky header's, which covers the top of every
+section.
 
 Every link on the page comes from `useEntityHref` (`lib/entityPath.js`): an
 entity card without its kind's `view.*` key renders as plain text, and the
@@ -554,7 +572,7 @@ People & companies. Choosing a tab writes `?tab=` and keeps `q` and `scope`.
 Characters are searched at scope `all` only, so any narrower scope leaves
 that tab out. `SCOPE_LABELS` and `SEARCH_TABS` are module-level exports so a
 test can assert the page and the API agree on the keys without rendering the
-page. Empty query shows a "No Search Query" card. Admin-only behaviour comes
+page. An empty query shows a "No search term yet" card. Admin-only behaviour comes
 from `MediaCard` itself.
 
 ### Library — `/library/:type`

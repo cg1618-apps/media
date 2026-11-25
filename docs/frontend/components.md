@@ -1358,6 +1358,10 @@ under sticky division headers and the filter bar.
   listed, so the contents list exactly what this viewer was shown: no "My
   tracker" without `self.list`, no "Cast" with nobody cast, no "Watch
   orders" for an entry in no followed order.
+- **The search page** writes its rows down too: the active tab's
+  non-empty sections, from its `SECTIONS` list, each a `TocSection` with id
+  `search-<bucket>`. Its offset is the nav plus its own sticky header, and
+  its `ContentsBar` sits inside that header, which pins it.
 - **Notes** list at card level only. `NotesBlocks` wraps the Notes card
   (`#notes`), each group card (`#notes-<group key>`) and each standalone
   section (`#notes-<section key>`) in a `TocSection`, labelled with only the
