@@ -668,9 +668,6 @@ export default function Manga() {
                 ]}
               />
             </TocSection>
-            <TocSection id="genres" label="Genres">
-              <GenresCard item={manga} />
-            </TocSection>
             {/* Production Card */}
             <TocSection id="production" label="Production">
               {(manga.author_plot ||
@@ -732,6 +729,10 @@ export default function Manga() {
                   ]}
                 />
               )}
+            </TocSection>
+            {/* Genres under Production, as on a book. */}
+            <TocSection id="genres" label="Genres">
+              <GenresCard item={manga} />
             </TocSection>
           </div>
 

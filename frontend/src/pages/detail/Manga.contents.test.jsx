@@ -94,6 +94,7 @@ describe("Manga detail page - tab title", () => {
 });
 
 describe("Manga detail page - table of contents", () => {
+  // The Genres card sits under Production, as on a book.
   it("lists the main-column sections in page order", async () => {
     mockFetch();
     mount();
@@ -103,8 +104,8 @@ describe("Manga detail page - table of contents", () => {
         "My tracker",
         "Naming",
         "Information",
-        "Genres",
         "Production",
+        "Genres",
         "Cast",
       ]),
     );
