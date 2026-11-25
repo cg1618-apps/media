@@ -176,7 +176,7 @@ describe("admin-form vocabularies served from /api/constants", () => {
     expect(CONSTANTS_FALLBACK.book_type).toEqual([
       "小說", "輕小說", "網路小說", "短篇集", "指南/設定集", "其他",
     ]);
-    expect(CONSTANTS_FALLBACK.book_region).toEqual(["Western", "JP", "CN", "KR", "TW"]);
+    expect(CONSTANTS_FALLBACK.book_region).toEqual(["歐美", "日本", "中國", "韓國", "台灣"]);
     expect(CONSTANTS_FALLBACK.book_serialization_status).toBeDefined();
     expect(FRANCHISE_TYPES).toContain("Book");
     expect(MEDIA_TYPES).toContain("book");

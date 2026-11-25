@@ -13,13 +13,13 @@ vi.mock("../../contexts/AuthContext", () => ({
 
 import StatsCompletions from "./StatsCompletions";
 
-function book(id, type) {
+function book(id, type, region = "日本") {
   return {
     system_id: id,
     public_id: id,
     book_name_en: `Book ${id}`,
     type,
-    region: "JP",
+    region,
     reading_status: "Completed",
     completed_at: "2026-10-01T00:00:00Z",
   };
@@ -74,4 +74,31 @@ describe("StatsCompletions - the Novel tab", () => {
       expect(screen.queryByText(`Book ${id}`)).toBeNull();
     }
   });
+});
+
+// Grouped by the book region vocabulary's Chinese names, in its order; a region
+// outside it falls under Others.
+it("groups the Novel tab by region, 歐美 first, and the rest under Others", async () => {
+  render(
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <StatsCompletions
+        allAnime={[]}
+        allAnimeMovies={[]}
+        allMovies={[]}
+        allTVShows={[]}
+        allCartoons={[]}
+        allManga={[]}
+        allBook={[book("a", "小說", "日本"), book("b", "小說", "歐美"), book("c", "小說", "Mars")]}
+        allComic={[]}
+        allGame={[]}
+        allHComic={null}
+        allHGame={null}
+        allHentai={null}
+        franchiseMap={{}}
+      />
+    </MemoryRouter>,
+  );
+  await userEvent.setup().click(screen.getByRole("button", { name: "Novel" }));
+  const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+  expect(headings).toEqual(["歐美", "日本", "Others"]);
 });

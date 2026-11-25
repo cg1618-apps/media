@@ -3,6 +3,7 @@
 import pytest
 
 from app.services.pipelines.legacy_names import (
+    BOOK_REGION_RENAMES,
     BOOK_TYPE_RENAMES,
     book_type,
     config_value,
@@ -29,7 +30,7 @@ def test_the_types():
 
 
 def test_the_regions():
-    assert BOOK_REGIONS == ("Western", "JP", "CN", "KR", "TW")
+    assert BOOK_REGIONS == ("歐美", "日本", "中國", "韓國", "台灣")
 
 
 def test_the_serialization_statuses_in_order_of_a_run():
@@ -132,3 +133,15 @@ def test_a_books_release_is_the_jp_date_then_the_tw_one():
     assert primary_release_value("book", SimpleNamespace(release_date_jp="2006", release_date_tw="2010")) == "2006"
     assert primary_release_value("book", SimpleNamespace(release_date_jp=None, release_date_tw="2010")) == "2010"
     assert primary_release_value("book", SimpleNamespace(release_date_jp=None, release_date_tw=None)) is None
+
+
+def test_an_older_sheet_restores_a_book_region_in_chinese():
+    """A Books tab backed up before the region was renamed (b1o2okregion3)."""
+    assert BOOK_REGION_RENAMES == {
+        "Western": "歐美", "JP": "日本", "CN": "中國", "KR": "韓國", "TW": "台灣",
+    }
+    assert set(BOOK_REGION_RENAMES.values()) == set(BOOK_REGIONS)
+    assert legacy_cell_values("Book", {"region": "JP"})["region"] == "日本"
+    assert legacy_cell_values("Book", {"region": "日本"})["region"] == "日本"
+    # A manga's region is another vocabulary and never moves.
+    assert legacy_cell_values("Manga", {"region": "JP"})["region"] == "JP"

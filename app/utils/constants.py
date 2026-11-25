@@ -163,7 +163,8 @@ MOVIE_TYPES: tuple[str, ...] = ("Reality", "Animation")
 # Formerly the "Region (TV Show)" / "Region (Manga)" option categories.
 TV_REGIONS: tuple[str, ...] = ("歐美劇", "韓劇", "日劇", "陸劇", "台劇", "動畫")
 MANGA_REGIONS: tuple[str, ...] = ("日漫", "韓漫", "國漫", "台漫", "其他")
-BOOK_REGIONS: tuple[str, ...] = ("Western", "JP", "CN", "KR", "TW")
+# Named in Chinese (b1o2okregion3 renamed the English codes in the data).
+BOOK_REGIONS: tuple[str, ...] = ("歐美", "日本", "中國", "韓國", "台灣")
 
 # A book's `type`. The three kinds of novel and 短篇集 are what the statistics
 # count as their Novel section; a guide or setting book, and 其他, are books
