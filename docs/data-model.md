@@ -26,7 +26,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Notes, quotes and memes](#notes-quotes-and-memes): note, note_mark, quote, meme
 - [Resources page](#resources-page): resource_node
 - [Image library](#image-library): image, image_attachment
-- [Relations and orders](#relations-and-orders): media_relation, order_list, order_section, order_item, order_follow
+- [Relations and orders](#relations-and-orders): media_relation, order_list, order_section, order_item, order_follow, order_follow_skip
 - [Planning](#planning): plan_next
 - [Requests and reports](#requests-and-reports): user_request
 - [Needs Work](#needs-work): needs_work
@@ -2209,6 +2209,7 @@ the order is computed on read and not stored - see
 | `user_id` | UUID | no | | FK `users.id` ON DELETE CASCADE (`fk_order_follow_user`), indexed |
 | `list_id` | UUID | no | | FK `order_list` ON DELETE CASCADE (`fk_order_follow_list`), indexed |
 | `franchise_id` / `series_id` / `collection_id` | UUID | yes | | The followed order's owner, copied when the follow is written; each an FK to its tier, ON DELETE CASCADE |
+| `importance` | String | no | `'Normal'` (server default) | The lowest rung shown as next: Essential / Recommended / Normal / Optional, the same four a step carries |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraints: `ck_order_follow_one_owner` - exactly one owner column is
@@ -2216,6 +2217,25 @@ set; `uq_order_follow_group` - UNIQUE NULLS NOT DISTINCT `(user_id,
 franchise_id, series_id, collection_id)`, which is the one-per-group rule.
 The owner copy stays true because `order_list`'s owner cannot be
 changed once the list exists (the list endpoints answer 400).
+
+### `order_follow_skip`
+
+One step a follow has marked to skip; a skipped step is never the
+follower's next. Model: `OrderFollowSkip` (`app/models/order.py`).
+Repointing the follow at another order of its group clears its skips.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `follow_id` | UUID | no | | FK `order_follow` ON DELETE CASCADE (`fk_order_follow_skip_follow`), indexed |
+| `item_id` | UUID | yes | | A hand-built order's step: FK `order_item` ON DELETE CASCADE (`fk_order_follow_skip_item`) |
+| `media_id` | UUID | yes | | A built-in order's generated step, named by its entry: FK `media.system_id` ON DELETE CASCADE (`fk_order_follow_skip_media`) |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `ck_order_follow_skip_one_step` - exactly one of `item_id`
+and `media_id` is set; `uq_order_follow_skip_step` - UNIQUE NULLS NOT
+DISTINCT `(follow_id, item_id, media_id)`, so a step is skipped at most
+once per follow.
 
 ---
 

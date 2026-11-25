@@ -253,6 +253,12 @@ class OrderFollowStep(BaseModel):
     number: int
     # "done" | "active" | "pending" - see app/services/domain/order_follow.py.
     state: str
+    # The step's id for the skip endpoints: the order_item's system_id, or the
+    # entry's for a built-in order's generated step. The same id the order
+    # detail endpoint gives the step as `system_id`.
+    step_id: Optional[UUID] = None
+    # The follower has marked this step to skip; it is never next.
+    skipped: bool = False
     media_type: Optional[str] = None
     entry_id: Optional[UUID] = None
     # The entry's own short id, for its /<type>/<public_id> link.
@@ -284,25 +290,45 @@ class OrderFollowOwner(BaseModel):
     display_name: Optional[str] = None
 
 
+class OrderFollowRequest(BaseModel):
+    """
+    PUT /lists/{id}/follow's optional body. `importance` is the lowest rung
+    the follower wants shown as next; omitted, a new follow is "Normal" and an
+    existing one keeps its own.
+    """
+
+    importance: Optional[str] = None
+
+
 class OrderFollowSummary(BaseModel):
     """One followed order and where the viewer stands in it."""
 
     list: OrderFollowList
     owner: OrderFollowOwner
+    # The follow's own rung: "Essential" | "Recommended" | "Normal" |
+    # "Optional". Only steps at or above it are next.
+    importance: str = "Normal"
+    # step_id of every step the follower has marked to skip.
+    skipped: List[UUID] = []
     done: int
     total: int
     # Every step in progress - there may be several.
     now: List[OrderFollowStep] = []
-    # The earliest pending step in reading order, or None when none is left.
+    # The first step from the start that is pending, not skipped and at or
+    # above the follow's importance, or None when none is left.
     up_next: Optional[OrderFollowStep] = None
 
 
 class OrderFollowOccurrence(BaseModel):
-    """One step naming the entry, with the steps either side of it."""
+    """One step naming the entry, with what is next from it."""
 
     step: OrderFollowStep
-    previous: Optional[OrderFollowStep] = None
+    # The first later step that is pending, not skipped and at or above the
+    # follow's importance.
     next: Optional[OrderFollowStep] = None
+    # The lookahead behind `next`: the next Recommended and/or Essential
+    # steps, at most two. See order_follow.next_steps.
+    coming_up: List[OrderFollowStep] = []
 
 
 class OrderEntryFollow(BaseModel):
@@ -310,6 +336,7 @@ class OrderEntryFollow(BaseModel):
 
     list: OrderFollowList
     owner: OrderFollowOwner
+    importance: str = "Normal"
     total: int
     # One per step that names the entry; a split run has several.
     occurrences: List[OrderFollowOccurrence] = []

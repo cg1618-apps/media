@@ -7,7 +7,7 @@
 // dashboard section, the toggles and the entry panel all refetch together.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { fetchJson } from "../client";
+import { fetchJson, jsonBody } from "../client";
 import { endpoints } from "../endpoints";
 import { useApiQuery } from "../../hooks/useApiQuery";
 
@@ -29,15 +29,46 @@ export function useEntryFollows(entryId, enabled = true) {
 }
 
 /**
- * `{ listId, following }` → follows the order when `following` is false,
- * unfollows it when true.
+ * `{ listId, following, importance }` → follows the order at `importance`
+ * when `following` is false, unfollows it when true.
  */
 export function useToggleFollow() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ listId, following }) =>
+    mutationFn: ({ listId, following, importance }) =>
+      following
+        ? fetchJson(endpoints.order.follow(listId), { method: "DELETE" })
+        : fetchJson(endpoints.order.follow(listId), {
+            method: "PUT",
+            ...jsonBody({ importance: importance || "Normal" }),
+          }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: FOLLOWS_KEY }),
+  });
+}
+
+/** `{ listId, importance }` → changes a followed order's importance. */
+export function useSetFollowImportance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ listId, importance }) =>
       fetchJson(endpoints.order.follow(listId), {
-        method: following ? "DELETE" : "PUT",
+        method: "PUT",
+        ...jsonBody({ importance }),
+      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: FOLLOWS_KEY }),
+  });
+}
+
+/**
+ * `{ listId, stepId, skipped }` → marks the step to skip when `skipped` is
+ * false, clears the mark when true.
+ */
+export function useToggleSkip() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ listId, stepId, skipped }) =>
+      fetchJson(endpoints.order.followSkip(listId, stepId), {
+        method: skipped ? "DELETE" : "PUT",
       }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: FOLLOWS_KEY }),
   });

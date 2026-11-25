@@ -2,12 +2,14 @@
 //
 // Shared by the entry page's FollowedOrderPanel and the dashboard's
 // FollowedOrders, so a step reads the same in both: the entry linked by name,
-// its range, its importance, the part it sits in, and its note beneath.
+// its range, its importance, the part it sits in, and its note beneath. On the
+// entry page each step also carries the follower's skip toggle.
 import { Link } from "react-router-dom";
 
 import { entityPath } from "../../lib/entityPath";
 import { Chip, eyebrowCls } from "../ui/primitives";
 import { rangeLabel } from "./OrderGuide";
+import SkipToggle from "./SkipToggle";
 
 /**
  * The step's rung as a chip. Every rung is shown - in these compact views the
@@ -22,9 +24,12 @@ export function ImportanceChip({ importance }) {
 
 /**
  * `step` is an OrderFollowStep from the API. `label` is the mono caption
- * leading the line ("Prev", "Next", "Now"); `showNote` draws the step's note.
+ * leading the line ("Next", "Now"); an empty string keeps the caption's
+ * column without a word, so a run of rows lines up under one label.
+ * `showNote` draws the step's note. `listId`, when given, adds the skip
+ * toggle for the order it names.
  */
-export default function FollowedStep({ step, label, showNote = true }) {
+export default function FollowedStep({ step, label, showNote = true, listId }) {
   if (!step) return null;
   const range = rangeLabel(step);
   const name = step.display_name || "Untitled entry";
@@ -32,7 +37,7 @@ export default function FollowedStep({ step, label, showNote = true }) {
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        {label && (
+        {label != null && (
           <span className="font-mono text-[10px] text-text-faint w-10 shrink-0">
             {label}
           </span>
@@ -59,9 +64,10 @@ export default function FollowedStep({ step, label, showNote = true }) {
             {step.section_name}
           </span>
         )}
+        <SkipToggle listId={listId} step={step} className="ml-auto self-center" />
       </div>
       {showNote && step.note && (
-        <p className={`text-xs text-text-muted mt-0.5 ${label ? "pl-12" : ""}`}>
+        <p className={`text-xs text-text-muted mt-0.5 ${label != null ? "pl-12" : ""}`}>
           {step.note}
         </p>
       )}

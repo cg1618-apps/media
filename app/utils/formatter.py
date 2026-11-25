@@ -380,6 +380,30 @@ def parse_order_follow_from_sheet(raw: dict) -> dict:
         "franchise_id": _uuid_or_none(raw.get("franchise_id")),
         "series_id": _uuid_or_none(raw.get("series_id")),
         "collection_id": _uuid_or_none(raw.get("collection_id")),
+        # Coerced like a step's: a blank or unknown cell restores as "Normal".
+        # A sheet written before the column existed has no header for it, so
+        # Pull leaves the column alone and a new row takes the default.
+        "importance": normalize_importance(
+            parse_from_sheet(raw.get("importance"), str)
+        ),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_order_follow_skip_from_sheet(raw: dict) -> dict:
+    """
+    One skipped step of one follow. follow_id is not in the sheet: the row
+    names its follow by `username` and `list_id`, which pull.py resolves to
+    the local follow - a follow's uuid may differ between databases, since
+    Order Follow is matched by its natural key. item_id and media_id are real
+    FKs whose uuids travel unchanged.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "list_id": _uuid_or_none(raw.get("list_id")),
+        "item_id": _uuid_or_none(raw.get("item_id")),
+        "media_id": _uuid_or_none(raw.get("media_id")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
