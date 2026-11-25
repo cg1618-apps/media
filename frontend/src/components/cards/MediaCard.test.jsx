@@ -612,6 +612,38 @@ describe("MediaCard - the library and franchise card layout", () => {
     expect(screen.queryByText("Finished Airing")).toBeNull();
   });
 
+  // The show's IMDb rating leads, the season's (its episodes' average) in
+  // brackets after it: Breaking Bad's fifth season reads "9.5 (avg 9.4)".
+  it.each(["tv-show", "cartoon"])(
+    "shows a %s season's score as the show's rating with the season's average",
+    async (type) => {
+      mockAuthFetch();
+      mount(
+        { system_id: "s5", imdb_series_rating: "9.5", imdb_rating: "9.4", release_date: "2012-07-15" },
+        type,
+        false,
+      );
+      expect(await screen.findByTitle("IMDb rating (avg: this season's)")).toHaveTextContent(
+        /^9\.5 \(avg 9\.4\)$/,
+      );
+    },
+  );
+
+  it.each(["tv-show", "cartoon"])(
+    "shows a %s's own IMDb score plainly when there is no show rating",
+    async (type) => {
+      mockAuthFetch();
+      mount({ system_id: "c1", imdb_rating: "7.2", release_date: "2010-01-01" }, type, false);
+      expect(await screen.findByTitle("IMDb score")).toHaveTextContent(/^7\.2$/);
+    },
+  );
+
+  it("shows only the show's rating when the season has none", async () => {
+    mockAuthFetch();
+    mount({ system_id: "s6", imdb_series_rating: "9.5", release_date: "2013-08-11" }, "tv-show", false);
+    expect(await screen.findByTitle("IMDb rating")).toHaveTextContent(/^9\.5$/);
+  });
+
   it.each([
     ["manga", { manga_name_en: "Comic", region: "日漫" }],
     ["h-comic", { h_comic_name_en: "Doujin", region: "日漫" }],

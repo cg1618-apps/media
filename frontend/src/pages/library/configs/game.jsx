@@ -10,7 +10,7 @@ import { releaseScore } from "../../../lib/releaseDate";
 import { compareTitles, getSortName } from "../../../lib/naming";
 import {
   gameGenreFilters,
-  tagFilter,
+  labelFilter,
 } from "../../../lib/libraryFilterDefs";
 
 // CN leads, as everywhere but comic.
@@ -118,7 +118,7 @@ const GAME_LIBRARY_CONFIG = {
     },
     // Advanced section (FilterPanel draws it collapsed).
     ...gameGenreFilters(),
-    tagFilter("label", "標籤 Label", "label"),
+    labelFilter(),
   ],
 
   sortDefs: [

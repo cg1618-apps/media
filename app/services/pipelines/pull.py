@@ -176,7 +176,7 @@ GATED_LABEL_INVARIANT_TABS: frozenset[str] = frozenset(
     }
 )
 
-# Tabs after which an entry's 標籤 Label tags are brought back in step with its
+# Tabs after which an entry's Label tags are brought back in step with its
 # content labels, the label winning (services/domain/label_tags.py): the
 # entry tabs of the types with the Label field, which restore the tags, and
 # Media Content Label, which restores the labels. The gated pass below runs

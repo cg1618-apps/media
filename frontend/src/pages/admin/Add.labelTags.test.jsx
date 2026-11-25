@@ -1,4 +1,4 @@
-// Frontend: on Add, the 標籤 Label field and the content-label picker move
+// Frontend: on Add, the Label field and the content-label picker move
 // together (hooks/useLabelTagSync.js): ticking a label adds its tag, adding a
 // tag ticks its label, the nsfw rule runs through both, and NSFW cannot be
 // taken off while another label holds it. Groups have no Label field and are
@@ -54,7 +54,7 @@ function mount() {
 
 // The Label field's box: its chips, and the combobox a tag is typed into.
 function labelField() {
-  return screen.getByText("標籤 Label").parentElement;
+  return screen.getByText("Label").parentElement;
 }
 
 function labelTags() {
