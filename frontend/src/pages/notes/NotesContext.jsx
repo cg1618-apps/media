@@ -271,9 +271,12 @@ export function NotesProvider({
   // without it their external sections are dropped with the hidden ones
   // below, so neither renders nor fetches from /api/quote or /api/meme,
   // which would answer 401.
-  // A personal section needs no such rule: the registry lists it for every
-  // viewer, and the rows the server sends are only the viewer's own.
+  // A personal section holds only the viewer's own rows, so a guest - who has
+  // none and can write none - is not shown it at all, not even as an empty
+  // card. A signed-in viewer always is. While auth is still loading nobody is
+  // taken for a guest, so a member's personal cards do not flicker out.
   const showQuotesMemes = Boolean(auth?.hasFeature?.("quotes_memes"));
+  const isGuest = auth?.loading === false && !auth?.username;
   // A `hidden` section (music_status) is never a card of its own: its rows
   // belong to the sections pointing at it through `type_status_section`. It
   // is dropped here, before any layout or count sees it, so it can neither
@@ -284,10 +287,11 @@ export function NotesProvider({
         (section) =>
           !section.hidden &&
           ownerMatches(section, owner) &&
+          !(isGuest && section.scope === "personal") &&
           (showQuotesMemes ||
             !(section.shape === "external" && section.key in EXTERNAL_SHAPES)),
       ),
-    [allSections, owner, showQuotesMemes],
+    [allSections, owner, showQuotesMemes, isGuest],
   );
   // {category: [values]} for every option category a section draws
   // suggestions from. Suggestions only, so a category that fails to load is
