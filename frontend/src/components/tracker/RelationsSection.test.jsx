@@ -118,3 +118,39 @@ describe("RelationsSection derived rows", () => {
     ).toBe(false);
   });
 });
+
+// Prequel above Sequel. Both are stored as `sequel` rows; the side decides
+// the label - read from the row's `from` side (direction "forward") the far
+// entry is the Prequel. The server sends the Sequel first here, so a card
+// that only kept the server's order would fail.
+describe("RelationsSection timeline order", () => {
+  const timeline = (id, name, direction, label) => ({
+    system_id: `t-${id}`,
+    relation_type: "sequel",
+    label,
+    family: "timeline",
+    direction,
+    remark: null,
+    derived: false,
+    via: null,
+    other: other(id, name),
+  });
+
+  it("lists the Prequel above the Sequel", async () => {
+    mockRows([
+      timeline("s3", "Season 3", "reverse", "Sequel"),
+      { ...stored, other: other("alt", "Alt Cut") },
+      timeline("s1", "Season 1", "forward", "Prequel"),
+    ]);
+    renderCard();
+    await screen.findByText("Season 1");
+    const names = ["Season 1", "Season 3", "Alt Cut"];
+    const order = names
+      .map((n) => [n, screen.getByText(n)])
+      .sort(([, a], [, b]) =>
+        a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+      )
+      .map(([n]) => n);
+    expect(order).toEqual(["Season 1", "Season 3", "Alt Cut"]);
+  });
+});
