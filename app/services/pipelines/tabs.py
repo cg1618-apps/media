@@ -321,6 +321,12 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_franchise_relation_from_sheet,
     ),
     SheetTab("Series", models.Series, f.parse_series_from_sheet),
+    # After Series: both ends cite a series, whose uuid travels.
+    SheetTab(
+        "Series Relation",
+        models.SeriesRelation,
+        f.parse_series_relation_from_sheet,
+    ),
     # Per-user, like Order Follow: user_id is dropped for `username`.
     # After the three tiers and the four entities its owner columns name -
     # person_id, studio_id and publisher_id are translated through their own

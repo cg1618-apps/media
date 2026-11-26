@@ -39,6 +39,7 @@ import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { entityPath } from "../../lib/entityPath";
+import RelatedRecords from "../../components/info/RelatedRecords";
 
 // A card's write hands back the whole row; it replaces the one in its list.
 function replaceEntry(setEntries, updated) {
@@ -672,6 +673,11 @@ export default function SeriesPage() {
           )}
         </div>
       </div>
+
+      {/* Series related to this one, each with this side's remark. Whole
+          series, not the entry-to-entry relations the Relations tab draws -
+          the franchise page's box, one tier down. */}
+      <RelatedRecords type="series" recordId={system_id} isAdmin={isAdmin} />
 
       {/*
         Tab bar, in two labelled groups: "Media" picks which entries the list

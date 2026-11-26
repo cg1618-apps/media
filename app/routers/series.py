@@ -19,6 +19,7 @@ from app.routers._patching import apply_column_patch
 from app.services.domain import resolve_series_parent_hierarchy
 from app.services.domain.content_labels import attach_group_content_labels
 from app.services.domain.group_counts import attach_entry_counts
+from app.services.domain.peer_relation import SERIES_RELATIONS
 from app.services.domain.user_rating import attach_ratings
 from app.services.rbac.enforcement import apply_series_visibility, series_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
@@ -74,6 +75,7 @@ def get_all_series(
     attach_entry_counts(db, rows, models.Media.series_id, viewer)
     attach_group_content_labels(db, "series", rows)
     attach_ratings(db, "series", rows, viewer.user_id)
+    SERIES_RELATIONS.attach_has_relations(db, viewer, "series", rows)
     return rows
 
 
@@ -95,7 +97,68 @@ def get_series_by_id(
         raise HTTPException(status_code=404, detail="Series not found.")
     attach_group_content_labels(db, "series", db_series)
     attach_ratings(db, "series", db_series, viewer.user_id)
+    SERIES_RELATIONS.attach_has_relations(db, viewer, "series", db_series)
     return db_series
+
+
+# ==========================================
+# RELATED SERIES
+# ==========================================
+# The franchise's related routes, on series. A relation is mutual, and each
+# side carries its own remark. Both routes read through the series label
+# rule: the series asked about must be visible (404 otherwise), and the
+# related series the viewer may not see are simply left out. A relation is
+# not a connection, so it reveals nobody.
+
+
+def _visible_series_or_404(db: Session, viewer, system_id: str) -> models.Series:
+    series = find_entity(db, models.Series, system_id)
+    if series is None or not series_visible(db, viewer, series.system_id):
+        raise HTTPException(status_code=404, detail="Series not found.")
+    return series
+
+
+@router.get(
+    "/{system_id}/related",
+    response_model=List[schemas.PeerRelationRef],
+    summary="Series Related to This One",
+)
+def get_related_series(
+    system_id: str,
+    db: Session = Depends(get_db),
+    viewer: Viewer = Depends(get_viewer),
+):
+    """The visible related series, ordered by name, each with the remark this
+    series' side gives the relation."""
+    series = _visible_series_or_404(db, viewer, system_id)
+    return SERIES_RELATIONS.related_of(db, viewer, ("series", series.system_id))
+
+
+@router.put(
+    "/{system_id}/related",
+    response_model=List[schemas.PeerRelationRef],
+    summary="Replace the Series Related to This One",
+)
+def put_related_series(
+    system_id: str,
+    payload: schemas.PeerRelationsReplace,
+    db: Session = Depends(get_db),
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Whole-list replace of this side. Every id must be a visible series other
+    than this one (422 otherwise). A new relation appears on the other
+    series' page too, with no remark there; a removed one leaves both pages.
+    An item's `also_related_to` relates it to other series on the list as
+    well, both ways, with no remark. Relations to series the writer cannot
+    see are kept.
+    """
+    series = _visible_series_or_404(db, admin, system_id)
+    SERIES_RELATIONS.replace_from_payload(
+        db, admin, ("series", series.system_id), payload.relations
+    )
+    db.commit()
+    return SERIES_RELATIONS.related_of(db, admin, ("series", series.system_id))
 
 
 # ==========================================

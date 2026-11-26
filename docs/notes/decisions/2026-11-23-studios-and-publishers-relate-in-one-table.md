@@ -3,8 +3,8 @@
 A studio may relate to a publisher - an animation studio and the label that
 distributes it - as well as to another studio, and a publisher to either. So
 `studio_relation` became `company_relation`, whose each end is a studio or a
-publisher. Franchises still relate only to franchises: a grouping tier
-relates to its own tier, and `franchise_relation` is unchanged.
+publisher. A grouping tier relates only to its own tier: franchises to
+franchises (`franchise_relation`), series to series (`series_relation`).
 
 - **Each end is two nullable FK columns, exactly one set** (`studio_id` or
   `publisher_id`; `related_studio_id` or `related_publisher_id`), checked by

@@ -1647,6 +1647,22 @@ def parse_franchise_relation_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_series_relation_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Series Relation sheet: one side of a
+    relation, with that side's remark. A series' uuid travels with the Series
+    tab, so both ends are stored as written, as Franchise Relation's are.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "related_series_id": _uuid_or_none(raw.get("related_series_id")),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
 # A storefront value a sheet backed up before its rename still holds.
 _LEGACY_STOREFRONTS = {"Physical": "Physical Store"}
 

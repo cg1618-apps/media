@@ -1,6 +1,6 @@
 # Data actions (admin Data Control)
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 ## What this is for
 
@@ -32,7 +32,7 @@ All routes need **one** gate, declared on the router: `Depends(require_manage_pi
 
 **One Backup at a time, and never during a Pull.** Every Backup first takes a PostgreSQL session-level advisory lock (`BACKUP_LOCK_KEY`, declared in `worker.py`) on a connection of its own, so the web app and the separate `sheets.sh` process exclude each other. A second Backup — or any Backup while a Pull holds `PULL_LOCK_KEY`, since it would write a half-restored database over the sheet the Pull is reading — raises `BackupAlreadyRunning` before it reads or writes anything and logs no row; the route answers it with **409**, and a Fill All / Replace All that reaches its Auto Backup while another runs ends `Failed` with that message. Two writers on one sheet would each trim what the other wrote and share one per-minute Sheets quota. PostgreSQL drops the lock with its connection, so a process that dies cannot leave it held.
 
-**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (63 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`STREAM_KEEPALIVE_SECONDS`) while a tab is slow. The relay is `_relay` in `data_control.py`, which Pull uses too. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
+**The manual route streams, and the Backup outlives it.** Production sits behind a Cloudflare Tunnel, which answers 524 to a request that sends nothing for about 100 seconds, and a full Backup (66 tabs at a few seconds each, longer through a Sheets 429 pause) takes longer than that. So `POST /backup` claims the lock, starts the Backup on a thread with its own session, and relays its progress as SSE: one `processing` event per tab (`current_entry` = tab name, `processed` / `total`), then `success` or `error`, with a `: keepalive` comment every 15 seconds (`STREAM_KEEPALIVE_SECONDS`) while a tab is slow. The relay is `_relay` in `data_control.py`, which Pull uses too. The thread never waits on its listener: a reloaded page or a dropped connection stops the events, not the Backup, which finishes and writes its log row anyway — a sheet with some tabs new and some old is a worse restore point than either. The thread carries the request's context, so its log lines keep the starting request's `request_id`.
 
 Steps, for each tab in `SHEET_TABS` order (section 2 lists it):
 
@@ -173,50 +173,51 @@ reader's half without an owner and says so the same way
 | 19 | `Franchise` | `Franchise` |  |
 | 20 | `Franchise Relation` | `FranchiseRelation` |  |
 | 21 | `Series` | `Series` |  |
-| 22 | `User Rating` | `UserRating` |  |
-| 23 | `Media` | `Media` |  |
-| 24 | `Anime` | `Anime` | `anime` |
-| 25 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
-| 26 | `Movies` | `Movies` | `movie` |
-| 27 | `TV Shows` | `TVShows` | `tv-show` |
-| 28 | `Cartoons` | `Cartoon` | `cartoon` |
-| 29 | `Manga` | `Manga` | `manga` |
-| 30 | `Book` | `Book` | `book` |
-| 31 | `Book Unit` | `BookUnit` |  |
-| 32 | `User Book Unit Rating` | `UserBookUnitRating` |  |
-| 33 | `Comic` | `Comic` | `comic` |
-| 34 | `Game` | `Game` | `game` |
-| 35 | `Game Copy` | `GameCopy` |  |
-| 36 | `Game Choice Node` | `GameChoiceNode` |  |
-| 37 | `Game Choice Edge` | `GameChoiceEdge` |  |
-| 38 | `Game Choice Mark` | `GameChoiceMark` |  |
-| 39 | `H-Comic` | `HComic` | `h-comic` |
-| 40 | `Hentai` | `Hentai` | `hentai` |
-| 41 | `H-Game` | `HGame` | `h-game` |
-| 42 | `User Media List` | `UserMediaList` |  |
-| 43 | `User Highlight Group Order` | `UserHighlightGroupOrder` |  |
-| 44 | `Order List` | `OrderList` | Read from `Watch Order List` on a sheet backed up before orders were renamed (`LEGACY_TAB_NAMES`) |
-| 45 | `Order Section` | `OrderSection` | Read from `Watch Order Section` likewise |
-| 46 | `Order Item` | `OrderItem` | Read from `Watch Order Item` likewise |
-| 47 | `Order Follow` | `OrderFollow` | Read from `Watch Order Follow` likewise |
-| 48 | `Order Follow Skip` | `OrderFollowSkip` |  |
-| 49 | `Media Relation` | `MediaRelation` |  |
-| 50 | `Plan Next` | `PlanNext` |  |
-| 51 | `Quote` | `Quote` |  |
-| 52 | `Character Casting` | `CharacterCasting` |  |
-| 53 | `Character Casting Voice` | `CharacterCastingVoice` |  |
-| 54 | `Meme` | `Meme` |  |
-| 55 | `User Favorite` | `UserFavorite` |  |
-| 56 | `Note` | `Note` |  |
-| 57 | `Note Mark` | `NoteMark` |  |
-| 58 | `Needs Work` | `NeedsWork` |  |
-| 59 | `Resources` | `ResourceNode` |  |
-| 60 | `Media Source` | `MediaSource` |  |
-| 61 | `Media Content Label` | `MediaContentLabel` |  |
-| 62 | `Franchise Content Label` | `FranchiseContentLabel` |  |
-| 63 | `Collection Content Label` | `CollectionContentLabel` |  |
-| 64 | `Series Content Label` | `SeriesContentLabel` |  |
-| 65 | `Seasonal` | `Seasonal` |  |
+| 22 | `Series Relation` | `SeriesRelation` |  |
+| 23 | `User Rating` | `UserRating` |  |
+| 24 | `Media` | `Media` |  |
+| 25 | `Anime` | `Anime` | `anime` |
+| 26 | `Anime Movie` | `AnimeMovies` | `anime-movie` |
+| 27 | `Movies` | `Movies` | `movie` |
+| 28 | `TV Shows` | `TVShows` | `tv-show` |
+| 29 | `Cartoons` | `Cartoon` | `cartoon` |
+| 30 | `Manga` | `Manga` | `manga` |
+| 31 | `Book` | `Book` | `book` |
+| 32 | `Book Unit` | `BookUnit` |  |
+| 33 | `User Book Unit Rating` | `UserBookUnitRating` |  |
+| 34 | `Comic` | `Comic` | `comic` |
+| 35 | `Game` | `Game` | `game` |
+| 36 | `Game Copy` | `GameCopy` |  |
+| 37 | `Game Choice Node` | `GameChoiceNode` |  |
+| 38 | `Game Choice Edge` | `GameChoiceEdge` |  |
+| 39 | `Game Choice Mark` | `GameChoiceMark` |  |
+| 40 | `H-Comic` | `HComic` | `h-comic` |
+| 41 | `Hentai` | `Hentai` | `hentai` |
+| 42 | `H-Game` | `HGame` | `h-game` |
+| 43 | `User Media List` | `UserMediaList` |  |
+| 44 | `User Highlight Group Order` | `UserHighlightGroupOrder` |  |
+| 45 | `Order List` | `OrderList` | Read from `Watch Order List` on a sheet backed up before orders were renamed (`LEGACY_TAB_NAMES`) |
+| 46 | `Order Section` | `OrderSection` | Read from `Watch Order Section` likewise |
+| 47 | `Order Item` | `OrderItem` | Read from `Watch Order Item` likewise |
+| 48 | `Order Follow` | `OrderFollow` | Read from `Watch Order Follow` likewise |
+| 49 | `Order Follow Skip` | `OrderFollowSkip` |  |
+| 50 | `Media Relation` | `MediaRelation` |  |
+| 51 | `Plan Next` | `PlanNext` |  |
+| 52 | `Quote` | `Quote` |  |
+| 53 | `Character Casting` | `CharacterCasting` |  |
+| 54 | `Character Casting Voice` | `CharacterCastingVoice` |  |
+| 55 | `Meme` | `Meme` |  |
+| 56 | `User Favorite` | `UserFavorite` |  |
+| 57 | `Note` | `Note` |  |
+| 58 | `Note Mark` | `NoteMark` |  |
+| 59 | `Needs Work` | `NeedsWork` |  |
+| 60 | `Resources` | `ResourceNode` |  |
+| 61 | `Media Source` | `MediaSource` |  |
+| 62 | `Media Content Label` | `MediaContentLabel` |  |
+| 63 | `Franchise Content Label` | `FranchiseContentLabel` |  |
+| 64 | `Collection Content Label` | `CollectionContentLabel` |  |
+| 65 | `Series Content Label` | `SeriesContentLabel` |  |
+| 66 | `Seasonal` | `Seasonal` |  |
 
 `Media` sits immediately before the twelve entry tabs: every entry table has a
 composite FK `(system_id, media_type)` up to `media`, and although that FK is
@@ -606,7 +607,9 @@ studio_id)`. Each row is one side of a relation with that
 side's `remark`, so a relation restores as the two rows it was backed up as. `Franchise Relation`
 follows `Franchise` with the same shape, but a franchise's uuid travels with
 its tab, so both ends are stored as written; its natural key is
-`(franchise_id, related_franchise_id)`.
+`(franchise_id, related_franchise_id)`. `Series Relation` follows `Series` the same way: a series'
+uuid travels with its tab too, and its natural key is `(series_id,
+related_series_id)`.
 
 `Person` and `Character` fold `gender`, and an old sheet's `my_rating` (filed
 under the installation owner, above), onto their closed

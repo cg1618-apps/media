@@ -542,7 +542,7 @@ columns.
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `GenresCard`, `TimeToBeatCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`,
   `ClubMembership` (see [Entity components](#entity-components-person-studio-and-character)),
-  `RelatedRecords` (`type` "studio", "publisher" or "franchise": the
+  `RelatedRecords` (`type` "studio", "publisher", "franchise" or "series": the
   record's related records through GET/PUT `/api/{type}/{id}/related`, each
   row a link to its own kind's page with this side's remark; for an admin an
   Edit mode of rows with a remark input and a remove button, plus a
