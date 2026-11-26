@@ -2835,9 +2835,9 @@ account switches to, and only something the ceiling shows can be denied:
 ### `data_control_logs`
 
 Audit log of pipeline runs (Fill, Replace, Pull, Backup, Calculate, deletes).
-Model: `DataControlLog`. A batch run (Fill All, Replace All, Pull All) is one
-row for the run and one per operation it ran, each operation's `parent_id`
-naming the run.
+Model: `DataControlLog`. A batch run (Fill All, Replace All, Pull All,
+Calculate All) is one row for the run and one per operation it ran, each
+operation's `parent_id` naming the run.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
@@ -2846,11 +2846,13 @@ naming the run.
 | `action_main` | String | no | | e.g. the pipeline family |
 | `action_specific` | String | no | | |
 | `type` | String | no | | The trigger: `Manual` or `Auto` |
-| `status` | String | no | | Outcome |
+| `status` | String | no | | Outcome: `Success`, `Partial`, `Failed` or `Aborted` |
 | `rows_added` / `rows_updated` / `rows_deleted` | Integer | yes | `0` | |
+| `rows_failed` | Integer | yes | `0` (server default) | Entries the operation could not process, named in `details_json` under `failed` |
 | `error_message` | Text | yes | | |
 | `details_json` | Text | yes | | |
-| `timestamp` | DateTime | yes | now | |
+| `started_at` | DateTime | yes | | When the operation began; NULL on rows that never recorded it |
+| `timestamp` | DateTime | yes | now | When the row was written, the operation's end |
 
 ### `deleted_record`
 

@@ -427,6 +427,10 @@ class DataControlLog(Base):
     and one row per operation it ran; each operation row names the run's row
     in `parent_id`. The log lists the runs and opens each one's operations in
     its Details popup. Deleting a run deletes its operations with it.
+
+    `status` is Success, Partial (some entries failed, some did not; the
+    failed ones are counted in `rows_failed` and named in `details_json`),
+    Failed or Aborted.
     """
 
     __tablename__ = "data_control_logs"
@@ -445,8 +449,13 @@ class DataControlLog(Base):
     rows_added = Column(Integer, default=0)
     rows_updated = Column(Integer, default=0)
     rows_deleted = Column(Integer, default=0)
+    # Entries the operation could not process; their names ride in
+    # details_json under "failed". Some failed and some did not: Partial.
+    rows_failed = Column(Integer, default=0, server_default="0")
     error_message = Column(Text, nullable=True)
     details_json = Column(Text, nullable=True)
+    # When the operation began; `timestamp` is when it ended and was logged.
+    started_at = Column(DateTime, nullable=True)
     timestamp = Column(DateTime, default=get_taipei_now)
 
 

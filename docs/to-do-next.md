@@ -29,25 +29,6 @@ carry it over silently, and do not leave it out silently.
 Standing rule from the walkthrough: **every filter set has a "Clear all"**
 that resets every filter in it at once.
 
-## Data control log: details, partial failures, Calculate All steps
-
-Builds on the per-run logging (`data_control_logs.parent_id`, the Control
-Center's "Details (n)" popup, `LogDetailsModal`). Three changes, one branch:
-
-1. **Show the stored details in the popup.** `details_json` already holds
-   Pull All's created entities and skipped tabs and Calculate All's notes;
-   the popup draws them under the operation they belong to.
-2. **Count per-entry failures, with a duration.** An operation records how
-   many entries failed and which, and a status of **Partial** when some
-   failed and some did not, instead of Success. Each operation also records
-   when it started, so the popup shows how long it took.
-3. **Break Calculate All into steps.** Post-processing, sequel seeding, cast
-   sync and the cover check each log a child row under the Calculate All
-   run, like Fill All's per-type rows, so a failure names its step.
-
-Not wanted for now: log filters and server-side paging, and age-based
-automatic clean-up.
-
 ## Split `docs/frontend/pages.md`
 
 `docs/frontend/pages.md` is split into one page per area under

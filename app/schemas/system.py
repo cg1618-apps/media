@@ -513,8 +513,11 @@ class DataControlLogResponse(BaseModel):
     rows_added: int
     rows_updated: int
     rows_deleted: int
+    rows_failed: int = 0
     error_message: Optional[str] = None
     details_json: Optional[str] = None
+    # When the operation began; None on rows that never recorded it.
+    started_at: Optional[datetime] = None
     timestamp: datetime
     # How many operations this run ran; 0 for a single operation.
     child_count: int = 0

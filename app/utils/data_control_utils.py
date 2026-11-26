@@ -4,6 +4,7 @@ Contains utility functions for the Data Control Logs.
 """
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -37,6 +38,8 @@ def log_data_control(
     error_message: str = None,
     details_json: str = None,
     parent_id: int | None = None,
+    rows_failed: int = 0,
+    started_at: datetime | None = None,
 ) -> int | None:
     """
     Safely commits an audit trail entry for Data Control Pipelines.
@@ -44,6 +47,8 @@ def log_data_control(
     Returns the new row's id, or None when the row could not be written.
     `parent_id` names the batch run (Fill All, Pull All, ...) the operation
     ran under; see adopt_logs for a run that writes its own row last.
+    `started_at` is when the operation began (get_taipei_now() at its
+    start); the row's own timestamp is when it ended.
     """
     try:
         log_entry = DataControlLog(
@@ -55,8 +60,10 @@ def log_data_control(
             rows_added=rows_added,
             rows_updated=rows_updated,
             rows_deleted=rows_deleted,
+            rows_failed=rows_failed,
             error_message=error_message,
             details_json=details_json,
+            started_at=started_at,
         )
         db.add(log_entry)
         db.commit()
@@ -87,6 +94,17 @@ def adopt_logs(db: Session, parent_id: int | None, child_ids: list[int | None]) 
     except Exception as e:
         logger.error("Failed to link DataControlLog rows to run %s: %s", parent_id, e)
         db.rollback()
+
+
+def outcome_status(processed: int, failed: int) -> str:
+    """
+    The status of an operation that ran to its end: Success when nothing
+    failed, Partial when some entries failed and some did not, Failed when
+    every entry it tried failed.
+    """
+    if not failed:
+        return "Success"
+    return "Partial" if processed else "Failed"
 
 
 def log_run(db: Session, child_ids: list[int | None], *args, **kwargs) -> int | None:

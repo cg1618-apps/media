@@ -12,6 +12,7 @@ export const RECENT_RUNS_LIMIT = 5;
 
 const STATUS_CLS = {
   Success: "text-success",
+  Partial: "text-warning",
   Aborted: "text-warning",
 };
 

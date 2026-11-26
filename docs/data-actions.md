@@ -988,10 +988,10 @@ Steps:
 
 1. If the spec has `pre_run`, run it first — anime, anime-movie, manga and book use it to bulk-prime the AniList cache (`prime_anilist_cache`, see [external-apis.md](external-apis.md#anilist)) before any entry is selected, so it fires even on a Fill of one or two entries. Load every row of `spec.model`. If the spec has `extract_id`, run it on **every** entry (parse the MAL / IMDb / Comic Vine / IGDB id out of the pasted link) and commit.
 2. Queue = entries where `spec.fill_eligible(db, entry)` is true. Empty queue → one progress message `"No entries need filling."`.
-3. Per queued entry: check the client is still connected; if `spec.budget` exists and returns `False`, stop and remember how many were left; emit progress with the entry's `display_name`; run `spec.fill` in a worker thread (`run_in_threadpool`, so the event loop and other requests stay alive during the synchronous `requests` calls) and commit. One failing entry is rolled back and logged; the run continues. Then `asyncio.sleep(spec.fill_sleep)` if set.
+3. Per queued entry: check the client is still connected; if `spec.budget` exists and returns `False`, stop and remember how many were left; emit progress with the entry's `display_name`; run `spec.fill` in a worker thread (`run_in_threadpool`, so the event loop and other requests stay alive during the synchronous `requests` calls) and commit. One failing entry is rolled back, logged and its `display_name` kept; the run continues. Then `asyncio.sleep(spec.fill_sleep)` if set.
 4. If `spec.post_process` exists, emit `"Running post-processing..."` and run it on **every** entry of the type (not just the queue), then commit.
 5. Run each `fill_after` step in order, emitting its message first.
-6. Log `Fill` / `Fill {label}` / `Success` with `rows_updated` = entries filled. Final SSE `success` message, with `"N entries skipped - the external API's budget was reached. Run again later to finish."` appended when the budget stopped the loop.
+6. Log `Fill` / `Fill {label}` with `rows_updated` = entries filled and `started_at` = when the run began. The status is `Success`, or `Partial` when some entries failed and some filled, or `Failed` when every entry it tried failed; failed entries are counted in `rows_failed` and named in `details_json` as `{"failed": [...]}`. Final SSE `success` message, carrying `failed` (the count), with `"N entries skipped - the external API's budget was reached. Run again later to finish."` appended when the budget stopped the loop and `"N entries failed; their names are in the log."` when entries failed.
 
 Per type (verbatim from `specs.py`):
 
@@ -1151,9 +1151,9 @@ the write hook.
 0. If the spec has `pre_run`, it runs first — game's `_start_game_run` drops the cached Steam owned-games library so the run reads today's playtime rather than a stale in-memory copy (also wired ahead of Fill Game, for the same reason).
 1. `spec.replace_select(db)` picks the entries: for most types `_linked(Model, id_col, link_col)` — rows with `mal_id`/`mal_link` (anime, anime-movie, manga, book, h-comic, hentai; h-comic also `ehentai_link`, hentai also `anidb_id`/`anidb_link`), `imdb_id`/`imdb_link` (movie, tv-show), or any of `steam_appid`/`steam_link`/`igdb_id`/`igdb_link` (game; h-game also `dlsite_link_jp`/`dlsite_link_tw`) not null. Cartoon additionally requires `airing_type in ["Movie", "TV"]`. Comic has `replace_select=None` — **no bulk Replace** for it.
 2. Zero entries → logs `Success` with `rows_updated=0` and emits an `info` event `"No {type} entries found to replace"`.
-3. Per entry: connection check, progress event, `spec.replace(db, entry, bulk=True)` in a worker thread, commit; failure is rolled back and logged, the run continues; then `replace_sleep` (1 s for the MAL types - anime, anime-movie, manga, book, h-comic, hentai - 0 for TMDB/OMDb types, `STEAM_PAUSE` = 0.5 s for game and h-game).
+3. Per entry: connection check, progress event, `spec.replace(db, entry, bulk=True)` in a worker thread, commit; failure is rolled back, logged and its name kept, the run continues; then `replace_sleep` (1 s for the MAL types - anime, anime-movie, manga, book, h-comic, hentai - 0 for TMDB/OMDb types, `STEAM_PAUSE` = 0.5 s for game and h-game).
 4. `replace_after` steps: same as the type's `fill_after` for anime (`derive_ep_previous_all_anime`, `run_sync_anime`), anime-movie, tv-show, cartoon, manga, book; none for movie.
-5. Log `Replace` / `Replace {label}` / `Success`, `rows_updated` = replaced count.
+5. Log `Replace` / `Replace {label}`, `rows_updated` = replaced count, with the status, `rows_failed`, `details_json` and `started_at` Fill's step 6 describes.
 
 `spec.replace` per type: `apply_single_replace_anime(db, e, bulk=bulk)`, `apply_single_replace_anime_movie(db, e)`, `apply_single_replace_movie(db, e, bulk=bulk)`, `apply_single_replace_tv_show(db, e, bulk=bulk)`, `apply_single_replace_cartoon(db, e, bulk=bulk)`, `apply_single_replace_manga(db, e, bulk=bulk)`, `apply_single_replace_book(db, e, bulk=bulk)`, `apply_single_replace_game(db, e, bulk=bulk)` — both sources, as Fill: it derives `igdb_id` and `steam_appid` from their links (`apply_extract_game_ids`), runs `autofill_game_from_igdb` (fill-only), derives the SteamDB `media_source` row (`derive_steamdb_source`), then runs `autofill_game_from_steam` (prices, Metacritic score and Metacritic link) and `autofill_hltb_source` (the HowLongToBeat link, for a game without one). The SteamDB row costs no request and comes before the Steam fetch, so the link lands even on a run where the storefront is out of budget; it comes after IGDB, so an appid IGDB just supplied gets its row. In a bulk run the `budget` gate (the Steam limiter) is checked for every entry, IGDB-only ones included, because IGDB can hand Steam an appid mid-entry.
 
@@ -1176,20 +1176,23 @@ The manual route `POST /replace/{key}/{entry_id}` calls the same function with `
 
 ## 6. Calculate All
 
-`run_calculate_all(db)` in `app/services/calculation.py`, in this order:
+`run_calculate_all(db)` in `app/services/calculation.py` runs six steps, in this order. Each logs a `Calculate` row of its own, named in the first column, under the `Calculate All` run's row (`parent_id`), the way Fill All's types do, and its stored details in `details_json`:
 
 | Step | Function | What it does |
 |---|---|---|
-| 1 | `run_post_processing` | `anime_post_processing` for every Anime, `anime_movie_post_processing` for every AnimeMovies, `tv_show_post_processing` for every TVShows, `cartoon_post_processing` for every Cartoon, `manga_post_processing` for every Manga; commit after each type. (Movies, Book and Comic have no post-processing.) |
-| 2 | `run_derive_ep_previous` | `derive_ep_previous_all_anime(db)` — anime is the only type with a franchise-wide derived field left |
-| 3 | `run_seed_sequel_relations` | `seed_sequel_relations(db)` + commit — in every Anime franchise no `media_relation` row touches yet, one `sequel` row per adjacent pair of TV/ONA anime in each series, ordered by season/part; a group with a tied season/part is skipped. A seeded franchise has rows, so later runs skip it ([systems/relations.md](systems/relations.md#sequel-seed--seed_sequel_relations-in-appservicesdomainmedia_relationpy)) |
-| 4 | `run_sync` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_book`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), `run_sync_size_groups` (`derive_size_groups` + commit), then `run_sync_cast` (`fill_cast_and_characters`, `app/services/domain/casting_sync.py` - empty character and identity role and photo from their cast rows, and the first row of an empty Remark list from the highest-ranked cast row's remark, then empty cast role and seiyuu from their originals, never overwriting - a cast row's remark is never filled, since a remark travels from cast row to original and not back; see [systems/credits-and-tags.md](systems/credits-and-tags.md#a-cast-row-and-its-original) - and a commit), then `run_sync_character_display_names` (`prefer_cn_display_names`, `app/services/domain/character_display_names.py` - every character and identity with a NULL `display_name_field` and a filled `name_cn` is set to `cn`; an explicit choice is never changed - and a commit) |
-| 5 | `bulk_check_cover_image(db)` | runs the cover check; its result is discarded |
-| 6 | log | `Calculate` / `Calculate All` / `Manual` / `Success` |
+| Post-processing | `run_post_processing` | `anime_post_processing` for every Anime, `anime_movie_post_processing` for every AnimeMovies, `tv_show_post_processing` for every TVShows, `cartoon_post_processing` for every Cartoon, `manga_post_processing` for every Manga; commit after each type. (Movies, Book and Comic have no post-processing.) |
+| Post-processing | `run_derive_ep_previous` | `derive_ep_previous_all_anime(db)` — anime is the only type with a franchise-wide derived field left |
+| Seed Sequel Relations | `run_seed_sequel_relations` | `seed_sequel_relations(db)` + commit — in every Anime franchise no `media_relation` row touches yet, one `sequel` row per adjacent pair of TV/ONA anime in each series, ordered by season/part; a group with a tied season/part is skipped. A seeded franchise has rows, so later runs skip it ([systems/relations.md](systems/relations.md#sequel-seed--seed_sequel_relations-in-appservicesdomainmedia_relationpy)). Details: `sequel_relations`, its counts |
+| Sync | `run_sync_types` | `run_sync_anime` (`create_missing_seasonal`, `sync_seasonal_counts`, `extract_system_options`), then `run_sync_anime_movie`, `run_sync_tv_show`, `run_sync_cartoon`, `run_sync_manga`, `run_sync_book`, `run_sync_comic` (each just `extract_system_options`), `run_sync_h_comic` (`extract_system_options`, then `enforce_h_comic_invariants` - the region clears over the whole table - and a commit), `run_sync_hentai` (just `extract_system_options`), `run_sync_gated_labels` (`enforce_gated_label_invariants` - every gated type's label on every entry of the type and every franchise of its franchise type - and a commit), `run_sync_size_groups` (`derive_size_groups` + commit). Details: `no_installation_owner`, when there is none (below) |
+| Sync Cast | `run_sync_cast` | `fill_cast_and_characters`, `app/services/domain/casting_sync.py` - empty character and identity role and photo from their cast rows, and the first row of an empty Remark list from the highest-ranked cast row's remark, then empty cast role and seiyuu from their originals, never overwriting - a cast row's remark is never filled, since a remark travels from cast row to original and not back; see [systems/credits-and-tags.md](systems/credits-and-tags.md#a-cast-row-and-its-original) - and a commit. Details: `cast`, the fields filled |
+| Sync Display Names | `run_sync_character_display_names` | `prefer_cn_display_names`, `app/services/domain/character_display_names.py` - every character and identity with a NULL `display_name_field` and a filled `name_cn` is set to `cn`; an explicit choice is never changed - and a commit. Details: `display_names`, the rows set |
+| Check Cover Images | `bulk_check_cover_image(db)` | runs the cover check. Details: `missing_covers` and `unused_covers`, its two counts |
 
-Any exception logs `Failed` with the message and re-raises (500). Response on success: `{"status": "success", "message": "Full calculation complete. Created N sequel relation(s) in M franchise(s); K group(s) skipped (tied season/part).", "owner_missing": 0}`, the counts coming from step 3; the admin page shows the message as its toast.
+`run_sync` is the same Sync, Sync Cast and Sync Display Names in one call, for a caller that wants every sync and no log.
 
-**With no [installation owner](#the-installation-owner)**, `run_sync_book` still derives every book's catalogue half but files no reader's half — the owner's list row is whose progress it derives — and counts each book it could not. The run still succeeds, but `owner_missing` carries the count, the message gains `no installation owner: N row(s) skipped (book list rows).`, and the `Success` audit row carries the same line in `details_json` under `no_installation_owner`. Rules behind each step are in [business-rules.md](business-rules.md).
+Each step's row records `started_at`. A step that raises is rolled back and logged `Failed` with its error, the run's row is logged `Failed` with `{step}: {error}` as its message, and the exception re-raises (500); the later steps do not run, since they read what the earlier ones derive. Otherwise the run's row is `Calculate` / `Calculate All` / `Manual` / `Success`. Response on success: `{"status": "success", "message": "Full calculation complete. Created N sequel relation(s) in M franchise(s); K group(s) skipped (tied season/part).", "owner_missing": 0}`, the counts coming from step 3; the admin page shows the message as its toast.
+
+**With no [installation owner](#the-installation-owner)**, `run_sync_book` still derives every book's catalogue half but files no reader's half — the owner's list row is whose progress it derives — and counts each book it could not. The run still succeeds, but `owner_missing` carries the count, the message gains `no installation owner: N row(s) skipped (book list rows).`, and the Sync step's row carries the same line in `details_json` under `no_installation_owner`. Rules behind each step are in [business-rules.md](business-rules.md).
 
 ---
 
@@ -1366,34 +1369,38 @@ None of them writes a log row; the reviewed action writes the one column.
 
 ## 10. The audit log (`DataControlLog`)
 
-`log_data_control(db, action_main, action_specific, action_type, status, rows_added=0, rows_updated=0, rows_deleted=0, error_message=None, details_json=None, parent_id=None)` inserts one row into `data_control_logs`, commits on its own and returns the row's id (None when it could not be written); a failure to log is itself only logged, never raised. A batch run writes its own row last, once its outcome is known, so its operations log first and are linked afterwards: `log_run(db, child_ids, ...)` writes the run's row and `adopt_logs` points each id in `child_ids` at it. `run_all` (Fill All, Replace All) collects the ids through `run_fill` / `run_replace`'s `log_ids` and `execute_backup`'s; `execute_pull_all` through `execute_pull_specific`'s.
+`log_data_control(db, action_main, action_specific, action_type, status, rows_added=0, rows_updated=0, rows_deleted=0, error_message=None, details_json=None, parent_id=None, rows_failed=0, started_at=None)` inserts one row into `data_control_logs`, commits on its own and returns the row's id (None when it could not be written); a failure to log is itself only logged, never raised. A batch run writes its own row last, once its outcome is known, so its operations log first and are linked afterwards: `log_run(db, child_ids, ...)` writes the run's row and `adopt_logs` points each id in `child_ids` at it. `run_all` (Fill All, Replace All) collects the ids through `run_fill` / `run_replace`'s `log_ids` and `execute_backup`'s; `execute_pull_all` through `execute_pull_specific`'s; `run_calculate_all` through its own steps. `outcome_status(processed, failed)` is the status of an operation that ran to its end: `Success`, `Partial` or `Failed`.
 
 | Column | Values used |
 |---|---|
 | `action_main` | `Fill`, `Replace`, `Pull`, `Backup`, `Calculate` |
-| `action_specific` | `Fill {label}`, `Fill All`, `Replace {label}`, `Replace All`, `Replace for single {label} entry`, `Pull {tab_name}`, `Pull All`, `Backup`, `Calculate All`, `Sync Cast`, `Sync Display Names`, `Remove Uncast Characters`, `Zero Free Games' List Price` |
+| `action_specific` | `Fill {label}`, `Fill All`, `Replace {label}`, `Replace All`, `Replace for single {label} entry`, `Pull {tab_name}`, `Pull All`, `Backup`, `Calculate All`, `Post-processing`, `Seed Sequel Relations`, `Sync`, `Check Cover Images`, `Sync Cast`, `Sync Display Names`, `Remove Uncast Characters`, `Zero Free Games' List Price` |
 | `type` | `Manual` (a button on the admin page) or `Auto` (Backup at the end of Fill/Replace All; write hooks) |
-| `status` | `Success`, `Aborted`, `Failed` |
+| `status` | `Success`, `Partial`, `Aborted`, `Failed` |
 | `rows_added` / `rows_updated` | Pull counts; Fill/Replace put the processed count in `rows_updated` |
-| `error_message`, `details_json` | failure text; Pull All's per-tab summary |
-| `timestamp` | `get_taipei_now()` |
+| `rows_failed` | Fill/Replace: entries that failed; Fill All / Replace All: their sum |
+| `error_message`, `details_json` | failure text; Pull All's per-tab summary, created entities and skipped tabs; Fill/Replace's `failed` names; each Calculate All step's notes |
+| `started_at` | when the operation began; the Details popup shows `timestamp - started_at` as its duration. Every pipeline row records it; the deletes and the smaller Calculate actions do not |
+| `timestamp` | `get_taipei_now()`, when the row was written - the operation's end |
 
 Status meanings:
 
-- **Success** — the pipeline finished. Per-entry failures inside Fill/Replace do not change this; a Comic budget stop is still Success.
+- **Success** — the pipeline finished and no entry failed. A Comic budget stop is still Success.
+- **Partial** — a Fill or Replace finished, and some of its entries failed while others did not; `rows_failed` counts them and `details_json` names them. A Fill All / Replace All whose operations lost entries is Partial too, and still ends in its Backup.
 - **Aborted** — the SSE client disconnected (`request.is_disconnected()` raised `CancelledError`); the current entry is rolled back and the count so far is recorded. Only Fill / Replace / Fill All / Replace All can be Aborted.
-- **Failed** — an exception escaped the pipeline, or (for `*All`) a sub-pipeline reported an error.
+- **Failed** — an exception escaped the pipeline, every entry a Fill or Replace tried failed, or (for `*All`) a sub-pipeline reported an error.
 
 Who logs:
 
 | Action | Logs |
 |---|---|
 | Fill / bulk Replace of one type from its own button | one row (`log_action=True`) |
-| Fill All / Replace All | one master row only — sub-pipelines run with `log_action=False`; the Auto Backup inside it logs its own `Backup` row |
+| Fill All / Replace All | one row for the run, plus one per type and the Auto `Backup` it ends in, each under the run's row |
 | single Replace (route or write hook) | never (`log_action=False` in both callers) |
 | Pull of one tab | one row |
 | Pull All | one `Pull All` row **plus** one row per tab (tabs run with `log_action=True`) |
-| Backup, Calculate All, Sync Cast, Sync Display Names | one row |
+| Calculate All | one row for the run, plus one per step under it |
+| Backup, Sync Cast, Sync Display Names | one row |
 | Remove Uncast Characters, Zero Free Games' List Price | one row; `rows_deleted` / `rows_updated` is how many it changed |
 | cover maintenance, checks | nothing |
 

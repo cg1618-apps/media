@@ -1226,8 +1226,10 @@ def execute_pull_specific(
     All can link each tab's row to its own.
     """
 
+    started_at = get_taipei_now()
+
     def _log(*args, **kwargs):
-        log_id = log_data_control(*args, **kwargs)
+        log_id = log_data_control(*args, started_at=started_at, **kwargs)
         if log_ids is not None:
             log_ids.append(log_id)
 
@@ -2697,6 +2699,7 @@ def execute_pull_all(
     out of unresolved_refs so an expected skip does not turn the audit row red.
     """
     logger.info("Starting Full Pull Pipeline (All Tabs)...")
+    started_at = get_taipei_now()
 
     tabs_in_order = TABS_IN_ORDER
 
@@ -2776,7 +2779,8 @@ def execute_pull_all(
         # tab's own rows are discarded either way: its commit never ran.
         db.rollback()
         log_run(
-            db, child_ids, "Pull", "Pull All", action_type, "Failed", error_message=str(e)
+            db, child_ids, "Pull", "Pull All", action_type, "Failed",
+            error_message=str(e), started_at=started_at,
         )
         raise e
 
@@ -2793,6 +2797,7 @@ def execute_pull_all(
             "Pull All",
             action_type,
             "Failed",
+            started_at=started_at,
             rows_added=total_added,
             rows_updated=total_updated,
             error_message=summary,
@@ -2819,6 +2824,7 @@ def execute_pull_all(
             "Pull All",
             action_type,
             "Failed",
+            started_at=started_at,
             rows_added=total_added,
             rows_updated=total_updated,
             error_message=summary,
@@ -2858,6 +2864,7 @@ def execute_pull_all(
             "Pull All",
             action_type,
             "Failed",
+            started_at=started_at,
             rows_added=total_added,
             rows_updated=total_updated,
             error_message=summary,
@@ -2903,6 +2910,7 @@ def execute_pull_all(
         "Pull All",
         action_type,
         "Success",
+        started_at=started_at,
         rows_added=total_added,
         rows_updated=total_updated,
         details_json=json.dumps(

@@ -25,7 +25,8 @@ from fastapi import Request
 from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
-from app.utils.data_control_utils import log_data_control, log_run
+from app.database import get_taipei_now
+from app.utils.data_control_utils import log_data_control, log_run, outcome_status
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,18 @@ def _log(db, kind, action_specific, action_type, status, log_action, log_ids=Non
             log_ids.append(log_id)
 
 
+def _failures(failed: list[str]) -> dict:
+    """The log columns an operation's failed entries fill: the count, and
+    the names under "failed" in details_json."""
+    if not failed:
+        return {}
+    return {"rows_failed": len(failed), "details_json": json.dumps({"failed": failed})}
+
+
+def _failure_note(failed: list[str]) -> str:
+    return f" {len(failed)} entries failed; their names are in the log." if failed else ""
+
+
 async def _run_steps(db: Session, request: Request, steps: tuple[Step, ...], done: int, total: int):
     for message, fn in steps:
         await _check_alive(request)
@@ -125,9 +138,11 @@ async def run_fill(
     """SSE generator: fill every eligible entry of one type, then post-process."""
     action_specific = action_specific or f"Fill {spec.label}"
     logger.info("Starting %s pipeline", action_specific)
+    started_at = get_taipei_now()
     processed = 0
     total = 0
     left_for_next_run = 0
+    failed: list[str] = []
 
     try:
         if spec.pre_run:
@@ -161,6 +176,7 @@ async def run_fill(
                 processed += 1
             except Exception as e:  # one bad entry must not end the run
                 db.rollback()
+                failed.append(name)
                 logger.error("%s: autofill failed for %s: %s", action_specific, name, e)
             if spec.fill_sleep:
                 await asyncio.sleep(spec.fill_sleep)
@@ -178,25 +194,31 @@ async def run_fill(
         async for message in _run_steps(db, request, spec.fill_after, total, total):
             yield message
 
-        _log(db, "Fill", action_specific, action_type, "Success", log_action, log_ids, rows_updated=processed)
+        _log(db, "Fill", action_specific, action_type, outcome_status(processed, len(failed)),
+             log_action, log_ids, rows_updated=processed, started_at=started_at,
+             **_failures(failed))
         message = f"{action_specific} complete."
         if left_for_next_run:
             message += (
                 f" {left_for_next_run} entries skipped - the external API's budget was"
                 " reached. Run again later to finish."
             )
-        yield _sse(status="success", message=message, total=total, processed=processed)
+        message += _failure_note(failed)
+        yield _sse(status="success", message=message, total=total, processed=processed,
+                   failed=len(failed))
 
     except asyncio.CancelledError:
         db.rollback()
         logger.info("Client disconnected. Aborting %s.", action_specific)
-        _log(db, "Fill", action_specific, action_type, "Aborted", log_action, log_ids, rows_updated=processed)
+        _log(db, "Fill", action_specific, action_type, "Aborted", log_action, log_ids,
+             rows_updated=processed, started_at=started_at, **_failures(failed))
         return
     except Exception as e:
         db.rollback()
         logger.exception("%s crashed", action_specific)
         _log(db, "Fill", action_specific, action_type, "Failed", log_action, log_ids,
-             rows_updated=processed, error_message=str(e))
+             rows_updated=processed, error_message=str(e), started_at=started_at,
+             **_failures(failed))
         yield _sse(status="error", message=str(e))
     finally:
         if spec.post_run:
@@ -228,9 +250,11 @@ async def run_replace(
     if spec.replace_select is None or spec.replace is None:
         raise ValueError(f"{spec.label} has no bulk Replace pipeline")
     logger.info("Starting %s pipeline", action_specific)
+    started_at = get_taipei_now()
     processed = 0
     total = 0
     left_for_next_run = 0
+    failed: list[str] = []
 
     try:
         if spec.pre_run:
@@ -238,7 +262,8 @@ async def run_replace(
         entries = spec.replace_select(db)
         total = len(entries)
         if total == 0:
-            _log(db, "Replace", action_specific, action_type, "Success", log_action, log_ids, rows_updated=0)
+            _log(db, "Replace", action_specific, action_type, "Success", log_action, log_ids,
+                 rows_updated=0, started_at=started_at)
             yield _sse(status="info", message=f"No {spec.label.lower()} entries found to replace",
                        total=0, processed=0)
             return
@@ -266,6 +291,7 @@ async def run_replace(
                 processed += 1
             except Exception as e:
                 db.rollback()
+                failed.append(name)
                 logger.error("%s: failed to replace %s: %s", action_specific, name, e)
             if spec.replace_sleep:
                 await asyncio.sleep(spec.replace_sleep)
@@ -273,25 +299,32 @@ async def run_replace(
         async for message in _run_steps(db, request, spec.replace_after, total, total):
             yield message
 
-        _log(db, "Replace", action_specific, action_type, "Success", log_action, log_ids, rows_updated=processed)
+        _log(db, "Replace", action_specific, action_type, outcome_status(processed, len(failed)),
+             log_action, log_ids, rows_updated=processed, started_at=started_at,
+             **_failures(failed))
         message = f"{action_specific} complete"
         if left_for_next_run:
             message += (
                 f". {left_for_next_run} entries skipped - the external API's budget was"
                 " reached. Run again later to finish."
             )
-        yield _sse(status="success", message=message, total=total, processed=processed)
+        if failed:
+            message += "." + _failure_note(failed)
+        yield _sse(status="success", message=message, total=total, processed=processed,
+                   failed=len(failed))
 
     except asyncio.CancelledError:
         db.rollback()
         logger.info("Client disconnected. Aborting %s.", action_specific)
-        _log(db, "Replace", action_specific, action_type, "Aborted", log_action, log_ids, rows_updated=processed)
+        _log(db, "Replace", action_specific, action_type, "Aborted", log_action, log_ids,
+             rows_updated=processed, started_at=started_at, **_failures(failed))
         return
     except Exception as e:
         db.rollback()
         logger.exception("%s crashed", action_specific)
         _log(db, "Replace", action_specific, action_type, "Failed", log_action, log_ids,
-             rows_updated=processed, error_message=str(e))
+             rows_updated=processed, error_message=str(e), started_at=started_at,
+             **_failures(failed))
         yield _sse(status="error", message=str(e))
     finally:
         if spec.post_run:
@@ -318,11 +351,12 @@ async def run_replace_single(
     `replace` is synchronous network I/O. `on_save` swaps in
     `spec.save_replace` where the type has one."""
     action_specific = f"Replace for single {spec.label.lower()} entry"
+    started_at = get_taipei_now()
     try:
         entry = db.query(spec.model).filter(spec.model.system_id == entry_id).first()
         if not entry:
             _log(db, "Replace", action_specific, action_type, "Failed", log_action,
-                 error_message=f"{spec.label} not found 404")
+                 error_message=f"{spec.label} not found 404", started_at=started_at)
             return {"status": "error", "message": f"{spec.label} entry not found", "status_code": 404}
 
         replace = (on_save and spec.save_replace) or spec.replace
@@ -332,12 +366,14 @@ async def run_replace_single(
         for fn in spec.single_after:
             fn(db)
 
-        _log(db, "Replace", action_specific, action_type, "Success", log_action, rows_updated=1)
+        _log(db, "Replace", action_specific, action_type, "Success", log_action, rows_updated=1,
+             started_at=started_at)
         return {"status": "success", "message": f"Successfully updated {entry.display_name}."}
     except Exception as e:
         db.rollback()
         logger.exception("Single replace failed for %s %s", spec.label, entry_id)
-        _log(db, "Replace", action_specific, action_type, "Failed", log_action, error_message=str(e))
+        _log(db, "Replace", action_specific, action_type, "Failed", log_action, error_message=str(e),
+             started_at=started_at)
         # An exception may name its own answer (comicvine.HourlyBudgetSpent: 429).
         return {"status": "error", "message": str(e), "status_code": getattr(e, "status_code", 500)}
 
@@ -362,7 +398,9 @@ async def run_all(
     """
     action_specific = f"{kind} All"
     logger.info("Starting %s pipeline", action_specific)
+    started_at = get_taipei_now()
     total_processed = 0
+    total_failed = 0
     sub_errors: list[str] = []
     child_ids: list = []
     runner = run_fill if kind == "Fill" else run_replace
@@ -378,6 +416,7 @@ async def run_all(
                     data = json.loads(message[6:])
                     if data.get("status") == "success":
                         total_processed += data.get("processed", 0)
+                        total_failed += data.get("failed", 0)
                     elif data.get("status") == "error":
                         sub_errors.append(data.get("message", f"{sub_name} failed"))
                 yield message
@@ -386,7 +425,8 @@ async def run_all(
         if sub_errors:
             summary = "; ".join(sub_errors)
             log_run(db, child_ids, kind, action_specific, action_type, "Failed",
-                    rows_updated=total_processed, error_message=summary)
+                    rows_updated=total_processed, rows_failed=total_failed,
+                    error_message=summary, started_at=started_at)
             yield _sse(status="error", message=f"{action_specific} completed with errors: {summary}",
                        total=1, processed=total_processed)
             return
@@ -398,16 +438,26 @@ async def run_all(
         yield _progress("Synchronizing to Google Sheets...", 1, 1)
         execute_backup(db, action_type="Auto", log_ids=child_ids)
 
-        log_run(db, child_ids, kind, action_specific, action_type, "Success",
-                rows_updated=total_processed)
-        yield _sse(status="success", message=f"{action_specific} and Backup completed.", total=1, processed=1)
+        # Partial when an operation lost some entries: the run finished and
+        # backed up, but not everything it tried landed. Which entries is on
+        # each operation's own row.
+        log_run(db, child_ids, kind, action_specific, action_type,
+                outcome_status(total_processed, total_failed),
+                rows_updated=total_processed, rows_failed=total_failed,
+                started_at=started_at)
+        message = f"{action_specific} and Backup completed."
+        if total_failed:
+            message += f" {total_failed} entries failed; their names are in the log."
+        yield _sse(status="success", message=message, total=1, processed=1)
 
     except asyncio.CancelledError:
         log_run(db, child_ids, kind, action_specific, action_type, "Aborted",
-                rows_updated=total_processed)
+                rows_updated=total_processed, rows_failed=total_failed,
+                started_at=started_at)
         return
     except Exception as e:
         logger.exception("%s crashed", action_specific)
         log_run(db, child_ids, kind, action_specific, action_type, "Failed",
-                rows_updated=total_processed, error_message=str(e))
+                rows_updated=total_processed, rows_failed=total_failed,
+                error_message=str(e), started_at=started_at)
         yield _sse(status="error", message=str(e))
