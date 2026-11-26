@@ -250,5 +250,5 @@ it("offers Exclusive Source as a single choice of the five platforms", () => {
   renderTab();
   const select = screen.getByLabelText("Exclusive Source");
   const values = [...select.querySelectorAll("option")].map((o) => o.value).filter(Boolean);
-  expect(values).toEqual(["Nintendo", "PlayStation", "Xbox", "PC", "Mobile"]);
+  expect(values).toEqual(["PC", "PlayStation", "Xbox", "Nintendo", "Mobile"]);
 });

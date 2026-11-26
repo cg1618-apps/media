@@ -799,7 +799,7 @@ ones in `OPTION_CATEGORIES`:
 | `Game Theme` | game, h-game | tag field `game_theme`; 20 seeded values, each with an IGDB alias |
 | `Game Mode` | game | tag field `game_mode`; 5 seeded values, each with an IGDB alias |
 | `Combat Mode` | game | tag field `combat_mode`; `PvE` and `PvP`, seeded **without** aliases - it is not an IGDB field |
-| `Exclusive Platform` | game | tag field `exclusive_platform`, a game's Exclusive Source: `Nintendo`, `PlayStation`, `Xbox`, `PC`, `Mobile`, seeded in that order by `g1x2clusive3` (`seed_exclusive_platforms`). Single-valued - the form offers one or none. Not anime's `exclusive_source`, which draws from Platform and must match a main access row |
+| `Exclusive Platform` | game | tag field `exclusive_platform`, a game's Exclusive Source: `PC`, `PlayStation`, `Xbox`, `Nintendo`, `Mobile`, the main-platform order of `Game Platform` without `Browser` (`EXCLUSIVE_PLATFORMS`, seeded by `seed_exclusive_platforms`; `g1m2ainplat3` gives an existing database the same order). The Game form's single choice offers them in that order. Single-valued - the form offers one or none. Not anime's `exclusive_source`, which draws from Platform and must match a main access row |
 | `Game Platform` | game | tag field `game_platform`; six **main platforms** (families) - `PC`, `PlayStation`, `Xbox`, `Nintendo`, `Mobile`, `Browser` - offered first, then every **specific platform** (console) under its short name (`PS5`, `Switch`, …), grouped by family in the same order; the list is under [Game Platform: families and consoles](#game-platform-families-and-consoles). A console brings its family on every write, and a game stores its main platforms first. Brand names, so English rather than Chinese |
 | `H Genre Plot` | h-comic, h-game, hentai | tag field `h_genre_plot`; admin-managed, ships empty |
 | `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |
@@ -971,10 +971,12 @@ as one list.
 **A console brings its family.** `replace_tags` is the one write path for
 tags - the credits API, Fill and Pull all go through it - and for
 `game_platform` it runs `with_platform_families` first: a console whose family
-is not among the values gets the family added where its first console stands,
-and then every family moves ahead of every other value - a stable split, each
-group keeping the order it was handed in. So `Switch, PS5, PC` is stored as
-`Nintendo, PlayStation, PC, Switch, PS5`. A value that is neither a family nor
+is not among the values gets the family added, and the families come first in
+the fixed main-platform order - PC, PlayStation, Xbox, Nintendo, Mobile,
+Browser - whatever order they were handed in, then every other value in the
+order it was handed. So `Switch, PS5, PC` is stored as
+`PC, PlayStation, Nintendo, Switch, PS5`, and `Windows, PS5, PC` as
+`PC, PlayStation, Windows, PS5`. A value that is neither a family nor
 a known console counts as specific. A family alone brings no console, and the
 rule applies to no other tag field. **Removing a family while one of its
 consoles stays tagged keeps the family**: the write puts it straight back.
@@ -992,7 +994,7 @@ its chips without loading options; a unit test keeps it equal to
 
 Fill tags both grains from one IGDB platform, and stores them through
 `replace_tags`, so IGDB's `PlayStation 4, PlayStation 5, PC (Microsoft
-Windows)` is stored as `PlayStation, PC, PS4, PS5, Windows`. Games tagged
+Windows)` is stored as `PC, PlayStation, PS4, PS5, Windows`. Games tagged
 before the consoles existed keep their family tags alone; no console was
 guessed for them.
 

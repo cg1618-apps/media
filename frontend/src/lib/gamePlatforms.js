@@ -26,10 +26,11 @@ export const MAIN_PLATFORMS = ["PC", "PlayStation", "Xbox", "Nintendo", "Mobile"
 
 const MAIN = new Set(MAIN_PLATFORMS);
 
-// `values` with every main platform ahead of every other one, each group in
-// the order it had.
+// `values` with the main platforms first, in MAIN_PLATFORMS order, then every
+// other value in the order it had.
 export function mainPlatformsFirst(values) {
-  return [...values.filter((v) => MAIN.has(v)), ...values.filter((v) => !MAIN.has(v))];
+  const held = new Set(values);
+  return [...MAIN_PLATFORMS.filter((p) => held.has(p)), ...values.filter((v) => !MAIN.has(v))];
 }
 
 // {console: family}, from the form's loaded options.
@@ -43,9 +44,9 @@ export function platformFamilies(options) {
   return out;
 }
 
-// The comma-joined tags string with each console's family added where its
-// first console stands, when it is not there already, and then the main
-// platforms moved ahead of the specific ones (mainPlatformsFirst).
+// The comma-joined tags string with each console's family added when it is
+// not there already, then the main platforms put first in their fixed order
+// (mainPlatformsFirst).
 export function withPlatformFamilies(raw, families) {
   const tags = splitTags(raw);
   const present = new Set(tags);

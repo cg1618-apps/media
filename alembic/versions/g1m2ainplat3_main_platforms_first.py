@@ -8,19 +8,22 @@
           order they already had. That is what the seed gives a fresh
           database. A Game Platform value outside the seed keeps its
           sort_order.
+          The five `Exclusive Platform` values take the same order: PC,
+          PlayStation, Xbox, Nintendo, Mobile.
   media_tag
           every entry's `game_platform` tags are re-positioned so the main
-          platforms come first: a stable split, families ahead of every other
-          value, each group keeping its order. A tagged console whose family
-          is not tagged gains the family, where its first console stood - the
-          rule replace_tags applies on every write from here on. Matched on
-          the stored option values, which are the seed's spellings.
+          platforms come first, in the fixed order PC, PlayStation, Xbox,
+          Nintendo, Mobile, Browser, then every other value in the order it
+          had. A tagged console whose family is not tagged gains the family -
+          the rule replace_tags applies on every write from here on. Matched
+          on the stored option values, which are the seed's spellings.
 
 Idempotent: a second run finds every sort_order and position in place.
 
-Downgrade puts the old interleaved sort_order back - each family followed by
-its consoles, in the family order PlayStation, Nintendo, Xbox, PC, Mobile,
-Browser. Tag positions are not restored: the older code reads them in any
+Downgrade puts the old interleaved Game Platform sort_order back - each family
+followed by its consoles, in the family order PlayStation, Nintendo, Xbox, PC,
+Mobile, Browser - and the old Exclusive Platform order Nintendo, PlayStation,
+Xbox, PC, Mobile. Tag positions are not restored: the older code reads them in any
 order, and a family the upgrade added is one it would have added itself on
 the next write. So nothing is lost on the way down, and the revision is not
 marked irreversible.
@@ -48,6 +51,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 CATEGORY = "Game Platform"
 FIELD = "game_platform"
+EXCLUSIVE_CATEGORY = "Exclusive Platform"
+EXCLUSIVE_ORDER = ("PC", "PlayStation", "Xbox", "Nintendo", "Mobile")
+OLD_EXCLUSIVE_ORDER = ("Nintendo", "PlayStation", "Xbox", "PC", "Mobile")
 
 # family -> (consoles, ...), in main-platform order.
 PLATFORMS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -107,23 +113,18 @@ def old_order() -> list[str]:
 
 def main_platforms_first(values: list[str]) -> list[str]:
     """
-    The frozen with_platform_families: a missing family where its first console
-    stands, then every family ahead of every other value, each group in order.
+    The frozen with_platform_families: every console's missing family added,
+    the families in FAMILIES order, then every other value in its order.
     """
-    present = set(values)
-    expanded: list[str] = []
+    held = set(values)
     for value in values:
         family = FAMILY_OF.get(value)
-        if family is not None and family not in present:
-            expanded.append(family)
-            present.add(family)
-        expanded.append(value)
-    return [v for v in expanded if v in FAMILIES] + [
-        v for v in expanded if v not in FAMILIES
-    ]
+        if family is not None:
+            held.add(family)
+    return [f for f in FAMILIES if f in held] + [v for v in values if v not in FAMILIES]
 
 
-def set_sort_order(conn, order: list[str]) -> None:
+def set_sort_order(conn, order, category: str = CATEGORY) -> None:
     for sort_order, value in enumerate(order):
         conn.execute(
             sa.text(
@@ -131,7 +132,7 @@ def set_sort_order(conn, order: list[str]) -> None:
                 "WHERE category = :category AND value = :value "
                 "AND sort_order IS DISTINCT FROM :sort_order"
             ),
-            {"category": CATEGORY, "value": value, "sort_order": sort_order},
+            {"category": category, "value": value, "sort_order": sort_order},
         )
 
 
@@ -189,11 +190,13 @@ def reposition_tags(conn) -> None:
 
 def apply_upgrade(conn) -> None:
     set_sort_order(conn, new_order())
+    set_sort_order(conn, EXCLUSIVE_ORDER, EXCLUSIVE_CATEGORY)
     reposition_tags(conn)
 
 
 def apply_downgrade(conn) -> None:
     set_sort_order(conn, old_order())
+    set_sort_order(conn, OLD_EXCLUSIVE_ORDER, EXCLUSIVE_CATEGORY)
 
 
 def upgrade() -> None:

@@ -86,14 +86,14 @@ describe("the Platform picker", () => {
     renderPicker("Nintendo, Switch, PlayStation");
     await user.click(removeTag("Nintendo"));
     // Back, and ahead of the console: main platforms come first.
-    expect(platformTags()).toEqual(["Nintendo", "PlayStation", "Switch"]);
+    expect(platformTags()).toEqual(["PlayStation", "Nintendo", "Switch"]);
   });
 
   it("keeps the main platforms ahead of every console", async () => {
     const user = userEvent.setup();
     renderPicker("Nintendo, Switch");
     await user.type(within(platformBox()).getByRole("combobox"), "PS5{Enter}");
-    expect(platformTags()).toEqual(["Nintendo", "PlayStation", "Switch", "PS5"]);
+    expect(platformTags()).toEqual(["PlayStation", "Nintendo", "Switch", "PS5"]);
   });
 
   it("lets a family go once no console holds it", async () => {

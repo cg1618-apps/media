@@ -170,8 +170,8 @@ tags. See `app/services/domain/label_tags.py` and authorization.md.
 
 **A Game Platform console brings its family.** `game_platform` holds families
 (`Nintendo`) and consoles (`Switch`), and every write stores a console's
-family with it and every family ahead of every console - the main platforms
-first; a family stays while any of its consoles does. See
+family with it and every family ahead of every console, in the fixed
+main-platform order; a family stays while any of its consoles does. See
 [options.md](../options.md#game-platform-families-and-consoles).
 
 The three H genre vocabularies are admin-managed and shared by the gated

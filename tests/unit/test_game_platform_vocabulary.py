@@ -7,6 +7,7 @@ endpoint all read it.
 """
 
 from app.utils.game_vocabulary import (
+    EXCLUSIVE_PLATFORMS,
     GAME_PLATFORM_FAMILIES,
     GAME_PLATFORMS,
     GAME_VOCABULARY,
@@ -22,9 +23,8 @@ def test_a_console_brings_its_family():
 
 def test_main_platforms_go_ahead_of_every_specific_one():
     """
-    A stable partition: the families first, then the consoles, each group in
-    the order it was handed - a missing family taking the place of its first
-    console.
+    The families first, in the fixed main-platform order whatever order they
+    were handed in, then the consoles in the order they were handed.
     """
     assert with_platform_families(["PC", "PS5", "PS4", "Switch 2"]) == [
         "PC",
@@ -35,10 +35,16 @@ def test_main_platforms_go_ahead_of_every_specific_one():
         "Switch 2",
     ]
     assert with_platform_families(["Switch", "Windows", "PC"]) == [
-        "Nintendo",
         "PC",
+        "Nintendo",
         "Switch",
         "Windows",
+    ]
+    assert with_platform_families(["Windows", "PS5", "PC"]) == [
+        "PC",
+        "PlayStation",
+        "Windows",
+        "PS5",
     ]
 
 
@@ -50,8 +56,8 @@ def test_matching_ignores_case_and_width_as_resolve_option_does():
     assert with_platform_families(["ｓｗｉｔｃｈ"]) == ["Nintendo", "ｓｗｉｔｃｈ"]
     assert with_platform_families(["Switch", "nintendo"]) == ["nintendo", "Switch"]
     assert with_platform_families(["browser", "Ｗｉｎｄｏｗｓ"]) == [
-        "browser",
         "PC",
+        "browser",
         "Ｗｉｎｄｏｗｓ",
     ]
 
@@ -60,8 +66,8 @@ def test_an_unknown_value_counts_as_a_specific_platform():
     assert with_platform_families(["Steam Deck", "Xbox"]) == ["Xbox", "Steam Deck"]
 
 
-def test_families_alone_keep_their_order():
-    assert with_platform_families(["Browser", "Xbox"]) == ["Browser", "Xbox"]
+def test_families_alone_take_the_fixed_order():
+    assert with_platform_families(["Browser", "Xbox", "PC"]) == ["PC", "Xbox", "Browser"]
     assert with_platform_families([]) == []
 
 
@@ -83,6 +89,11 @@ def test_one_igdb_name_is_an_alias_of_both_the_family_and_the_console():
 
 def test_the_families_are_in_main_platform_order():
     assert [family for family, _, _ in GAME_PLATFORMS] == MAIN
+
+
+def test_the_exclusive_platforms_follow_the_main_platform_order():
+    assert list(EXCLUSIVE_PLATFORMS) == ["PC", "PlayStation", "Xbox", "Nintendo", "Mobile"]
+    assert [p for p in MAIN if p in EXCLUSIVE_PLATFORMS] == list(EXCLUSIVE_PLATFORMS)
 
 
 def test_the_vocabulary_lists_the_families_then_each_familys_consoles():

@@ -115,7 +115,7 @@ describe("game library filters and sorts", () => {
     expect(platform.deriveOptions(games)).toEqual(["PC", "PS5"]);
   });
 
-  it("offers the main platforms first, each group by appearance", () => {
+  it("offers the main platforms first in the fixed order, then the specific ones by appearance", () => {
     const platform = GAME_LIBRARY_CONFIG.filterDefs.find((f) => f.key === "gamePlatform");
     const games = [
       { game_platform: "PlayStation, PS5" },
@@ -124,10 +124,11 @@ describe("game library filters and sorts", () => {
       { game_platform: "PC" },
       { game_platform: "PS5, Browser" },
     ];
-    // PS5 is carried by more games than PC, and still follows every main one.
+    // PlayStation is carried by more games than PC and still follows it; PS5
+    // is carried by more games than PC and still follows every main one.
     expect(platform.deriveOptions(games)).toEqual([
-      "PlayStation",
       "PC",
+      "PlayStation",
       "Browser",
       "PS5",
       "Windows",

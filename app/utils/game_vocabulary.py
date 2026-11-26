@@ -228,26 +228,30 @@ def with_platform_families(values: list[str]) -> list[str]:
     """
     `values` with the family of every console among them, main platforms first.
 
-    A missing family is added where its first console stands, then the list is
-    split stably: every main platform (family) ahead of every specific one,
-    each group in the order it had. A value that is neither a family nor a
-    known console counts as specific. Matched as resolve_option matches,
-    ignoring case, width and whitespace. A family is never taken out: removing
-    Nintendo while Switch stays tagged puts Nintendo back.
+    Every console's family is added when it is missing. The main platforms
+    (families) come first, in MAIN_PLATFORMS order whatever order they were
+    handed in, then every specific platform in the order it was handed. A
+    value that is neither a family nor a known console counts as specific.
+    Matched as resolve_option matches, ignoring case, width and whitespace;
+    a family keeps the spelling it was handed in. A family is never taken
+    out: removing Nintendo while Switch stays tagged puts Nintendo back.
     """
     families = {normalize_name(c): f for c, f in GAME_PLATFORM_FAMILIES.items()}
-    mains = {normalize_name(f) for f in MAIN_PLATFORMS}
-    present = {normalize_name(v) for v in values}
-    expanded: list[str] = []
+    rank = {normalize_name(f): i for i, f in enumerate(MAIN_PLATFORMS)}
+    main: dict[str, str] = {}
     for value in values:
-        family = families.get(normalize_name(value))
-        if family is not None and normalize_name(family) not in present:
-            expanded.append(family)
-            present.add(normalize_name(family))
-        expanded.append(value)
-    main = [v for v in expanded if normalize_name(v) in mains]
-    specific = [v for v in expanded if normalize_name(v) not in mains]
-    return main + specific
+        if normalize_name(value) in rank:
+            main.setdefault(normalize_name(value), value)
+    specific: list[str] = []
+    for value in values:
+        key = normalize_name(value)
+        if key in rank:
+            continue
+        family = families.get(key)
+        if family is not None:
+            main.setdefault(normalize_name(family), family)
+        specific.append(value)
+    return [main[k] for k in sorted(main, key=rank.__getitem__)] + specific
 
 
 # One vocabulary that already exists gains game-scoped values, so the Sources
@@ -360,11 +364,12 @@ def seed_game_vocabulary(db: Session) -> None:
     db.flush()
 
 
-# The platform families a game may be exclusive to, in picker order. Its own
-# category, scoped to game alone: the brand-level Game Platform values above
-# are consoles and storefronts, and this field names a family.
+# The platform families a game may be exclusive to, in picker order - the
+# main-platform order of GAME_PLATFORMS, without Browser. Its own category,
+# scoped to game alone: the brand-level Game Platform values above are
+# consoles and storefronts, and this field names a family.
 EXCLUSIVE_PLATFORM_CATEGORY = "Exclusive Platform"
-EXCLUSIVE_PLATFORMS: tuple[str, ...] = ("Nintendo", "PlayStation", "Xbox", "PC", "Mobile")
+EXCLUSIVE_PLATFORMS: tuple[str, ...] = ("PC", "PlayStation", "Xbox", "Nintendo", "Mobile")
 
 
 def seed_exclusive_platforms(db: Session) -> None:

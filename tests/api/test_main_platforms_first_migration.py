@@ -1,8 +1,9 @@
 """
 API integration tests for revision g1m2ainplat3: the Game Platform
-vocabulary offers its six main platforms first, and every game's stored
-platform tags put the main platforms ahead of the specific ones, a missing
-family added for a tagged console.
+vocabulary offers its six main platforms first, every game's stored
+platform tags put the main platforms ahead of the specific ones in the fixed
+order, a missing family added for a tagged console, and the Exclusive
+Platform vocabulary follows the same order.
 
 Runs the shipped revision's own functions against the test session. A
 revision's own test, deleted once the revision has deployed (docs/testing.md,
@@ -19,7 +20,12 @@ import pytest
 
 from app import models
 from app.services.domain.credits import tag_values
-from app.utils.game_vocabulary import GAME_VOCABULARY, seed_game_vocabulary
+from app.utils.game_vocabulary import (
+    EXCLUSIVE_PLATFORMS,
+    GAME_VOCABULARY,
+    seed_exclusive_platforms,
+    seed_game_vocabulary,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 REVISION = ROOT / "alembic" / "versions" / "g1m2ainplat3_main_platforms_first.py"
@@ -38,14 +44,15 @@ def revision():
 @pytest.fixture(autouse=True)
 def vocabulary(db_session):
     seed_game_vocabulary(db_session)
+    seed_exclusive_platforms(db_session)
     db_session.flush()
 
 
-def _platform_order(db):
+def _platform_order(db, category="Game Platform"):
     return [
         o.value
         for o in db.query(models.SystemOption)
-        .filter_by(category="Game Platform")
+        .filter_by(category=category)
         .order_by(models.SystemOption.sort_order)
         .all()
     ]
@@ -125,14 +132,14 @@ def test_every_games_platforms_put_the_main_ones_first(revision, db_session):
     db.expire_all()
 
     assert tag_values(db, interleaved, "game_platform") == [
-        "Nintendo",
         "PlayStation",
+        "Nintendo",
         "Switch",
         "PS5",
     ]
     assert tag_values(db, no_family, "game_platform") == [
-        "PlayStation",
         "PC",
+        "PlayStation",
         "PS5",
         "Windows",
     ]
@@ -162,4 +169,27 @@ def test_the_downgrade_keeps_every_tag(revision, db_session):
     revision.apply_upgrade(db.connection())
     revision.apply_downgrade(db.connection())
     db.expire_all()
-    assert tag_values(db, game, "game_platform") == ["Nintendo", "PC", "Switch"]
+    assert tag_values(db, game, "game_platform") == ["PC", "Nintendo", "Switch"]
+
+
+def test_the_exclusive_platforms_go_back_and_forth_and_match_the_seed(revision, db_session):
+    db = db_session
+    revision.apply_downgrade(db.connection())
+    db.expire_all()
+    assert _platform_order(db, "Exclusive Platform") == [
+        "Nintendo",
+        "PlayStation",
+        "Xbox",
+        "PC",
+        "Mobile",
+    ]
+    revision.apply_upgrade(db.connection())
+    db.expire_all()
+    assert _platform_order(db, "Exclusive Platform") == list(EXCLUSIVE_PLATFORMS)
+    assert _platform_order(db, "Exclusive Platform") == [
+        "PC",
+        "PlayStation",
+        "Xbox",
+        "Nintendo",
+        "Mobile",
+    ]

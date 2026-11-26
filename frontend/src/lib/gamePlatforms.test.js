@@ -34,10 +34,10 @@ describe("MAIN_PLATFORMS", () => {
 });
 
 describe("mainPlatformsFirst", () => {
-  it("moves every main platform ahead, each group keeping its order", () => {
+  it("moves every main platform ahead in the fixed order, the rest keeping theirs", () => {
     expect(mainPlatformsFirst(["PS5", "Nintendo", "Windows", "PC", "Steam Deck"])).toEqual([
-      "Nintendo",
       "PC",
+      "Nintendo",
       "PS5",
       "Windows",
       "Steam Deck",
@@ -46,6 +46,7 @@ describe("mainPlatformsFirst", () => {
 
   it("leaves a list already in order alone", () => {
     expect(mainPlatformsFirst(["PC", "Browser", "PS5"])).toEqual(["PC", "Browser", "PS5"]);
+    expect(mainPlatformsFirst(["Browser", "Xbox", "PC"])).toEqual(["PC", "Xbox", "Browser"]);
     expect(mainPlatformsFirst([])).toEqual([]);
   });
 });
@@ -54,8 +55,9 @@ describe("withPlatformFamilies", () => {
   it("adds a console's family, ahead of every specific platform", () => {
     expect(withPlatformFamilies("PC, Switch", FAMILIES)).toBe("PC, Nintendo, Switch");
     expect(withPlatformFamilies("Switch, PS5, PC", FAMILIES)).toBe(
-      "Nintendo, PlayStation, PC, Switch, PS5",
+      "PC, PlayStation, Nintendo, Switch, PS5",
     );
+    expect(withPlatformFamilies("Windows, PS5, PC", FAMILIES)).toBe("PC, PlayStation, Windows, PS5");
   });
 
   it("moves a family that is already there ahead of the consoles", () => {

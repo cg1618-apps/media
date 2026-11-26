@@ -105,7 +105,8 @@ const GAME_LIBRARY_CONFIG = {
     // fields, so tagFilter splits them; they stay in the ordinary section.
     { ...tagFilter("gameMode", "Mode", "game_mode"), advanced: false, row: "mode" },
     { ...tagFilter("combatMode", "Combat Mode", "combat_mode"), advanced: false, row: "mode" },
-    // The main platforms first, then the specific ones, each by appearance.
+    // The main platforms first in their fixed order, then the specific ones
+    // by appearance.
     {
       ...tagFilter("gamePlatform", "Platform", "game_platform"),
       advanced: false,
