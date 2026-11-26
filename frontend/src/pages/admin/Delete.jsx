@@ -9,7 +9,7 @@ import { mediaTypeLabel, ownerTypeLabel } from "../../config/mediaRegistry";
 import { entityPath } from "../../lib/entityPath";
 import { ADD_TAB_LISTS, listsForTab } from "../../config/adminEntryLists";
 import { useToast } from "../../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
+import { getDisplayName } from "../../utils/media";
 import { ADMIN_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
@@ -37,8 +37,9 @@ import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
 import IdentityDeleteTab from "../modify-tabs/IdentityDeleteTab";
-import LazyImage from "../../components/ui/LazyImage";
-import { focusStyle } from "../../lib/covers";
+import RecordSummaryCard, {
+  RecordSummaryOption,
+} from "../../components/info/RecordSummaryCard";
 
 
 import { eyebrowCls } from "../../components/ui/primitives";
@@ -1268,46 +1269,19 @@ export default function Delete() {
           {selectedAnime && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedAnime.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedAnime.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedAnime, "anime")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {selectedAnime.anime_name_en ||
-                      selectedAnime.anime_name_roman ||
-                      "-"}
-                  </p>
-                  {selectedAnime.anime_name_alt && (
-                    <p className="text-xs text-text-faint">
-                      {selectedAnime.anime_name_alt}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-2">
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedAnime.airing_type || "TV"}
-                    </span>
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedAnime.watching_status || "Unset"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedAnime.franchise_id)} /{" "}
-                    {getSeriesTitle(selectedAnime.series_id)}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedAnime.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="anime"
+                    record={selectedAnime}
+                    title={getDisplayTitle(selectedAnime, "anime")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedAnime.franchise_id)}
+                    series={
+                      selectedAnime.series_id
+                        ? getSeriesTitle(selectedAnime.series_id)
+                        : undefined
+                    }
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1355,45 +1329,14 @@ export default function Delete() {
           {selectedAnimeMovie && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedAnimeMovie.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedAnimeMovie.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedAnimeMovie, "anime-movie")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {selectedAnimeMovie.anime_movie_name_en ||
-                      selectedAnimeMovie.anime_movie_name_roman ||
-                      "-"}
-                  </p>
-                  {selectedAnimeMovie.anime_movie_name_alt && (
-                    <p className="text-xs text-text-faint">
-                      {selectedAnimeMovie.anime_movie_name_alt}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-2">
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedAnimeMovie.release_status || "Unknown"}
-                    </span>
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedAnimeMovie.watching_status || "Unset"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedAnimeMovie.franchise_id)}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedAnimeMovie.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="anime-movie"
+                    record={selectedAnimeMovie}
+                    title={getDisplayTitle(selectedAnimeMovie, "anime-movie")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedAnimeMovie.franchise_id)}
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1443,50 +1386,19 @@ export default function Delete() {
           {selectedMovie && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedMovie.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedMovie.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedMovie, "movie")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {selectedMovie.movie_name_en || "-"}
-                  </p>
-                  {selectedMovie.movie_name_alt && (
-                    <p className="text-xs text-text-faint">
-                      {selectedMovie.movie_name_alt}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {selectedMovie.movie_type && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedMovie.movie_type}
-                      </span>
-                    )}
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedMovie.release_status || "Unknown"}
-                    </span>
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedMovie.watching_status || "Unset"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedMovie.franchise_id)}
-                    {selectedMovie.series_id &&
-                      ` / ${getSeriesTitle(selectedMovie.series_id)}`}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedMovie.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="movie"
+                    record={selectedMovie}
+                    title={getDisplayTitle(selectedMovie, "movie")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedMovie.franchise_id)}
+                    series={
+                      selectedMovie.series_id
+                        ? getSeriesTitle(selectedMovie.series_id)
+                        : undefined
+                    }
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1534,52 +1446,19 @@ export default function Delete() {
           {selectedTvShow && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedTvShow.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedTvShow.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedTvShow, "tv-show")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {selectedTvShow.tv_name_en || "-"}
-                  </p>
-                  {selectedTvShow.tv_name_alt && (
-                    <p className="text-xs text-text-faint">
-                      {selectedTvShow.tv_name_alt}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {selectedTvShow.airing_type && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedTvShow.airing_type}
-                      </span>
-                    )}
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedTvShow.airing_status || "Unknown"}
-                    </span>
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedTvShow.watching_status || "Unset"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedTvShow.franchise_id)}
-                    {selectedTvShow.series_id &&
-                      ` / ${getSeriesTitle(selectedTvShow.series_id)}`}
-                    {selectedTvShow.season_part &&
-                      ` · ${selectedTvShow.season_part}`}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedTvShow.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="tv-show"
+                    record={selectedTvShow}
+                    title={getDisplayTitle(selectedTvShow, "tv-show")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedTvShow.franchise_id)}
+                    series={
+                      selectedTvShow.series_id
+                        ? getSeriesTitle(selectedTvShow.series_id)
+                        : undefined
+                    }
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1627,47 +1506,19 @@ export default function Delete() {
           {selectedCartoon && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedCartoon.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedCartoon.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedCartoon, "cartoon")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {selectedCartoon.cartoon_name_en || "-"}
-                  </p>
-                  {selectedCartoon.cartoon_name_alt && (
-                    <p className="text-xs text-text-faint">
-                      {selectedCartoon.cartoon_name_alt}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-2">
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedCartoon.airing_status || "Unknown"}
-                    </span>
-                    <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedCartoon.watching_status || "Unset"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedCartoon.franchise_id)}
-                    {selectedCartoon.series_id &&
-                      ` / ${getSeriesTitle(selectedCartoon.series_id)}`}
-                    {selectedCartoon.season_part &&
-                      ` · ${selectedCartoon.season_part}`}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedCartoon.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="cartoon"
+                    record={selectedCartoon}
+                    title={getDisplayTitle(selectedCartoon, "cartoon")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedCartoon.franchise_id)}
+                    series={
+                      selectedCartoon.series_id
+                        ? getSeriesTitle(selectedCartoon.series_id)
+                        : undefined
+                    }
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1715,54 +1566,19 @@ export default function Delete() {
           {selectedManga && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedManga.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedManga.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedManga, "manga")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {selectedManga.manga_name_en || "-"}
-                  </p>
-                  {selectedManga.manga_name_jp && (
-                    <p className="text-xs text-text-faint">
-                      {selectedManga.manga_name_jp}
-                    </p>
-                  )}
-                  {selectedManga.manga_name_alt && (
-                    <p className="text-xs text-text-faint">
-                      {selectedManga.manga_name_alt}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {selectedManga.reading_status && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedManga.reading_status}
-                      </span>
-                    )}
-                    {selectedManga.region && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedManga.region}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedManga.franchise_id)}
-                    {selectedManga.series_id &&
-                      ` / ${getSeriesTitle(selectedManga.series_id)}`}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedManga.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="manga"
+                    record={selectedManga}
+                    title={getDisplayTitle(selectedManga, "manga")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedManga.franchise_id)}
+                    series={
+                      selectedManga.series_id
+                        ? getSeriesTitle(selectedManga.series_id)
+                        : undefined
+                    }
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1813,59 +1629,19 @@ export default function Delete() {
           {selectedBook && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedBook.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedBook.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedBook, "book")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {selectedBook.book_name_en || "-"}
-                  </p>
-                  {selectedBook.book_name_jp && (
-                    <p className="text-xs text-text-faint">
-                      {selectedBook.book_name_jp}
-                    </p>
-                  )}
-                  {selectedBook.book_name_alt && (
-                    <p className="text-xs text-text-faint">
-                      {selectedBook.book_name_alt}
-                    </p>
-                  )}
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {selectedBook.type && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedBook.type}
-                      </span>
-                    )}
-                    {selectedBook.reading_status && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedBook.reading_status}
-                      </span>
-                    )}
-                    {selectedBook.region && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedBook.region}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedBook.franchise_id)}
-                    {selectedBook.series_id &&
-                      ` / ${getSeriesTitle(selectedBook.series_id)}`}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedBook.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="book"
+                    record={selectedBook}
+                    title={getDisplayTitle(selectedBook, "book")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedBook.franchise_id)}
+                    series={
+                      selectedBook.series_id
+                        ? getSeriesTitle(selectedBook.series_id)
+                        : undefined
+                    }
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -1914,56 +1690,19 @@ export default function Delete() {
           {selectedComic && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedComic.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedComic.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedComic, "comic")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {selectedComic.volume_label || "-"}
-                  </p>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {selectedComic.comic_type && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedComic.comic_type}
-                      </span>
-                    )}
-                    {selectedComic.publisher && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedComic.publisher}
-                      </span>
-                    )}
-                    {selectedComic.reading_status && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedComic.reading_status}
-                      </span>
-                    )}
-                    {(selectedComic.issue_fin != null ||
-                      selectedComic.issue_total != null) && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedComic.issue_fin ?? 0} /{" "}
-                        {selectedComic.issue_total ?? "?"} ISSUES
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedComic.franchise_id)}
-                    {selectedComic.series_id &&
-                      ` / ${getSeriesTitle(selectedComic.series_id)}`}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedComic.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="comic"
+                    record={selectedComic}
+                    title={getDisplayTitle(selectedComic, "comic")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedComic.franchise_id)}
+                    series={
+                      selectedComic.series_id
+                        ? getSeriesTitle(selectedComic.series_id)
+                        : undefined
+                    }
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2012,59 +1751,28 @@ export default function Delete() {
           {selectedGame && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedGame.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedGame.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedGame, "game")}
-                  </h3>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {selectedGame.game_type && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedGame.game_type}
-                      </span>
+                  <RecordSummaryCard
+                    type="game"
+                    record={selectedGame}
+                    title={getDisplayTitle(selectedGame, "game")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedGame.franchise_id)}
+                    series={
+                      selectedGame.series_id
+                        ? getSeriesTitle(selectedGame.series_id)
+                        : undefined
+                    }
+                  >
+                    {/* Deleting a base game cascades to its copies; its DLC rows
+                        keep existing with base_game_id set to NULL. */}
+                    {selectedGame.copies?.length > 0 && (
+                      <p className="text-xs italic text-text-faint">
+                        {selectedGame.copies.length} copy row(s) will be deleted with
+                        it.
+                      </p>
                     )}
-                    {selectedGame.playing_status && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedGame.playing_status}
-                      </span>
-                    )}
-                    {selectedGame.ownership && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedGame.ownership}
-                      </span>
-                    )}
-                    {selectedGame.hours_played != null && (
-                      <span className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                        {selectedGame.hours_played} H PLAYED
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedGame.franchise_id)}
-                    {selectedGame.series_id &&
-                      ` / ${getSeriesTitle(selectedGame.series_id)}`}
-                  </p>
-                  {/* Deleting a base game cascades to its copies; its DLC rows
-                      keep existing with base_game_id set to NULL. */}
-                  {selectedGame.copies?.length > 0 && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedGame.copies.length} copy row(s) will be deleted
-                      with it.
-                    </p>
-                  )}
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedGame.system_id}
-                  </p>
+                  </RecordSummaryCard>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2114,45 +1822,19 @@ export default function Delete() {
           {selectedHComic && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedHComic.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedHComic.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedHComic, "h-comic")}
-                  </h3>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {[
-                      selectedHComic.region,
-                      selectedHComic.serialization_status,
-                      selectedHComic.reading_status,
-                    ]
-                      .filter(Boolean)
-                      .map((v) => (
-                        <span
-                          key={v}
-                          className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold"
-                        >
-                          {v}
-                        </span>
-                      ))}
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedHComic.franchise_id)}
-                    {selectedHComic.series_id &&
-                      ` / ${getSeriesTitle(selectedHComic.series_id)}`}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedHComic.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="h-comic"
+                    record={selectedHComic}
+                    title={getDisplayTitle(selectedHComic, "h-comic")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedHComic.franchise_id)}
+                    series={
+                      selectedHComic.series_id
+                        ? getSeriesTitle(selectedHComic.series_id)
+                        : undefined
+                    }
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2201,54 +1883,28 @@ export default function Delete() {
           {selectedHGame && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedHGame.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedHGame.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedHGame, "h-game")}
-                  </h3>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {[
-                      selectedHGame.game_type,
-                      selectedHGame.playstyle,
-                      selectedHGame.playing_status,
-                      selectedHGame.ownership,
-                    ]
-                      .filter(Boolean)
-                      .map((v) => (
-                        <span
-                          key={v}
-                          className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold"
-                        >
-                          {v}
-                        </span>
-                      ))}
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedHGame.franchise_id)}
-                    {selectedHGame.series_id &&
-                      ` / ${getSeriesTitle(selectedHGame.series_id)}`}
-                  </p>
-                  {/* As for a game: its copy rows go with it, and its DLC
-                      rows stay with base_game_id set to NULL. */}
-                  {selectedHGame.copies?.length > 0 && (
-                    <p className="text-xs italic text-text-faint mt-1">
-                      {selectedHGame.copies.length} copy row(s) will be deleted
-                      with it.
-                    </p>
-                  )}
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedHGame.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="h-game"
+                    record={selectedHGame}
+                    title={getDisplayTitle(selectedHGame, "h-game")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedHGame.franchise_id)}
+                    series={
+                      selectedHGame.series_id
+                        ? getSeriesTitle(selectedHGame.series_id)
+                        : undefined
+                    }
+                  >
+                    {/* Deleting a base game cascades to its copies; its DLC rows
+                        keep existing with base_game_id set to NULL. */}
+                    {selectedHGame.copies?.length > 0 && (
+                      <p className="text-xs italic text-text-faint">
+                        {selectedHGame.copies.length} copy row(s) will be deleted with
+                        it.
+                      </p>
+                    )}
+                  </RecordSummaryCard>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2296,45 +1952,19 @@ export default function Delete() {
           {selectedHentai && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start gap-4">
-                <div className="w-16 h-24 shrink-0 overflow-hidden rounded-lg shadow-sm">
-                  <LazyImage
-                    src={getCoverUrl(selectedHentai.cover_image_file)}
-                    className="h-full w-full object-cover"
-                    style={focusStyle(selectedHentai.cover_image_focus)}
-                    onError={(e) => {
-                      e.target.src = FALLBACK_SVG;
-                    }}
-                    alt=""
-                  />
-                </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base truncate">
-                    {getDisplayTitle(selectedHentai, "hentai")}
-                  </h3>
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {[
-                      selectedHentai.source_material,
-                      selectedHentai.airing_status,
-                      selectedHentai.watching_status,
-                    ]
-                      .filter(Boolean)
-                      .map((v) => (
-                        <span
-                          key={v}
-                          className="bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold"
-                        >
-                          {v}
-                        </span>
-                      ))}
-                  </div>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedHentai.franchise_id)}
-                    {selectedHentai.series_id &&
-                      ` / ${getSeriesTitle(selectedHentai.series_id)}`}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint">
-                    {selectedHentai.system_id}
-                  </p>
+                  <RecordSummaryCard
+                    type="hentai"
+                    record={selectedHentai}
+                    title={getDisplayTitle(selectedHentai, "hentai")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedHentai.franchise_id)}
+                    series={
+                      selectedHentai.series_id
+                        ? getSeriesTitle(selectedHentai.series_id)
+                        : undefined
+                    }
+                  />
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2382,24 +2012,17 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base">
-                    {getDisplayTitle(selectedCollection, "collection")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {[
-                      selectedCollection.collection_name_en,
-                      selectedCollection.collection_name_alt,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "No alt names"}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint mt-1">
-                    {selectedCollection.system_id}
-                  </p>
-                  <GroupMembers
-                    tier="collection"
-                    members={collectionMembers}
-                  />
+                  <RecordSummaryCard
+                    type="collection"
+                    record={selectedCollection}
+                    title={getDisplayTitle(selectedCollection, "collection")}
+                    heading="To delete"
+                  >
+                    <GroupMembers
+                      tier="collection"
+                      members={collectionMembers}
+                    />
+                  </RecordSummaryCard>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2449,26 +2072,14 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base">
-                    {getDisplayTitle(selectedFranchise, "franchise")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {[
-                      selectedFranchise.franchise_name_en,
-                      selectedFranchise.franchise_name_alt,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "No alt names"}
-                  </p>
-                  {selectedFranchise.franchise_type && (
-                    <span className="inline-block mt-1 bg-surface-2 text-text-muted px-2 py-0.5 rounded text-xs font-bold">
-                      {selectedFranchise.franchise_type}
-                    </span>
-                  )}
-                  <p className="text-xs font-mono text-text-faint mt-1">
-                    {selectedFranchise.system_id}
-                  </p>
-                  <GroupMembers tier="franchise" members={franchiseMembers} />
+                  <RecordSummaryCard
+                    type="franchise"
+                    record={selectedFranchise}
+                    title={getDisplayTitle(selectedFranchise, "franchise")}
+                    heading="To delete"
+                  >
+                    <GroupMembers tier="franchise" members={franchiseMembers} />
+                  </RecordSummaryCard>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2516,24 +2127,15 @@ export default function Delete() {
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-black text-text text-base">
-                    {getDisplayTitle(selectedSeries, "series")}
-                  </h3>
-                  <p className="text-sm text-text-faint">
-                    {[
-                      selectedSeries.series_name_en,
-                      selectedSeries.series_name_alt,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "No alt names"}
-                  </p>
-                  <p className="text-xs font-mono text-text-faint mt-1">
-                    {selectedSeries.system_id}
-                  </p>
-                  <p className="text-xs text-text-faint mt-1">
-                    {getFranchiseTitle(selectedSeries.franchise_id)}
-                  </p>
-                  <GroupMembers tier="series" members={seriesMembers} />
+                  <RecordSummaryCard
+                    type="series"
+                    record={selectedSeries}
+                    title={getDisplayTitle(selectedSeries, "series")}
+                    heading="To delete"
+                    franchise={getFranchiseTitle(selectedSeries.franchise_id)}
+                  >
+                    <GroupMembers tier="series" members={seriesMembers} />
+                  </RecordSummaryCard>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -2575,33 +2177,35 @@ export default function Delete() {
                 setStudioMergeTarget(null);
               }}
               renderItem={(item) => (
-                <div>
-                  <div className="font-bold text-text text-sm">
-                    {getDisplayTitle(item, "studio")}
-                  </div>
-                  <div className="text-[11px] text-text-faint">
-                    {item.credit_count} credit
-                    {item.credit_count === 1 ? "" : "s"}
-                  </div>
-                </div>
+                <RecordSummaryOption
+                  type="studio"
+                  record={item}
+                  title={getDisplayTitle(item, "studio")}
+                />
               )}
             />
           </div>
 
           {selectedStudio && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-black text-text text-base">
-                    {getDisplayTitle(selectedStudio, "studio")}
-                  </h3>
-                  <p className="text-xs font-mono text-text-faint mt-1">
-                    {selectedStudio.system_id}
-                  </p>
-                  <p className="text-sm font-bold text-text-muted mt-1">
-                    {selectedStudio.credit_count} credit
-                    {selectedStudio.credit_count === 1 ? "" : "s"}
-                  </p>
+              <div className="flex items-start justify-between gap-3">
+                <div
+                  className={`grid flex-1 min-w-0 gap-3 ${studioMergeTarget ? "md:grid-cols-2" : ""}`}
+                >
+                  <RecordSummaryCard
+                    type="studio"
+                    record={selectedStudio}
+                    title={getDisplayTitle(selectedStudio, "studio")}
+                    heading={studioMergeTarget ? "Merged away" : "To delete"}
+                  />
+                  {studioMergeTarget && (
+                    <RecordSummaryCard
+                      type="studio"
+                      record={studioMergeTarget}
+                      title={getDisplayTitle(studioMergeTarget, "studio")}
+                      heading="Survives"
+                    />
+                  )}
                 </div>
                 <button
                   onClick={() => {
@@ -2679,15 +2283,11 @@ export default function Delete() {
                     type="studio"
                     onSelect={setStudioMergeTarget}
                     renderItem={(item) => (
-                      <div>
-                        <div className="font-bold text-text text-sm">
-                          {getDisplayTitle(item, "studio")}
-                        </div>
-                        <div className="text-[11px] text-text-faint">
-                          {item.credit_count} credit
-                          {item.credit_count === 1 ? "" : "s"}
-                        </div>
-                      </div>
+                      <RecordSummaryOption
+                        type="studio"
+                        record={item}
+                        title={getDisplayTitle(item, "studio")}
+                      />
                     )}
                   />
                   {studioMergeTarget && (
@@ -2755,33 +2355,35 @@ export default function Delete() {
                 setPublisherMergeTarget(null);
               }}
               renderItem={(item) => (
-                <div>
-                  <div className="font-bold text-text text-sm">
-                    {getDisplayTitle(item, "publisher")}
-                  </div>
-                  <div className="text-[11px] text-text-faint">
-                    {item.credit_count} credit
-                    {item.credit_count === 1 ? "" : "s"}
-                  </div>
-                </div>
+                <RecordSummaryOption
+                  type="publisher"
+                  record={item}
+                  title={getDisplayTitle(item, "publisher")}
+                />
               )}
             />
           </div>
 
           {selectedPublisher && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-black text-text text-base">
-                    {getDisplayTitle(selectedPublisher, "publisher")}
-                  </h3>
-                  <p className="text-xs font-mono text-text-faint mt-1">
-                    {selectedPublisher.system_id}
-                  </p>
-                  <p className="text-sm font-bold text-text-muted mt-1">
-                    {selectedPublisher.credit_count} credit
-                    {selectedPublisher.credit_count === 1 ? "" : "s"}
-                  </p>
+              <div className="flex items-start justify-between gap-3">
+                <div
+                  className={`grid flex-1 min-w-0 gap-3 ${publisherMergeTarget ? "md:grid-cols-2" : ""}`}
+                >
+                  <RecordSummaryCard
+                    type="publisher"
+                    record={selectedPublisher}
+                    title={getDisplayTitle(selectedPublisher, "publisher")}
+                    heading={publisherMergeTarget ? "Merged away" : "To delete"}
+                  />
+                  {publisherMergeTarget && (
+                    <RecordSummaryCard
+                      type="publisher"
+                      record={publisherMergeTarget}
+                      title={getDisplayTitle(publisherMergeTarget, "publisher")}
+                      heading="Survives"
+                    />
+                  )}
                 </div>
                 <button
                   onClick={() => {
@@ -2860,15 +2462,11 @@ export default function Delete() {
                     type="publisher"
                     onSelect={setPublisherMergeTarget}
                     renderItem={(item) => (
-                      <div>
-                        <div className="font-bold text-text text-sm">
-                          {getDisplayTitle(item, "publisher")}
-                        </div>
-                        <div className="text-[11px] text-text-faint">
-                          {item.credit_count} credit
-                          {item.credit_count === 1 ? "" : "s"}
-                        </div>
-                      </div>
+                      <RecordSummaryOption
+                        type="publisher"
+                        record={item}
+                        title={getDisplayTitle(item, "publisher")}
+                      />
                     )}
                   />
                   {publisherMergeTarget && (
@@ -2949,33 +2547,35 @@ export default function Delete() {
                 setPersonMergeTarget(null);
               }}
               renderItem={(item) => (
-                <div>
-                  <div className="font-bold text-text text-sm">
-                    {getDisplayTitle(item, "person")}
-                  </div>
-                  <div className="text-[11px] text-text-faint">
-                    {item.credit_count} credit
-                    {item.credit_count === 1 ? "" : "s"}
-                  </div>
-                </div>
+                <RecordSummaryOption
+                  type="person"
+                  record={item}
+                  title={getDisplayTitle(item, "person")}
+                />
               )}
             />
           </div>
 
           {selectedPerson && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-black text-text text-base">
-                    {getDisplayTitle(selectedPerson, "person")}
-                  </h3>
-                  <p className="text-xs font-mono text-text-faint mt-1">
-                    {selectedPerson.system_id}
-                  </p>
-                  <p className="text-sm font-bold text-text-muted mt-1">
-                    {selectedPerson.credit_count} credit
-                    {selectedPerson.credit_count === 1 ? "" : "s"}
-                  </p>
+              <div className="flex items-start justify-between gap-3">
+                <div
+                  className={`grid flex-1 min-w-0 gap-3 ${personMergeTarget ? "md:grid-cols-2" : ""}`}
+                >
+                  <RecordSummaryCard
+                    type="person"
+                    record={selectedPerson}
+                    title={getDisplayTitle(selectedPerson, "person")}
+                    heading={personMergeTarget ? "Merged away" : "To delete"}
+                  />
+                  {personMergeTarget && (
+                    <RecordSummaryCard
+                      type="person"
+                      record={personMergeTarget}
+                      title={getDisplayTitle(personMergeTarget, "person")}
+                      heading="Survives"
+                    />
+                  )}
                 </div>
                 <button
                   onClick={() => {
@@ -3053,15 +2653,11 @@ export default function Delete() {
                     type="person"
                     onSelect={setPersonMergeTarget}
                     renderItem={(item) => (
-                      <div>
-                        <div className="font-bold text-text text-sm">
-                          {getDisplayTitle(item, "person")}
-                        </div>
-                        <div className="text-[11px] text-text-faint">
-                          {item.credit_count} credit
-                          {item.credit_count === 1 ? "" : "s"}
-                        </div>
-                      </div>
+                      <RecordSummaryOption
+                        type="person"
+                        record={item}
+                        title={getDisplayTitle(item, "person")}
+                      />
                     )}
                   />
                   {personMergeTarget && (
@@ -3144,33 +2740,35 @@ export default function Delete() {
                 setCharacterMergeTarget(null);
               }}
               renderItem={(item) => (
-                <div>
-                  <div className="font-bold text-text text-sm">
-                    {getDisplayTitle(item, "character")}
-                  </div>
-                  <div className="text-[11px] text-text-faint">
-                    {item.casting_count} casting
-                    {item.casting_count === 1 ? "" : "s"}
-                  </div>
-                </div>
+                <RecordSummaryOption
+                  type="character"
+                  record={item}
+                  title={getDisplayTitle(item, "character")}
+                />
               )}
             />
           </div>
 
           {selectedCharacter && (
             <div className="bg-surface rounded-2xl border border-danger/40 shadow-sm p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-black text-text text-base">
-                    {getDisplayTitle(selectedCharacter, "character")}
-                  </h3>
-                  <p className="text-xs font-mono text-text-faint mt-1">
-                    {selectedCharacter.system_id}
-                  </p>
-                  <p className="text-sm font-bold text-text-muted mt-1">
-                    {selectedCharacter.casting_count} casting
-                    {selectedCharacter.casting_count === 1 ? "" : "s"}
-                  </p>
+              <div className="flex items-start justify-between gap-3">
+                <div
+                  className={`grid flex-1 min-w-0 gap-3 ${characterMergeTarget ? "md:grid-cols-2" : ""}`}
+                >
+                  <RecordSummaryCard
+                    type="character"
+                    record={selectedCharacter}
+                    title={getDisplayTitle(selectedCharacter, "character")}
+                    heading={characterMergeTarget ? "Merged away" : "To delete"}
+                  />
+                  {characterMergeTarget && (
+                    <RecordSummaryCard
+                      type="character"
+                      record={characterMergeTarget}
+                      title={getDisplayTitle(characterMergeTarget, "character")}
+                      heading="Survives"
+                    />
+                  )}
                 </div>
                 <button
                   onClick={() => {
@@ -3248,15 +2846,11 @@ export default function Delete() {
                     type="character"
                     onSelect={setCharacterMergeTarget}
                     renderItem={(item) => (
-                      <div>
-                        <div className="font-bold text-text text-sm">
-                          {getDisplayTitle(item, "character")}
-                        </div>
-                        <div className="text-[11px] text-text-faint">
-                          {item.casting_count} casting
-                          {item.casting_count === 1 ? "" : "s"}
-                        </div>
-                      </div>
+                      <RecordSummaryOption
+                        type="character"
+                        record={item}
+                        title={getDisplayTitle(item, "character")}
+                      />
                     )}
                   />
                   {characterMergeTarget && (
