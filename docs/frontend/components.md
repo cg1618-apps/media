@@ -556,7 +556,18 @@ columns.
   to - and per offered kind one `CANDIDATES` entry. The same box sits on the
   detail pages and under the franchise, studio and publisher Modify forms),
   `AffiliatedPeople` (a studio's people from `GET /api/studio/{id}/people`,
-  each a person link; nothing at all when there are none).
+  each a person link; nothing at all when there are none),
+  `RecordSummaryCard` (one record of any type the Delete page handles - entry,
+  group or entity - summarised so that two similarly named records can be told
+  apart: its picture, every name it holds, label/value facts, filled external
+  links, its `system_id`, and for an entity the entries it is credited on or
+  cast in, read from its own `/entries` endpoint under
+  `["record-summary-entries", type, id]` and listed newest first, the first
+  five by name with type and year, then "+N more". `heading` captions it,
+  children are drawn under the facts. What each type shows is
+  `lib/recordSummary.js`; the card only draws it. `RecordSummaryOption` is the
+  same record as a search-dropdown row: a small picture, the name, and one line
+  of other names, type and count).
   `NamingCard` lists the type's name fields (`getNamingFields`) that hold a
   value: a null or blank name gets no row rather than a "—", and with none
   set the card is not rendered at all, on every page that uses it. The
@@ -734,9 +745,15 @@ columns.
   franchise and one doujin franchise can hold all three types - or
   `accepts(franchise_type)`, a predicate over the comma-joined franchise type
   (null when untyped): a mainstream type accepts its own franchise type or an
-  untyped one, anime and anime movie accept every franchise. With neither,
-  every franchise is offered. Series renders only when `seriesItems` is
-  given, so anime movie has none; retyping the franchise drops the series),
+  untyped one - anime `Anime`, anime movie `Anime Movie`, book `Book`,
+  `Anime` or `Manga`. With neither, every franchise is offered. Series
+  renders only when `seriesItems` is given, so anime movie has none; the
+  items come from `seriesPickerItems` (`lib/seriesPickerItems.js`), which
+  carries each series' parent as `franchiseId`, and the picker offers the
+  picked franchise's series, or before a pick the series under a franchise
+  it offers. The franchise and series already chosen stay offered whatever
+  the rule, so Modify still names them; retyping the franchise drops the
+  series),
   `EntryNameFields` (`{ f, u, prefix, label, names, shows, placeholders }`:
   the name inputs of every entry form, laid out CN | EN, Romaji | JP (or KR),
   Alt full width, whatever order `names` lists them in; a lone name keeps the
@@ -1370,6 +1387,7 @@ functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
 | `naming.js` | `getDisplayName`, `getSortName`, `entitySortName`, `compareTitles` (every library's title comparator, collating as `en`), `cleanString`, name-field lists |
 | `gamePlatforms.js` | `platformFamilies(options)`: `{console: family}` read off the loaded `Game Platform` options' `family`; `withPlatformFamilies(raw, families)`: the tags string with each console's family added and the main platforms put first, in their fixed order, ahead of every specific one - the browser half of `with_platform_families` in `app/utils/game_vocabulary.py`. The Game form's Platform field runs every change through it. `MAIN_PLATFORMS` (the six families, in order, kept equal to `GAME_PLATFORMS` by a unit test) and `mainPlatformsFirst(values)`: the main platforms among `values` in `MAIN_PLATFORMS` order, then every other value in the order it had - what both of the above and the library's Platform filter order with |
 | `requests.js` | The words the request pages print: `requestKindLabel` / `requestStatusLabel` (a code with no label prints as itself), `DELETED_ACCOUNT` ("deleted account", for a null username) and `formatRequestDate` |
+| `recordSummary.js` | What `RecordSummaryCard` shows per type, read off the list row: `summarySpec(type)` (`kind` entity / entry / group, the picture, the count, the `/entries` endpoint and the link list), `summaryNames`, `summaryFacts(type, record, {franchise, series})` (an entity's gender, roles with their media types, affiliations, countries, active span, scopes or identities; an entry's type columns, primary release date, status columns, franchise and series; a group's type and franchise), `summaryLinks`, `flattenEntryGroups(groups)` (an `/entries` answer as distinct entries, newest first, each carrying every group label it sits under) and `summaryOptionLine` (a picker row's second line). |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates; `todayIso` (the viewer's local date), `isUpcomingReleaseDate(value, today)` (true while the last day of the period a value names has not passed - a bare year through 31 December, a year-month through its last day, today included; never for a blank or malformed value) and `earliestUpcomingReleaseDate(values, today)`, which Future Releases' Books and Manga tabs use |
 | `gameHours.js` | `hours(value)` (`"32.5 h"`, null for a missing or unreadable figure) and `timeToBeatFields(entry)`: the recorded IGDB time-to-beat figures (`hltb_main`, `hltb_main_extra`, `hltb_completionist`) as `InfoCard` fields Main, Main + Extra, Completionist, `[]` when none is recorded. Shared by the game and h-game pages |
 | `mediaTabs.js` | `buildMediaTabs(rows)`: the franchise and series hubs' "Media" tab row from `{ label, type, entries, offered }` rows → `{ tabs, countOf, total, completed }`. A tab shows when offered and its list is non-empty; its count and the hero's totals are read from the same rows, so no tab is shown without being counted. `isCompleted(type, entry)`: whether the entry's own status field (`MEDIA_CONFIG[type].statusField`) holds one of `COMPLETED_STATUSES` |

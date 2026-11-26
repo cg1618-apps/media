@@ -107,11 +107,18 @@ def test_serves_the_tag_categories_as_a_subset_of_option_categories(client):
     assert set(TAG_CATEGORIES) <= set(OPTION_CATEGORIES)
 
     body = client.get("/api/constants").json()
-    assert body["tag_categories"] == list(TAG_CATEGORIES)
+    # The anonymous session sees no gated type, so the three H Genre tag
+    # categories are withheld; the unrestricted test below gets all of them.
+    assert body["tag_categories"] == [
+        c for c in TAG_CATEGORIES if not c.startswith("H Genre")
+    ]
     assert set(body["tag_categories"]) <= set(body["option_categories"])
     assert "Label" in body["tag_categories"]
+    assert "Game Genre" in body["tag_categories"]
+    assert "Character Trait" in body["tag_categories"]
     assert "Quality" not in body["tag_categories"]
     assert "Comic Era" not in body["tag_categories"]
+    assert "Franchise for Filter" not in body["option_categories"]
 
 
 def test_serves_playing_statuses_in_declaration_order(client):
@@ -149,6 +156,9 @@ def test_serves_the_h_comic_vocabularies_to_unrestricted(owner_client):
     assert "h-comic" in body["media_type"]
     assert "club" in body["person_role"]
     assert "H Genre Plot" in body["option_categories"]
+    from app.utils.credit_roles import TAG_CATEGORIES
+
+    assert body["tag_categories"] == list(TAG_CATEGORIES)
 
 
 def test_a_session_that_cannot_see_h_comic_is_not_told_it_exists(client, db_session):
@@ -174,6 +184,8 @@ def test_a_session_that_cannot_see_h_comic_is_not_told_it_exists(client, db_sess
     assert "club" not in body["person_role"]
     for category in ("H Genre Plot", "H Genre Appearance", "H Genre Relation"):
         assert category not in body["option_categories"]
+        assert category not in body["tag_categories"]
+    assert "Game Genre" in body["tag_categories"]
     # Everything else is untouched.
     assert "Game" in body["franchise_type"]
     assert "illustrator" in body["person_role"]

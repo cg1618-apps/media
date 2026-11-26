@@ -602,3 +602,38 @@ def test_the_needs_work_note_and_country_categories_are_unscoped():
 
     assert COMMON_OPTION_SCOPES[NEEDS_WORK_NOTE_CATEGORY] == ()
     assert COMMON_OPTION_SCOPES[COUNTRY_CATEGORY] == ()
+
+
+# ---------------------------------------------------------------------------
+# The Tags sub-tab and the filter-only vocabularies
+# ---------------------------------------------------------------------------
+
+
+def test_the_tags_sub_tab_holds_every_vocabulary_that_tags_the_work():
+    """
+    The genres and labels every mainstream type shares, the game genres and
+    themes, the three gated H Genre vocabularies and a character's two tag
+    lists: each value reads as a tag on the thing it is attached to.
+    """
+    assert cr.TAG_CATEGORIES == (
+        "Genre Main",
+        "Genre Sub",
+        "Label",
+        "Game Genre",
+        "Game Theme",
+        "H Genre Plot",
+        "H Genre Appearance",
+        "H Genre Relation",
+        "Character Appearance",
+        "Character Trait",
+    )
+    assert set(cr.TAG_CATEGORIES) <= set(cr.OPTION_CATEGORIES)
+    # The ones naming an outside party, or a mode of play, stay under Options.
+    for category in ("Game Mode", "Game Platform", "Platform", "Comic Era"):
+        assert category not in cr.TAG_CATEGORIES
+
+
+def test_franchise_for_filter_is_gone():
+    """No list page ever filtered on it; Reference Source is the one left."""
+    assert cr.FILTER_ONLY_CATEGORIES == ("Reference Source",)
+    assert "Franchise for Filter" not in cr.OPTION_CATEGORIES

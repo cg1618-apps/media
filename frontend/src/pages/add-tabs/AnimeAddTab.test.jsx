@@ -3,7 +3,7 @@
 // Add-only search boxes, the entry id Modify hands its pickers, and that a
 // franchise change drops the series chosen under the old one.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,6 +28,8 @@ const SOURCES = { options: [], studios: [], publishers: {}, people: {} };
 const FRANCHISES = [
   { system_id: "f1", franchise_name_en: "First Franchise", franchise_type: "Anime" },
   { system_id: "f2", franchise_name_en: "Second Franchise", franchise_type: "Movie" },
+  { system_id: "f3", franchise_name_en: "Untyped Franchise", franchise_type: null },
+  { system_id: "f4", franchise_name_en: "Mixed Franchise", franchise_type: "Manga, Anime" },
 ];
 const SECTIONS = [
   "Titles & Naming",
@@ -162,6 +164,18 @@ describe("Anime form", () => {
     expect("studio" in s && s.studio !== undefined).toBe(false);
   });
 
+  it.each(["add", "modify"])(
+    "%s: offers only Anime franchises and untyped ones",
+    async (mode) => {
+      const user = userEvent.setup();
+      renderTab(mode);
+      await user.click(screen.getByRole("combobox", { name: "Franchise" }));
+      const list = await screen.findByRole("listbox");
+      const offered = within(list).getAllByRole("option").map((o) => o.textContent);
+      expect(offered.sort()).toEqual(["First Franchise", "Mixed Franchise", "Untyped Franchise"]);
+    },
+  );
+
   it.each(["add", "modify"])("%s: changing the franchise clears the series", async (mode) => {
     const user = userEvent.setup();
     // A series is chosen while the franchise is still being typed, so picking
@@ -173,11 +187,10 @@ describe("Anime form", () => {
       series_text: "Old Series",
     });
     await user.click(screen.getByRole("combobox", { name: "Franchise" }));
-    // Every franchise type is offered to anime.
     expect(await screen.findByRole("option", { name: "First Franchise" })).toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "Second Franchise" }));
+    await user.click(screen.getByRole("option", { name: "Untyped Franchise" }));
     const s = state();
-    expect(s.franchise_id).toBe("f2");
+    expect(s.franchise_id).toBe("f3");
     expect(s.series_id).toBeNull();
     expect(s.series_text).toBe("");
   });

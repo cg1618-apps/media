@@ -22,7 +22,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getSourceValues } from "../../utils/media";
+import { getSourceValues, parseTypes } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import { WEEKDAYS } from "../../config/weekdays";
 import { broadcastTimeOptions } from "../../config/broadcastTimes";
@@ -303,8 +303,10 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
   );
 }
 
-/** The franchise and series pickers, shared by both anime tabs. Anime
- *  accepts a franchise of every type. */
+/** An anime sits in an `Anime` franchise or an untyped one. */
+const acceptsAnimeFranchise = (type) => !type || parseTypes(type).includes("Anime");
+
+/** The franchise and series pickers, shared by both anime tabs. */
 export function AnimeLineageFields({
   f,
   u,
@@ -316,6 +318,7 @@ export function AnimeLineageFields({
     <FamilyLineageFields
       f={f}
       u={u}
+      accepts={acceptsAnimeFranchise}
       allFranchises={allFranchises}
       seriesItems={seriesItemsForAnime ?? []}
       franchiseCollections={franchiseCollections}
