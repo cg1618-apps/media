@@ -18,10 +18,13 @@ _FIELD_KEY_RE = re.compile(r"^[a-z0-9_]+$")
 MAX_PREFILL_VARIANTS = 10
 MAX_SOURCE_NAME_LENGTH = 100
 _VARIANT_KEY_RE = re.compile(r"^[A-Za-z0-9_]+$")
-# Far more currencies than a personal collection will ever be priced in,
-# low enough that the config row stays a row.
-MAX_FX_RATES = 40
-_CURRENCY_RE = re.compile(r"^[A-Z]{3}$")
+# The currencies the exchange-rate table converts between: the three the
+# game list prices are recorded in (price_original_us / _jp / _tw), and the
+# three the Control Center's editor offers (FX_CURRENCIES in
+# frontend/src/config/fieldOptions.js). A copy bought in any other currency
+# keeps its own subtotal on /statistics and is left out of the converted
+# totals, as a currency with no rate always is.
+FX_CURRENCIES = ("USD", "TWD", "JPY")
 
 
 def _check_field_key(key: str) -> None:
@@ -245,8 +248,8 @@ class FxRatesBase(BaseModel):
     @classmethod
     def _base_is_a_currency_code(cls, v: str) -> str:
         v = (v or "").strip().upper()
-        if not _CURRENCY_RE.match(v):
-            raise ValueError("base must be a three-letter currency code.")
+        if v not in FX_CURRENCIES:
+            raise ValueError(f"base must be one of {', '.join(FX_CURRENCIES)}.")
         return v
 
     @field_validator("as_of")
@@ -264,13 +267,14 @@ class FxRatesBase(BaseModel):
     def _rates_are_positive_currency_codes(cls, v: Dict[str, float]) -> Dict[str, float]:
         if not v:
             raise ValueError("At least one rate is required.")
-        if len(v) > MAX_FX_RATES:
-            raise ValueError(f"No more than {MAX_FX_RATES} rates.")
         cleaned = {}
         for code, rate in v.items():
             code = (code or "").strip().upper()
-            if not _CURRENCY_RE.match(code):
-                raise ValueError(f"Invalid currency code '{code}'.")
+            if code not in FX_CURRENCIES:
+                raise ValueError(
+                    f"Invalid currency code '{code}': rates are kept for "
+                    f"{', '.join(FX_CURRENCIES)} only."
+                )
             # A zero or negative rate is not a slow-burning data-quality
             # problem, it is a division by zero in the converter.
             if rate is None or rate <= 0:
@@ -500,6 +504,8 @@ class CurrentSeasonUpdate(BaseModel):
 
 class DataControlLogResponse(BaseModel):
     id: int
+    # The batch run this operation ran under; None for a run of its own.
+    parent_id: Optional[int] = None
     action_main: str
     action_specific: str
     type: str
@@ -510,8 +516,16 @@ class DataControlLogResponse(BaseModel):
     error_message: Optional[str] = None
     details_json: Optional[str] = None
     timestamp: datetime
+    # How many operations this run ran; 0 for a single operation.
+    child_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DataControlLogDetailResponse(DataControlLogResponse):
+    """One log entry with the operations it ran, oldest first."""
+
+    children: List[DataControlLogResponse] = []
 
 
 class DeletedRecordResponse(BaseModel):

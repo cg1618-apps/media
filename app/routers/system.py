@@ -9,7 +9,7 @@ import logging
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -82,29 +82,73 @@ def get_system_logs(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ):
-    """Fetches the most recent data control logs."""
-    logs = (
-        db.query(models.DataControlLog)
-        .order_by(models.DataControlLog.timestamp.desc())
+    """
+    The most recent runs, newest first.
+
+    An operation a batch run ran (Fill Anime under Fill All) is not listed:
+    it is read with its run, from /logs/{log_id}. Each run carries how many
+    operations it ran in `child_count`.
+    """
+    Log = models.DataControlLog
+    runs = (
+        db.query(Log)
+        .filter(Log.parent_id.is_(None))
+        .order_by(Log.timestamp.desc(), Log.id.desc())
         .limit(limit)
         .offset(offset)
         .all()
     )
-    return logs
+    counts = dict(
+        db.query(Log.parent_id, func.count(Log.id))
+        .filter(Log.parent_id.in_([run.id for run in runs]))
+        .group_by(Log.parent_id)
+        .all()
+    )
+    return [
+        schemas.DataControlLogResponse.model_validate(run).model_copy(
+            update={"child_count": counts.get(run.id, 0)}
+        )
+        for run in runs
+    ]
+
+
+@router.get(
+    "/logs/{log_id}",
+    response_model=schemas.DataControlLogDetailResponse,
+    summary="Get a Data Control Log Entry and Its Operations",
+)
+def get_system_log(log_id: int, db: Session = Depends(get_db)):
+    """One log entry, with every operation it ran in the order they ran."""
+    Log = models.DataControlLog
+    log = db.query(Log).filter(Log.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Log entry not found")
+    children = db.query(Log).filter(Log.parent_id == log_id).order_by(Log.id).all()
+    return schemas.DataControlLogDetailResponse.model_validate(log).model_copy(
+        update={
+            "child_count": len(children),
+            "children": [schemas.DataControlLogResponse.model_validate(c) for c in children],
+        }
+    )
 
 
 @router.delete("/logs", summary="Clear Old Data Control Logs")
 def clear_system_logs(db: Session = Depends(get_db)):
-    """Deletes all log entries except the 10 most recent."""
+    """
+    Deletes every run except the 10 most recent. A run's operations go with
+    it (the foreign key cascades) and do not count toward the ten.
+    """
+    Log = models.DataControlLog
     keep_ids = (
-        db.query(models.DataControlLog.id)
-        .order_by(models.DataControlLog.timestamp.desc())
+        db.query(Log.id)
+        .filter(Log.parent_id.is_(None))
+        .order_by(Log.timestamp.desc(), Log.id.desc())
         .limit(10)
         .subquery()
     )
     count = (
-        db.query(models.DataControlLog)
-        .filter(models.DataControlLog.id.notin_(keep_ids))
+        db.query(Log)
+        .filter(Log.parent_id.is_(None), Log.id.notin_(db.query(keep_ids.c.id)))
         .delete(synchronize_session=False)
     )
     db.commit()
@@ -113,7 +157,7 @@ def clear_system_logs(db: Session = Depends(get_db)):
 
 @router.delete("/logs/{log_id}", summary="Delete a Data Control Log Entry")
 def delete_system_log(log_id: int, db: Session = Depends(get_db)):
-    """Deletes a single data control log entry by ID."""
+    """Deletes one log entry by ID, and the operations it ran with it."""
     log = db.query(models.DataControlLog).filter(models.DataControlLog.id == log_id).first()
     if not log:
         raise HTTPException(status_code=404, detail="Log entry not found")

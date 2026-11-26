@@ -903,7 +903,11 @@ columns.
   `expiresAt`, a **Copy link** button through `copyTextToClipboard`
   (`lib/clipboardImage.js`), and the line that it is shown only once; Escape
   or Close dismisses it; `/users`' reset link),
-  `RequestModal` (files or edits a request - see [Requests](#requests)).
+  `RequestModal` (files or edits a request - see [Requests](#requests)),
+  `LogDetailsModal` (a Data Control Log row's operations, in the same chrome
+  - `log`, `onClose`; reads `GET /api/system/logs/{id}` and tables each
+  operation's trigger, time and status; its `LogStatus` and `LogTrigger` are
+  the log table's own cells; see [admin-pages.md](admin-pages.md)).
 - **`components/requests`** <a id="requests"></a> — requests and reports
   ([systems/requests.md](../systems/requests.md)).
   - `RequestModal` (in `components/modals`) is the one form for a request,

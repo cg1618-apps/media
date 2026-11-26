@@ -1556,8 +1556,13 @@ rates it converts with, so the read is open and only the write is gated.
 An unset table and an unparseable stored row answer the same way — no rates
 at all. The page then prints per-currency subtotals and no converted total,
 because a figure built from a rate nobody entered looks exactly like a real
-one. `PUT` forces `rates[base] = 1`; a rate of zero, a non-ISO `as_of` and
-anything that is not a three-letter currency code are refused with `422`.
+one. `PUT` forces `rates[base] = 1`. The base and every rate must be one of
+USD, TWD and JPY (`FX_CURRENCIES` in `app/schemas/system.py`), the three the
+list prices are recorded in; any other code, a rate of zero and a non-ISO
+`as_of` are refused with `422`. `GET` serves the stored table as it is, so a
+rate saved earlier for another currency still reads back until the next
+`PUT` replaces the table. Spend recorded in a currency with no rate keeps
+its own subtotal and is left out of the converted totals.
 
 ---
 
@@ -2677,9 +2682,16 @@ members who are not admins. See that section.
 
 | Method   | Path             | Description                                                                 |
 | -------- | ---------------- | --------------------------------------------------------------------------- |
-| `GET`    | `/logs`          | Get the 50 most recent `DataControlLog` entries.                            |
-| `DELETE` | `/logs`          | Delete all log entries except the 10 most recent. Returns `{deleted: int}`. |
-| `DELETE` | `/logs/{log_id}` | Delete a single log entry by integer ID.                                    |
+| `GET`    | `/logs`          | The most recent runs, newest first (`limit`, default 50, max 500; `offset`). A row with a `parent_id` (an operation a batch run ran) is left out; each run carries `child_count`, how many operations it ran. |
+| `GET`    | `/logs/{log_id}` | One entry with `children`, the operations it ran, oldest first (`[]` for a single operation). `404` for an unknown id. |
+| `DELETE` | `/logs`          | Delete every run except the 10 most recent, and their operations with them; operations do not count toward the ten. Returns `{deleted: int}`, the runs deleted. |
+| `DELETE` | `/logs/{log_id}` | Delete a single log entry by integer ID, and its operations with it. |
+
+Fill All, Replace All and Pull All each log one row per operation as it
+finishes (`Fill Anime`, ..., the closing `Backup`; `Pull Anime`, ...), then
+their own row once the outcome is known, and point the operations'
+`parent_id` at it. A run that fails or is aborted keeps the operations it
+finished.
 
 ### Deleted Records
 

@@ -2835,14 +2835,17 @@ account switches to, and only something the ceiling shows can be denied:
 ### `data_control_logs`
 
 Audit log of pipeline runs (Fill, Replace, Pull, Backup, Calculate, deletes).
-Model: `DataControlLog`.
+Model: `DataControlLog`. A batch run (Fill All, Replace All, Pull All) is one
+row for the run and one per operation it ran, each operation's `parent_id`
+naming the run.
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `id` | Integer | no | autoincrement | PK |
+| `parent_id` | Integer | yes | | FK → `data_control_logs.id`, `ON DELETE CASCADE`, indexed. The batch run this operation ran under; NULL for a run of its own |
 | `action_main` | String | no | | e.g. the pipeline family |
 | `action_specific` | String | no | | |
-| `type` | String | no | | Media type / target |
+| `type` | String | no | | The trigger: `Manual` or `Auto` |
 | `status` | String | no | | Outcome |
 | `rows_added` / `rows_updated` / `rows_deleted` | Integer | yes | `0` | |
 | `error_message` | Text | yes | | |

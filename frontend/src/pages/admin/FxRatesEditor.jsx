@@ -1,7 +1,7 @@
 // Frontend: admin page file for FxRatesEditor.
 import { useCallback, useEffect, useState } from "react";
 import { endpoints } from "../../api/endpoints";
-import { PRICE_CURRENCIES } from "../../config/fieldOptions";
+import { FX_CURRENCIES } from "../../config/fieldOptions";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -11,6 +11,12 @@ const today = () => new Date().toISOString().slice(0, 10);
  * A card rather than more state inside Admin.jsx: this owns a form, a fetch
  * and a save, and Admin.jsx is long enough that another three useStates in it
  * would be the expensive way to add one editable config row.
+ *
+ * Rates are kept for USD, TWD and JPY (FX_CURRENCIES), each as how many
+ * units of it one `base` buys; the base converts to itself, so it takes no
+ * box. A currency left blank is omitted, and spend recorded in it is left out
+ * of the converted totals rather than guessed at. A rate stored for any other
+ * currency is not shown, and the next save drops it.
  *
  * The rates are typed, not fetched. `as_of` is therefore not decoration - it
  * is the only thing telling a reader how old the converted totals are, so it
@@ -51,7 +57,7 @@ export default function FxRatesEditor({ showToast }) {
 
   // The base converts to itself, so there is nothing to type for it and a box
   // that only ever holds 1 invites someone to change it to something else.
-  const editable = PRICE_CURRENCIES.filter((code) => code !== base);
+  const editable = FX_CURRENCIES.filter((code) => code !== base);
 
   async function handleSave() {
     const payload = {};
@@ -93,12 +99,6 @@ export default function FxRatesEditor({ showToast }) {
       <h2 className="text-lg font-black text-text mb-4 flex items-center border-b border-border pb-2">
         Exchange Rates
       </h2>
-      <p className="text-xs text-text-muted mb-4">
-        Used to convert game spend on the Statistics page. Rates are how many
-        units of each currency one {base} buys. Leave a currency blank to omit
-        it — spend recorded in it is then left out of the converted totals
-        rather than guessed at.
-      </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
         <label className="flex flex-col gap-1">
@@ -110,7 +110,7 @@ export default function FxRatesEditor({ showToast }) {
             onChange={(e) => setBase(e.target.value)}
             className="w-full bg-surface-2 border border-border-strong rounded-lg text-sm font-bold focus:ring-brand focus:border-brand py-2"
           >
-            {PRICE_CURRENCIES.map((code) => (
+            {FX_CURRENCIES.map((code) => (
               <option key={code} value={code}>
                 {code}
               </option>

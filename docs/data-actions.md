@@ -1366,7 +1366,7 @@ None of them writes a log row; the reviewed action writes the one column.
 
 ## 10. The audit log (`DataControlLog`)
 
-`log_data_control(db, action_main, action_specific, action_type, status, rows_added=0, rows_updated=0, rows_deleted=0, error_message=None, details_json=None)` inserts one row into `data_control_logs` and commits on its own; a failure to log is itself only logged, never raised.
+`log_data_control(db, action_main, action_specific, action_type, status, rows_added=0, rows_updated=0, rows_deleted=0, error_message=None, details_json=None, parent_id=None)` inserts one row into `data_control_logs`, commits on its own and returns the row's id (None when it could not be written); a failure to log is itself only logged, never raised. A batch run writes its own row last, once its outcome is known, so its operations log first and are linked afterwards: `log_run(db, child_ids, ...)` writes the run's row and `adopt_logs` points each id in `child_ids` at it. `run_all` (Fill All, Replace All) collects the ids through `run_fill` / `run_replace`'s `log_ids` and `execute_backup`'s; `execute_pull_all` through `execute_pull_specific`'s.
 
 | Column | Values used |
 |---|---|
