@@ -1,11 +1,14 @@
-// Frontend: a Game Platform console brings its family - the browser half of
-// with_platform_families in app/utils/game_vocabulary.py.
+// Frontend: a Game Platform console brings its family, and the main platforms
+// come first - the browser half of with_platform_families in
+// app/utils/game_vocabulary.py.
 //
-// Game Platform has two grains: a family (PlayStation, Nintendo, Xbox, PC,
-// Mobile, Browser) and the consoles inside it (PS5, Switch, ...). Picking a
-// console adds its family, and removing a family while one of its consoles
-// stays picked puts it straight back. The server does the same on every
-// write, so the form shows what the save stores.
+// Game Platform has two grains: a main platform, which is a family (PC,
+// PlayStation, Xbox, Nintendo, Mobile, Browser), and the specific platforms,
+// the consoles inside one (PS5, Switch, ...). Picking a console adds its
+// family, and removing a family while one of its consoles stays picked puts
+// it straight back. Every main platform sits ahead of every specific one,
+// with no heading between them. The server does the same on every write, so
+// the form shows what the save stores.
 //
 // Which family a console belongs to is not written here: every Game Platform
 // option the API serves carries its `family` (null on a family), so the map
@@ -14,6 +17,20 @@
 import { joinTags, splitTags } from "./labelTags";
 
 export const PLATFORM_CATEGORY = "Game Platform";
+
+// The main platforms, in order. A copy of the families in GAME_PLATFORMS;
+// tests/unit/test_game_platform_vocabulary.py keeps the two in step. Here
+// rather than read off the options because the library's Platform filter
+// orders its chips without loading any.
+export const MAIN_PLATFORMS = ["PC", "PlayStation", "Xbox", "Nintendo", "Mobile", "Browser"];
+
+const MAIN = new Set(MAIN_PLATFORMS);
+
+// `values` with every main platform ahead of every other one, each group in
+// the order it had.
+export function mainPlatformsFirst(values) {
+  return [...values.filter((v) => MAIN.has(v)), ...values.filter((v) => !MAIN.has(v))];
+}
 
 // {console: family}, from the form's loaded options.
 export function platformFamilies(options) {
@@ -26,19 +43,21 @@ export function platformFamilies(options) {
   return out;
 }
 
-// The comma-joined tags string with each console's family put in just before
-// its first console, when it is not there already. Nothing else moves.
+// The comma-joined tags string with each console's family added where its
+// first console stands, when it is not there already, and then the main
+// platforms moved ahead of the specific ones (mainPlatformsFirst).
 export function withPlatformFamilies(raw, families) {
   const tags = splitTags(raw);
   const present = new Set(tags);
-  const out = [];
+  const expanded = [];
   for (const tag of tags) {
     const family = families[tag];
     if (family && !present.has(family)) {
-      out.push(family);
+      expanded.push(family);
       present.add(family);
     }
-    out.push(tag);
+    expanded.push(tag);
   }
-  return out.length === tags.length ? raw : joinTags(out);
+  const out = mainPlatformsFirst(expanded);
+  return out.length === tags.length && out.every((t, i) => t === tags[i]) ? raw : joinTags(out);
 }

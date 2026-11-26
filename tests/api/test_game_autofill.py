@@ -101,15 +101,17 @@ def test_igdb_english_is_translated_through_the_alias_table(db_session, patched)
 def test_an_igdb_platform_tags_its_family_and_its_console(db_session, patched):
     """
     PS4 and PS5 share one PlayStation tag, each with its own console tag;
-    the duplicate family is dropped.
+    the duplicate family is dropped. The main platforms are stored first:
+    IGDB lists "PlayStation 4", "PlayStation 5", "PC (Microsoft Windows)",
+    and PC still goes ahead of PS4.
     """
     game = make_game(db_session)
     autofill_game_from_igdb(game, db_session)
     assert tag_values(db_session, game.system_id, "game_platform") == [
         "PlayStation",
+        "PC",
         "PS4",
         "PS5",
-        "PC",
         "Windows",
     ]
 
