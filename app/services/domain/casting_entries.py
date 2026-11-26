@@ -17,6 +17,7 @@ from app.services.rbac.enforcement import (
     filter_visible_pairs,
     label_hidden_entry_ids,
 )
+from app.services.rbac.shared_visibility import hidden_ratings
 from app.utils.media_resolver import MEDIA_TABLES
 from app.utils.release_date import primary_release_value
 
@@ -63,13 +64,18 @@ def casting_entry_groups(
         }
 
     # person_id -> Person, for the seiyuu display_name/system_id on each entry.
+    # A seiyuu rated above the viewer's access mode is not loaded, so the
+    # entry's card simply does not name them.
     person_ids = {v.person_id for r in rows for v in r.voices}
     people = {
         p.system_id: p
         for p in db.query(models.Person)
         # display_name reads the roles: a seiyuu's default differs.
         .options(selectinload(models.Person.roles))
-        .filter(models.Person.system_id.in_(person_ids))
+        .filter(
+            models.Person.system_id.in_(person_ids),
+            models.Person.content_rating.notin_(sorted(hidden_ratings(viewer))),
+        )
     } if person_ids else {}
 
     identity_ids = {r.identity_id for r in rows if r.identity_id}

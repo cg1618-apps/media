@@ -11,6 +11,7 @@
 import { useCommonOptionValues } from "../../api/mutations/useCommonOptions";
 import { COUNTRY_CATEGORY } from "../../components/forms/CountryInput";
 import MyRatingFields from "../../components/forms/MyRatingFields";
+import { ContentRatingField } from "../../components/forms/EntityProfileFields";
 import SuggestInput from "../../components/forms/SuggestInput";
 import {
   Field,
@@ -127,6 +128,9 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
           value={publisherForm.defunct_date}
           onChange={(v) => upf("defunct_date", v)}
         />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ContentRatingField form={publisherForm} update={upf} />
       </div>
       {/* The viewer's own rating, saved through /api/me/ratings by the
           page once the publisher itself has saved. */}

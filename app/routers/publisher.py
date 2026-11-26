@@ -44,6 +44,7 @@ from app.services.rbac.shared_visibility import (
     require_visible_shared,
     without_hidden_scopes,
 )
+from app.utils.content_rating import check_content_rating, without_unset_rating
 from app.utils.entity_ref import find_entity
 from app.utils.name_normalize import names_of
 
@@ -111,6 +112,7 @@ def _to_response(
         defunct_date=publisher.defunct_date,
         country=publisher.country,
         website_url=publisher.website_url,
+        content_rating=publisher.content_rating,
         scopes=sorted(
             without_hidden_scopes((s.scope for s in publisher.scopes), hidden)
         ),
@@ -320,7 +322,7 @@ def create_publisher(
     first_name = next(
         iter(names_of(payload, ("name_en", "name_cn", "name_jp", "name_alt"))), ""
     )
-    data = payload.model_dump()
+    data = without_unset_rating(payload.model_dump())
     wanted = data.pop("scopes", [])
     publisher = find_publisher(db, first_name)
     if publisher is None:
@@ -371,7 +373,7 @@ def update_publisher(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Publisher, system_id, NOT_FOUND)
 
-    data = payload.model_dump()
+    data = without_unset_rating(payload.model_dump())
     wanted = list(dict.fromkeys(data.pop("scopes", [])))
     for key, value in data.items():
         setattr(publisher, key, value)
@@ -419,7 +421,12 @@ def patch_publisher(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Publisher, system_id, NOT_FOUND)
 
-    apply_column_patch(publisher, prepare_patch(publisher, payload, "publisher"))
+    apply_column_patch(
+        publisher,
+        prepare_patch(
+            publisher, payload, "publisher", {"content_rating": check_content_rating}
+        ),
+    )
 
     db.commit()
     db.refresh(publisher)

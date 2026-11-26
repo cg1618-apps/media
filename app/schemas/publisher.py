@@ -11,6 +11,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.schemas.image_focus import ImageFocus
+from app.utils.content_rating import check_optional_content_rating
 from app.utils.credit_roles import legal_scopes
 
 
@@ -30,6 +31,15 @@ class PublisherBase(BaseModel):
     # {role, scope} pairs PersonRoleIn carries: a publisher holds exactly one
     # role, so there is no second axis to name.
     scopes: list[str] = []
+    # The record's content rating (app/utils/content_rating.py). Optional on a
+    # write: a form that does not send it leaves the stored rating as it is,
+    # and a create without it is `normal`.
+    content_rating: Optional[str] = None
+
+    @field_validator("content_rating")
+    @classmethod
+    def _known_content_rating(cls, v):
+        return check_optional_content_rating(v)
 
     @field_validator("scopes", mode="before")
     @classmethod
@@ -75,6 +85,8 @@ class PublisherUpdate(PublisherBase):
 
 class PublisherResponse(PublisherBase):
     system_id: UUID
+    # normal | borderline | unrestricted (app/utils/content_rating.py).
+    content_rating: str = "normal"
     # The VIEWER'S own rating, from user_rating (services.domain.user_rating
     # .attach_ratings); null for a guest. Not on the Base: a catalogue write
     # does not carry it - PUT /api/me/ratings/... does.

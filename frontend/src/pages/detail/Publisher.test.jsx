@@ -123,7 +123,7 @@ describe("Publisher detail page", () => {
     expect(within(profile).queryByText("MAL")).not.toBeInTheDocument();
   });
 
-  it("sets the profile on one row: country, types, active", async () => {
+  it("sets the profile on one row: country, types, active, content rating", async () => {
     renderPage();
     const profile = (await screen.findByText("Profile")).closest("section");
     // Every field sits on the one row, in this order.
@@ -132,9 +132,24 @@ describe("Publisher detail page", () => {
       "Country",
       "Types",
       "Active",
+      "Content rating",
     ]);
     expect(row.parentElement.children).toHaveLength(1);
     expect(row).toHaveTextContent("Since 1992");
+  });
+
+  it("shows the content rating in the profile", async () => {
+    mockFetch({ ...PUBLISHER, content_rating: "borderline" });
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(within(profile).getByText("Content rating")).toBeInTheDocument();
+    expect(within(profile).getByText("Borderline (15+)")).toBeInTheDocument();
+  });
+
+  it("reads an unset content rating as Normal", async () => {
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(within(profile).getByText("Normal")).toBeInTheDocument();
   });
 
   it("lists the website in the links card, not in the profile", async () => {

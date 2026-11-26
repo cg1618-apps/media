@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 ## What this is for
 
@@ -1037,6 +1037,51 @@ carries a content label. They are hidden by what they are connected to, in
 > connection it has is hidden.** A record with no connections at all stays
 > visible.
 
+A person, a studio and a publisher also carry a **content rating** of their
+own (`content_rating`: `normal`, `borderline` or `unrestricted`,
+`app/utils/content_rating.py`), and the full rule for them is:
+
+> **A person, studio or publisher is hidden when its content rating is above
+> the viewer's active access mode, or when the connection rule hides it.**
+
+| Rating | Shown as | Lowest mode that shows it |
+|---|---|---|
+| `normal` (default) | Normal | `safe` — every mode |
+| `borderline` | Borderline (15+) | `borderline` |
+| `unrestricted` | Unrestricted (18+) | `unrestricted` |
+
+The rating only ever hides: a `normal` record whose every connection is hidden
+stays hidden. No role is exempt — an owner in `normal` mode does not see a
+`borderline` studio, as no role is exempt from a content label. A viewer with
+no resolved mode (`GUEST_FALLBACK`, an unknown key) is treated as `safe`;
+`viewer=None` hides nothing. `shared_visibility.hidden_ratings(viewer)` is the
+arithmetic, read off `viewer.mode_key` alone, so the cover route's cached
+viewer answers it as a fresh one does. A character and a vocabulary value
+carry no rating.
+
+Because a person credited on a visible entry is no longer visible by
+construction, **every reader that names a person, studio or publisher on
+another record's page leaves out the rated-hidden ones**, while the page
+itself stays visible: an entry's credit names and `credit_refs` /
+`studio_refs` / `publisher_refs` (`credits.attach_link_fields`),
+`GET /api/credits/{type}/{id}`, `GET /api/casting/{type}/{id}`'s voices, a
+character's and an identity's `/entries` seiyuu, the cast editor's originals
+and MAL cast import, and `GET /api/credits/usage`. Lists, search, pickers,
+affiliations, clubs, related companies, role counts and covers read through
+`apply_shared_visibility` / `shared_record_visible` and need nothing extra.
+**The writers that replace those lists wholesale keep the hidden rows**, as
+the scope writers below do: `PUT /api/credits/{type}/{id}` keeps a credit
+naming a rated-hidden entity at its stored position, and
+`PUT /api/casting/{type}/{id}` keeps a rated-hidden voice on the casting for
+the same character and identity (a casting the editor removes takes its
+voices with it).
+
+A person's **gallery pictures** carry the same rating, default `normal`. One
+rated above the viewer's mode is left out of `GET .../work-images`, is a 404
+to that picture's PATCH and DELETE, and keeps its slot through a reorder by
+an editor who was not shown it. The rationale is
+[the decision](notes/decisions/2026-11-26-content-rating-gates-shared-records.md).
+
 | Record | Connections (`CONNECTIONS`) |
 |---|---|
 | person | `media_credit` rows, `character_casting_voice` rows (a seiyuu is credited through the castings they voice), `person_role` scopes |
@@ -1112,14 +1157,16 @@ it names (422). One class, `PeerRelations` in
 
 So crediting somebody on a visible entry reveals them and removing that credit
 hides them again; nothing is stored. The rule is one SQL condition
-(`_hidden_condition`, `EXISTS connection AND NOT EXISTS visible connection`,
-built on `hidden_label_ids` and `_hidden_by_label`), applied three ways:
+(`_hidden_condition`: `content_rating IN hidden ratings` for a rated model,
+OR `EXISTS connection AND NOT EXISTS visible connection`, built on
+`hidden_label_ids` and `_hidden_by_label`), applied three ways:
 
 | Helper | Use |
 |---|---|
 | `apply_shared_visibility(query, model, db, viewer)` | list, search and option routes — a filter, so pages do not shrink after `LIMIT` and a list costs no per-row query |
 | `shared_record_visible(db, viewer, model, id)` / `require_visible_shared(...)` | detail routes, `/entries`, writes, `/api/covers` and image attach — callers 404 with their own not-found message |
 | `hidden_scopes(db, viewer)` / `without_hidden_scopes(...)` | the gated types a viewer cannot see, left out of a visible record's `roles` / `scopes` and of `role-scopes`; a `?scope=` naming one answers `[]` |
+| `hidden_ratings(viewer)` | the content ratings above the viewer's mode, for the readers that name people, studios and publishers on another record's page, the writers that keep those rows, and the gallery |
 
 The connection tables are **aliased** inside the condition. The person list
 already joins `person_role` to filter by role, and an unaliased `EXISTS` over
@@ -1362,6 +1409,11 @@ is a **422**, checked before anything is deleted - see
   this bargain too: the copy is a library image, so it no longer carries the
   source entry's content-label gate (see
   [the decision](notes/decisions/2026-11-20-entry-covers-are-copied-into-the-library.md)).
+  A person's gallery picture is a library image as well: its content rating
+  keeps it out of every listing, but its bytes are behind the same mount.
+- The image library manager (`GET /api/images`, `manage.images`) lists every
+  image and every attachment, a gallery picture of any rating included, as
+  it lists covers of entries the editor's mode hides.
 
   **Covers are no longer in that bargain, because their keys are
   constructible.** `<owner_type>/<system_id>.jpg` is derivable by anyone who

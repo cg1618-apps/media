@@ -139,8 +139,8 @@ export const UNRATED = "Unrated";
  * The viewer's own rating: a chip per rating, best first, then Unrated for a
  * row with none. Personal, since the rating is the viewer's own list value.
  * The media libraries draw it in the advanced section, directly above the
- * genre filters (`advanced: true`); the entity libraries draw it last among
- * their ordinary filters. Built per call: MY_RATINGS is refreshed in place
+ * genre filters (`advanced: true`); the entity libraries draw it in theirs
+ * too (lib/entityFilters.js). Built per call: MY_RATINGS is refreshed in place
  * from /api/constants.
  */
 export function myRatingFilter({ advanced = false } = {}) {

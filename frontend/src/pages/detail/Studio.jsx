@@ -24,6 +24,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import NotesTemplate from "../notes/NotesTemplate";
+import { contentRatingLabel } from "../../config/fieldOptions";
 import InfoCard from "../../components/info/InfoCard";
 import CompanyCredits from "../../components/info/CompanyCredits";
 import EntityHeading, { creditedEntries } from "../../components/info/EntityHeading";
@@ -207,6 +208,7 @@ export default function Studio() {
               [
                 { label: "Countries", value: formatCountries(studio.countries) },
                 { label: "Active", value: span },
+                { label: "Content rating", value: contentRatingLabel(studio.content_rating) },
               ],
             ]}
           />

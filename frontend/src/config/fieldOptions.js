@@ -177,6 +177,36 @@ export const GENDERS = ["男", "女", "中性/無性", "雙性混和", "其他"]
 // 男 or 女, unset null. Studios and publishers have none.
 export const PERSON_GENDERS = ["男", "女"];
 
+// The content rating of a person, studio or publisher, and of each picture in
+// a person's works gallery (/api/constants key "content_rating"). `normal` is
+// the default and shows in every mode, safe included; `borderline` shows from
+// the borderline mode up and `unrestricted` only in unrestricted. The server
+// withholds a row rated above the active mode, so the SPA never filters by
+// rank itself - contentRatingsVisibleIn only narrows what a filter offers.
+export const CONTENT_RATING_NORMAL = "normal";
+export const CONTENT_RATINGS = ["normal", "borderline", "unrestricted"];
+export const CONTENT_RATING_LABELS = {
+  normal: "Normal",
+  borderline: "Borderline (15+)",
+  unrestricted: "Unrestricted (18+)",
+};
+
+/** The display label of a content rating; an unknown value reads as itself. */
+export function contentRatingLabel(value) {
+  return CONTENT_RATING_LABELS[value ?? CONTENT_RATING_NORMAL] ?? value;
+}
+
+/**
+ * The content ratings a session in `modeKey` can be served, in
+ * CONTENT_RATINGS order: every rating up to the mode's own, where safe and
+ * normal reach only `normal`. An unknown or missing mode reaches only
+ * `normal` - the narrow direction.
+ */
+export function contentRatingsVisibleIn(modeKey) {
+  const reach = { borderline: 2, unrestricted: 3 }[modeKey] ?? 1;
+  return CONTENT_RATINGS.slice(0, reach);
+}
+
 // The gender a character starts with when the cast editor mints it for an
 // entry of this media type. A type not listed leaves it unset. Only that
 // create path reads this - the Add page's character form starts unset.
@@ -556,6 +586,7 @@ export const CONSTANTS_FALLBACK = {
   my_rating: MY_RATINGS,
   gender: GENDERS,
   person_gender: PERSON_GENDERS,
+  content_rating: CONTENT_RATINGS,
   character_role: CHARACTER_ROLES,
   is_main: IS_MAIN,
   game_is_main: GAME_IS_MAIN,

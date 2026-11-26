@@ -49,9 +49,13 @@ def fallback_photo(identity, character) -> tuple[Optional[str], Optional[str]]:
     return None, None
 
 
-def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
+def casting_rows(
+    db: Session, media_type: str, entry_id: UUID, hidden: frozenset[str] = frozenset()
+) -> list[dict]:
     """
     One entry's cast, ordered by position, each row with its voices in order.
+    A voice by a person rated one of `hidden` (the viewer's
+    shared_visibility.hidden_ratings) is left out; its casting stays.
 
     Bulk-loads the voices, characters and people in a fixed number of queries,
     regardless of cast size - not one per row - then resolves display_photo_file
@@ -116,6 +120,8 @@ def casting_rows(db: Session, media_type: str, entry_id: UUID) -> list[dict]:
     voices_by_casting: dict[UUID, list[dict]] = {}
     for voice in voices:
         person = people.get(voice.person_id)
+        if person is not None and person.content_rating in hidden:
+            continue
         voices_by_casting.setdefault(voice.casting_id, []).append(
             {
                 "person_id": str(voice.person_id),
@@ -268,8 +274,58 @@ def _validate_rows(db: Session, rows: list[dict]) -> None:
             )
 
 
+def _with_kept_voices(
+    db: Session, media_type: str, entry_id: UUID, rows: list[dict], keep_ratings
+) -> None:
+    """
+    Put back into `rows`, in place, the stored voices by a person rated one
+    of `keep_ratings` - the voices the editor's GET left out - each on the row
+    for the same (character, identity) at its stored voice position. A
+    casting the editor removed takes its voices with it, kept or not, as it
+    always has.
+    """
+    stored = (
+        db.query(models.CharacterCastingVoice, models.CharacterCasting)
+        .join(
+            models.CharacterCasting,
+            models.CharacterCastingVoice.casting_id == models.CharacterCasting.system_id,
+        )
+        .join(models.Person, models.CharacterCastingVoice.person_id == models.Person.system_id)
+        .filter(
+            models.CharacterCasting.media_type == media_type,
+            models.CharacterCasting.entry_id == entry_id,
+            models.Person.content_rating.in_(sorted(keep_ratings)),
+        )
+        .order_by(models.CharacterCastingVoice.position)
+        .all()
+    )
+    kept: dict[tuple[str, Optional[str]], list] = {}
+    for voice, casting in stored:
+        key = (str(casting.character_id), str(casting.identity_id) if casting.identity_id else None)
+        kept.setdefault(key, []).append(voice)
+    if not kept:
+        return
+    for row in rows:
+        identity = row.get("identity_id")
+        key = (str(row["character_id"]), str(identity) if identity else None)
+        voices = list(row.get("voices") or [])
+        named = {str(v["person_id"]) for v in voices}
+        for voice in kept.pop(key, []):
+            if str(voice.person_id) in named:
+                continue
+            voices.insert(
+                min(voice.position, len(voices)),
+                {"person_id": voice.person_id, "remark": voice.remark},
+            )
+        row["voices"] = voices
+
+
 def replace_casting(
-    db: Session, media_type: str, entry_id: UUID, rows: list[dict]
+    db: Session,
+    media_type: str,
+    entry_id: UUID,
+    rows: list[dict],
+    keep_ratings: frozenset[str] = frozenset(),
 ) -> None:
     """
     Deletes an entry's existing castings and inserts `rows` in order. Each
@@ -288,6 +344,10 @@ def replace_casting(
 
     A character in `rows` with no role of its own then takes one from its
     castings - see fill_character_roles.
+
+    A stored voice by a person rated one of `keep_ratings` (the editor's
+    shared_visibility.hidden_ratings) is kept on its casting: the editor was
+    never shown it (_with_kept_voices).
     """
     if media_type not in CASTING_MEDIA_TYPES:
         raise CastingValidationError(f"Unknown casting media type: {media_type}")
@@ -295,6 +355,8 @@ def replace_casting(
     for row in rows:
         _validate_row(media_type, row)
     _validate_rows(db, rows)
+    if keep_ratings:
+        _with_kept_voices(db, media_type, entry_id, rows, keep_ratings)
 
     db.query(models.CharacterCasting).filter(
         models.CharacterCasting.media_type == media_type,

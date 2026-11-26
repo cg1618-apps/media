@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.schemas.image_focus import ImageFocus
+from app.utils.content_rating import check_optional_content_rating
 from app.utils.countries import clean_countries
 from app.utils.credit_roles import CREDIT_ROLES, PERSON_ROLES, legal_scopes
 from app.utils.entity_vocab import check_person_gender
@@ -111,8 +112,19 @@ class PersonWrite(PersonBase):
     (PERSON_GENDERS, app/utils/entity_vocab.py), "" meaning NULL.
 
     Not on PersonBase, which PersonResponse also extends: a response reports
-    what is stored and has no business refusing it.
+    what is stored and has no business refusing it. The same goes for
+    content_rating.
     """
+
+    # The record's content rating (app/utils/content_rating.py). Optional on a
+    # write: a form that does not send it leaves the stored rating as it is,
+    # and a create without it is `normal`.
+    content_rating: Optional[str] = None
+
+    @field_validator("content_rating")
+    @classmethod
+    def _known_content_rating(cls, v):
+        return check_optional_content_rating(v)
 
     @field_validator("gender")
     @classmethod
@@ -181,6 +193,8 @@ class PersonUpdate(PersonWrite):
 
 class PersonResponse(PersonBase):
     system_id: UUID
+    # normal | borderline | unrestricted (app/utils/content_rating.py).
+    content_rating: str = "normal"
     # The VIEWER'S own rating, from user_rating (services.domain.user_rating
     # .attach_ratings); null for a guest. Not on the Base: a catalogue write
     # does not carry it - PUT /api/me/ratings/... does.
@@ -232,6 +246,15 @@ class StudioBase(BaseModel):
     mal_link: Optional[str] = None
     # The AniList studio page, stored as given - nothing is derived from it.
     anilist_link: Optional[str] = None
+    # The record's content rating (app/utils/content_rating.py). Optional on a
+    # write: a form that does not send it leaves the stored rating as it is,
+    # and a create without it is `normal`.
+    content_rating: Optional[str] = None
+
+    @field_validator("content_rating")
+    @classmethod
+    def _known_content_rating(cls, v):
+        return check_optional_content_rating(v)
 
     @field_validator("countries", mode="before")
     @classmethod
@@ -263,6 +286,8 @@ class StudioUpdate(StudioBase):
 
 class StudioResponse(StudioBase):
     system_id: UUID
+    # normal | borderline | unrestricted (app/utils/content_rating.py).
+    content_rating: str = "normal"
     # The VIEWER'S own rating, from user_rating (services.domain.user_rating
     # .attach_ratings); null for a guest. Not on the Base: a catalogue write
     # does not carry it - PUT /api/me/ratings/... does.

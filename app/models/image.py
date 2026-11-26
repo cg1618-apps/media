@@ -3,6 +3,7 @@
 import uuid
 
 from sqlalchemy import (
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
@@ -13,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 
 from app.database import Base, get_taipei_now
+from app.models.staff import CONTENT_RATING_CHECK
 
 
 class Image(Base):
@@ -79,6 +81,10 @@ class ImageAttachment(Base):
             "position",
             name="uq_image_attachment_owner_role_position",
         ),
+        CheckConstraint(
+            CONTENT_RATING_CHECK,
+            name="ck_image_attachment_content_rating",
+        ),
     )
 
     system_id = Column(
@@ -107,3 +113,10 @@ class ImageAttachment(Base):
     # What a gallery picture shows, in the owner's words. NULL for every
     # single-image role, and for a gallery picture nobody has captioned.
     caption = Column(String, nullable=True)
+    # How adult the picture is: normal, borderline or unrestricted
+    # (app/utils/content_rating.py). Only meaningful on a gallery picture
+    # (role "work"), which an access mode below the rating does not list;
+    # every other role keeps the default and nothing reads it there.
+    content_rating = Column(
+        String, nullable=False, default="normal", server_default="normal"
+    )

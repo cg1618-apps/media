@@ -857,7 +857,10 @@ from every studio in `StudioAffiliationField` and sent with the person as
 `studio_ids`: **男** and **女** as `QuickPicks` chips beside a closed
 select of "—", 男 and 女 — `PERSON_GENDERS`, a person's whole vocabulary — one
 click picks, clicking the pressed chip clears, and the select follows either
-way; unset saves as null). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
+way; unset saves as null), and a **Content rating** select
+(`ContentRatingField`, the same file: Normal, Borderline (15+), Unrestricted
+(18+) over `CONTENT_RATINGS`, starting on Normal - the `defaultPerson()`
+value - and sent as `content_rating`). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), an
 **AniList Link** (`anilist_link`, placeholder `https://anilist.co/staff/...`;
 stored as typed, a blank one as null, nothing derived or filled from it), the
@@ -1014,8 +1017,9 @@ in the list is kept as typed and never added to it), founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL
 id/link and **AniList Link** (`anilist_link`, placeholder
 `https://anilist.co/studio/...`; stored as typed, a blank one as null,
-nothing filled from it), with **My Rating** for a list keeper (see "The viewer's
-own rating" above). Submit is blocked client-side until at least one name is filled,
+nothing filled from it), a **Content rating** select (`ContentRatingField`,
+as on the person tab, sent as `content_rating`), with **My Rating** for a list
+keeper (see "The viewer's own rating" above). Submit is blocked client-side until at least one name is filled,
 matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
 find-or-create: posting a name that already exists returns the existing
 studio rather than splitting its credits, and leaves its metadata untouched.
@@ -1030,7 +1034,8 @@ fields with the "Display name" select — it is the third consumer of the shared
 logo key, country (one, free text: a `SuggestInput` suggesting the
 `Country` common options the studio Countries field reads, with no chip
 picks; what is typed is stored, and never added to the list),
-founded/defunct `ReleaseDateInput`s and website. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
+founded/defunct `ReleaseDateInput`s, website and the **Content rating**
+select the studio tab has. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
 carries no MAL columns, because MAL has no record of a games publisher or a
 Taiwanese distributor. Submit is blocked until at least one name is filled,
 matching `ck_publisher_has_a_name`. Below the name fields sits
@@ -1311,7 +1316,8 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
   show that entry's cover when the person has no photo. Below that, while the
   form's roles hold `author` or `illustrator`, sits **Works**
   (`WorkImagesEditor`): the person's gallery of works, which saves as it is
-  edited rather than with the form, as the photo does - see
+  edited rather than with the form, as the photo does - each picture has its
+  caption and its own **Content rating** select, PATCHed on change - see
   [components.md](components.md#entity-components-person-studio-and-character).
 - **Identity tab (Entity).** `IdentityModifyTab.jsx`, self-contained over `GET /api/character-identity/` (query key `["identities-admin"]`): `IdentityPicker`, a search box over every name of the identity and its character plus a grid of every identity showing "identity of <character>", then the `IdentityFields` form with the owning character shown read-only. Save is `PUT /api/character-identity/{id}`. A deep link `type=identity` hands the id to it as `initialId`.
 - **Character tab (Entity).** `CharacterModifyTab.jsx`, self-contained the

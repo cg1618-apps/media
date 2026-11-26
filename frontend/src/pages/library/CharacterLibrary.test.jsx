@@ -13,12 +13,40 @@ vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({
     visibleGatedTypes: ["h-comic", "h-game", "hentai"],
     has: (p) => held.has(p),
+    mode: session.modeKey ? { key: session.modeKey } : null,
   }),
 }));
+// The active access mode's key; null (no mode) unless a test sets one.
+const session = { modeKey: null };
 beforeEach(() => {
   held.clear();
   held.add("view.character").add("self.list");
+  session.modeKey = null;
 });
+
+// The advanced section is collapsed on every mount. A test of what it draws
+// opens it first; one asserting a group's absence opens it when it is there,
+// so the absence is not just the collapse.
+async function openAdvanced(user, { required = true } = {}) {
+  const toggle = required
+    ? screen.getByRole("button", { name: /Advanced filters/ })
+    : screen.queryByRole("button", { name: /Advanced filters/ });
+  if (toggle) await user.click(toggle);
+}
+
+// The advanced section: the toggle and the groups it opens.
+function advancedSection() {
+  return screen.getByRole("button", { name: /Advanced filters/ }).parentElement;
+}
+
+// The given group labels (not chips) in the order the advanced section draws
+// them.
+function inDrawnOrder(labels) {
+  return labels
+    .map((label) => [label, within(advancedSection()).getByText(label, { ignore: "button" })])
+    .sort(([, a], [, b]) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+    .map(([label]) => label);
+}
 
 const CHARACTERS = [
   {
@@ -191,6 +219,7 @@ describe("CharacterLibrary", () => {
     let cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toHaveLength(2);
 
+    await openAdvanced(user);
     await user.click(screen.getByRole("button", { name: "S" }));
     cards = screen.getAllByRole("link").map((a) => a.textContent);
     expect(cards).toHaveLength(1);
@@ -393,18 +422,36 @@ describe("CharacterLibrary", () => {
 describe("CharacterLibrary and the viewer's own rating", () => {
   it("offers no My rating sort or filter without self.list", async () => {
     held.delete("self.list");
+    const user = userEvent.setup();
     renderLibrary();
     await screen.findByText("Yuki Nagato");
     expect(screen.queryByRole("option", { name: "My rating" })).not.toBeInTheDocument();
+    await openAdvanced(user, { required: false });
     expect(screen.queryByText("My Rating")).not.toBeInTheDocument();
   });
 
   it("offers both with self.list", async () => {
+    const user = userEvent.setup();
     renderLibrary();
     await screen.findByText("Yuki Nagato");
     expect(screen.getByRole("option", { name: "My rating" })).toBeInTheDocument();
+    await openAdvanced(user);
     expect(screen.getByText("My Rating")).toBeInTheDocument();
   });
+});
+
+// My Rating sits in the advanced section, right after the Identities group.
+// A character has no content rating, so no mode draws that group here.
+it("draws My Rating after Identities in the advanced section, and no Content rating", async () => {
+  session.modeKey = "unrestricted";
+  const user = userEvent.setup();
+  renderLibrary();
+  await screen.findByText("Yuki Nagato");
+  await openAdvanced(user);
+  expect(inDrawnOrder(["Appearance", "My Rating", "Identities", "Card"])).toEqual([
+    "Card", "Identities", "My Rating", "Appearance",
+  ]);
+  expect(screen.queryByText("Content rating")).not.toBeInTheDocument();
 });
 
 describe("CharacterLibrary list view", () => {

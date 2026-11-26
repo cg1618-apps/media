@@ -12,6 +12,7 @@
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=publisher, the
 // detail page's Edit button): that publisher's editor opens on mount.
 import RelatedRecords from "../../components/info/RelatedRecords";
+import { CONTENT_RATING_NORMAL } from "../../config/fieldOptions";
 import {
   applyMyRating,
   useFormRatingSaver,
@@ -49,6 +50,7 @@ function publisherToForm(p) {
     website_url: p.website_url || "",
     founded_date: p.founded_date || "",
     defunct_date: p.defunct_date || "",
+    content_rating: p.content_rating || CONTENT_RATING_NORMAL,
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: p.my_rating || "",
     // PUT replaces the scope set wholesale, so the form has to hold the
@@ -151,6 +153,7 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
           founded_date: publisherForm.founded_date || null,
           defunct_date: publisherForm.defunct_date || null,
           scopes: publisherForm.scopes || [],
+          content_rating: publisherForm.content_rating || CONTENT_RATING_NORMAL,
         }),
       });
       await queryClient.invalidateQueries({ queryKey: ["publishers-admin"] });

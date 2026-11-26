@@ -11,6 +11,9 @@ import {
   CHARACTER_ROLES,
   GENDERS,
   PERSON_GENDERS,
+  CONTENT_RATINGS,
+  contentRatingLabel,
+  contentRatingsVisibleIn,
   castRoleRank,
   MEDIA_TYPES,
   COMMON_OPTION_CATEGORIES,
@@ -377,6 +380,28 @@ describe("gender", () => {
   it("is narrower for a person, under person_gender", () => {
     expect(CONSTANTS_FALLBACK.person_gender).toBe(PERSON_GENDERS);
     expect(PERSON_GENDERS).toEqual(["男", "女"]);
+  });
+});
+
+describe("content rating", () => {
+  it("is wired into applyConstants under content_rating, narrowest first", () => {
+    expect(CONSTANTS_FALLBACK.content_rating).toBe(CONTENT_RATINGS);
+    expect(CONTENT_RATINGS).toEqual(["normal", "borderline", "unrestricted"]);
+  });
+
+  it("labels each rating, with an unset one reading as Normal", () => {
+    expect(CONTENT_RATINGS.map(contentRatingLabel)).toEqual([
+      "Normal", "Borderline (15+)", "Unrestricted (18+)",
+    ]);
+    expect(contentRatingLabel(null)).toBe("Normal");
+  });
+
+  it("reaches every rating up to the active mode's", () => {
+    expect(contentRatingsVisibleIn("safe")).toEqual(["normal"]);
+    expect(contentRatingsVisibleIn("normal")).toEqual(["normal"]);
+    expect(contentRatingsVisibleIn("borderline")).toEqual(["normal", "borderline"]);
+    expect(contentRatingsVisibleIn("unrestricted")).toEqual(CONTENT_RATINGS);
+    expect(contentRatingsVisibleIn(undefined)).toEqual(["normal"]);
   });
 });
 
