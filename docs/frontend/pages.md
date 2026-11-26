@@ -73,6 +73,7 @@ are a large share of the bundle and never needed on first paint.
 | `/settings` | `public/Settings.jsx` — the account's username and role, a line saying the list, ratings and personal notes are visible to that account only, and the Password card for an account holding `self.password` | lazy, **`self.list`** |
 | `/requests` | `public/MyRequests.jsx` | lazy, **`self.requests`** |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
+| `/guide` | `public/UnderDevelopment.jsx` — the Guide is not written yet | eager, open to everyone; only the nav link is limited to guest, shared and user |
 
 **Gated routes.** The two h-comic routes sit inside
 `<ProtectedRoute gatedType="h-comic">`, the two h-game routes inside
@@ -155,8 +156,9 @@ about styling.
 | `extras` | Extras | flat | Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "manage.resources"`, so the admin and super only) ┃ Relations `/relations`, Orders `/orders` — these two carry `requires: "manage.catalog"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires` any of `manage.catalog` / `manage.images` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` — each `requires: "manage.catalog"` — and Images `/images` (`requires: "manage.images"`). The admin holds no `manage.catalog`, so Images is the one row it sees |
 | `note` | Note | flat, `requires` any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` — whatever its rows ask, so the admin, holding no `manage.catalog`, still sees the whole section | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described, each `requires: "manage.options"` — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
-| `system` | System | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, **Inbox** `/request-inbox` and **待補充 Needs Work** `/needs-work`, each carrying `requires: "manage.requests"` on the row — the key both routes ask |
+| `system` | System | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, **Inbox** `/request-inbox` and **待補充** `/needs-work`, each carrying `requires: "manage.requests"` on the row — the key both routes ask. Review Queue and Clean Orphans are not listed: the Control Center links to both |
 | `admin` | Admin | flat, `requires: "admin.authz"` | Users, Roles, Access Modes |
+| `guide` | Guide | a link of its own (`to: "/guide"`, no `items`), `excludes: ["manage.catalog", "admin.authz"]`, `end: true` | No rows: the tab is the link, set at the right end of the strip. Drawn for guest, shared and user and never for super or the admin, who are the only holders of those two keys (`manage.catalog` is locked on for super alone, `admin.authz` for the admin alone) |
 
 Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
 (extra path prefixes that light the tab up — `/anime/123` highlights the Anime
@@ -166,11 +168,14 @@ to `/under-development`), `divider` (a rule between item groups) and
 needed)` answers both) or `feature` (a per-row account feature switch, asked
 through `hasFeature` in place of `requires`). Helpers:
 `sectionItems`, `activeItem` / `activeSectionKey` (segment-aware prefix match,
-so `/library/anime` does not claim `/library/anime-movie`),
+so `/library/anime` does not claim `/library/anime-movie`; a section with a
+`to` of its own owns that path, with no item under it),
 `sectionRequirement` / `itemRequirement` (`adminOnly: true` is the legacy
 spelling of `requires: "admin.authz"`) and `visibleSections(sections, has,
 canSeeType, hasFeature)` — which drops both the sections and the individual
-rows the viewer lacks the permission for, a row carrying `gatedType` unless
+rows the viewer lacks the permission for, a section holding any key in its
+`excludes` list (the opposite of `requires`, for a tab meant for the reading
+accounts only), a row carrying `gatedType` unless
 `canSeeType` answers yes (Nav passes `canSeeGatedType`), and a row carrying
 `feature` unless `hasFeature` answers yes (left out, every such row is
 hidden), then drops any section
@@ -179,10 +184,14 @@ hands back the original item objects, since Nav marks the current row by
 identity. Every gate is `has()` from `useAuth()`, a plain membership test,
 so a tab or row is drawn only for a role that holds its key.
 
-A guest is therefore shown two tabs: Library, holding Groups, ACG and
-Reality, and Explore, holding Seasonal and Future Releases. A shared
-account's Explore adds the Random Picker and Statistics. The admin is shown no
-Library, Restricted, Track or Explore tab, Extras holding Resources alone,
+A section carries `items`, `columns`, or neither and a `to` of its own — a
+tab that is itself the link, with no panel (Guide). `end: true` pushes a tab
+to the right end of the strip.
+
+A guest is therefore shown two tabs and the Guide link: Library, holding
+Groups, ACG and Reality, and Explore, holding Seasonal and Future Releases. A
+shared account's Explore adds the Random Picker and Statistics. The admin is
+shown no Library, Restricted, Track, Explore or Guide tab, Extras holding Resources alone,
 Entry holding Images alone, and Note, System and Admin in full.
 
 **`components/layout/Nav.jsx`** renders two rows: an "ink" row (logo → `/`,
@@ -191,7 +200,9 @@ phone's search button and the sheet it opens are drawn only for a viewer
 holding `view.search`, the key the `/search` route asks. Mega-panel behaviour:
 click-outside closes, Escape returns focus to the trigger, ArrowUp/Down cycle
 links inside `[data-nav-panel]`, any route change closes the panel, the
-mobile drawer and the phone search. Session controls: a session indicator, the
+mobile drawer and the phone search. A section with a `to` of its own (Guide)
+renders as a plain link in both: a tab with no panel, marked current on its
+own path, and a drawer row with nothing to unfold. Session controls: a session indicator, the
 access-mode switcher, and a theme toggle (moon/sun, `useTheme().toggle`,
 `aria-pressed`). The indicator always renders: the
 account's `username` when signed in, **Guest** when not. It is a value, so it
@@ -2678,7 +2689,8 @@ permission="self.list">`.
 ### UnderDevelopment — `/under-development`
 
 File `pages/public/UnderDevelopment.jsx`. Static card. Targets: unknown
-`/library/:type` values. No nav item currently carries `dev: true`.
+`/library/:type` values, and `/guide`, which renders it in place of the
+Guide. No nav item currently carries `dev: true`.
 
 ## Known rough edges (as of this commit)
 

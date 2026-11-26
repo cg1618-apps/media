@@ -248,17 +248,12 @@ describe("NAV_SECTIONS", () => {
   });
 
   it("splits the pipeline pages from the accounts/authz pages", () => {
-    // Control Center, Data History, Review Queue and Clean Orphans call only
-    // /api/system/* and /api/data-control/*  (manage.pipelines); Users,
-    // Roles and Access Modes are the accounts/authz surface
-    // (admin.authz) — not the same capability, so not the same tab.
-    //
-    // Clean Orphans sits here rather than under admin because it is gated by
-    // manage.pipelines like the rest of /api/data-control. It deletes, which
-    // reads as an admin power, but the capability that authorises it is the
-    // pipeline one - and this list is the second of the SPA's two independent
-    // permission surfaces, so it has to agree with App.jsx rather than with
-    // intuition about severity.
+    // Control Center and Data History call only /api/system/* and
+    // /api/data-control/* (manage.pipelines); Users, Roles and Access Modes
+    // are the accounts/authz surface (admin.authz) — not the same
+    // capability, so not the same tab. Review Queue and Clean Orphans are
+    // reached from the Control Center's own links, so the tab does not list
+    // them again.
     //
     // Access Modes sits under admin for the same kind of reason read the
     // other way: it decides which entries and fields a session can reach, so
@@ -267,8 +262,6 @@ describe("NAV_SECTIONS", () => {
     expect(sectionItems(system).map((i) => i.to)).toEqual([
       "/system",
       "/data-history",
-      "/review-queue",
-      "/clean-orphans",
       undefined,
       "/needs-work",
       "/request-inbox",
@@ -608,9 +601,10 @@ describe("visibleSections - the guest scope", () => {
 
   it("leaves a guest the Library tab and Explore's catalogue pages", () => {
     // Seasonal and Future Releases read the catalogue, which a guest reads;
-    // the Random Picker and Statistics ask keys a guest never holds.
+    // the Random Picker and Statistics ask keys a guest never holds. Guide
+    // is the reading accounts' own link.
     const sections = visibleSections(NAV_SECTIONS, holdsNothing);
-    expect(sections.map((s) => s.key)).toEqual(["library", "explore"]);
+    expect(sections.map((s) => s.key)).toEqual(["library", "explore", "guide"]);
     const explore = sections.find((s) => s.key === "explore");
     expect(sectionItems(explore).map((i) => i.label)).toEqual([
       "Seasonal",
@@ -691,7 +685,7 @@ describe("the header's tab grouping", () => {
       .filter((i) => !i.divider)
       .map((i) => i.label);
 
-  it("orders the tabs Library, Restricted, Track, Explore, Extras, Entry, Note, System, Admin", () => {
+  it("orders the tabs Library, Restricted, Track, Explore, Extras, Entry, Note, System, Admin, Guide", () => {
     expect(NAV_SECTIONS.map((s) => s.key)).toEqual([
       "library",
       "restricted",
@@ -702,6 +696,7 @@ describe("the header's tab grouping", () => {
       "note",
       "system",
       "admin",
+      "guide",
     ]);
     expect(NAV_SECTIONS.map((s) => s.label)).toEqual([
       "Library",
@@ -713,6 +708,7 @@ describe("the header's tab grouping", () => {
       "Note",
       "System",
       "Admin",
+      "Guide",
     ]);
   });
 
@@ -782,10 +778,8 @@ describe("the header's tab grouping", () => {
     expect(items.map((i) => (i.divider ? "---" : i.label))).toEqual([
       "Control Center",
       "Data History",
-      "Review Queue",
-      "Clean Orphans",
       "---",
-      "待補充 Needs Work",
+      "待補充",
       "Inbox",
     ]);
     // The rule asks the rows' key, so a viewer without it sees no stray rule.
@@ -830,7 +824,6 @@ describe("the two permission surfaces agree", () => {
     "/content-labels": ["admin.authz", "manage.catalog"],
     "/access-modes": "admin.authz",
     "/system": "manage.pipelines",
-    "/clean-orphans": "manage.pipelines",
     "/business-logic": "manage.pipelines",
     "/library/studio": "view.studio",
     "/library/publisher": "view.publisher",
@@ -1048,5 +1041,63 @@ describe("visibleSections - Resources", () => {
 
   it("is offered to super, which holds every key but admin.authz", () => {
     expect(routesFor((p) => p !== "admin.authz")).toContain("/resources");
+  });
+});
+
+describe("the Guide link", () => {
+  // Guide is a tab that is a link of its own: no panel, no rows. It is for
+  // the reading accounts - guest, shared and user - and not for the two that
+  // run the site. Those two are told apart by the keys only they hold:
+  // manage.catalog is locked on for super alone and admin.authz for the
+  // admin alone (docs/authorization.md), and both are locked off for the
+  // other three roles.
+  const guide = () => NAV_SECTIONS.find((s) => s.key === "guide");
+  // A shared account as seeded (default_shared_permissions): the guest's
+  // keys plus its locked-on three.
+  const holdsShared = (p) =>
+    GUEST.has(p) ||
+    ["self.requests", "view.random_picker", "view.statistics"].includes(p);
+  // Super holds every key but admin.authz; the user's set plus manage.*.
+  const holdsSuper = (p) =>
+    p !== "admin.authz" &&
+    (USER.has(p) || p.startsWith("manage.") || p.startsWith("view."));
+  const keysFor = (has) => visibleSections(NAV_SECTIONS, has).map((s) => s.key);
+
+  it("is a link to /guide with no panel, placed last", () => {
+    const section = guide();
+    expect(section.label).toBe("Guide");
+    expect(section.to).toBe("/guide");
+    expect(section.items).toBeUndefined();
+    expect(section.columns).toBeUndefined();
+    expect(NAV_SECTIONS.at(-1)).toBe(section);
+  });
+
+  it("is shown to a guest, a shared account and a user", () => {
+    // Each of the three holds a non-empty set, so the exclusion has keys to
+    // look at and found none of its own.
+    expect(keysFor(holdsGuest)).toContain("guide");
+    expect(keysFor(holdsShared)).toContain("guide");
+    expect(keysFor(holdsUser)).toContain("guide");
+  });
+
+  it("is hidden from super and from the admin", () => {
+    // The mirror of the case above, over the same NAV_SECTIONS: both still
+    // see tabs of their own, so the missing Guide is the exclusion's doing.
+    expect(keysFor(holdsSuper)).not.toContain("guide");
+    expect(keysFor(holdsSuper)).toContain("entry");
+    expect(keysFor(holdsAdmin)).not.toContain("guide");
+    expect(keysFor(holdsAdmin)).toContain("admin");
+  });
+
+  it("excludes on either key alone", () => {
+    expect(keysFor((p) => p === "manage.catalog")).not.toContain("guide");
+    expect(keysFor((p) => p === "admin.authz")).not.toContain("guide");
+    expect(keysFor(() => false)).toContain("guide");
+  });
+
+  it("marks itself current on /guide", () => {
+    expect(activeSectionKey("/guide")).toBe("guide");
+    expect(activeItem("/guide").section).toBe(guide());
+    expect(activeSectionKey("/guided")).toBeNull();
   });
 });
