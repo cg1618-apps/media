@@ -331,7 +331,7 @@ loading state until then, because before it every viewer looks like a guest.
 | Part | Asks | Who that is, as seeded |
 |---|---|---|
 | The admin's own page (`AdminDashboard`), **instead of** everything below | `has("admin.authz")` and none of `LIBRARY_MEDIA_TYPE_PERMISSIONS`, the Library tab's own question | admin |
-| Tracker: My watch schedule, Coming Next, Followed orders, the type filter bar, Pinged, Watching, Reading, Playing | `has("self.list")` | super, user |
+| Tracker: My Schedule, Coming Next, Followed orders, the type filter bar, Pinged, Watching, Reading, Playing | `has("self.list")` | super, user |
 | Summary (`DashboardSummary`) above Announcements | `has("self.list") && has("manage.requests")` | super |
 | Libraries (`#libraries`, `LibraryLinks`) | `!has("self.list")`, and at least one library row visible | guest, shared |
 | Recently added (`#recent`, `RecentlyAdded`) | `!has("self.list") && has("view.random_picker")` | shared |
@@ -340,8 +340,7 @@ Announcements and the Broadcast schedule are drawn for every viewer of the
 catalogue dashboard. The tracker is built from the viewer's own statuses and
 progress, and its controls write the viewer's own rows, so it is a member's
 list, not catalogue, and `self.list` decides it rather than a `view.*` key.
-The TOC, the scroll-spy and the schedule's "N scheduled" count cover only the
-parts drawn.
+The TOC and the scroll-spy cover only the parts drawn.
 
 **The summary** reads `GET /api/dashboard/summary` and is fetched only for a
 viewer it is drawn for. It says, in a few words each, how many registrations
@@ -353,9 +352,22 @@ approve", unlinked, since `/system` would not show that viewer the panel.
 
 **The library links** are the nav's own Library and Restricted rows:
 `useLibraryLinks()` calls `visibleSections(NAV_SECTIONS, has, canSeeGatedType,
-hasFeature)` exactly as `Nav.jsx` does and keeps those two sections, one slip
-per section with one link per row, so the dashboard and the header never
-disagree about which libraries a viewer may open.
+hasFeature)` exactly as `Nav.jsx` does and keeps those two sections, so the
+dashboard and the header never disagree about which libraries a viewer may
+open. They are drawn in one slip, not in the nav's columns, as labelled rows
+(`LIBRARY_ROWS`, laid out by `libraryLinkRows`), each label an eyebrow:
+
+1. **Groups** — Collection, Franchise, Series, then the entity libraries
+   the viewer may open (Studio, Publisher, Person, Character).
+2. A hairline rule: what follows is the media tier.
+3. **Watch** — Anime, Anime Movie, Movie, TV Show, Cartoon, Hentai.
+4. **Read** — Manga, Book, Comic, H-Comic.
+5. **Play** — Game, H-Game.
+
+A gated type is drawn only for a session that may see it, last in its
+counterpart's row. A row with no link is not drawn, and the rule only
+separates a Groups row from media rows that follow it. A library the nav
+offers that `LIBRARY_ROWS` does not place fails `Index.perViewer.test.jsx`.
 
 **Recently added** reads `GET /api/dashboard/recent?per_type=12` — the
 newest entries of each type the viewer may see, already narrowed and cut per
@@ -435,9 +447,9 @@ headers and the filter bar already pin under the nav):
 
 | Anchor | Division | What it shows |
 |---|---|---|
-| `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only on the catalogue dashboard; written on `/system` and on the admin's own page. |
-| `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next - the first pending, unskipped step at or above the follow's importance — see [../systems/orders.md](../systems/orders.md#what-is-next). |
-| `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown. Not drawn when there are none. |
+| `#announcements` | Announcement & Notes | Headed with the number posted. `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only on the catalogue dashboard; written on `/system` and on the admin's own page. |
+| `#schedule` | Weekly Schedule | The division header is the title alone. Every block in it counts its entries in its own title — **My Schedule (n)** — and draws nothing else at the right but the collapse toggle. Two `WeeklySchedule` blocks: **My Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming next (n)** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next - the first pending, unskipped step at or above the follow's importance — see [../systems/orders.md](../systems/orders.md#what-is-next). |
+| `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown, in rows — Groups, a rule, then Watch, Read and Play (see "The library links" above). Not drawn when there are none. |
 | `#recent` | Recently added | `view.random_picker` without a list (shared): one section per visible type, newest first — anime two rows, every other type one. |
 | `#pinged` | Pinged (Watching · Reading · Playing) | members only. Every entry the viewer has pinned (`is_pinged`), whatever its status, grouped into three **soft sections** — Watching, Reading, Playing — each an eyebrow on a dotted rule (`Watching · 3`), the way a type eyebrow groups a sub-section's cards. A soft section reads its division's own sorted, filtered list, so its pins keep that division's order and follow the type filter; one with no pins is not drawn, and with none at all the division says so. The soft sections are not anchors: the contents lists Pinged alone. The cards are each type's own dashboard card (a local `TrackerCard` picks it), steppers included, and list view draws one `DashboardTable` per soft section. A pinned entry is still drawn in its own division as well. |
 | `#watching` | Watching (Anime · Anime Movie · Movie · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → Anime Movie → Movie → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A film's card has no stepper - there is no episode to count - and shows **Paused at** (`time_fin`, a dash when unset) and its **Runtime** (`length_min`) instead; in list view its progress cell reads `at <time_fin>`, or the runtime. The two film lists are the ones Coming Next already fetches for a member, outside the combined loading state, so the films join the division when they arrive. Shown when no type is picked or the picked type is one of its five. |

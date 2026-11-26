@@ -34,7 +34,6 @@ export default function AdminDashboard() {
 
       <div id="announcements">
         <DivisionHeader
-          eyebrow="Pinned to the top of the dashboard"
           title={<>Announcements &amp; notes</>}
           count={`${announcements.length} posted`}
         />

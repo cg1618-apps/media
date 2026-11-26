@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { SCHEDULE_DAYS } from "../../config/weekdays";
 import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { getDisplayName } from "../../utils/media";
-import { Chip, Slip } from "../ui/primitives";
+import { Slip } from "../ui/primitives";
 
 /** Sunday-first, so getDay() indexes straight into SCHEDULE_DAYS. */
 function getTodayName() {
@@ -56,7 +56,8 @@ function ScheduleEntry({ item, timeField }) {
 }
 
 /**
- * Groups `items` into Sunday–Saturday columns by `dayField`.
+ * Groups `items` into Sunday–Saturday columns by `dayField`, titled
+ * `title (n)` with the number of entries drawn.
  * Entries whose day value is not a recognized weekday are skipped.
  * When `timeField` is given, entries show that time and sort by it
  * (missing times last); otherwise they sort by display name.
@@ -71,7 +72,6 @@ export default function WeeklySchedule({
   // Kept for API compatibility; the archive style draws no decorative icons.
   // eslint-disable-next-line no-unused-vars
   icon,
-  subtitle,
   dayField,
   timeField,
   items,
@@ -118,35 +118,26 @@ export default function WeeklySchedule({
     }
   }, [showGrid, today]);
 
-  const actions = (
-    <>
-      {subtitle && (
-        <span className="hidden sm:inline font-mono text-[10px] text-text-faint">
-          {subtitle}
-        </span>
-      )}
-      <Chip tone="ink">{total}</Chip>
-      {collapsible && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setCollapsed((v) => !v);
-          }}
-          className="text-text-faint hover:text-text text-sm px-1"
-          aria-label={collapsed ? "Expand" : "Collapse"}
-          aria-expanded={!collapsed}
-        >
-          <i className={`fas fa-chevron-${collapsed ? "down" : "up"}`}></i>
-        </button>
-      )}
-    </>
-  );
+  // The count is the title's; the only control at the right is the toggle.
+  const actions = collapsible ? (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        setCollapsed((v) => !v);
+      }}
+      className="text-text-faint hover:text-text text-sm px-1"
+      aria-label={collapsed ? "Expand" : "Collapse"}
+      aria-expanded={!collapsed}
+    >
+      <i className={`fas fa-chevron-${collapsed ? "down" : "up"}`}></i>
+    </button>
+  ) : null;
 
   return (
     <Slip
       id={id}
-      title={title}
+      title={`${title} (${total})`}
       actions={actions}
       padded={false}
       className={collapsible ? "select-none" : ""}
