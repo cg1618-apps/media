@@ -1,9 +1,17 @@
 // Identity Modify tab: "Same as character" names the value it inherits.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { ToastProvider } from "../../hooks/useToast";
 import IdentityModifyTab from "./IdentityModifyTab";
+
+// No permission by default; a test that rates gives the viewer self.list.
+const auth = vi.hoisted(() => ({ has: () => false }));
+vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
+beforeEach(() => {
+  auth.has = () => false;
+});
 
 function mount(identity) {
   vi.stubGlobal(
@@ -51,4 +59,69 @@ it("loads the identity's firsts into inputs that show the notation", async () =>
     expect(screen.getByLabelText(label)).toHaveAttribute("placeholder", "第1卷 第13章, 1-13, S1 ep 8");
   }
   expect(screen.getByLabelText("First Encounter")).toHaveValue("");
+});
+
+it("loads the viewer's rating and PUTs only a change, after the identity", async () => {
+  auth.has = (p) => p === "self.list";
+  mount({ ...BASE, gender: null, display_gender: null, my_rating: "B" });
+  const calls = global.fetch.mock.calls;
+  const rating = await screen.findByLabelText("My Rating");
+  expect(rating).toHaveValue("B");
+  // Display Name, Gender and My Rating share one row.
+  expect(screen.getByLabelText("Gender").closest(".grid")).toBe(rating.closest(".grid"));
+
+  await userEvent.selectOptions(rating, "S");
+  await userEvent.click(screen.getByRole("button", { name: /save identity/i }));
+
+  await waitFor(() => expect(calls.filter(([, o]) => o?.method === "PUT")).toHaveLength(2));
+  const puts = calls.filter(([, o]) => o?.method === "PUT");
+  expect(puts[0][0]).toBe("/api/character-identity/i1");
+  expect(JSON.parse(puts[0][1].body)).not.toHaveProperty("my_rating");
+  expect(puts[1][0]).toBe("/api/me/ratings/identity/i1");
+  expect(JSON.parse(puts[1][1].body)).toEqual({ my_rating: "S" });
+});
+
+describe("Other identities of the character", () => {
+  function mountMany(rows) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(rows) })),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <IdentityModifyTab initialId="i1" />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+  }
+  const ROWS = [
+    { ...BASE, character_id: "c1", position: 0 },
+    { ...BASE, system_id: "i2", name_en: "Kid", display_name: "Kid", character_id: "c1", position: 1 },
+    { ...BASE, system_id: "i3", name_en: "Bourbon", display_name: "Bourbon", character_id: "c9", position: 0 },
+  ];
+
+  it("lists the character's other identities at the top, and a chip opens that one's editor", async () => {
+    mountMany(ROWS);
+    const ribbon = await screen.findByRole("region", { name: "Other identities of the character" });
+    // Before the editor's own fields.
+    expect(
+      ribbon.compareDocumentPosition(screen.getByLabelText("Display Name")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const chips = within(ribbon).getAllByRole("button");
+    expect(chips.map((c) => c.textContent)).toEqual(["Kid"]);
+
+    await userEvent.click(chips[0]);
+    expect(await screen.findByDisplayValue("Kid")).toBeInTheDocument();
+    const next = screen.getByRole("region", { name: "Other identities of the character" });
+    expect(within(next).getAllByRole("button").map((c) => c.textContent)).toEqual(["Conan"]);
+  });
+
+  it("is not drawn for an identity with no sibling", async () => {
+    mountMany([ROWS[2]].map((r) => ({ ...r, system_id: "i1" })));
+    await screen.findByLabelText("Display Name");
+    expect(screen.queryByRole("region", { name: "Other identities of the character" })).toBeNull();
+  });
 });

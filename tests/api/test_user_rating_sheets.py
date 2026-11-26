@@ -56,20 +56,26 @@ def world(db):
                                  franchise_name_en="Sheet Franchise")
     person = models.Person(system_id=uuid.uuid4(), name_en="Sheet Person")
     book = models.Book(system_id=uuid.uuid4(), book_name_en="Sheet Book")
-    db.add_all([cg, kana, franchise, person, book])
+    character = models.Character(system_id=uuid.uuid4(), name_en="Sheet Character")
+    db.add_all([cg, kana, franchise, person, book, character])
+    db.commit()
+    identity = models.CharacterIdentity(system_id=uuid.uuid4(),
+                                        character_id=character.system_id,
+                                        name_en="Sheet Identity")
+    db.add(identity)
     db.commit()
     unit = models.BookUnit(system_id=uuid.uuid4(), book_id=book.system_id,
                             unit_kind="volume", position=1)
     db.add(unit)
     db.commit()
     return {"cg": cg, "kana": kana, "franchise": franchise, "person": person,
-            "book": book, "unit": unit}
+            "book": book, "unit": unit, "identity": identity}
 
 
 def _ratings(db):
     out = {}
     for r in db.query(models.UserRating).all():
-        owner = r.franchise_id or r.person_id
+        owner = r.franchise_id or r.person_id or r.identity_id
         out[(db.get(models.User, r.user_id).username, owner)] = (
             r.my_rating, r.expectation
         )
@@ -92,6 +98,9 @@ def test_both_tabs_round_trip_for_two_users(db, workbook, world):
                           my_rating="C"),
         models.UserRating(user_id=w["kana"].id, person_id=w["person"].system_id,
                           my_rating="A"),
+        # An identity's uuid travels unchanged, as a character's does.
+        models.UserRating(user_id=w["kana"].id, identity_id=w["identity"].system_id,
+                          my_rating="B"),
         models.UserBookUnitRating(user_id=w["cg"].id, unit_id=w["unit"].system_id,
                                    my_rating="B", remark="cg's note"),
         models.UserBookUnitRating(user_id=w["kana"].id, unit_id=w["unit"].system_id,

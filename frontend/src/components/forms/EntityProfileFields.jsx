@@ -32,9 +32,10 @@ const GENDER_QUICK_PICKS = ["男", "女"];
 /**
  * Gender: quick-pick chips beside a select. Stores "" for unset; the savers
  * send null. `kind` picks the vocabulary: a character's five GENDERS, or a
- * person's PERSON_GENDERS (男 / 女).
+ * person's PERSON_GENDERS (男 / 女). `beside` fills the row's right-hand
+ * column - the character form's My Rating.
  */
-export function GenderField({ form, update, kind = "character" }) {
+export function GenderField({ form, update, kind = "character", beside = null }) {
   const genders = kind === "person" ? PERSON_GENDERS : GENDERS;
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -64,6 +65,7 @@ export function GenderField({ form, update, kind = "character" }) {
           </div>
         </div>
       </Field>
+      {beside}
     </div>
   );
 }

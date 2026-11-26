@@ -1127,23 +1127,23 @@ query per page.
 ### `user_rating`
 
 One account's rating of one collection, franchise, series, character,
-person, studio or publisher, and for a tier its expectation. Model:
+character identity, person, studio or publisher, and for a tier its expectation. Model:
 `UserRating` (`app/models/user_rating.py`).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
-| `collection_id` / `franchise_id` / `series_id` / `character_id` / `person_id` / `studio_id` / `publisher_id` | UUID | yes | | The owner: one FK per owning table, each to its `system_id` ON DELETE CASCADE and indexed. Exactly one is set |
+| `collection_id` / `franchise_id` / `series_id` / `character_id` / `person_id` / `studio_id` / `publisher_id` / `identity_id` | UUID | yes | | The owner: one FK per owning table (`identity_id` to `character_identity`), each to its `system_id` ON DELETE CASCADE and indexed. Exactly one is set |
 | `my_rating` | String | yes | | MY_RATINGS |
 | `expectation` | String | yes | | FRANCHISE_EXPECTATIONS; tiers only |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Constraints: `ck_user_rating_one_owner` (`num_nonnulls` of the seven owner
+Constraints: `ck_user_rating_one_owner` (`num_nonnulls` of the eight owner
 columns `= 1`); `ck_user_rating_expectation_on_tier` (an `expectation` only
 when the owner is a collection, franchise or series);
-`uq_user_rating_owner` UNIQUE (`user_id`, the seven owner columns) **NULLS
-NOT DISTINCT**, since six of the seven are NULL on every row.
+`uq_user_rating_owner` UNIQUE (`user_id`, the eight owner columns) **NULLS
+NOT DISTINCT**, since seven of the eight are NULL on every row.
 
 A row holding neither value is **not stored**: `write_rating`
 (`app/services/domain/user_rating.py`) deletes it, as

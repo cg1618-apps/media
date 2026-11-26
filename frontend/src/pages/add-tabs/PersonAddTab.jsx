@@ -9,6 +9,7 @@
 // page's person editor renders the exact same inputs against an existing
 // person's form state instead of duplicating them - the same arrangement
 // StudioAddTab uses for StudioFields.
+import EntityNameFields from "../../components/forms/EntityNameFields";
 import MyRatingFields from "../../components/forms/MyRatingFields";
 import { useQuery } from "@tanstack/react-query";
 
@@ -178,43 +179,38 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
   );
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {PERSON_NAME_FIELDS.map(({ key, label, field }) => (
-          <Field key={key} label={`Name (${label})`}>
-            <input
-              className={inputCls}
-              value={personForm[field] ?? ""}
-              onChange={(e) => upf(field, e.target.value)}
-            />
-          </Field>
-        ))}
-      </div>
+      <EntityNameFields form={personForm} update={upf} fields={PERSON_NAME_FIELDS} />
       {!hasAnyName && (
         <p className="text-[10px] font-bold text-danger -mt-2">
           A person needs at least one name.
         </p>
       )}
-      <Field
-        label="Display Name"
-        hint={
-          seiyuu
-            ? "Which name to show by default. A seiyuu falls back through Chinese, Japanese, English, Alternative when unset."
-            : "Which name to show by default. Falls back through English, Chinese, Japanese, Alternative when unset."
-        }
-      >
-        <select
-          className={selectCls}
-          value={personForm.display_name_field ?? ""}
-          onChange={(e) => upf("display_name_field", e.target.value)}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field
+          label="Display Name"
+          hint={
+            seiyuu
+              ? "Which name to show by default. A seiyuu falls back through Chinese, Japanese, English, Alternative when unset."
+              : "Which name to show by default. Falls back through English, Chinese, Japanese, Alternative when unset."
+          }
         >
-          <option value="">{seiyuu ? "Default (Chinese)" : "Default (English)"}</option>
-          {PERSON_NAME_FIELDS.map(({ key, label }) => (
-            <option key={key} value={key}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </Field>
+          <select
+            className={selectCls}
+            value={personForm.display_name_field ?? ""}
+            onChange={(e) => upf("display_name_field", e.target.value)}
+          >
+            <option value="">{seiyuu ? "Default (Chinese)" : "Default (English)"}</option>
+            {PERSON_NAME_FIELDS.map(({ key, label }) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {/* The viewer's own rating, saved through /api/me/ratings by the
+            page once the person itself has saved. */}
+        <MyRatingFields kind="person" form={personForm} update={upf} />
+      </div>
 
       <PersonRoleMatrix
         roles={roles}
@@ -236,49 +232,6 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
           onChange={(next) => upf("affiliations", next)}
         />
       </Field>
-      <Field
-        label="MAL Link"
-        hint="The person's myanimelist.net/people/<id> page; the MAL id is read from it."
-      >
-        <input
-          className={inputCls}
-          value={personForm.mal_link ?? ""}
-          onChange={(e) => upf("mal_link", e.target.value)}
-          placeholder="https://myanimelist.net/people/..."
-        />
-      </Field>
-      <Field
-        label="AniList Link"
-        hint="The person's anilist.co/staff/<id> page. Stored as given; nothing is filled from it."
-      >
-        <input
-          className={inputCls}
-          value={personForm.anilist_link ?? ""}
-          onChange={(e) => upf("anilist_link", e.target.value)}
-          placeholder="https://anilist.co/staff/..."
-        />
-      </Field>
-      <Field
-        label="IMDb Link"
-        hint="The person's imdb.com/name/nm<id> page; the IMDb id is read from it, and TMDB fills what MAL leaves blank."
-      >
-        <input
-          className={inputCls}
-          value={personForm.imdb_link ?? ""}
-          onChange={(e) => upf("imdb_link", e.target.value)}
-          placeholder="https://www.imdb.com/name/..."
-        />
-      </Field>
-      {PERSON_SOCIAL_LINKS.map(({ field, label, placeholder }) => (
-        <Field key={field} label={label}>
-          <input
-            className={inputCls}
-            value={personForm[field] ?? ""}
-            onChange={(e) => upf(field, e.target.value)}
-            placeholder={placeholder}
-          />
-        </Field>
-      ))}
       <Field label="Photo">
         <ImagePicker
           ownerType="staff"
@@ -312,10 +265,54 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
           <WorkImagesEditor personId={ownerId} />
         </Field>
       )}
-      {/* The viewer's own rating, saved through /api/me/ratings by the
-          page once the person itself has saved. */}
+
+      {/* The person's pages elsewhere: the MAL and IMDb links are read for
+          their ids (and filled from on save), the rest stored as typed. */}
+      <SectionHeader icon="fa-external-link-alt" title="Links" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <MyRatingFields kind="person" form={personForm} update={upf} />
+        <Field
+          label="MAL Link"
+          hint="The person's myanimelist.net/people/<id> page; the MAL id is read from it."
+        >
+          <input
+            className={inputCls}
+            value={personForm.mal_link ?? ""}
+            onChange={(e) => upf("mal_link", e.target.value)}
+            placeholder="https://myanimelist.net/people/..."
+          />
+        </Field>
+        <Field
+          label="AniList Link"
+          hint="The person's anilist.co/staff/<id> page. Stored as given; nothing is filled from it."
+        >
+          <input
+            className={inputCls}
+            value={personForm.anilist_link ?? ""}
+            onChange={(e) => upf("anilist_link", e.target.value)}
+            placeholder="https://anilist.co/staff/..."
+          />
+        </Field>
+        <Field
+          label="IMDb Link"
+          hint="The person's imdb.com/name/nm<id> page; the IMDb id is read from it, and TMDB fills what MAL leaves blank."
+        >
+          <input
+            className={inputCls}
+            value={personForm.imdb_link ?? ""}
+            onChange={(e) => upf("imdb_link", e.target.value)}
+            placeholder="https://www.imdb.com/name/..."
+          />
+        </Field>
+        {PERSON_SOCIAL_LINKS.map(({ field, label, placeholder }) => (
+          <Field key={field} label={label}>
+            <input
+              className={inputCls}
+              value={personForm[field] ?? ""}
+              onChange={(e) => upf(field, e.target.value)}
+              placeholder={placeholder}
+            />
+          </Field>
+        ))}
       </div>
     </div>
   );
@@ -327,14 +324,17 @@ export default function PersonAddTab({
   roles,
   setRoles,
   applyMalPick,
+  applyImdbPick,
 }) {
   const legalScopes = useRoleScopes();
 
   return (
     <>
-      {/* The tab's only search box: a person has no "copy an existing
-          record" search. The server fills on save from MAL, then TMDB,
-          for whichever link the person has, as the two Person Fills do. */}
+      {/* The tab's search boxes, MAL then IMDb: a person has no "copy an
+          existing record" search. The server fills on save from MAL, then
+          TMDB, for whichever link the person has, as the two Person Fills
+          do. IMDb has no public search, so the IMDb box searches TMDB's
+          people and the pick is resolved to its IMDb page. */}
       <ExternalSearchBox
         source="MAL"
         searchUrl={endpoints.person.searchMal}
@@ -342,6 +342,15 @@ export default function PersonAddTab({
         placeholder="Search MAL — type a name to link this person..."
         hint="Links the MAL page. Names and photo are filled from MAL on save."
       />
+      {applyImdbPick && (
+        <ExternalSearchBox
+          source="IMDb"
+          searchUrl={endpoints.person.searchImdb}
+          onPick={applyImdbPick}
+          placeholder="Search IMDb — type a name to link this person..."
+          hint="Searched through TMDB. Links the IMDb page; TMDB fills what MAL leaves blank on save."
+        />
+      )}
       <PersonFields
         personForm={personForm}
         upf={upf}

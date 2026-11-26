@@ -215,3 +215,83 @@ def test_sync_from_cast_adds_the_rows_remark_to_the_list(owner_client, db_sessio
     assert [n.content for n in db_session.query(models.Note).filter_by(character_id=character.system_id)] == [
         "From the cast row"
     ]
+
+
+
+def _identity(db_session, name="Kirito"):
+    character = models.Character(system_id=uuid.uuid4(), name_en=name)
+    db_session.add(character)
+    db_session.flush()
+    identity = models.CharacterIdentity(
+        system_id=uuid.uuid4(), character_id=character.system_id, name_en=f"{name} (other)"
+    )
+    db_session.add(identity)
+    db_session.flush()
+    return character, identity
+
+
+def test_an_identitys_notes_are_read_in_a_mode_that_hides_something(
+    guest_reader, db_session, owner_user
+):
+    """
+    A viewer who hides anything - the safe mode, every guest - reads an
+    identity's notes as it reads its character's. An identity is no shared
+    record of its own, so its visibility is its character's.
+    """
+    character, identity = _identity(db_session)
+    db_session.add(
+        models.Note(
+            system_id=uuid.uuid4(),
+            identity_id=identity.system_id,
+            author_id=owner_user.id,
+            section="remark",
+            content="A remark",
+        )
+    )
+    db_session.commit()
+
+    r = guest_reader.get(
+        "/api/notes", params={"owner_type": "identity", "owner_id": str(identity.system_id)}
+    )
+    assert r.status_code == 200, r.text
+    assert [(n["section"], n["content"]) for n in r.json()] == [("remark", "A remark")]
+    # The character reads the same way, in the same mode.
+    r = guest_reader.get(
+        "/api/notes", params={"owner_type": "character", "owner_id": str(character.system_id)}
+    )
+    assert r.status_code == 200, r.text
+
+
+def test_an_identity_of_a_hidden_character_hides_its_notes(
+    guest_reader, owner_client, db_session, sample_franchise, nsfw_label
+):
+    """The refusal: cast only on an nsfw entry, the character - and so its
+    identity - is hidden from `safe`, and its notes answer 404. The owner's
+    mode carries the label, so the same read is a 200 there."""
+    character, identity = _identity(db_session, "Hidden")
+    entry = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        anime_name_en="Hidden identity notes anime",
+        airing_type="TV",
+    )
+    db_session.add(entry)
+    db_session.flush()
+    db_session.add(
+        models.MediaContentLabel(
+            system_id=uuid.uuid4(), media_id=entry.system_id, label_id=nsfw_label.system_id
+        )
+    )
+    db_session.add(
+        models.CharacterCasting(
+            character_id=character.system_id,
+            identity_id=identity.system_id,
+            media_type="anime",
+            entry_id=entry.system_id,
+        )
+    )
+    db_session.commit()
+
+    params = {"owner_type": "identity", "owner_id": str(identity.system_id)}
+    assert guest_reader.get("/api/notes", params=params).status_code == 404
+    assert owner_client.get("/api/notes", params=params).status_code == 200

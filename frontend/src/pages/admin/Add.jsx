@@ -598,6 +598,13 @@ export default function Add() {
     });
   const applyPersonMalPick = entityMalPick(setPersonForm);
   const applyCharacterMalPick = entityMalPick(setCharacterForm);
+  // A person keeps only imdb_link; the server reads the nm id from it. The
+  // English name is filled when blank, as MAL fills the Japanese one.
+  const applyPersonImdbPick = makeTmdbPick(setPersonForm, showToast, {
+    resolveUrl: endpoints.person.tmdbImdbId,
+    idField: null,
+    nameField: "name_en",
+  });
   const applyMovieTmdbPick = makeTmdbPick(setMf, showToast, {
     resolveUrl: endpoints.movie.tmdbImdbId,
     nameField: "movie_name_en",
@@ -2632,6 +2639,7 @@ export default function Add() {
               roles={personRoles}
               setRoles={setPersonRoles}
               applyMalPick={applyPersonMalPick}
+              applyImdbPick={applyPersonImdbPick}
             />
           </div>
         )}
