@@ -251,7 +251,7 @@ describe("PersonLibrary", () => {
       expect(screen.getByRole("button", { name })).toHaveAttribute("aria-pressed", "false");
     }
     // Nothing to reset to yet.
-    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset to Default" })).not.toBeInTheDocument();
   });
 
   // The restricted-only row is what makes the default bite: without it the
@@ -294,13 +294,13 @@ describe("PersonLibrary", () => {
     expect(names()).toEqual(none);
 
     // Reset (and Clear all) return to nothing ticked.
-    await user.click(screen.getByRole("button", { name: "Reset" }));
+    await user.click(screen.getByRole("button", { name: "Reset to Default" }));
     expect(screen.getByRole("button", { name: "Anime" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
     expect(names()).toEqual(none);
-    expect(screen.queryByRole("button", { name: "Reset" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reset to Default" })).not.toBeInTheDocument();
   });
 
   it("finds a seiyuu under the Type group's 聲優", async () => {

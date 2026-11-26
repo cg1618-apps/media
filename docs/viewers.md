@@ -335,8 +335,8 @@ series the viewer's mode hides reads as missing wherever it would be listed
 
 | Viewer | Random Picker | Future Releases |
 | --- | --- | --- |
-| **super, user** | every filter, the personal ones included — status, my rating, ownership, usefulness, expectation — the weighted draw and its Weights tab | upcoming releases ordered by the viewer's own status and franchise expectation, with **On your list** and **Planned** markers |
-| **shared** | **one picker over all media entries**, with exactly two filters — media type and release decade — and no per-type or franchise picker; drawn unweighted, with no Weights tab | upcoming releases, catalogue only, in release-date order |
+| **super, user** | every mode and filter, the personal ones included — status, my rating, ownership, usefulness, expectation, Do Next and Redo — the weighted draw and its Weights tab | upcoming releases ordered by the viewer's own status and franchise expectation, with **On your list** and **Planned** markers |
+| **shared** | **the same modes and filters as a member, catalogue filters only** — every personal filter dropped; drawn unweighted, with no Weights tab | upcoming releases, catalogue only, in release-date order |
 | **guest** | none | upcoming releases, catalogue only, in release-date order |
 | **admin** | none | none |
 

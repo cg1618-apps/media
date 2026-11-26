@@ -98,7 +98,7 @@ const H_GAME_LIBRARY_CONFIG = {
       label: "Play Status",
       personal: true,
       type: "set-grouped",
-      groupOptions: ["Playing", "Planned", "Completed", "Dropped", "Might Play"],
+      groupOptions: ["Playing", "Stopped", "Planned", "Completed", "Dropped", "Might Play"],
       match: (item, active) =>
         active.has(PLAYING_STATUS_GROUP[item.playing_status] ?? "Might Play"),
     },

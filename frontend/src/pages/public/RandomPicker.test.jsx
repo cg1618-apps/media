@@ -1,6 +1,6 @@
 // The picker page: its modes, the draw, and which lists it fetches.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { AuthProvider } from "../../contexts/AuthContext";
@@ -34,6 +34,7 @@ function respond(url) {
         watching_status: "Completed",
         my_rating: "S",
         mal_rating: 9.3,
+        genre_main: "Fantasy",
       },
       {
         system_id: "a2",
@@ -41,6 +42,7 @@ function respond(url) {
         airing_type: "Special",
         watching_status: "Plan to Watch",
         mal_rating: 7.6,
+        watch_next: true,
       },
     ];
   if (url.startsWith("/api/random-picker-defaults/")) {
@@ -58,7 +60,7 @@ function respond(url) {
   if (url.startsWith("/api/franchise/"))
     return [
       { system_id: "f1", public_id: 1, franchise_name_en: "Steins Gate", franchise_type: "Anime" },
-      { system_id: "f2", public_id: 2, franchise_name_en: "Yotsuba Franchise", franchise_type: "Anime" },
+      { system_id: "f2", public_id: 2, franchise_name_en: "Yotsuba Franchise", franchise_type: "Manga" },
     ];
   return [];
 }
@@ -107,20 +109,34 @@ function signInMember() {
   permissions = ["view.random_picker", "self.list"];
 }
 
-it("draws across types in the general mode, narrowed by media type", async () => {
+it("opens on the franchise mode, with no All mode", async () => {
   mount("/random");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
-
-  // The chip, not the mode link of the same name.
-  fireEvent.click(screen.getByRole("button", { name: "Manga" }));
-  expect(screen.getByText("1 in the pool")).toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
-  expect(await screen.findByText("Yotsuba")).toBeInTheDocument();
-  expect(screen.queryByText("Frieren")).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByRole("link", { name: "Franchise" })).toHaveAttribute("aria-current", "page");
+  expect(screen.queryByRole("link", { name: "All" })).not.toBeInTheDocument();
+  const strip = screen.getByRole("navigation", { name: "Picker mode" });
+  expect(within(strip).getAllByRole("link").map((a) => a.textContent)).toEqual([
+    "Franchise",
+    "Anime",
+    "Anime Movie",
+    "Movie",
+    "TV Show",
+    "Cartoon",
+    "Manga",
+    "Book",
+    "Comic",
+    "Game",
+  ]);
 });
 
-it("offers a type's own library filters in its mode", async () => {
+it("shows the title alone, with no eyebrow or tagline", async () => {
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.queryByText("Track")).not.toBeInTheDocument();
+  expect(screen.queryByText(/Narrow the pool with filters/)).not.toBeInTheDocument();
+});
+
+it("offers a type's own filters in its mode", async () => {
   mount("/random/anime");
   await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
   expect(screen.queryByText("Media Type")).not.toBeInTheDocument();
@@ -144,7 +160,7 @@ it("empties the pool and disables the draw when nothing matches", async () => {
 // differs, so the refusal is the gate's and not an empty mock.
 it("fetches a gated type only for a session that may see it", async () => {
   mount("/random");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
   expect(fetched().some((u) => u.startsWith("/api/hentai/"))).toBe(false);
   expect(screen.queryByRole("link", { name: "Hentai" })).not.toBeInTheDocument();
 });
@@ -156,12 +172,14 @@ it("fetches and offers a gated type the session may see", async () => {
   expect(await screen.findByRole("link", { name: "Hentai" })).toBeInTheDocument();
 });
 
-it("draws a franchise in the franchise mode, unweighted, narrowed by what it holds", async () => {
+it("draws a franchise in the franchise mode, unweighted, narrowed by its type", async () => {
   mount("/random/franchise");
   await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
-  expect(screen.getByRole("link", { name: "Franchise" })).toHaveAttribute("aria-current", "page");
   expect(screen.queryByLabelText("Weighted")).not.toBeInTheDocument();
+  expect(screen.queryByText("Holds a")).not.toBeInTheDocument();
+  expect(screen.queryByText("Holds an Entry That Is")).not.toBeInTheDocument();
 
+  // The chip, not the mode link of the same name.
   fireEvent.click(screen.getByRole("button", { name: "Manga" }));
   expect(screen.getByText("1 in the pool")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
@@ -169,30 +187,29 @@ it("draws a franchise in the franchise mode, unweighted, narrowed by what it hol
   expect(screen.getByText("1 in 1 (100.0%) chance")).toBeInTheDocument();
 });
 
-it("sends an unknown type back to the general mode", async () => {
+it("sends an unknown type back to the franchise mode", async () => {
   mount("/random/hologram");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
-  expect(screen.getByRole("link", { name: "All" })).toHaveAttribute("aria-current", "page");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByRole("link", { name: "Franchise" })).toHaveAttribute("aria-current", "page");
 });
 
-it("clears every filter and the pick with Clear all", async () => {
+it("clears every filter and the pick with the panel's Clear all", async () => {
   mount("/random/anime");
   await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
-  const clear = screen.getByRole("button", { name: "Clear all" });
-  expect(clear).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Clear all" })).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Special" }));
   fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
   expect(await screen.findByText("Mushishi Special")).toBeInTheDocument();
 
-  fireEvent.click(clear);
+  fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
   expect(screen.getByText("2 in the pool")).toBeInTheDocument();
   expect(screen.queryByText("Mushishi Special")).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Special" })).toHaveAttribute("aria-pressed", "false");
-  expect(clear).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Clear all" })).not.toBeInTheDocument();
 });
 
-it("opens a mode on its saved defaults, and Defaults brings them back", async () => {
+it("opens a mode on its saved defaults, and Reset to Default brings them back", async () => {
   storedDefaults = { anime: { airingType: ["Special"] } };
   mount("/random/anime");
   await waitFor(() => expect(screen.getByText("1 in the pool")).toBeInTheDocument());
@@ -201,14 +218,14 @@ it("opens a mode on its saved defaults, and Defaults brings them back", async ()
   fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
   expect(screen.getByText("2 in the pool")).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Defaults" }));
+  fireEvent.click(screen.getByRole("button", { name: "Reset to Default" }));
   expect(screen.getByText("1 in the pool")).toBeInTheDocument();
 });
 
-it("offers no Defaults button for a mode with none saved", async () => {
+it("offers no Reset to Default for a mode with none saved", async () => {
   mount("/random/anime");
   await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
-  expect(screen.queryByRole("button", { name: "Defaults" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Reset to Default" })).not.toBeInTheDocument();
 });
 
 it("draws weighted by default, and says the chance the pick had", async () => {
@@ -222,7 +239,7 @@ it("draws weighted by default, and says the chance the pick had", async () => {
   expect(await screen.findByText(/1 in 1 \(100\.0%\) chance/)).toBeInTheDocument();
 });
 
-it("opens a mode saved unweighted as unweighted, and Defaults brings that back", async () => {
+it("opens a mode saved unweighted as unweighted, and Reset to Default brings that back", async () => {
   signInMember();
   storedWeighted = { anime: false };
   mount("/random/anime");
@@ -232,28 +249,32 @@ it("opens a mode saved unweighted as unweighted, and Defaults brings that back",
 
   fireEvent.click(weighted);
   expect(weighted).toBeChecked();
-  fireEvent.click(screen.getByRole("button", { name: "Defaults" }));
+  fireEvent.click(screen.getByRole("button", { name: "Reset to Default" }));
   expect(weighted).not.toBeChecked();
 });
 
 // Same page and mocks both times; only the session differs, so the guest's
 // missing request is the page's choice and not a mock that never answers.
 it("asks a guest for no plan marks, since a plan is private", async () => {
-  mount("/random");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
   expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(false);
 });
 
 // The two versions of the page. Each pair is the same page, mocks and data
-// - entries with a status and a rating to filter on - with only the session
-// differing, so an absence is the list gate's doing.
-it("without a list, offers no personal filter, no weighting and asks for no plan marks", async () => {
+// - entries with a status, a rating and a plan mark to filter on - with only
+// the session differing, so an absence is the list gate's doing.
+it("without a list, offers only the catalogue filters, no weighting and asks for no plan marks", async () => {
   signInShared();
-  mount("/random");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
-  expect(screen.getByText("Media Type")).toBeInTheDocument();
-  expect(screen.queryByText("Status")).not.toBeInTheDocument();
-  expect(screen.queryByText("My Rating")).not.toBeInTheDocument();
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByRole("navigation", { name: "Picker mode" })).toBeInTheDocument();
+  for (const kept of ["Airing Type", "Release Decade", "MAL Score", "Genre Main"]) {
+    expect(screen.getByText(kept)).toBeInTheDocument();
+  }
+  for (const gone of ["Watch Status", "My Rating", "Do Next", "Redo"]) {
+    expect(screen.queryByText(gone)).not.toBeInTheDocument();
+  }
   expect(screen.queryByRole("checkbox", { name: "Weighted" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Weights" })).not.toBeInTheDocument();
   expect(fetched().some((u) => u.startsWith("/api/plan-next"))).toBe(false);
@@ -261,10 +282,11 @@ it("without a list, offers no personal filter, no weighting and asks for no plan
 
 it("with a list, offers the personal filters and weighting, and asks for plan marks", async () => {
   signInMember();
-  mount("/random");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
-  expect(screen.getByText("Status")).toBeInTheDocument();
-  expect(screen.getByText("My Rating")).toBeInTheDocument();
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  for (const kept of ["Watch Status", "My Rating", "Do Next", "Redo"]) {
+    expect(screen.getByText(kept)).toBeInTheDocument();
+  }
   expect(screen.getByRole("checkbox", { name: "Weighted" })).toBeChecked();
   expect(screen.getByRole("button", { name: "Weights" })).toBeInTheDocument();
   await waitFor(() =>
@@ -272,88 +294,62 @@ it("with a list, offers the personal filters and weighting, and asks for plan ma
   );
 });
 
-// A shared account's picker is the one over every entry, with two filters.
-// The member mirror below runs the same page and mocks.
-it("gives a shared account one picker with only media type and release decade", async () => {
+// A shared account has every mode a member has; only the personal filters go.
+it("gives a shared account every mode, the franchise one without its personal filters", async () => {
   signInShared();
-  mount("/random");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
-  expect(screen.queryByRole("navigation", { name: "Picker mode" })).not.toBeInTheDocument();
-  expect(screen.getByText("Media Type")).toBeInTheDocument();
-  expect(screen.getByText("Release Decade")).toBeInTheDocument();
-  for (const gone of ["Genre", "MAL Score", "External Score", "Status", "My Rating"]) {
-    expect(screen.queryByText(gone)).not.toBeInTheDocument();
-  }
-
-  // The decades are the ones the pool holds: the manga's, and Unknown for
-  // the undated anime.
-  fireEvent.click(screen.getByRole("button", { name: "2000s" }));
-  expect(screen.getByText("1 in the pool")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "2010s" })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
-  expect(await screen.findByText("Yotsuba")).toBeInTheDocument();
+  mount("/random/franchise");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByRole("link", { name: "Anime" })).toBeInTheDocument();
+  expect(screen.getByText("Franchise Type")).toBeInTheDocument();
+  expect(screen.queryByText("Expectation")).not.toBeInTheDocument();
+  expect(screen.queryByText("My Rating")).not.toBeInTheDocument();
 });
 
-it.each(["/random/anime", "/random/franchise"])(
-  "sends a shared account from %s to the one picker",
-  async (path) => {
-    signInShared();
-    mount(path);
-    await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
-    expect(screen.queryByRole("navigation", { name: "Picker mode" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Airing Type")).not.toBeInTheDocument();
-    expect(fetched().some((u) => u.startsWith("/api/franchise/"))).toBe(false);
-  },
-);
-
-it("keeps every mode and the full filters for a member", async () => {
+it("with a list, offers the franchise mode's personal filters", async () => {
   signInMember();
-  mount("/random");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
-  const strip = screen.getByRole("navigation", { name: "Picker mode" });
-  expect(strip).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Franchise" })).toBeInTheDocument();
-  expect(screen.getByText("Release Decade")).toBeInTheDocument();
-  expect(screen.getByText("External Score")).toBeInTheDocument();
-  expect(screen.getByText("Status")).toBeInTheDocument();
+  mount("/random/franchise");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.getByText("Expectation")).toBeInTheDocument();
+  expect(screen.getByText("My Rating")).toBeInTheDocument();
 });
 
-it("with a list, offers a type's own status filter", async () => {
+it("narrows by a Do next mark on the entry", async () => {
   signInMember();
   mount("/random/anime");
   await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
-  expect(screen.getByText("Watch Status")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Do next" }));
+  expect(screen.getByText("1 in the pool")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
+  expect(await screen.findByText("Mushishi Special")).toBeInTheDocument();
 });
 
 it("without a list, ignores a saved personal default and draws evenly", async () => {
   signInShared();
-  storedDefaults = { all: { statusGroup: ["Completed"] } };
-  mount("/random");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
-  expect(screen.queryByRole("button", { name: "Defaults" })).not.toBeInTheDocument();
+  storedDefaults = { anime: { watchingStatus: ["Completed"] } };
+  mount("/random/anime");
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
+  expect(screen.queryByRole("button", { name: "Reset to Default" })).not.toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Anime" }));
   fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
   expect(await screen.findByText("1 in 2 (50.0%) chance")).toBeInTheDocument();
 });
 
 it("with a list, opens on the same saved personal default", async () => {
   signInMember();
-  storedDefaults = { all: { statusGroup: ["Completed"] } };
-  mount("/random");
+  storedDefaults = { anime: { watchingStatus: ["Completed"] } };
+  mount("/random/anime");
   await waitFor(() => expect(screen.getByText("1 in the pool")).toBeInTheDocument());
-  expect(screen.getByRole("button", { name: "Defaults" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Reset to Default" })).toBeInTheDocument();
 });
 
 it("without a list, opens the picker for a Weights tab link", async () => {
   signInShared();
   mount("/random?tab=weights");
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
   expect(screen.queryByText("Step 1 · Status group")).not.toBeInTheDocument();
 });
 
-// A catalogue filter, so a guest-like session without a list has it too; a
-// shared account does not, having only the one picker.
+// A catalogue filter, so a session without a list has it too.
 it.each([
   ["without a list", () => {}],
   ["with a list", signInMember],
@@ -361,9 +357,9 @@ it.each([
   signIn();
   mount("/random/anime");
   await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
-  expect(screen.getByText("MAL Score")).toBeInTheDocument();
+  const mal = screen.getByText("MAL Score").parentElement;
 
-  fireEvent.click(screen.getByRole("button", { name: "8+" }));
+  fireEvent.click(within(mal).getByRole("button", { name: "8+" }));
   expect(screen.getByText("1 in the pool")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: /^pick$/i }));
   expect(await screen.findByText("Frieren")).toBeInTheDocument();
@@ -374,9 +370,10 @@ it("lists every weight on the Weights tab", async () => {
   signInMember();
   mount("/random?tab=weights");
   expect(await screen.findByText("Step 1 · Status group")).toBeInTheDocument();
-  expect(screen.getByText("Serialization · Manga mode only")).toBeInTheDocument();
+  expect(screen.getByText("Stopped")).toBeInTheDocument();
+  expect(screen.getByText("Serialization · Manga")).toBeInTheDocument();
   expect(screen.queryByText(/in the pool/)).not.toBeInTheDocument();
 
   fireEvent.click(screen.getByRole("button", { name: "Picker" }));
-  await waitFor(() => expect(screen.getByText("3 in the pool")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText("2 in the pool")).toBeInTheDocument());
 });
