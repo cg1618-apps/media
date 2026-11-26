@@ -27,8 +27,15 @@ it("finds the six watch libraries", () => {
 describe.each(WATCH_TYPES)("the %s watch-status filter", (type) => {
   const def = LIBRARY_CONFIGS[type].filterDefs.find((fd) => fd.key === "watchingStatus");
 
-  it("orders its chips might, planned, watching, completed, dropped", () => {
-    expect(def.groupOptions).toEqual(["Might Watch", "Planned", "Watching", "Completed", "Dropped"]);
+  it("orders its chips might, planned, watching, stopped, completed, dropped", () => {
+    expect(def.groupOptions).toEqual([
+      "Might Watch",
+      "Planned",
+      "Watching",
+      "Stopped",
+      "Completed",
+      "Dropped",
+    ]);
   });
 
   it("hints exactly the statuses each chip holds, in this type's vocabulary", () => {
@@ -269,7 +276,7 @@ it("filters a comic by era and by any of its events, most-carried first", () => 
 
 // Manga and book: chips in each vocabulary's own order (only the values the
 // library holds, any value outside the vocabulary after them), Read Status
-// grouped might, planned, reading, completed, dropped with a hint per chip,
+// grouped might, planned, reading, stopped, completed, dropped with a hint per chip,
 // and Publisher TW in the advanced section ahead of the genres.
 describe.each(["manga", "book"])("the %s library's filters", (type) => {
   const defs = LIBRARY_CONFIGS[type].filterDefs;
@@ -286,16 +293,26 @@ describe.each(["manga", "book"])("the %s library's filters", (type) => {
     expect(options("serializationStatus", ["完結", "未出"], "serialization_status")).toEqual(["未出", "完結"]);
   });
 
-  it("groups Read Status might, planned, reading, completed, dropped, each with its statuses as a hint", () => {
+  it("groups Read Status might, planned, reading, stopped, completed, dropped, each with its statuses as a hint", () => {
     const read = byKey("readingStatus");
-    expect(read.groupOptions).toEqual(["Might Read", "Planned", "Reading", "Completed", "Dropped"]);
-    expect(read.optionHint("Reading")).toBe("Includes: Active Reading, Passive Reading, Paused");
+    expect(read.groupOptions).toEqual([
+      "Might Read",
+      "Planned",
+      "Reading",
+      "Stopped",
+      "Completed",
+      "Dropped",
+    ]);
+    expect(read.optionHint("Reading")).toBe("Includes: Active Reading, Passive Reading");
+    expect(read.optionHint("Stopped")).toBe("Includes: Paused, Temp Dropped");
     expect(read.optionHint("Might Read")).toMatch(/no status/);
     const items = [
       { system_id: "a", reading_status: "Paused" },
       { system_id: "b", reading_status: null },
+      { system_id: "c", reading_status: "Active Reading" },
     ];
-    expect(applyFilterDefs(items, defs, active(defs, "readingStatus", ["Reading"])).map((i) => i.system_id)).toEqual(["a"]);
+    expect(applyFilterDefs(items, defs, active(defs, "readingStatus", ["Reading"])).map((i) => i.system_id)).toEqual(["c"]);
+    expect(applyFilterDefs(items, defs, active(defs, "readingStatus", ["Stopped"])).map((i) => i.system_id)).toEqual(["a"]);
     expect(applyFilterDefs(items, defs, active(defs, "readingStatus", ["Might Read"])).map((i) => i.system_id)).toEqual(["b"]);
   });
 

@@ -315,9 +315,9 @@ function FilterRows({ defs, groupProps }) {
 // FilterPanel — renders all FilterDef groups for the current config
 // ---------------------------------------------------------------------------
 // `resetFilters` is optional: a caller that opens on a default other than
-// empty (the entity libraries) passes it while the state is off that default,
-// and the panel draws Reset beside Clear all. Clear all still empties every
-// group.
+// empty (the entity libraries, the random picker) passes it while the state
+// is off that default, and the panel draws Reset to Default beside Clear all.
+// Clear all still empties every group.
 export default function FilterPanel({
   filterDefs,
   filters,
@@ -345,7 +345,7 @@ export default function FilterPanel({
               onClick={resetFilters}
               className="font-mono text-[10px] text-text-faint hover:text-brand transition"
             >
-              Reset
+              Reset to Default
             </button>
           )}
           {/* A caller with its own clear control leaves clearFilters out. */}

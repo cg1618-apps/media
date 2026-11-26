@@ -5,8 +5,9 @@ edits them (/random-defaults).
 
 One row per picker mode in the system_configs key/value table, keyed as
 'random_picker_defaults:<mode>' with a JSON blob as the value, the same way
-routers/form_defaults.py stores form defaults. A mode is "all" (the general
-picker), one media type, or "franchise" (the mode that draws a franchise).
+routers/form_defaults.py stores form defaults. A mode is one media type, or
+"franchise" (the mode that draws a franchise). There is no mode over every
+type, so a row stored under 'random_picker_defaults:all' is never read.
 
 Reading asks view.random_picker, the picker's own key: every account that
 opens the picker (super, user, shared) opens it with the same defaults, and a
@@ -41,11 +42,10 @@ router = APIRouter(prefix="/api/random-picker-defaults", tags=["Random Picker De
 PICKER_DEFAULTS_PREFIX = "random_picker_defaults:"
 MAX_PAYLOAD_BYTES = 32 * 1024
 
-# Mirrors PICKER_MODES in frontend/src/lib/randomPicker.js: "all", every
-# PICKER_TYPES type, and "franchise", which draws franchises, not entries.
+# Mirrors PICKER_MODES in frontend/src/lib/randomPicker.js: "franchise", which
+# draws franchises, not entries, and every PICKER_TYPES type.
 VALID_MODES = frozenset(
     {
-        "all",
         "franchise",
         "anime",
         "anime-movie",

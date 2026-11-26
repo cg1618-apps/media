@@ -28,8 +28,8 @@ const STATE_CHIPS = {
  * - warning: in progress, actively or passively ("Play Anytime" is a game
  *   being played whenever, so it is in progress too).
  * - info: on hold - "Paused", and "Temp Dropped", which is set aside to come
- *   back to rather than given up. The library filters group Temp Dropped with
- *   Dropped (WATCHING_STATUS_GROUP); this page reads it as a pause instead.
+ *   back to rather than given up. The library filters group the two as
+ *   Stopped (WATCHING_STATUS_GROUP).
  * - danger: stopped - Dropped and the won't statuses.
  * - muted: not started - planned, waiting for a release, or might.
  */
