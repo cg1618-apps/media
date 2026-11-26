@@ -192,8 +192,12 @@ def write_my_list_row(
     else:
         # The tracker's rules, as the catalogue PATCH applies them: reaching
         # the total finishes this row. Never the work's catalogue half
-        # (airing or serialization status) - that is a catalogue edit.
-        write_list_payload(row, entry, payload, spec, complete_on_total=True)
+        # (airing or serialization status) - that is a catalogue edit. A
+        # status moving into Completed stamps completed_at here, unlike the
+        # catalogue endpoints: this is the tracker, where a finish is dated.
+        write_list_payload(
+            row, entry, payload, spec, complete_on_total=True, stamp_status=True
+        )
     db.commit()
     db.refresh(row)
 

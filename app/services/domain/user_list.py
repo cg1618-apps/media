@@ -471,19 +471,27 @@ def finish_list_row(row, entry, spec) -> None:
     row.updated_at = get_taipei_now()
 
 
-def write_list_payload(row, entry, personal: dict, spec, *, complete_on_total: bool) -> bool:
+def write_list_payload(
+    row, entry, personal: dict, spec, *, complete_on_total: bool, stamp_status: bool
+) -> bool:
     """
     Apply a personal payload to one account's row with the tracker's rules,
     for every path that writes a list row: the entry endpoints and
     PUT /api/me/list.
 
     The payload goes through apply_list_payload, a Completed status stamps
-    completed_at, and the type's progress_hook_list runs after the payload,
-    never before, because the derivation folds the cursor the writer just
-    sent. With `complete_on_total`, a write that carries the progress counter
-    up to its total finishes the row, exactly as Mark completed would; a
-    payload naming a status of its own is left alone - the writer said what
-    the status is.
+    completed_at when `stamp_status` asks for it, and the type's
+    progress_hook_list runs after the payload, never before, because the
+    derivation folds the cursor the writer just sent. With
+    `complete_on_total`, a write that carries the progress counter up to its
+    total finishes the row, exactly as Mark completed would; a payload naming
+    a status of its own is left alone - the writer said what the status is.
+
+    `stamp_status` is False for the catalogue entry endpoints, which are the
+    admin edit form's save: completed_at dates a finish, and saving a form is
+    not one, so the status is written and the stamp is left exactly as it
+    was, null or set. A finish by count still stamps - finish_list_row
+    always does.
 
     Returns True when this write finished the row, so a catalogue write can
     run the work's catalogue half as well. `spec` is the type's MediaSpec.
@@ -494,7 +502,8 @@ def write_list_payload(row, entry, personal: dict, spec, *, complete_on_total: b
     fin_before = counter(row, entry)[0] if counter else None
     status_before = row.status
     apply_list_payload(row, personal, media_type)
-    apply_list_completion_timestamp(row, personal.get(status_field), status_before)
+    if stamp_status:
+        apply_list_completion_timestamp(row, personal.get(status_field), status_before)
     if spec.progress_hook_list is not None:
         spec.progress_hook_list(row, entry)
     if counter and status_field not in personal:

@@ -1039,7 +1039,7 @@ number among them is `vol_fin_page`, a page. See
 | `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE |
 | `status` | String | **no** | per type | The one status column for all twelve types. Translated to and from `watching_status` / `reading_status` / `playing_status` by `STATUS_FIELD`; the default comes from `DEFAULT_STATUS`. |
 | `my_rating` | String | yes | | MY_RATINGS - a letter grade, never a number |
-| `completed_at` | DateTime | yes | | The latest finish: stamped when the status moves into a completed one (`apply_list_completion_timestamp`) |
+| `completed_at` | DateTime | yes | | The latest finish: stamped when a tracker write moves the status into a completed one (`apply_list_completion_timestamp`) - Mark completed, `PUT /api/me/list`, a finish by count - never by the admin edit form's entry save; restored as stored by Pull All. See [business-rules.md](business-rules.md#only-the-tracker-dates-a-finish) |
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
 | `ep_fin` | Float | yes | | anime, tv_shows, cartoons, hentai |
 | `time_fin` | String | yes | | **Paused at**: where playback stopped - `1:10:00` into a movie, `14:35` into the episode after `ep_fin`. The six watching types (anime, anime_movies, movies, tv_shows, cartoons, hentai). Free text, never parsed; stored stripped, a blank as NULL (`clean_time_fin`). Which episode it belongs to is `ep_fin`'s job, not this column's. Cleared when `ep_fin` goes up or the row becomes Completed - see [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress) |
