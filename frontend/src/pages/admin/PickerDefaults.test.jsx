@@ -1,6 +1,6 @@
 // The Picker Defaults editor: opens on what is saved, saves a sparse map.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import { AuthProvider } from "../../contexts/AuthContext";
@@ -100,9 +100,23 @@ it("saves only the chips that are on", async () => {
   await waitFor(() => expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument());
 });
 
-it("saves a mode's weighting, and opens on what was saved", async () => {
-  storedWeighted = { all: true, anime: false };
+it("opens on the franchise mode, with the picker's mode order and no description", async () => {
   mount();
+  const strip = await screen.findByRole("navigation", { name: "Picker mode" });
+  const modes = within(strip).getAllByRole("button").map((b) => b.textContent);
+  expect(modes.slice(0, 3)).toEqual(["Franchise", "Anime", "Anime Movie"]);
+  expect(modes).not.toContain("All");
+  expect(within(strip).getByRole("button", { name: "Franchise" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  expect(screen.queryByText(/Choose the filters each Random Picker mode/)).not.toBeInTheDocument();
+});
+
+it("saves a mode's weighting, and opens on what was saved", async () => {
+  storedWeighted = { manga: true, anime: false };
+  mount();
+  fireEvent.click(await screen.findByRole("button", { name: "Manga" }));
   const weighted = await screen.findByRole("checkbox", { name: "Weighted" });
   expect(weighted).toBeChecked();
 
@@ -112,8 +126,7 @@ it("saves a mode's weighting, and opens on what was saved", async () => {
   await waitFor(() => expect(puts()).toHaveLength(1));
   expect(JSON.parse(puts()[0][1].body)).toEqual({ version: 1, filters: {}, weighted: false });
 
-  // The mode strip's Anime, not the Media Type chip of the same name.
-  fireEvent.click(screen.getAllByRole("button", { name: "Anime" })[0]);
+  fireEvent.click(screen.getByRole("button", { name: "Anime" }));
   await waitFor(() =>
     expect(screen.getByRole("checkbox", { name: "Weighted" })).not.toBeChecked(),
   );

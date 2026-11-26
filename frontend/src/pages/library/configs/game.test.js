@@ -96,9 +96,16 @@ describe("game library filters and sorts", () => {
     expect(byKey("releaseStatus").row).toBe(byKey("gameType").row);
   });
 
-  it("groups Play Status might, planned, playing, completed, dropped, with a hint per chip", () => {
+  it("groups Play Status might, planned, playing, stopped, completed, dropped, with a hint per chip", () => {
     const play = byKey("playingStatus");
-    expect(play.groupOptions).toEqual(["Might Play", "Planned", "Playing", "Completed", "Dropped"]);
+    expect(play.groupOptions).toEqual([
+      "Might Play",
+      "Planned",
+      "Playing",
+      "Stopped",
+      "Completed",
+      "Dropped",
+    ]);
     expect(play.optionHint("Planned")).toBe("Includes: Plan to Play, Play When Released");
     expect(play.optionHint("Might Play")).toMatch(/no status/);
   });

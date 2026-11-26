@@ -25,6 +25,7 @@ export const WATCH_STATUS_FILTER_GROUPS = [
   "Might Watch",
   "Planned",
   "Watching",
+  "Stopped",
   "Completed",
   "Dropped",
 ];
@@ -97,7 +98,7 @@ function statusGroupFilter({ key, label, field, groups, statuses, groupMap, noSt
 }
 
 // The read-status chips, in the order a title moves through them.
-export const READ_STATUS_FILTER_GROUPS = ["Might Read", "Planned", "Reading", "Completed", "Dropped"];
+export const READ_STATUS_FILTER_GROUPS = ["Might Read", "Planned", "Reading", "Stopped", "Completed", "Dropped"];
 
 /** The Read Status filter of manga and book. */
 export function readStatusFilter() {
@@ -113,7 +114,7 @@ export function readStatusFilter() {
 }
 
 // The play-status chips, in the order a game moves through them.
-export const PLAY_STATUS_FILTER_GROUPS = ["Might Play", "Planned", "Playing", "Completed", "Dropped"];
+export const PLAY_STATUS_FILTER_GROUPS = ["Might Play", "Planned", "Playing", "Stopped", "Completed", "Dropped"];
 
 /** The Play Status filter of the game library. */
 export function playStatusFilter() {

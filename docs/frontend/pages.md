@@ -720,7 +720,7 @@ viewer. In the table below the personal defs are marked *(p)*.
 | manga | yes | serializationStatus (BOOK_SERIALIZATION_STATUSES order) · readingStatus: set-grouped *(p)* · region (MANGA_REGIONS order: 日漫 韓漫 國漫 台漫 其他) | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch *(p)*, vol *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | book | yes | serializationStatus (BOOK_SERIALIZATION_STATUSES order) · readingStatus *(p)* · type (BOOK_TYPES order: 小說 輕小說 網路小說 短篇集 指南/設定集 其他) · region (BOOK_REGIONS order: 歐美 日本 中國 韓國 台灣) | title, release_date (jp→tw), end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getBookProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | comic | yes | comicType: set-dynamic · readingStatus *(p)* (Era and Event are advanced filters, below) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
-| game | yes | gameType (`GAME_TYPES` order: Base Game, DLC, Expansion, Bundle) and releaseStatus (`GAME_RELEASE_STATUSES` order: Unreleased, Early Access, Released, Ongoing, Discontinued, Cancelled) on one line · playingStatus: set-grouped (Might Play / Planned / Playing / Completed / Dropped via `PLAYING_STATUS_GROUP`, a hint per chip and the circled ?) *(p)* · gameMode and combatMode (`game_mode`, `combat_mode`) on one line · gamePlatform (`game_platform`; the main platforms first in their fixed order PC, PlayStation, Xbox, Nintendo, Mobile, Browser, then the specific ones by how many games carry each - `mainPlatformsFirst`) | title (EN-first, `getSortName`), release_date, my_rating *(p)*, metacritic_score ("Metacritic"), metacritic_user_score ("Metacritic User"), hours_played ("Playtime"), price_original_us ("US Price") - each number highest first, a missing one last | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
+| game | yes | gameType (`GAME_TYPES` order: Base Game, DLC, Expansion, Bundle) and releaseStatus (`GAME_RELEASE_STATUSES` order: Unreleased, Early Access, Released, Ongoing, Discontinued, Cancelled) on one line · playingStatus: set-grouped (Might Play / Planned / Playing / Stopped / Completed / Dropped via `PLAYING_STATUS_GROUP`, a hint per chip and the circled ?) *(p)* · gameMode and combatMode (`game_mode`, `combat_mode`) on one line · gamePlatform (`game_platform`; the main platforms first in their fixed order PC, PlayStation, Xbox, Nintendo, Mobile, Browser, then the specific ones by how many games carry each - `mainPlatformsFirst`) | title (EN-first, `getSortName`), release_date, my_rating *(p)*, metacritic_score ("Metacritic"), metacritic_user_score ("Metacritic User"), hours_played ("Playtime"), price_original_us ("US Price") - each number highest first, a missing one last | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
 
 Every library's filters end in an **advanced section** — tag filters, drawn
 by `FilterPanel` behind a collapsed **Advanced filters** toggle (see
@@ -769,7 +769,7 @@ Not Yet Aired, Airing, Finished Airing, Canceled.
 **Watch Status is one def on all six watch libraries** — anime, anime
 movie, movie, TV show, cartoon and hentai — `watchStatusFilter(type)` in
 `lib/libraryFilterDefs.js`. Its chips run Might Watch, Planned, Watching,
-Completed, Dropped, each a group of stored statuses through
+Stopped, Completed, Dropped, each a group of stored statuses through
 `WATCHING_STATUS_GROUP`, and each chip's hover title (`optionHint`) lists the
 statuses it includes in that type's vocabulary (`watchingStatusesFor`). The
 circled **?** after the **Watch Status** label shows the whole table below
@@ -779,17 +779,20 @@ on hover or focus:
 |---|---|
 | Might Watch | Might Watch, and a row with no status |
 | Planned | Plan to Watch, Watch When Airs (airing types) or Watch When Released (movie, anime movie) |
-| Watching | Active Watching, Passive Watching, Paused |
+| Watching | Active Watching, Passive Watching |
+| Stopped | Paused, Temp Dropped |
 | Completed | Completed, Completed (解說) |
-| Dropped | Temp Dropped, Dropped, Won't Watch |
+| Dropped | Dropped, Won't Watch |
 
 **Read Status on manga and book is the same kind of def**, `readStatusFilter()`:
-chips Might Read, Planned, Reading, Completed, Dropped through
+chips Might Read, Planned, Reading, Stopped, Completed, Dropped through
 `READING_STATUS_GROUP`, each with its included statuses as a hint and the
 circled **?** after the label listing them all - Might Read is Might Read and
 a row with no status; Planned, Plan to Read; Reading, Active Reading, Passive
-Reading and Paused; Completed, Completed and Completed (解說); Dropped, Temp
-Dropped, Dropped and Won't Read.
+Reading; Stopped, Paused and Temp Dropped; Completed, Completed and
+Completed (解說); Dropped, Dropped and Won't Read. Comic, h-comic and h-game
+group their status filters through the same maps, so Paused and Temp
+Dropped are Stopped there too.
 
 **A vocabulary column's chips follow the vocabulary** on manga and book -
 Serialization Status, Region and Type, through `vocabularyFilter(key, label,
@@ -2355,111 +2358,105 @@ Files `pages/public/RandomPicker.jsx`, `lib/randomPicker.js`,
 it can only offer what the viewer may already see.
 
 **Two versions.** With a list (`self.list`), everything below. A **shared
-account** — `view.random_picker` without `self.list`, the same pair the
-dashboard's Recently added reads — gets **one picker, over all media
-entries**: no mode strip, every `/random/<type>` and `/random/franchise`
-redirects to `/random`, and the page waits for the session before it decides
-(it renders nothing while `/api/auth/me` loads), so no mode is fetched first.
-It has **exactly two filters**, media type and release decade
-(`sharedFilterDefs`, through `filterDefsForMode(mode, types, { personal,
-shared })`; `usePickerData(mode, typesKey, { shared })`). The release decade
-is the one the full picker uses: each entry's primary release date by
-`RELEASE_PRIORITY` (`lib/releaseDate.js`, mirroring `app/utils/release_date.py`)
-— `release_date` on every type except anime and anime movie (`release_date_jp`,
-then `release_date_tw`) and movie (`release_date_tw`, then `release_date_usa`) —
-offered as the decades the pool holds, newest first, with Unknown for an
-undated entry. The draw is uniform, the Weights tab and the **Weighted**
-checkbox are not drawn (a `?tab=weights` link opens the picker), a saved
-default naming any other filter is ignored, and `/api/plan-next/` is never
-asked. Picker Defaults never sets `shared`, so the admin's editor is the full
-set.
+account** — `view.random_picker` without `self.list` — gets the **same
+modes and filters with every personal def dropped**: the catalogue half
+only (`filterDefsForMode(mode, { personal })`, `personal` being
+`useViewScope`'s `ownData`). The draw is uniform, the Weights tab and the
+**Weighted** checkbox are not drawn (a `?tab=weights` link opens the
+picker), a saved default naming a personal filter is ignored, and
+`/api/plan-next/` is never asked. The page waits for the session before it
+decides (it renders nothing while `/api/auth/me` loads). Without
+`view.random_picker` the page is unreachable (`<ProtectedRoute>`).
 
-Without `view.random_picker` the page is unreachable (`<ProtectedRoute>`).
-Inside it, a session holding neither key is treated as the list-less full
-picker: every def flagged `personal: true` is dropped (`filterDefsForMode`'s
-`personal`), leaving media type, the type's catalogue filters, release
-decade, genre and the external score.
+The page is headed by its title alone. A strip of mode links runs across
+the top: **Franchise**, then one per media type the session may see
+(`visibleMediaTypes`), in `PICKER_TYPES` order — Anime, Anime Movie, Movie,
+TV Show, Cartoon, Manga, Book, Comic, Game, then Hentai, H-Comic and H-Game.
+There is no mode over every type: `/random` is the Franchise mode, and an
+unknown `/random/<type>` goes back to it. Each mode has its own filters,
+rendered by the library's `FilterPanel` with **no advanced section** — every
+def is drawn in layout order, consecutive defs sharing a `row` side by side.
+Each mode opens on its **default filters**, saved on the admin Picker
+Defaults page ([admin-pages.md](admin-pages.md#random-defaults-pickerdefaultsjsx))
+and read from `/api/random-picker-defaults/<mode>` by every viewer the page
+opens for; a mode with none saved, or whose defaults cannot be read, opens
+with every filter empty. Switching mode starts over from that mode's
+defaults, with no pick.
 
-**Genre** (`genre`) is a catalogue filter of the full picker: its chips are
-the genres the pool holds, and an entry matches when any of its genres is
-on. It reads each type's own field, a ", "-joined string on every list
-response (`GENRE_FIELD`): `genre_main` on the eight mainstream types and
-`game_genre` on game and h-game. The adult genre fields are left out, so
-h-comic and hentai have no genre chips. The franchise mode does not offer it: a franchise has no genre
-of its own, and "any entry's genre" would make most franchises match most
-chips.
-
-**External score** (`externalScore`) is a catalogue filter of the full picker:
-chips `9+`, `8+`, `7+`, `6+` and `No score`, which OR like every chip, read
-from `mal_rating` for anime, anime movies, manga and books and from
-`imdb_rating` for movies, TV shows and cartoons; a null or `N/A` score, or a
-type with no score field, is `No score`. It is named "MAL Score" or "IMDb
-Score" when the mode's types share a source and "External Score" otherwise,
-and it is not offered where no type has a score (game, comic, the gated
-types, the franchise mode).
-
-A strip of mode links runs across the top: **All**, then one per media type
-the session may see (`visibleMediaTypes`), then **Franchise**. Each mode has its own filters,
-rendered by the library's `FilterPanel`. Each mode opens on its **default
-filters**, saved on the admin Picker Defaults page
-([admin-pages.md](admin-pages.md#random-defaults-pickerdefaultsjsx)) and read
-from `/api/random-picker-defaults/<mode>` by every viewer the page opens for; a mode with none saved,
-or whose defaults cannot be read, opens with every filter empty. Switching
-mode starts over from that mode's defaults, with no pick.
-
-- **All** (`/random`) fetches every visible type and filters on what all
-  types share: media type, status (the watch, read and play groups renamed
-  onto one set - Planned, In Progress, Completed, Dropped, Might; an unset
-  status is Might, as the library counts it), my rating (`S`…`F`, or
-  Unrated), and release decade (from each type's primary release column,
-  newest first, Unknown last). A gated type the session may see is in the
-  pool like any other; untick it with the media-type chips.
-- **One type** (`/random/<type>`) fetches only that type and offers its
-  library page's own `filterDefs` without the advanced section (the
-  picker's own Genre covers the genre), then my rating and release decade.
-  A stored default naming a filter the library no longer has (the retired
-  `bahaOnly` 動畫瘋 toggle) is dropped on read by `resolveDefaultFilters`.
-- **Franchise** (`/random/franchise`) draws a franchise, not an entry. It
-  fetches every franchise and every visible type's list; the lists give each
-  franchise its cover (the franchise library's `getFranchiseCover`) and say
-  what it holds. It filters on franchise type (each type of a multi-type
-  franchise counts), the media types it holds an entry of, the status groups
-  of the entries it holds (the All mode's groups; a franchise matches when any
-  entry does), expectation, and my rating — the status groups, expectation
-  and rating the viewer's own, flagged `personal`. It always draws evenly - the
-  weights are an entry's own status, rating, plan marks and release, which a
+- **One type** (`/random/<type>`) fetches only that type. Its filters are
+  `PICKER_LAYOUTS[type]` in `lib/randomPicker.js`, each key naming the
+  type's library def, a picker override, or one of the picker's own defs; a
+  layout naming a key nothing defines throws. The order is the same on every
+  type, each type keeping what it has: exclusive source, type, region,
+  airing type, airing status (or release or serialization status), release
+  decade, the external scores (IMDb, then MAL, then AniList), my rating, the
+  viewer's other list values (a gated type's Usefulness), status, **Do
+  Next** and **Redo** side by side, then the genres — Genre Main, Genre Sub
+  and Label on the eight mainstream types; Genre, Theme and Label on game;
+  the three adult genre groups on hentai and h-comic, after Genre and Theme
+  on h-game. Type-specific descriptors sit beside the nearest of those: a
+  film's release type with the type, a game's Mode, Combat Mode and Platform
+  before its genres. On a TV show, Region sits to the right of Airing Type
+  and offers the edit form's vocabulary (`TV_REGIONS`). On a game, Exclusive
+  Source reads `exclusive_platform`, Release Status offers the whole
+  `GAME_RELEASE_STATUSES` vocabulary, and Ownership sits beside Play Status.
+  A stored default naming a filter the layout no longer has (the retired
+  `bahaOnly` 動畫瘋 toggle, the old `genre` and `externalScore` keys) is
+  dropped on read by `resolveDefaultFilters`.
+- **Franchise** (`/random/franchise`, and `/random`) draws a franchise, not
+  an entry. It fetches every franchise and every visible type's list; the
+  lists give each franchise its cover (the franchise library's
+  `getFranchiseCover`). It filters on franchise type (each type of a
+  multi-type franchise counts, its chips in the strip's order —
+  `FRANCHISE_TYPE_ORDER`), my rating and expectation, the last two the
+  viewer's own and flagged `personal`. It always draws evenly - the weights
+  are an entry's own status, rating, plan marks and release, which a
   franchise does not have - so it shows no **Weighted** checkbox. The pick is
   a `FranchiseCard`.
+
+**External scores** are catalogue filters: IMDb Score on movie, TV show and
+cartoon (`imdb_rating`, a season's own on a TV show or cartoon), MAL Score
+and AniList Score on anime, anime movie, manga and book (`mal_rating`, and
+`anilist_rating` read out of 10), and Metacritic and Metacritic User on game
+(`metacritic_score`, and `metacritic_user_score` read out of 100). Each
+offers five minimums and the band below them — `9+` … `5+` and `<5`, or
+`90+` … `50+` and `<50` on the two Metacritic filters — and **No score** for
+a null or `N/A` score. Minimums OR like every chip, so two on together keep
+the lower one.
+
+**Do Next** (`Do next` / `Not do next`) and **Redo** (`To redo` / `Not to
+redo`) read the viewer's plan marks — the `next` and `rewatch` kinds — on the
+entry itself or through its series or franchise (`hasPlanMark`). The page
+reads them once into each entry (`withPlanMarks`) from the same
+`/api/plan-next/` rows the weights use, so both are personal.
 
 Within one filter the chosen chips OR; across filters they AND, exactly as
 on the library page. **Pick** draws from the pool, weighted or evenly as the
 **Weighted** checkbox beside the pool count says (see below), and the pick
 shows the chance it had ("1 in 37 (2.7%) chance"); **Pick again** never
 repeats the entry on screen while the pool holds another, and its chance is
-out of the pool without it. **Clear all**, beside it, turns every filter off
-and drops the pick, and **Defaults** (shown only when the mode saved filters,
-or saved weighting off) puts the saved filters and weighting back and drops
-the pick; the panel has no clear
-link of its own here (`FilterPanel` draws one only when handed
-`clearFilters`). The pick is
-a `MediaCard` (with its type named above it in All mode) whose `onUpdated`
-patches the `["media-list", type]` cache, and the page reads the pick back
-from that cache by key, so a status change made on the card shows at once.
-The lists share the library pages' cache keys (`mediaListQueryKey(type,
-LIST_OPTIONS.params)`), so visiting either one warms the other. Nothing is
-persisted.
+out of the pool without it. The filter panel's header holds **Clear all**,
+which turns every filter off and drops the pick, and **Reset to Default**
+(shown only when the mode saved filters, or saved weighting off), which puts
+the saved filters and weighting back and drops the pick. The pick is a
+`MediaCard` whose `onUpdated` patches the `["media-list", type]` cache, and
+the page reads the pick back from that cache by key, so a status change made
+on the card shows at once. The lists share the library pages' cache keys
+(`mediaListQueryKey(type, LIST_OPTIONS.params)`), so visiting either one
+warms the other. Nothing is persisted.
 
 **The weighted draw** (`lib/pickerWeights.js`, on unless the mode saved it
 off) has two stages. First a status group is chosen among the groups the
 filtered pool holds, in fixed proportions (In Progress, Planned, Might,
-Completed, Dropped, heaviest first), so a group's share of the draw does not
-grow with its size. The weighting groups statuses as the Status filter does,
-except that Temp Dropped counts as In Progress and Watch When Airs, Watch
-When Released and Play When Released as Might. Then one entry of that group is chosen by the product
+Completed, Stopped, Dropped, heaviest first; Stopped 0.3, Dropped 0.1), so a
+group's share of the draw does not grow with its size. The weighting groups
+statuses as the Status filter does - Paused and Temp Dropped are Stopped -
+except that Watch When Airs, Watch When Released and Play When Released
+count as Might. Then one entry of that group is chosen by the product
 of its entry factors: my rating and a summary completion (Completed only),
 the larger of its plan marks (next over rewatch, whether marked on the entry,
 its series or its franchise), release decade (2000s and later over earlier or
-undated), and, in the manga, book and h-comic modes only, serialization
+undated), and, on manga, book and h-comic, serialization
 status. Because every entry factor applies inside the group already chosen,
 none can move an entry into another group's share. A status, rating or
 serialization value the tables do not name weighs 1. Status group, rating

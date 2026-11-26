@@ -35,14 +35,12 @@ function combineLists(results) {
 }
 
 /**
- * mode      "all", one type, or FRANCHISE_MODE
+ * mode      one type, or FRANCHISE_MODE
  * typesKey  the comma-joined types the mode draws from (for the franchise
  *           mode, every visible type) - a string, so the memos below see a
  *           change of types rather than a new array
- * shared    the shared account's picker: the general mode's two filters,
- *           media type and release decade. The defaults editor never sets it.
  */
-export function usePickerData(mode, typesKey, { shared = false } = {}) {
+export function usePickerData(mode, typesKey) {
   const types = useMemo(() => typesKey.split(",").filter(Boolean), [typesKey]);
 
   // The same cache entries the library pages fill, so either page warms the
@@ -86,13 +84,9 @@ export function usePickerData(mode, typesKey, { shared = false } = {}) {
     [isFranchiseMode, franchises, types, lists],
   );
   // A def flagged `personal` reads the viewer's own list (self.list); without
-  // the key it is not offered (filterDefsForMode).
+  // the key - a shared account - it is not offered (filterDefsForMode).
   const { ownData: personal } = useViewScope();
-  // `shared` is the shared account's picker (RandomPicker): two filters only.
-  const filterDefs = useMemo(
-    () => filterDefsForMode(mode, types, { personal, shared }),
-    [mode, types, personal, shared],
-  );
+  const filterDefs = useMemo(() => filterDefsForMode(mode, { personal }), [mode, personal]);
   const storedFilters = defaultsQuery.data?.filters;
   const defaultFilters = useMemo(
     () => resolveDefaultFilters(filterDefs, storedFilters),

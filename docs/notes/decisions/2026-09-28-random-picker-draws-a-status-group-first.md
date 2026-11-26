@@ -11,8 +11,8 @@
 - **Rating orders Completed only.** A completed S must not outrank anything in
   progress on rating; in two stages that holds by construction, because the
   rating factor never leaves its group.
-- **Where the weighting regroups a status.** Temp Dropped is a pause, not a
-  drop. Statuses that wait on a release weigh like a "might", since a pick that
+- **Where the weighting regroups a status.** Statuses that wait on a release
+  weigh like a "might", since a pick that
   cannot be started yet is no more use. Won't Watch shares Dropped's weight
   rather than being excluded, so a pool filtered to it can still be drawn from.
 - **Group plan marks are read, not just entry flags.** Some types plan
