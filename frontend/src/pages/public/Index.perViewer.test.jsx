@@ -435,6 +435,24 @@ describe("the admin's own page", () => {
     expect(screen.queryByRole("button", { name: "Add announcement" })).toBeNull();
   });
 
+  it("leaves out empty announcements unless the viewer may post one", async () => {
+    // Without manage.announcements and nothing posted: no division at all.
+    setup(me("admin", ADMIN_PERMS.filter((p) => p !== "manage.announcements")));
+    state.announcements = [];
+    const { unmount } = mount();
+    await screen.findByRole("heading", { name: "Overview" });
+    await waitFor(() => expect(fetched("/api/announcements")).toBe(true));
+    expect(screen.queryByText(/announcements & notes/i)).toBeNull();
+    unmount();
+
+    // The mirror, with the same empty list: a poster keeps the editor.
+    setup(me("admin", ADMIN_PERMS));
+    state.announcements = [];
+    mount();
+    expect(await screen.findByTestId("announcement-editor")).toBeInTheDocument();
+    expect(screen.getByText(/announcements & notes/i)).toBeInTheDocument();
+  });
+
   it("adds an announcement with manage.announcements", async () => {
     const user = userEvent.setup();
     setup(me("admin", ADMIN_PERMS));

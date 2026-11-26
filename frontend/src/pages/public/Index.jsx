@@ -227,7 +227,8 @@ function stickyOffset(id) {
 
 // The TOC rows a viewer is shown, in order. A guest (not a member) has only
 // Announcements and the Broadcast schedule, plus Libraries when it may open
-// any and Recently added when it is drawn; a division the type filter hides
+// any and Recently added when it is drawn; Announcements only while there is
+// one to show; a division the type filter hides
 // has no anchor to scroll to. The scroll-spy reads the same list, so the
 // two never disagree about which anchors exist.
 function visibleTocItems({
@@ -236,8 +237,10 @@ function visibleTocItems({
   showComingNext,
   showLibraries,
   showRecent,
+  showAnnouncements,
 }) {
   return TOC_ITEMS.filter(({ id }) => {
+    if (id === "announcements") return showAnnouncements;
     if (id === "libraries") return showLibraries;
     if (id === "recent") return showRecent;
     if (!isMember && !GUEST_TOC_IDS.has(id)) return false;
@@ -821,6 +824,7 @@ function CatalogueDashboard() {
     showComingNext,
     showLibraries,
     showRecent: sections.recentlyAdded,
+    showAnnouncements: announcements.length > 0,
   });
 
   // Which section is in view, to highlight its TOC row. It watches the
@@ -1105,14 +1109,17 @@ function CatalogueDashboard() {
               fetched for anyone else. */}
           {sections.summary && <DashboardSummary />}
 
-          {/* Announcement Division */}
-          <div id="announcements">
-            <DivisionHeader
-              title={<>Announcements &amp; notes</>}
-              count={`${announcements.length} posted`}
-            />
-            <AnnouncementBoard announcements={announcements} />
-          </div>
+          {/* Announcement Division - not drawn at all while nothing is
+              posted, and its TOC row goes with it. */}
+          {announcements.length > 0 && (
+            <div id="announcements">
+              <DivisionHeader
+                title={<>Announcements &amp; notes</>}
+                count={`${announcements.length} posted`}
+              />
+              <AnnouncementBoard announcements={announcements} />
+            </div>
+          )}
 
           {/* Schedule Division */}
           <div id="schedule">

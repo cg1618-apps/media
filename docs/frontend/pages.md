@@ -348,7 +348,8 @@ loading state until then, because before it every viewer looks like a guest.
 | Recently added (`#recent`, `RecentlyAdded`) | `!has("self.list") && has("view.random_picker")` | shared |
 
 Announcements and the Broadcast schedule are drawn for every viewer of the
-catalogue dashboard. The tracker is built from the viewer's own statuses and
+catalogue dashboard - Announcements only while one is posted: with none, the
+division and its TOC row are left out entirely. The tracker is built from the viewer's own statuses and
 progress, and its controls write the viewer's own rows, so it is a member's
 list, not catalogue, and `self.list` decides it rather than a `view.*` key.
 The TOC and the scroll-spy cover only the parts drawn.
@@ -402,7 +403,9 @@ nothing waits (`manage.requests`), and the five latest pipeline runs from
 `GET /api/system/logs` with status and time, linking to the full log on
 `/system` (`manage.pipelines`) — and **Announcements & notes**: the
 `AnnouncementBoard`, with `AnnouncementEditor` (add, edit, delete) below it
-for `manage.announcements`. Each part asks its own key, so a role edited on
+for `manage.announcements`. With none posted the board draws nothing, and the
+division is left out unless the viewer holds `manage.announcements`, whose
+editor then stands alone under the heading. Each part asks its own key, so a role edited on
 `/roles` keeps only the parts it may read.
 
 **Data** (the catalogue dashboard; the admin's page reads only what is listed

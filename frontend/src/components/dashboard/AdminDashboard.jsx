@@ -2,7 +2,9 @@
 // reads no catalogue (its role holds no media_type.* key, and every
 // catalogue read answers it 401), so this page fetches no list at all. It
 // shows what waits for the admin, the latest pipeline runs, and the
-// announcements, editable with manage.announcements. Each part asks its own
+// announcements, editable with manage.announcements. With nothing posted the
+// announcements are not drawn, unless the viewer may post one: then the
+// editor stands alone under the heading. Each part asks its own
 // permission, so a role edited on /roles keeps only the parts it may read.
 import { endpoints } from "../../api/endpoints";
 import { useAuth } from "../../contexts/AuthContext";
@@ -32,18 +34,20 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div id="announcements">
-        <DivisionHeader
-          title={<>Announcements &amp; notes</>}
-          count={`${announcements.length} posted`}
-        />
-        <AnnouncementBoard announcements={announcements} />
-        {canManageAnnouncements && (
-          <div className="pt-6">
-            <AnnouncementEditor announcements={announcements} />
-          </div>
-        )}
-      </div>
+      {(announcements.length > 0 || canManageAnnouncements) && (
+        <div id="announcements">
+          <DivisionHeader
+            title={<>Announcements &amp; notes</>}
+            count={`${announcements.length} posted`}
+          />
+          <AnnouncementBoard announcements={announcements} />
+          {canManageAnnouncements && (
+            <div className="pt-6">
+              <AnnouncementEditor announcements={announcements} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
