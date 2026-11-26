@@ -3,8 +3,8 @@ routers/me_ratings.py
 The caller's own rating and expectation of a catalogue row, and its own
 rating and remark of a book unit.
 
-The rating of a collection, franchise, series, character, person, studio or
-publisher, and the expectation of the three tiers, are opinions, so each
+The rating of a collection, franchise, series, character, character identity,
+person, studio or publisher, and the expectation of the three tiers, are opinions, so each
 account keeps its own (`user_rating`); a book unit's rating and remark sit
 on `user_book_unit_rating` the same way. The catalogue endpoints do not
 write them - a catalogue write is `manage.catalog`'s and would make one
@@ -45,7 +45,10 @@ from app.services.rbac.enforcement import (
 )
 from app.services.rbac.permissions import PERM_SELF_LIST, view_perm
 from app.services.rbac.resolver import Viewer, require_permission
-from app.services.rbac.shared_visibility import shared_record_visible
+from app.services.rbac.shared_visibility import (
+    identity_visible,
+    shared_record_visible,
+)
 from app.utils.constants import FRANCHISE_EXPECTATIONS
 from app.utils.entity_ref import find_entity
 from app.utils.entity_vocab import check_my_rating
@@ -69,6 +72,7 @@ NOT_FOUND: dict[str, str] = {
     "person": "Person not found.",
     "studio": "Studio not found.",
     "publisher": "Publisher not found.",
+    "identity": "Identity not found.",
 }
 
 # Each entity's GET sits behind its own view key (view.studio, ...), as well as its
@@ -157,6 +161,12 @@ def _visible(db: Session, viewer: Viewer, owner_type: str, owner) -> bool:
         return viewer.has(view_perm(owner_type)) and shared_record_visible(
             db, viewer, OWNER_MODELS[owner_type], owner.system_id
         )
+    if owner_type == "identity":
+        # Its page's gate: view.character, and seen exactly when its
+        # character is - an identity is no shared record of its own.
+        return viewer.has(view_perm("character")) and identity_visible(
+            db, viewer, owner.system_id
+        )
     # A collection's GET applies no visibility rule.
     return True
 
@@ -181,7 +191,7 @@ def write_my_rating(
     404 for an unknown owner type, and for an owner that does not exist or
     that the caller may not see. 422 for a rating outside MY_RATINGS, an
     expectation outside FRANCHISE_EXPECTATIONS, or any expectation on a
-    character, person, studio or publisher - they carry none.
+    character, identity, person, studio or publisher - they carry none.
     """
     if owner_type not in OWNER_COLUMNS:
         raise HTTPException(status_code=404, detail="Unknown owner type.")

@@ -1039,7 +1039,7 @@ number among them is `vol_fin_page`, a page. See
 | `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE |
 | `status` | String | **no** | per type | The one status column for all twelve types. Translated to and from `watching_status` / `reading_status` / `playing_status` by `STATUS_FIELD`; the default comes from `DEFAULT_STATUS`. |
 | `my_rating` | String | yes | | MY_RATINGS - a letter grade, never a number |
-| `completed_at` | DateTime | yes | | The latest finish: stamped when the status moves into a completed one (`apply_list_completion_timestamp`) |
+| `completed_at` | DateTime | yes | | The latest finish: stamped when a tracker write moves the status into a completed one (`apply_list_completion_timestamp`) - Mark completed, `PUT /api/me/list`, a finish by count - never by the admin edit form's entry save; restored as stored by Pull All. See [business-rules.md](business-rules.md#only-the-tracker-dates-a-finish) |
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
 | `ep_fin` | Float | yes | | anime, tv_shows, cartoons, hentai |
 | `time_fin` | String | yes | | **Paused at**: where playback stopped - `1:10:00` into a movie, `14:35` into the episode after `ep_fin`. The six watching types (anime, anime_movies, movies, tv_shows, cartoons, hentai). Free text, never parsed; stored stripped, a blank as NULL (`clean_time_fin`). Which episode it belongs to is `ep_fin`'s job, not this column's. Cleared when `ep_fin` goes up or the row becomes Completed - see [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress) |
@@ -1127,23 +1127,23 @@ query per page.
 ### `user_rating`
 
 One account's rating of one collection, franchise, series, character,
-person, studio or publisher, and for a tier its expectation. Model:
+character identity, person, studio or publisher, and for a tier its expectation. Model:
 `UserRating` (`app/models/user_rating.py`).
 
 | Column | Type | Null | Default | Description |
 |---|---|:-:|---|---|
 | `system_id` | UUID | no | uuid4 | PK |
 | `user_id` | UUID | **no** | | FK `users.id` ON DELETE CASCADE, indexed |
-| `collection_id` / `franchise_id` / `series_id` / `character_id` / `person_id` / `studio_id` / `publisher_id` | UUID | yes | | The owner: one FK per owning table, each to its `system_id` ON DELETE CASCADE and indexed. Exactly one is set |
+| `collection_id` / `franchise_id` / `series_id` / `character_id` / `person_id` / `studio_id` / `publisher_id` / `identity_id` | UUID | yes | | The owner: one FK per owning table (`identity_id` to `character_identity`), each to its `system_id` ON DELETE CASCADE and indexed. Exactly one is set |
 | `my_rating` | String | yes | | MY_RATINGS |
 | `expectation` | String | yes | | FRANCHISE_EXPECTATIONS; tiers only |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
-Constraints: `ck_user_rating_one_owner` (`num_nonnulls` of the seven owner
+Constraints: `ck_user_rating_one_owner` (`num_nonnulls` of the eight owner
 columns `= 1`); `ck_user_rating_expectation_on_tier` (an `expectation` only
 when the owner is a collection, franchise or series);
-`uq_user_rating_owner` UNIQUE (`user_id`, the seven owner columns) **NULLS
-NOT DISTINCT**, since six of the seven are NULL on every row.
+`uq_user_rating_owner` UNIQUE (`user_id`, the eight owner columns) **NULLS
+NOT DISTINCT**, since seven of the eight are NULL on every row.
 
 A row holding neither value is **not stored**: `write_rating`
 (`app/services/domain/user_rating.py`) deletes it, as
@@ -2536,7 +2536,7 @@ A named bundle of permissions. Permissions themselves are Python constants
 | `system_id` | UUID | no | uuid4 | PK |
 | `name` | String | no | | UNIQUE, indexed. Exactly five rows — `admin`, `super`, `user`, `guest`, `shared` (`permissions.ROLE_NAMES`) — each read by name; no route creates, renames or deletes one. |
 | `label` | String | no | | |
-| `description` | Text | yes | | |
+| `description` | Text | yes | | One line shown under the role's heading on `/roles`; NULL shows nothing. `shared` and `admin` carry one, `guest`, `user` and `super` none. Written when `ensure_rbac_seed` creates a missing role and otherwise only by `PATCH /api/roles/{id}`. |
 | `sort_order` | Integer | no | `0` (server default) | |
 | `created_at` / `updated_at` | DateTime | yes | now | Yes, roles have timestamps. |
 

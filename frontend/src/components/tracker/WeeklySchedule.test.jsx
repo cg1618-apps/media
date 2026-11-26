@@ -37,7 +37,7 @@ function renderSchedule(props = {}) {
     <MemoryRouter>
       <WeeklySchedule
         id="schedule-watch"
-        title="My watch schedule"
+        title="My Schedule"
         dayField="my_watch_day"
         items={items}
         {...props}
@@ -48,6 +48,12 @@ function renderSchedule(props = {}) {
 }
 
 describe("WeeklySchedule", () => {
+  it("counts its entries beside the title and draws nothing at the right", () => {
+    renderSchedule();
+    const heading = screen.getByRole("heading", { name: "My Schedule (1)" });
+    expect(heading.parentElement).toHaveTextContent(/^My Schedule \(1\)$/);
+  });
+
   it("opens scrolled so today's column is the first one visible", () => {
     const strip = renderSchedule();
     expect(strip.scrollLeft).toBe(SCHEDULE_DAYS.indexOf("Friday") * COLUMN_WIDTH);

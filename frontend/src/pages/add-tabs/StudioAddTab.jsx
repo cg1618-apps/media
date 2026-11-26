@@ -8,6 +8,7 @@
 // StudioFields is exported separately from the page wrapper so the Modify
 // page's studio editor (task 11) can render the exact same inputs against
 // an existing studio's form state instead of duplicating them.
+import EntityNameFields from "../../components/forms/EntityNameFields";
 import MyRatingFields from "../../components/forms/MyRatingFields";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
@@ -29,17 +30,7 @@ export function StudioFields({ studioForm, usf, ownerId }) {
   );
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {STUDIO_NAME_FIELDS.map(({ key, label, field }) => (
-          <Field key={key} label={`Name (${label})`}>
-            <input
-              className={inputCls}
-              value={studioForm[field] ?? ""}
-              onChange={(e) => usf(field, e.target.value)}
-            />
-          </Field>
-        ))}
-      </div>
+      <EntityNameFields form={studioForm} update={usf} fields={STUDIO_NAME_FIELDS} />
       {!hasAnyName && (
         <p className="text-[10px] font-bold text-danger -mt-2">
           A studio needs at least one name.
@@ -77,6 +68,9 @@ export function StudioFields({ studioForm, usf, ownerId }) {
             }}
           />
         </Field>
+        {/* The viewer's own rating, saved through /api/me/ratings by the
+            page once the studio itself has saved. */}
+        <MyRatingFields kind="studio" form={studioForm} update={usf} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Countries">
@@ -135,11 +129,6 @@ export function StudioFields({ studioForm, usf, ownerId }) {
             placeholder="https://anilist.co/studio/..."
           />
         </Field>
-      </div>
-      {/* The viewer's own rating, saved through /api/me/ratings by the
-          page once the studio itself has saved. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <MyRatingFields kind="studio" form={studioForm} update={usf} />
       </div>
     </div>
   );

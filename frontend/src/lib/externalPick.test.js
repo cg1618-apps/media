@@ -141,6 +141,34 @@ describe("makeTmdbPick", () => {
     expect(showToast).toHaveBeenCalledWith("success", expect.stringMatching(/^Linked to TMDB: The Matrix/));
   });
 
+  it("writes only the link for a form that keeps no id field - a person", async () => {
+    global.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({ imdb_id: "nm0000206", imdb_link: "https://www.imdb.com/name/nm0000206/" }),
+    });
+    const showToast = vi.fn();
+    const { setter, read } = applyTo({ imdb_link: "", name_en: "", name_jp: "キアヌ" });
+    const KEANU = {
+      external_id: "person/6384",
+      link: "https://www.themoviedb.org/person/6384",
+      title: "Keanu Reeves",
+    };
+
+    await makeTmdbPick(setter, showToast, {
+      resolveUrl: (ref) => `/api/person/tmdb-imdb-id?ref=${encodeURIComponent(ref)}`,
+      idField: null,
+      nameField: "name_en",
+    })(KEANU);
+
+    expect(read()).toEqual({
+      imdb_link: "https://www.imdb.com/name/nm0000206/",
+      name_en: "Keanu Reeves",
+      name_jp: "キアヌ",
+    });
+  });
+
   it("writes nothing on a 404 and shows its detail as an error", async () => {
     const detail = "TMDB has no IMDb id for movie/603. Enter the IMDb link by hand.";
     global.fetch.mockResolvedValue({

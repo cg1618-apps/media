@@ -1,6 +1,6 @@
 // Frontend: the viewer's own rating of a catalogue row on the Add and Modify
 // forms - a grouping tier (collection, franchise, series), which also takes
-// an expectation, and an entity (person, studio, publisher, character),
+// an expectation, and an entity (person, studio, publisher, character, identity),
 // which takes the rating alone. Drawn only for a viewer who keeps a list
 // (self.list); the values are saved through /api/me/ratings by the page
 // (useFormRatingSaver), not by the record's own write.

@@ -242,16 +242,10 @@ export default function Users() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <header className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text">
-            <i className="fas fa-users mr-2 text-brand"></i>Users
-          </h1>
-          <p className="text-sm text-text-faint mt-1">
-            Accounts you create by hand or invite someone to register. Anyone
-            without one browses as Guest.
-          </p>
-        </div>
+      <header className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold text-text">
+          <i className="fas fa-users mr-2 text-brand"></i>Users
+        </h1>
         <button
           type="button"
           onClick={makeInvite}
@@ -501,7 +495,6 @@ function sameKeys(a, b) {
  */
 function UserEditDialog({ user, roles, modes, busy, onCancel, onSave }) {
   const titleId = useId();
-  const passwordHelpId = useId();
   const roleName = roleNameOf(user, roles);
   const roleFixed = FIXED_ROLE_NAMES.has(roleName);
   const holdsFeatures = ASSIGNABLE_ROLE_NAMES.has(roleName);
@@ -614,14 +607,10 @@ function UserEditDialog({ user, roles, modes, busy, onCancel, onSave }) {
             <input
               type="password"
               placeholder="New password (optional)"
-              aria-describedby={passwordHelpId}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="border rounded px-2 py-1 text-xs"
             />
-            <span id={passwordHelpId} className="text-[11px] text-text-faint">
-              Setting a password signs this account out everywhere.
-            </span>
             {hasRequestLimit(editedRole) && (
               <label className="text-[11px] text-text-faint">
                 Open request limit
@@ -792,8 +781,7 @@ function AccessModeFields({ modes, value, onChange }) {
         </p>
       ) : (
         <div className="text-[11px] text-text-faint">
-          <span>Untick to withhold from this account, in every mode:</span>
-          <div className="flex flex-wrap gap-3 mt-1">
+          <div className="flex flex-wrap gap-3">
             {shownLabels.map((key) => (
               <label
                 key={`l-${key}`}

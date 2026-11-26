@@ -58,6 +58,7 @@ vi.mock("./pages/admin/Aliases", () => stub("aliases"));
 vi.mock("./pages/admin/ExternalApis", () => stub("external apis"));
 vi.mock("./pages/admin/Images", () => stub("images"));
 vi.mock("./pages/admin/NeedsWork", () => stub("needs work"));
+vi.mock("./pages/public/UnderDevelopment", () => stub("under development"));
 
 import App from "./App";
 
@@ -252,6 +253,24 @@ describe("the admin's own pages", () => {
       expect(await screen.findByText(`${page} page`)).toBeInTheDocument();
     });
   }
+});
+
+// The Guide is not written yet: /guide shows the holding page. The nav offers
+// it to guest, shared and user only, but the route asks nothing, so a guest
+// reaches it logged out and nobody signed in is sent to log in for opening it.
+describe("the Guide route", () => {
+  it("shows a guest the holding page", async () => {
+    asGuest();
+    await visit("/guide");
+    expect(await screen.findByText("under development page")).toBeInTheDocument();
+    expect(screen.queryByText("login page")).toBeNull();
+  });
+
+  it("shows a member the holding page", async () => {
+    asMember();
+    await visit("/guide");
+    expect(await screen.findByText("under development page")).toBeInTheDocument();
+  });
 });
 
 // 待補充 Needs Work asks manage.requests, which super and the admin hold and

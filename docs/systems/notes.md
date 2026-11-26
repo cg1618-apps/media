@@ -1,6 +1,6 @@
 # Notes
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 ## What this is for
 
@@ -780,7 +780,7 @@ Singleton and one-per-kind uniqueness are **not** here — they need a query, so
 `GET /api/notes` applies the RBAC layer:
 
 - If the owner is a media entry and `entry_visible()` (`app/services/rbac/enforcement.py`) says the viewer may not see it, the endpoint answers **404 "Owner not found."** rather than an empty list. A collection, franchise or series owner hidden from the viewer — by a label on it that the viewer's mode lacks, or on a group above it — answers the same 404 (`tier_visible`); every write resolves the tier from the id through `require_visible_owner` and answers it too.
-- An **entity** owner is visible when its row exists, the viewer holds its view permission (`view.studio`, `view.publisher`, `view.person`, `view.character`; an identity answers to `view.character`, as its page does) and `shared_record_visible` passes (`_entity_visible`). Anything else is the same 404, on reads and writes alike. A write resolves the entity type from the id itself; a claimed entity `owner_type` is used only to refuse, so an id that is missing or is another kind of entity is 404 too.
+- An **entity** owner is visible when its row exists, the viewer holds its view permission (`view.studio`, `view.publisher`, `view.person`, `view.character`; an identity answers to `view.character`, as its page does) and `shared_record_visible` passes (`_entity_visible`). An identity is not a shared record of its own, so the last check is its character's (`identity_visible`): it is seen exactly when its character is. Anything else is the same 404, on reads and writes alike. A write resolves the entity type from the id itself; a claimed entity `owner_type` is used only to refuse, so an id that is missing or is another kind of entity is 404 too.
 - **Personal sections filter by author.** Rows in a `personal`-scope section are returned only when `author_id` matches the viewer; a logged-out visitor, having no id, gets none of them. Catalogue sections fall through untouched. See [Scope](#scope).
 - **Personal rows of a mixed section filter the same way** (`note.personal`): the viewer's own beside the catalogue rows, after them. See [Mixed sections](#mixed-sections).
 - No field group names a note section.

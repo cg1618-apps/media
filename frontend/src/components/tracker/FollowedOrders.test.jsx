@@ -245,6 +245,9 @@ describe("FollowedOrders", () => {
   it("is collapsed by default and counts the follows in its title", () => {
     renderWith(<FollowedOrders id="x" follows={[SUMMARY]} />);
     expect(screen.getByText("Followed orders (1)")).toBeInTheDocument();
+    // The count is the title's alone: nothing repeats it at the right.
+    expect(screen.getByRole("heading", { name: "Followed orders (1)" }).parentElement)
+      .toHaveTextContent(/^Followed orders \(1\)$/);
     expect(screen.queryByText("Chronological")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Expand")).toHaveAttribute("aria-expanded", "false");
   });

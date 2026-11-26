@@ -54,9 +54,15 @@ export function makeExternalPick(setter, showToast, spec) {
  * A TMDB pick. Movie, TV show and cartoon rows are keyed by IMDb, not TMDB, so
  * the picked result's ref is resolved first (`resolveUrl(ref)` answers
  * {imdb_id, imdb_link}); only then are imdb_id and imdb_link written. A 404
- * (TMDB has no IMDb id) or a 502 writes nothing and says so.
+ * (TMDB has no IMDb id) or a 502 writes nothing and says so. `idField` null
+ * writes the link alone - the person form, whose imdb_id the server reads
+ * out of imdb_link.
  */
-export function makeTmdbPick(setter, showToast, { resolveUrl, nameField }) {
+export function makeTmdbPick(
+  setter,
+  showToast,
+  { resolveUrl, nameField, idField = "imdb_id" },
+) {
   return async (result) => {
     let imdb;
     try {
@@ -80,7 +86,7 @@ export function makeTmdbPick(setter, showToast, { resolveUrl, nameField }) {
     setter((form) => ({
       ...form,
       ...externalPickPatch(form, linked, {
-        idField: "imdb_id",
+        idField,
         cast: toStringId,
         linkField: "imdb_link",
         nameField,

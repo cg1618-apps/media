@@ -5,7 +5,7 @@ import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { getDisplayName } from "../../lib/naming";
 import { formatReleaseDate, primaryReleaseValue } from "../../lib/releaseDate";
 import { formatSeason, selectComingNext } from "../../lib/comingNext";
-import { Chip, Slip, sectionTitleCls } from "../ui/primitives";
+import { Slip, sectionTitleCls } from "../ui/primitives";
 
 const SUBSECTIONS = [
   { key: "airs", title: "Watch when airs / released" },
@@ -131,10 +131,6 @@ export default function ComingNext({ id, lists, currentSeason, season, today }) 
 
   const actions = (
     <>
-      <span className="hidden sm:inline font-mono text-[10px] text-text-faint">
-        {formatSeason(currentSeason)} · {formatSeason(season)}
-      </span>
-      <Chip tone="ink">{total}</Chip>
       <button
         type="button"
         onClick={(e) => {
@@ -153,7 +149,7 @@ export default function ComingNext({ id, lists, currentSeason, season, today }) 
   return (
     <Slip
       id={id}
-      title="Coming next"
+      title={`Coming next (${total})`}
       actions={actions}
       padded={false}
       className="select-none"

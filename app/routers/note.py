@@ -69,7 +69,10 @@ from app.services.rbac.permissions import (
     view_perm,
 )
 from app.services.rbac.resolver import Viewer, get_viewer, require_permission
-from app.services.rbac.shared_visibility import shared_record_visible
+from app.services.rbac.shared_visibility import (
+    identity_visible,
+    shared_record_visible,
+)
 from app.utils.data_control_utils import log_deleted_record
 from app.utils.media_resolver import (
     ENTITY_TABLES,
@@ -150,12 +153,20 @@ _ENTITY_VIEW = {
 
 
 def _entity_visible(db: Session, viewer: Viewer, owner_type: str, owner_id) -> bool:
-    """An entity owner's visibility: it exists, its view gate, and its labels."""
+    """
+    An entity owner's visibility: it exists, its view gate, and its labels.
+
+    An identity is not a shared record of its own - it has no connections for
+    shared_record_visible to read - so it is seen exactly when its character
+    is (identity_visible), as its own page and its photo are.
+    """
     ref = ENTITY_TABLES[owner_type]
     if db.get(ref.model, owner_id) is None:
         return False
     if viewer is not None and not viewer.has(view_perm(_ENTITY_VIEW[owner_type])):
         return False
+    if owner_type == "identity":
+        return identity_visible(db, viewer, owner_id)
     return shared_record_visible(db, viewer, ref.model, owner_id)
 
 

@@ -1,5 +1,5 @@
 // Dashboard for a guest: Announcements and the Broadcast schedule, and
-// nothing else. My watch schedule, the type filter and the Watching, Reading
+// nothing else. My Schedule, the type filter and the Watching, Reading
 // and Playing divisions are the viewer's own tracking, drawn only for a
 // member (self.list), and the lists only they read are not fetched for a
 // guest. Every guest case runs against data that WOULD fill the hidden parts
@@ -74,7 +74,7 @@ function fetched(prefix) {
 
 // The anime list is loaded once the Broadcast schedule counts its entry.
 async function loaded() {
-  await waitFor(() => expect(screen.getByText("Broadcast schedule")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText(/^Broadcast schedule/)).toBeInTheDocument());
   await waitFor(() => expect(fetched("/api/auth/me")).toBe(true));
 }
 
@@ -84,16 +84,20 @@ describe("a guest's dashboard", () => {
     mount();
     await loaded();
     expect(screen.getByText(/announcements & notes/i)).toBeInTheDocument();
-    expect(screen.getByText("Broadcast schedule")).toBeInTheDocument();
     // Only the broadcast entry is counted: the watch-day one is personal.
-    expect(screen.getByText(/^1\s+scheduled$/)).toBeInTheDocument();
+    expect(screen.getByText("Broadcast schedule (1)")).toBeInTheDocument();
+    // The division headers carry no eyebrow and the schedule no total.
+    expect(screen.queryByText("Pinned to the top of the dashboard")).toBeNull();
+    expect(screen.queryByText("Sunday · Saturday")).toBeNull();
+    expect(screen.queryByText(/scheduled$/)).toBeNull();
+    expect(screen.queryByText("Browse the catalogue")).toBeNull();
   });
 
   it("draws no watch schedule, filter bar or tracker division", async () => {
     stub(GUEST);
     mount();
     await loaded();
-    expect(screen.queryByText("My watch schedule")).toBeNull();
+    expect(screen.queryByText(/^My Schedule/)).toBeNull();
     expect(document.querySelector("[data-filter-bar]")).toBeNull();
     for (const id of ["schedule-watch", "watching", "reading", "playing"]) {
       expect(document.getElementById(id), id).toBeNull();
@@ -129,12 +133,12 @@ describe("a member's dashboard, with the same data", () => {
     stub(MEMBER);
     mount();
     await waitFor(() => expect(screen.getByText("Berserk")).toBeInTheDocument());
-    expect(screen.getByText("My watch schedule")).toBeInTheDocument();
+    expect(screen.getByText("My Schedule (1)")).toBeInTheDocument();
     expect(document.querySelector("[data-filter-bar]")).not.toBeNull();
     expect(document.getElementById("watching")).not.toBeNull();
-    expect(screen.getByText(/^2\s+scheduled$/)).toBeInTheDocument();
+    expect(screen.getByText("Broadcast schedule (1)")).toBeInTheDocument();
     const toc = within(screen.getByRole("navigation", { name: "Contents" }));
-    expect(toc.getByRole("button", { name: "My Watch" })).toBeInTheDocument();
+    expect(toc.getByRole("button", { name: "My Schedule" })).toBeInTheDocument();
     expect(toc.getByRole("button", { name: "Watching" })).toBeInTheDocument();
     expect(fetched("/api/manga/")).toBe(true);
   });

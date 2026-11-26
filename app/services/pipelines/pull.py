@@ -391,6 +391,7 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "person_id",
         "studio_id",
         "publisher_id",
+        "identity_id",
     ),  # uq_user_rating_owner
     # The same shape for a reader's unit row; unit_id travels unchanged.
     "User Book Unit Rating": ("user_id", "unit_id"),  # uq_user_book_unit

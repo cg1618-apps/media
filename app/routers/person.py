@@ -25,6 +25,11 @@ from app.dependencies import get_db
 from app.routers._entity_patch import prepare_patch, resolve_fallback
 from app.routers._external_search import SEARCH_LIMIT, SEARCH_QUERY, run_search
 from app.routers._patching import apply_column_patch
+from app.routers._tmdb_resolve import (
+    IMDB_NAME_LINK_TEMPLATE,
+    TmdbImdbId,
+    run_resolve,
+)
 from app.schemas.external_search import ExternalSearchResult
 from app.services.domain import person_work_images
 from app.services.domain.affiliation import (
@@ -58,6 +63,10 @@ from app.services.domain.person_roles import grant_role, normalized_pairs
 from app.services.domain.user_rating import ratings_by_owner
 from app.services.integrations import image_library
 from app.services.integrations.tenrai import search_mal_people
+from app.services.integrations.tmdb import (
+    resolve_tmdb_person_imdb_id,
+    search_tmdb_people,
+)
 from app.services.rbac.enforcement import (
     filter_visible_pairs,
     label_hidden_entry_ids,
@@ -275,6 +284,40 @@ def search_mal(
 ):
     """Searches MAL people by name for the Add-tab picker, which writes `mal_link`."""
     return run_search(search_mal_people, q, limit)
+
+
+# Before every /{system_id} route, as /search-mal is.
+@router.get(
+    "/search-imdb",
+    response_model=List[ExternalSearchResult],
+    summary="Search IMDb People (through TMDB)",
+)
+def search_imdb(
+    q: str = SEARCH_QUERY,
+    limit: int = SEARCH_LIMIT,
+    admin: Viewer = Depends(require_manage_catalog),
+):
+    """
+    Searches people by name for the Add tab's IMDb picker. IMDb has no public
+    API, so this searches TMDB's people; the pick is resolved to its IMDb
+    name id through /tmdb-imdb-id, which writes `imdb_link`.
+    """
+    return run_search(search_tmdb_people, q, limit)
+
+
+@router.get(
+    "/tmdb-imdb-id",
+    response_model=TmdbImdbId,
+    summary="IMDb Name Id of a TMDB Person",
+)
+def tmdb_imdb_id(
+    ref: str = Query(
+        ..., min_length=1, description="A TMDB person result's external_id, e.g. person/6384"
+    ),
+    admin: Viewer = Depends(require_manage_catalog),
+) -> TmdbImdbId:
+    """The IMDb name id ("nm…") TMDB holds for a picked person, and its link."""
+    return run_resolve(resolve_tmdb_person_imdb_id, ref, IMDB_NAME_LINK_TEMPLATE)
 
 
 @router.get(

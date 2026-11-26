@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
@@ -13,6 +14,12 @@ vi.mock("../notes/NotesTemplate", () => ({
   default: ({ ownerType, ownerId }) => (
     <div data-testid="entity-notes" data-owner-type={ownerType} data-owner-id={ownerId} />
   ),
+}));
+// Toasts are recorded rather than rendered.
+const toast = vi.hoisted(() => ({ showToast: vi.fn() }));
+vi.mock("../../hooks/useToast", () => ({
+  ToastProvider: ({ children }) => children,
+  useToast: () => toast,
 }));
 // The page is behind its kind's view key, so its viewer holds the entity
 // keys and the cards on it link (useEntityHref).
@@ -141,12 +148,14 @@ function WhereAmI() {
 
 function renderPage(path = "/identity/3") {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes>
-        <Route path="/identity/:publicId/:slug?" element={<Identity />} />
-        <Route path="/modify" element={<WhereAmI />} />
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={new QueryClient()}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/identity/:publicId/:slug?" element={<Identity />} />
+          <Route path="/modify" element={<WhereAmI />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -230,10 +239,40 @@ describe("Identity detail page", () => {
     expect(count.parentElement).toHaveTextContent(/^Identity/);
   });
 
-  it("stamps the character's rating on the photo, read-only", async () => {
+  it("stamps the identity's own rating on the photo, never the character's", async () => {
+    mockFetch({ identity: { ...IDENTITY, my_rating: "B" } });
     renderPage();
-    expect(await screen.findByLabelText("Rating A")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Rating B")).toBeInTheDocument();
+    // The character's A is its own; the identity is rated on its own.
+    expect(screen.queryByLabelText("Rating A")).toBeNull();
+    // A guest keeps no list, so there is nothing to edit.
     expect(screen.queryByLabelText("My rating")).toBeNull();
+  });
+
+  it("lets a list keeper rate the identity through /api/me/ratings", async () => {
+    auth = { isAdmin: false, has: (p) => p === "self.list" || holdsEntityKeys(p) };
+    mockFetch();
+    const base = global.fetch;
+    global.fetch = vi.fn((url, init = {}) =>
+      init.method === "PUT"
+        ? Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () =>
+              Promise.resolve({ owner_type: "identity", owner_id: "i1", my_rating: "A+", expectation: null }),
+          })
+        : base(url, init),
+    );
+    const user = userEvent.setup();
+    renderPage();
+    await user.selectOptions(await screen.findByLabelText("My rating"), "A+");
+    await waitFor(() =>
+      expect(global.fetch.mock.calls.filter(([, i]) => i?.method === "PUT")).toHaveLength(1),
+    );
+    const [url, init] = global.fetch.mock.calls.find(([, i]) => i?.method === "PUT");
+    expect(url).toBe("/api/me/ratings/identity/i1");
+    expect(JSON.parse(init.body)).toEqual({ my_rating: "A+" });
+    expect(await screen.findByLabelText("Rating A+")).toBeInTheDocument();
   });
 
   it("lists the character and its other identities, not this one, in a Character section", async () => {

@@ -384,6 +384,6 @@ kind's key the viewer lacks is plain text rather than a link.
 | **shared** | the guest's dashboard, plus **recently added**: one section per type it may see, newest first — two rows of anime, one row of every other type; a type with nothing visible has no section |
 | **admin** | its own page: the same summary of pending registrations and open requests, shown even when nothing waits and linking to the pending-registrations panel and the inbox; the latest pipeline runs; and announcements to edit. No catalogue |
 
-The tracker is the viewer's own watch schedule, Coming Next, followed watch
+The tracker is the viewer's own My Schedule, Coming Next, followed watch
 orders and the Pinged, Watching, Reading and Playing divisions.
 

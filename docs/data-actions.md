@@ -65,7 +65,7 @@ the forbidden names from `LIST_FIELDS` so a new column on `user_media_list` is
 guarded from the day it lands. The personal values travel in the **User Media
 List** tab instead, and the twelve media tabs' parsers do not emit them. The
 same holds one level out: a rating or expectation of a collection, franchise,
-series, character, person, studio or publisher travels in the **User Rating**
+series, character, identity, person, studio or publisher travels in the **User Rating**
 tab, a book unit's rating and remark in **User Book Unit Rating**, an
 h-comic's or h-game's highlight group order in **User Highlight Group
 Order**, an account's favourite quotes and memes in **User Favorite**, and
@@ -99,7 +99,7 @@ Collection -> Franchise -> Series -> Media
 Order List -> Order Section -> Order Item -> Order Follow -> Order Follow Skip
 Person / Studio / Publisher / Character / Content Label -> the media tabs
 Character -> Character Identity -> Character Casting
-Users, Collection / Franchise / Series, Character / Person / Studio / Publisher -> User Rating
+Users, Collection / Franchise / Series, Character / Character Identity / Person / Studio / Publisher -> User Rating
 Users, Book Unit -> User Book Unit Rating
 Users, Media, H-Comic, H-Game -> User Highlight Group Order
 Users, Note      -> Note Mark
@@ -392,9 +392,9 @@ decoration there: without it a Pull updates whichever user's row for that
 season happened to be first.
 
 **`User Rating`** carries every account's rating and expectation rows. Its
-natural key is `uq_user_rating_owner` - `user_id` plus the seven owner
-columns, exactly one of them set. The tier and character owner ids travel as
-they are; `person_id`, `studio_id` and `publisher_id` are minted per database
+natural key is `uq_user_rating_owner` - `user_id` plus the eight owner
+columns, exactly one of them set. The tier, character and identity owner ids
+travel as they are; `person_id`, `studio_id` and `publisher_id` are minted per database
 and are translated through their own tabs (`DERIVED_IDENTITY_PARENTS`).
 **`User Book Unit Rating`** keys on `(user_id, unit_id)` =
 `uq_user_book_unit`; `unit_id` travels unchanged.
