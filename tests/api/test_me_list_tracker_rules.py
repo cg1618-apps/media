@@ -1,10 +1,9 @@
 """
-PUT /api/me/list keeps the tracker's rules, so the SPA's status button and
-progress steppers can move onto it from the catalogue PATCH.
+PUT /api/me/list keeps the tracker's rules, which the SPA's status button and
+progress steppers rely on.
 
-The catalogue PATCH finishes an entry when a write carries the progress counter
-up to its total, and stamps completed_at the first time a row reaches a
-Completed status. The list route did neither. It now does both, for the
+A write carrying the progress counter up to its total finishes the caller's
+row, and a status moving into Completed stamps completed_at - for the
 caller's own row only: finishing the work's catalogue half (airing status,
 serialization status) is a catalogue edit and stays behind manage.catalog.
 

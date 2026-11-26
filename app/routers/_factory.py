@@ -193,13 +193,23 @@ def make_media_router(spec) -> APIRouter:
         only patch asks for it here. When it finishes the row, this is a
         catalogue write, so the work's catalogue half runs too - which
         PUT /api/me/list never does.
+
+        The status these endpoints carry never stamps completed_at: they are
+        the admin edit form's save (Modify, and Add's create), and saving a
+        form is not finishing something. A finish is dated by the tracker's
+        routes - /complete and PUT /api/me/list - and by a finish by count.
         """
         user_id = acting_user_id(db, viewer)
         if user_id is None:
             return
         row = ensure_list_row(db, user_id, entry.system_id, spec.owner_type)
         if write_list_payload(
-            row, entry, personal, spec, complete_on_total=complete_on_total
+            row,
+            entry,
+            personal,
+            spec,
+            complete_on_total=complete_on_total,
+            stamp_status=False,
         ):
             spec.mark_completed(entry)
 

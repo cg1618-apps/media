@@ -322,19 +322,42 @@ purpose:
 `POST /{id}/complete` runs both halves: the catalogue one on the entry, the
 personal one on the acting user's list row, creating that row if it does not
 exist yet. `apply_list_completion_timestamp` stamps `completed_at` on the list
-row whenever a write moves it **into** a completed status from one that is not,
-so `completed_at` is the latest finish: an entry finished, moved back to
-Watching and finished again is dated today on the Completions page, not on
+row whenever a tracker write moves it **into** a completed status from one that
+is not, so `completed_at` is the latest finish: an entry finished, moved back
+to Watching and finished again is dated today on the Completions page, not on
 the first finish. A write that leaves an already-completed row completed keeps
 its stamp.
 
+### Only the tracker dates a finish
+
+`completed_at` records when this user finished something, so only the writes
+that *are* a finish stamp it:
+
+| Surface | Request | Stamps |
+| --- | --- | --- |
+| Mark completed (detail page) | `POST /api/<type>/{id}/complete` | yes |
+| A status change from the detail page's tracker, a media card or the dashboard | `PUT /api/me/list/{media_id}` | yes, on a move into Completed |
+| `+` / typing the total, on the detail page, the dashboard or the seasonal pages | `PUT /api/me/list/{media_id}` | yes - it finishes the row (below) |
+| Pull All | the `User Media List` tab, restored | the stored value, as it was backed up |
+| The admin edit form: Modify's entry save and Add's create | `PATCH` / `PUT` / `POST /api/<type>/` | **no** |
+
+The admin edit form sends the personal fields beside the catalogue write, and
+saving a form is not finishing anything: a status of Completed sent through
+the catalogue entry endpoints is written, and `completed_at` is left exactly
+as it was - null stays null, a set stamp keeps its date. That is
+`stamp_status=False` on `write_list_payload`, which the entry endpoints pass
+and `PUT /api/me/list` does not. A finish by count is still a finish and
+stamps on every route that runs it, but the form always sends its status, so
+it never runs from a form save (see "A status in the same payload wins").
+
 ### Reaching the total completes
 
-A `PATCH` that carries the acting user's progress counter **up to** its total
-finishes the entry exactly as `POST /{id}/complete` would: both halves above,
-and the `completed_at` stamp. This is the tracker's stepper - pressing `+` on
-9 / 10, or typing 10 - and it holds on every page that has one: the detail
-pages, the dashboard, and the seasonal pages.
+A write that carries the acting user's progress counter **up to** its total
+finishes the entry exactly as `POST /{id}/complete` would: the personal half
+above and the `completed_at` stamp, and on a catalogue `PATCH` the catalogue
+half too. This is the tracker's stepper - pressing `+` on 9 / 10, or typing
+10 - which goes through `PUT /api/me/list` on every page that has one: the
+detail pages, the dashboard, and the seasonal pages.
 
 - **The counter** is the type's `progress_counter` in `app/registry.py`:
   `ep_fin / ep_total` for anime, TV show, cartoon and hentai,
@@ -355,7 +378,10 @@ pages, the dashboard, and the seasonal pages.
   half and the stamp, never the catalogue half: an airing or serialization
   status is a catalogue fact, and the list route is open to accounts that may
   not edit the catalogue. Both paths share `write_list_payload` in
-  `services/domain/user_list.py`, so the rule cannot drift between them.
+  `services/domain/user_list.py`, so the rule cannot drift between them. The
+  tracker's controls use `PUT /api/me/list`; the catalogue `PATCH` is the
+  admin edit form's save, whose own status never stamps `completed_at` (see
+  "Only the tracker dates a finish").
 
 The response carries the new status, and the frontend's toast says "Marked as
 Completed!" rather than "Episodes updated!" when a write changed the status

@@ -116,8 +116,8 @@ def test_reaching_completed_stamps_completed_at_on_the_list_row(owner_client, db
     created = owner_client.post(
         "/api/anime/", json={"anime_name_en": "Stamp Sentinel", "airing_type": "TV"}
     ).json()
-    owner_client.patch(
-        f"/api/anime/{created['system_id']}", json={"watching_status": "Completed"}
+    owner_client.put(
+        f"/api/me/list/{created['system_id']}", json={"watching_status": "Completed"}
     )
     row = _list_row(db, uuid.UUID(created["system_id"]))
     assert row.status == "Completed"
@@ -128,11 +128,13 @@ def test_completed_at_is_stamped_once_and_not_refreshed(owner_client, db):
     created = owner_client.post(
         "/api/anime/", json={"anime_name_en": "Once Sentinel", "airing_type": "TV"}
     ).json()
-    owner_client.patch(
-        f"/api/anime/{created['system_id']}", json={"watching_status": "Completed"}
+    owner_client.put(
+        f"/api/me/list/{created['system_id']}", json={"watching_status": "Completed"}
     )
     first = _list_row(db, uuid.UUID(created["system_id"])).completed_at
-    owner_client.patch(
-        f"/api/anime/{created['system_id']}", json={"watching_status": "Completed"}
+    # Stamped, or "unchanged" below would hold vacuously on a null.
+    assert first is not None
+    owner_client.put(
+        f"/api/me/list/{created['system_id']}", json={"watching_status": "Completed"}
     )
     assert _list_row(db, uuid.UUID(created["system_id"])).completed_at == first
