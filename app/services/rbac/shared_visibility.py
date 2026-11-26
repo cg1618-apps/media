@@ -40,6 +40,23 @@ A connection is one of three things:
 So crediting somebody on a visible entry reveals them, and removing that
 credit hides them again; nothing is stored, and nothing needs remembering.
 
+A person, a studio and a publisher also carry a CONTENT RATING of their own
+(app/utils/content_rating.py), and the full rule for them is:
+
+    A record is hidden when its content rating is above the viewer's active
+    access mode, OR when the connection rule above hides it.
+
+The rating only ever hides; it never reveals what the connections hide. No
+role is exempt, as no role is exempt from a content label: an admin in a
+narrow mode is narrowed. A viewer with no resolved mode is treated as `safe`,
+so it sees only `normal` records. A character and a vocabulary value carry no
+rating. Because a person credited on a visible entry is no longer visible by
+construction, every reader that names people, studios or publishers on
+something else's page - an entry's credits and cast, a character's seiyuu -
+leaves out the ones `hidden_ratings` names, and every writer that replaces
+such a list wholesale keeps them (credits.replace_credits_keeping,
+casting.replace_casting's `kept`).
+
 Everything is one SQL condition, built by `_hidden_condition`, applied as a
 filter on list and search queries and as a one-row probe on detail routes -
 the same reason `enforcement.py` works in SQL: filtering after a LIMIT would
@@ -66,6 +83,8 @@ from app.services.rbac.gated_types import (
     gated_types,
     hidden_gated_types,
 )
+from app.services.rbac.seed_modes import MODE_SAFE, mode_rank
+from app.utils.content_rating import CONTENT_RATINGS, RATING_LOWEST_MODE
 
 
 @dataclass(frozen=True)
@@ -142,10 +161,37 @@ ENTITY_OWNER_MODELS: dict[str, type] = {
     "studio": models.Studio,
 }
 
+# The shared records that carry a content_rating column of their own.
+RATED_MODELS: frozenset[type] = frozenset(
+    {models.Person, models.Studio, models.Publisher}
+)
+
 # A character identity is not a shared record of its own: it is seen exactly
 # when its character is. Kept out of ENTITY_OWNER_MODELS on purpose - that
 # map's contract is "the model whose own appearances decide visibility".
 IDENTITY_OWNER = "character-identity"
+
+
+def hidden_ratings(viewer) -> frozenset[str]:
+    """
+    The content ratings `viewer` may not see: those whose lowest mode ranks
+    above its active mode. Read off the viewer alone, so cover_viewer's
+    cached viewer answers it as a fresh one does.
+
+    None - an internal call - hides nothing, as everywhere in this module. A
+    viewer whose mode did not resolve (GUEST_FALLBACK, an unknown key) is
+    `safe`: fail-closed, it sees `normal` alone.
+    """
+    if viewer is None:
+        return frozenset()
+    rank = mode_rank(getattr(viewer, "mode_key", None) or "")
+    if rank is None:
+        rank = mode_rank(MODE_SAFE)
+    return frozenset(
+        rating
+        for rating in CONTENT_RATINGS
+        if mode_rank(RATING_LOWEST_MODE[rating]) > rank
+    )
 
 
 @dataclass(frozen=True)
@@ -154,27 +200,38 @@ class _Hiding:
 
     hidden_labels: list[UUID]
     hidden_types: frozenset[str]
+    hidden_ratings: frozenset[str] = frozenset()
 
     def __bool__(self) -> bool:
-        return bool(self.hidden_labels or self.hidden_types)
+        return bool(self.hidden_labels or self.hidden_types or self.hidden_ratings)
 
 
 def _hiding(db: Session, viewer) -> _Hiding:
     if viewer is None:
         return _Hiding([], frozenset())
     hidden = hidden_label_ids(db, viewer)
+    ratings = hidden_ratings(viewer)
     # Precomputed alongside hidden_labels by cover_viewer.py.
     precomputed = getattr(viewer, "hidden_gated", None)
     if precomputed is not None:
-        return _Hiding(hidden, precomputed)
-    return _Hiding(hidden, hidden_gated_types(db, hidden))
+        return _Hiding(hidden, precomputed, ratings)
+    return _Hiding(hidden, hidden_gated_types(db, hidden), ratings)
 
 
 def _hidden_condition(model, hiding: _Hiding):
     """
-    "This record has a connection, and none of its connections is visible",
-    correlated on `model.system_id`.
+    "This record is rated above the viewer's mode, or it has a connection and
+    none of its connections is visible", correlated on `model.system_id`.
     """
+    condition = _hidden_by_connections(model, hiding)
+    if model in RATED_MODELS and hiding.hidden_ratings:
+        rated_out = model.content_rating.in_(sorted(hiding.hidden_ratings))
+        condition = sa.or_(rated_out, condition)
+    return condition
+
+
+def _hidden_by_connections(model, hiding: _Hiding):
+    """The connection rule alone - see the module docstring."""
     record_id = model.system_id
     gated = gated_types()
     visible_types = gated - hiding.hidden_types

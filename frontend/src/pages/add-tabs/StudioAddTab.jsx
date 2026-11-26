@@ -13,6 +13,7 @@ import { Field, SectionHeader, inputCls, selectCls } from "../../components/form
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
 import ImagePicker from "../../components/forms/ImagePicker";
 import CountryInput from "../../components/forms/CountryInput";
+import { ContentRatingField } from "../../components/forms/EntityProfileFields";
 import { STUDIO_NAME_FIELDS } from "../../lib/naming";
 
 export { defaultStudio } from "../../config/formFactories";
@@ -104,6 +105,9 @@ export function StudioFields({ studioForm, usf, ownerId }) {
           value={studioForm.defunct_date}
           onChange={(v) => usf("defunct_date", v)}
         />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ContentRatingField form={studioForm} update={usf} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="MAL ID">

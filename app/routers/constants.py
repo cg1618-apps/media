@@ -27,6 +27,7 @@ from app.services.rbac.gated_types import (
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_options
 from app.utils import constants as c
 from app.utils.character_roles import CHARACTER_ROLES
+from app.utils.content_rating import CONTENT_RATING_LABELS, CONTENT_RATINGS
 from app.utils.credit_roles import (
     COMMON_OPTION_CATEGORIES,
     OPTION_CATEGORIES,
@@ -133,6 +134,11 @@ def _constants() -> dict[str, list[str]]:
         # set) is in neither list.
         "gender": list(c.GENDERS),
         "person_gender": list(c.PERSON_GENDERS),
+        # A person's, studio's, publisher's and gallery picture's content
+        # rating, ascending, and what each is shown as - the second list in
+        # the first one's order, since a key here is one flat list.
+        "content_rating": list(CONTENT_RATINGS),
+        "content_rating_label": [CONTENT_RATING_LABELS[r] for r in CONTENT_RATINGS],
         "is_main": list(c.IS_MAIN),
         # Game and h-game's is_main reads its own vocabulary, not IS_MAIN.
         "game_is_main": list(c.GAME_IS_MAIN),

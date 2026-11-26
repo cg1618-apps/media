@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 ## What this is for
 
@@ -297,7 +297,7 @@ All.
 | `GET /api/person/?role=&scope=` | `view.person` | Sorted by resolved `display_name`; both filters are exact, and a query without `scope` means "holds this role in any media type". `credit_count`, `display_photo_file`, `media_types` and `restricted` are resolved from only the entries the viewer may see (`filter_visible_pairs`), for the whole list in one pass - see [Photo fallback](#photo-fallback). Each row carries every `(role, scope)` the person holds, so the admin form can load the whole set in one request. |
 | `GET /api/person/role-counts` | `view.person` | `{person_role: distinct people}` incl. zeros; declared before `/{system_id}`. System Options reads the same tally, with the studio count, from `GET /api/options/record-counts` (`manage.options`). |
 | `GET /api/person/role-scopes` | `view.person` | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form and the validator cannot drift. Declared before `/{system_id}`. |
-| `GET /api/person/{id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)` with the derived label, filtered through the same `filter_visible_pairs` as `credit_count`. 404 when the person is hidden — every connection hidden, see [authorization.md](../authorization.md#shared-records); a visible person's credits on label-hidden entries are omitted, group and all. |
+| `GET /api/person/{id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)` with the derived label, filtered through the same `filter_visible_pairs` as `credit_count`. 404 when the person is hidden — every connection hidden, or rated above the viewer's access mode, see [authorization.md](../authorization.md#shared-records); a visible person's credits on label-hidden entries are omitted, group and all. |
 | `GET /api/person/{id}` | `view.person` | 404 if absent or hidden. |
 | `POST /api/person/` | admin | **Find-or-create** on normalized name (matches `resolve_person`), then adds any missing roles; metadata of an existing person is untouched. Find-or-create because `ensureSourceValues.js` POSTs whenever a typed name is absent from a *role-filtered* list. The body carries either the four labelled name columns (the admin form) or one unslotted `name` (every other writer), which the endpoint places through `name_slot_for` — a caller holding one typed string cannot know its column, and copying the rule into the frontend would give one name two homes. |
 | `PUT /api/person/{id}` | admin | Full metadata update; replaces the role set. `photo_fallback_entry_id` must name an entry the person is linked to and the editor can see (422); a null keeps a stored choice the editor cannot see. `mal_id` and `imdb_id` are derived from their links, and the person - whatever role they hold - is then filled from MAL, then from TMDB, empty columns only (as `POST /` does on its create branch), each source only while one of its columns is blank (`has_missing_values_person`, `has_missing_values_person_tmdb`) - see [external-apis.md](../external-apis.md#mapping-for-person-mal--map_tenrai_to_person_data). |

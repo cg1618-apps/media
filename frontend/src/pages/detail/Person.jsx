@@ -33,6 +33,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
+import { contentRatingLabel } from "../../config/fieldOptions";
 import { useEntityHref } from "../../lib/entityPath";
 import ClubMembership from "../../components/info/ClubMembership";
 import VoicedPartCard from "../../components/info/VoicedPartCard";
@@ -250,6 +251,7 @@ export default function Person() {
               [
                 { label: "Gender", value: person.gender },
                 { label: "Types", value: types.join(", ") || null },
+                { label: "Content rating", value: contentRatingLabel(person.content_rating) },
               ],
               {
                 label: "Affiliation",

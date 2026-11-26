@@ -208,7 +208,7 @@ def make_media_router(spec) -> APIRouter:
         attach_list_fields(db, spec.owner_type, entry, user_id)
         attach_unit_ratings(db, spec.owner_type, entry, user_id)
         attach_plan_flag(db, spec.owner_type, entry, user_id=viewer_user_id(viewer))
-        attach_link_fields(db, spec.owner_type, entry)
+        attach_link_fields(db, spec.owner_type, entry, viewer)
         attach_sources(db, spec.owner_type, entry, viewer)
         # What restricts this entry, shown rather than enforced - the
         # enforcing is done in SQL before we get here, by

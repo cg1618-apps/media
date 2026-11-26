@@ -260,7 +260,8 @@ export const endpoints = {
     members: (id) => `/api/person/${id}/members`,
     // An author's or illustrator's gallery of works. GET lists it, POST
     // (multipart, `files`) appends, PUT {attachment_ids} reorders; a single
-    // picture is PATCHed {caption} or DELETEd by its attachment id.
+    // picture is PATCHed {caption?, content_rating?} or DELETEd by its
+    // attachment id.
     workImages: (id) => `/api/person/${id}/work-images`,
     workImage: (id, attachmentId) => `/api/person/${id}/work-images/${attachmentId}`,
     // The Add tab's MyAnimeList picker (ExternalSearchResult rows).

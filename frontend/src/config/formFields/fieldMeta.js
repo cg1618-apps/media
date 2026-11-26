@@ -39,6 +39,8 @@ import {
   MY_RATINGS,
   GENDERS,
   PERSON_GENDERS,
+  CONTENT_RATINGS,
+  contentRatingLabel,
   CHARACTER_ROLES,
   BOOK_REGIONS,
   BOOK_SERIALIZATION_STATUSES,
@@ -80,6 +82,13 @@ const ENTITY_DISPLAY_NAME_OPTIONS = [
   { value: "", label: "Default (English)" },
   ...STUDIO_NAME_FIELDS.map(({ key, label }) => ({ value: key, label })),
 ];
+
+// The content rating of a person, studio or publisher, labelled. Never blank:
+// every row carries one, Normal by default.
+const CONTENT_RATING_OPTIONS = CONTENT_RATINGS.map((value) => ({
+  value,
+  label: contentRatingLabel(value),
+}));
 
 // A person's unset choice depends on the role: a seiyuu falls through
 // cn -> jp -> en -> alt, everyone else en first.
@@ -1593,6 +1602,13 @@ export const TYPE_FIELD_META = {
     },
     // Comma-separated text, as the form holds it ("Japan, China").
     countries: { label: "Countries", group: "Classification", autofillable: false },
+    content_rating: {
+      label: "Content rating",
+      control: "select",
+      options: CONTENT_RATING_OPTIONS,
+      group: "Classification",
+      autofillable: false,
+    },
     logo_file: {
       label: "Logo File",
       control: "none",
@@ -1646,6 +1662,13 @@ export const TYPE_FIELD_META = {
       control: "select",
       options: ENTITY_DISPLAY_NAME_OPTIONS,
       group: "Names",
+      autofillable: false,
+    },
+    content_rating: {
+      label: "Content rating",
+      control: "select",
+      options: CONTENT_RATING_OPTIONS,
+      group: "Classification",
       autofillable: false,
     },
     country: { label: "Country", group: "Classification", autofillable: false },
@@ -1702,6 +1725,13 @@ export const TYPE_FIELD_META = {
       label: "Gender",
       control: "select",
       options: PERSON_GENDERS,
+      group: "Classification",
+      autofillable: false,
+    },
+    content_rating: {
+      label: "Content rating",
+      control: "select",
+      options: CONTENT_RATING_OPTIONS,
       group: "Classification",
       autofillable: false,
     },

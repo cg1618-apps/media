@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.utils.content_rating import check_content_rating
+
 
 class ImageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -72,12 +74,21 @@ class WorkImageOut(BaseModel):
     height: Optional[int] = None
     caption: Optional[str] = None
     position: int
+    # normal | borderline | unrestricted (app/utils/content_rating.py). A
+    # picture rated above the viewer's access mode is not listed at all.
+    content_rating: str = "normal"
 
 
-class WorkImageCaptionIn(BaseModel):
-    """PATCH /api/person/{id}/work-images/{attachment_id}. Blank is NULL."""
+class WorkImagePatchIn(BaseModel):
+    """
+    PATCH /api/person/{id}/work-images/{attachment_id}. Only the keys sent
+    change: a caption-only PATCH leaves the rating, and a rating-only one the
+    caption. A blank caption is NULL; the rating is one of the three values,
+    never null.
+    """
 
     caption: Optional[str] = Field(default=None, max_length=500)
+    content_rating: Optional[str] = None
 
     @field_validator("caption")
     @classmethod
@@ -86,6 +97,13 @@ class WorkImageCaptionIn(BaseModel):
             return None
         value = value.strip()
         return value or None
+
+    @field_validator("content_rating")
+    @classmethod
+    def _known_content_rating(cls, value):
+        # Sent as null it is refused rather than read as "leave it": the
+        # column has no null, and an unsent key already means that.
+        return check_content_rating(value)
 
 
 class WorkImagesReorder(BaseModel):

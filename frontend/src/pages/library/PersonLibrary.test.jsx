@@ -13,13 +13,41 @@ vi.mock("../../contexts/AuthContext", () => ({
   useAuth: () => ({
     visibleGatedTypes: ["h-comic", "h-game", "hentai"],
     has: (p) => held.has(p),
+    mode: session.modeKey ? { key: session.modeKey } : null,
   }),
 }));
+// The active access mode's key; null (no mode) unless a test sets one.
+const session = { modeKey: null };
 beforeEach(() => {
   held.clear();
   held.add("view.studio").add("view.publisher").add("view.person").add("view.character");
   held.add("self.list");
+  session.modeKey = null;
 });
+
+// The advanced section is collapsed on every mount. A test of what it draws
+// opens it first; one asserting a group's absence opens it when it is there,
+// so the absence is not just the collapse.
+async function openAdvanced(user, { required = true } = {}) {
+  const toggle = required
+    ? screen.getByRole("button", { name: /Advanced filters/ })
+    : screen.queryByRole("button", { name: /Advanced filters/ });
+  if (toggle) await user.click(toggle);
+}
+
+// The advanced section: the toggle and the groups it opens.
+function advancedSection() {
+  return screen.getByRole("button", { name: /Advanced filters/ }).parentElement;
+}
+
+// The given group labels (not chips) in the order the advanced section draws
+// them.
+function inDrawnOrder(labels) {
+  return labels
+    .map((label) => [label, within(advancedSection()).getByText(label, { ignore: "button" })])
+    .sort(([, a], [, b]) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+    .map(([label]) => label);
+}
 
 const PEOPLE = [
   {
@@ -180,6 +208,7 @@ describe("PersonLibrary", () => {
     );
     await user.click(screen.getByRole("button", { name: "導演" }));
     expect(screen.getAllByRole("link")).toHaveLength(2);
+    await openAdvanced(user);
     await user.click(screen.getByRole("button", { name: "Unrated" }));
     expect(screen.queryAllByRole("link")).toHaveLength(0);
     await user.click(screen.getByRole("button", { name: "S" }));
@@ -315,17 +344,73 @@ describe("PersonLibrary", () => {
 describe("PersonLibrary and the viewer's own rating", () => {
   it("offers no My rating sort or filter without self.list", async () => {
     held.delete("self.list");
+    const user = userEvent.setup();
     renderLibrary();
     await screen.findByText("Jon Favreau");
     expect(screen.queryByRole("option", { name: "My rating" })).not.toBeInTheDocument();
+    await openAdvanced(user, { required: false });
     expect(screen.queryByText("My Rating")).not.toBeInTheDocument();
   });
 
   it("offers both with self.list", async () => {
+    const user = userEvent.setup();
     renderLibrary();
     await screen.findByText("Jon Favreau");
     expect(screen.getByRole("option", { name: "My rating" })).toBeInTheDocument();
+    await openAdvanced(user);
     expect(screen.getByText("My Rating")).toBeInTheDocument();
+  });
+});
+
+// Content rating follows the active access mode: it offers only the ratings
+// the server can serve in it, and is not drawn where that is Normal alone.
+describe("PersonLibrary and the Content rating filter", () => {
+  it("draws no Content rating group in the normal mode", async () => {
+    session.modeKey = "normal";
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Jon Favreau");
+    await openAdvanced(user);
+    // My Rating is drawn in the same section, so the section is open.
+    expect(screen.getByText("My Rating")).toBeInTheDocument();
+    expect(screen.queryByText("Content rating")).not.toBeInTheDocument();
+  });
+
+  it("offers Normal and Borderline in the borderline mode, and filters by them", async () => {
+    session.modeKey = "borderline";
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            PEOPLE.map((p) => (p.display_name === "諫山創" ? { ...p, content_rating: "borderline" } : p)),
+          ),
+      }),
+    );
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Jon Favreau");
+    await openAdvanced(user);
+    const group = screen.getByText("Content rating").parentElement;
+    expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual([
+      "Normal", "Borderline (15+)",
+    ]);
+    await user.click(within(group).getByRole("button", { name: "Borderline (15+)" }));
+    const cards = screen.getAllByRole("link").map((a) => a.textContent);
+    expect(cards).toEqual([expect.stringContaining("諫山創")]);
+  });
+
+  it("offers all three in the unrestricted mode, before My Rating", async () => {
+    session.modeKey = "unrestricted";
+    const user = userEvent.setup();
+    renderLibrary();
+    await screen.findByText("Jon Favreau");
+    await openAdvanced(user);
+    const group = screen.getByText("Content rating").parentElement;
+    expect(within(group).getAllByRole("button").map((b) => b.textContent)).toEqual([
+      "Normal", "Borderline (15+)", "Unrestricted (18+)",
+    ]);
+    expect(inDrawnOrder(["My Rating", "Content rating"])).toEqual(["Content rating", "My Rating"]);
   });
 });
 

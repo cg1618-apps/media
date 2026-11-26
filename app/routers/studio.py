@@ -38,6 +38,7 @@ from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
     require_visible_shared,
 )
+from app.utils.content_rating import check_content_rating, without_unset_rating
 from app.utils.entity_ref import find_entity
 from app.utils.name_normalize import names_of
 
@@ -105,6 +106,7 @@ def _to_response(
         mal_link=studio.mal_link,
         anilist_link=studio.anilist_link,
         type_slots=studio.type_slots,
+        content_rating=studio.content_rating,
         credit_count=summary.count,
         media_types=summary.media_types,
         restricted=summary.restricted,
@@ -300,7 +302,7 @@ def create_studio(
     )
     studio = find_studio(db, first_name)
     if studio is None:
-        studio = models.Studio(**payload.model_dump())
+        studio = models.Studio(**without_unset_rating(payload.model_dump()))
         # Only on the create branch: POST is the find-or-create every typed
         # name goes through, and re-filling a studio that already exists would
         # spend the MAL budget on a no-op.
@@ -331,7 +333,7 @@ def update_studio(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Studio, system_id, NOT_FOUND)
 
-    for key, value in payload.model_dump().items():
+    for key, value in without_unset_rating(payload.model_dump()).items():
         setattr(studio, key, value)
 
     # After the copy, so the payload's own values win and only the columns
@@ -374,7 +376,12 @@ def patch_studio(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Studio, system_id, NOT_FOUND)
 
-    apply_column_patch(studio, prepare_patch(studio, payload, "studio"))
+    apply_column_patch(
+        studio,
+        prepare_patch(
+            studio, payload, "studio", {"content_rating": check_content_rating}
+        ),
+    )
     if "mal_link" in payload:
         apply_extract_mal_id_studio(studio)
 

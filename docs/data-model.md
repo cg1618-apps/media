@@ -1189,6 +1189,7 @@ One human credited on a media entry (Tier 3 entity - see
 | `ig_link` | String | yes | | Their Instagram page, as `twitter_link` |
 | `pixiv_link` | String | yes | | Their pixiv page, as `twitter_link` |
 | `type_slots` | JSONB | yes | | Which favourite-entity 3×3 grid slot this person holds, as `{gridKey: 1..9}`. Eight grids are keyed here: Anime Director, Non-Anime Director, Composer, Manga Author, Book Author, Illustrator, Female Seiyuu, Male Seiyuu. Written only by the Fav 3x3 editor's PATCH; no form or PUT carries it |
+| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_person_content_rating`, `app/utils/content_rating.py`). Hides the person from an access mode below the rating, on top of the connection rule - see [authorization.md](authorization.md#shared-records). Restored by Pull, a blank or unknown cell as `normal` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,
@@ -1352,6 +1353,7 @@ every type it applies to is not wrong in the way a distributor list offering
 | `mal_link` | String | yes | | |
 | `anilist_link` | String | yes | | `anilist.co/studio/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
 | `type_slots` | JSONB | yes | | Which favourite-entity 3×3 grid slot this studio holds, as `{gridKey: 1..9}`. Two grids are keyed here: Anime Studio and Game Studio. Written only by the Fav 3x3 editor's PATCH; no form or PUT carries it |
+| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_studio_content_rating`, `app/utils/content_rating.py`). Hides the studio from an access mode below the rating, on top of the connection rule - see [authorization.md](authorization.md#shared-records). Restored by Pull, a blank or unknown cell as `normal` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 All four name columns are nullable and **at least one** must be set: a studio
@@ -1407,6 +1409,7 @@ mean something vaguer than it does.
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
 | `country` | String | yes | | One free-text country, suggested from the `Country` common options, never added to them |
 | `website_url` | String | yes | | |
+| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_publisher_content_rating`, `app/utils/content_rating.py`). Hides the publisher from an access mode below the rating, on top of the connection rule - see [authorization.md](authorization.md#shared-records). Restored by Pull, a blank or unknown cell as `normal` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 **No `mal_id` / `mal_link` columns**, unlike `studio`. MAL knows nothing about
@@ -2045,6 +2048,7 @@ string, not a migration. Model: `ImageAttachment`.
 | `role` | String | no | `"cover"` | What the image is for: `cover` for every media/entity owner, `quote`/`quote-image`-shaped roles for quote and meme (see `app/routers/images.py`'s `NON_COVER_ROLE_OWNERS`), and `work` for a picture in a person's gallery of works (below) |
 | `position` | Integer | no | `0` | Order within one owner's role. 0 for every single-image role; a `work` gallery numbers its pictures 0, 1, 2 … with no gaps |
 | `caption` | String | yes | | What a gallery picture shows. NULL for every single-image role, and for an uncaptioned picture |
+| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_image_attachment_content_rating`). Read only on a `work` gallery picture, which an access mode below the rating does not list; every other role keeps the default. Not in the sheet: attachments do not travel by Backup / Pull |
 
 Unique on `(owner_type, owner_id, role, position)` - re-attaching an owner's
 existing role replaces the row rather than creating a second one, so "change

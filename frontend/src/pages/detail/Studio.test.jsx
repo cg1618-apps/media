@@ -157,6 +157,20 @@ describe("Studio detail page", () => {
     expect(screen.getByText("Countries")).toBeInTheDocument();
   });
 
+  it("shows the content rating in the profile", async () => {
+    mockFetch({ studio: { ...STUDIO, content_rating: "borderline" } });
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(within(profile).getByText("Content rating")).toBeInTheDocument();
+    expect(within(profile).getByText("Borderline (15+)")).toBeInTheDocument();
+  });
+
+  it("reads an unset content rating as Normal", async () => {
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(within(profile).getByText("Normal")).toBeInTheDocument();
+  });
+
   it("shows the founding date without inventing a defunct one", async () => {
     renderPage();
     expect(await screen.findByText("Since 1981-11-12")).toBeInTheDocument();

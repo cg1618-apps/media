@@ -19,6 +19,7 @@
 // sent to the API and is always reset to null by freshForm() after a save.
 
 import { defaultRestrictedSources } from "../lib/restrictedSources";
+import { CONTENT_RATING_NORMAL } from "./fieldOptions";
 
 export const defaultAnime = () => ({
   anime_name_en: "",
@@ -643,6 +644,7 @@ export const defaultStudio = () => ({
   mal_id: "",
   mal_link: "",
   anilist_link: "",
+  content_rating: CONTENT_RATING_NORMAL,
 });
 
 // A publisher carries the same shape as a studio minus the two MAL columns:
@@ -664,6 +666,7 @@ export const defaultPublisher = () => ({
   // Which media types offer this publisher. Empty means offered NOWHERE, not
   // everywhere - see PublisherScope in app/models/staff.py.
   scopes: [],
+  content_rating: CONTENT_RATING_NORMAL,
 });
 
 export const defaultPerson = () => ({
@@ -685,6 +688,9 @@ export const defaultPerson = () => ({
   // The studios the person belongs to, as {system_id, display_name} refs;
   // sent as studio_ids.
   affiliations: [],
+  // normal | borderline | unrestricted (CONTENT_RATINGS): the lowest access
+  // mode the person is shown in. Normal shows everywhere, safe included.
+  content_rating: CONTENT_RATING_NORMAL,
 });
 
 // Identical in shape to a person today, but kept separate: the two are

@@ -30,6 +30,7 @@ from app.services.domain.sources import (
 )
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
+from app.services.rbac.shared_visibility import hidden_ratings
 from app.utils.credit_roles import CREDIT_ROLES, credit_roles_for, tag_fields_for
 from app.utils.media_resolver import MEDIA_TABLES
 
@@ -109,12 +110,17 @@ def get_credits(
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(get_viewer),
 ):
-    """Returns only the roles and fields that actually have rows."""
+    """
+    Returns only the roles and fields that actually have rows. A person,
+    studio or publisher rated above the viewer's access mode is left out
+    (shared_visibility.hidden_ratings); the entry itself stays visible.
+    """
     _resolve_entry(db, media_type, entry_id, viewer)
 
+    hidden = hidden_ratings(viewer)
     credits_out: Dict[str, List[str]] = {}
     for role_spec in credit_roles_for(media_type):
-        names = credits_service.credit_names(db, entry_id, role_spec.key)
+        names = credits_service.credit_names(db, entry_id, role_spec.key, hidden)
         if names:
             credits_out[role_spec.key] = names
 
@@ -135,8 +141,15 @@ def replace_credits(
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_manage_catalog),
 ):
-    """Replaces only the roles and fields named in the payload."""
+    """
+    Replaces only the roles and fields named in the payload.
+
+    A credit naming a person, studio or publisher rated above the editor's
+    access mode is kept where it is: GET never showed it, so leaving it out
+    of the payload is not a removal.
+    """
     _resolve_entry(db, media_type, entry_id, admin)
+    kept = hidden_ratings(admin)
 
     allowed_roles = {r.key for r in credit_roles_for(media_type)}
     allowed_fields = {f.key for f in tag_fields_for(media_type)}
@@ -186,10 +199,12 @@ def replace_credits(
     for role, names in payload.credits.items():
         if role in picked:
             credits_service.credit_existing(
-                db, media_type, entry_id, role, picked[role]
+                db, media_type, entry_id, role, picked[role], kept
             )
         else:
-            credits_service.replace_credits(db, media_type, entry_id, role, names)
+            credits_service.replace_credits(
+                db, media_type, entry_id, role, names, kept
+            )
     for field, values in tags.items():
         credits_service.replace_tags(db, entry_id, field, values)
 

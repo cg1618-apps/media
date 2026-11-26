@@ -26,6 +26,7 @@ import ReportProblemButton from "../../components/requests/ReportProblemButton";
 import { endpoints } from "../../api/endpoints";
 import { getCoverUrl, FALLBACK_SVG, focusStyle } from "../../lib/covers";
 import { mediaTypeLabel } from "../../config/mediaRegistry";
+import { contentRatingLabel } from "../../config/fieldOptions";
 import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
 import CompanyCredits from "../../components/info/CompanyCredits";
@@ -214,6 +215,7 @@ export default function Publisher() {
                     (publisher.scopes || []).map(mediaTypeLabel).join(", ") || null,
                 },
                 { label: "Active", value: span },
+                { label: "Content rating", value: contentRatingLabel(publisher.content_rating) },
               ],
             ]}
           />

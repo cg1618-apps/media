@@ -955,8 +955,11 @@ joined), **Entry types** (`lg`, a chip per `media_types` entry), **Credits**,
 The **Filters** button (`FilterToggleButton`, with the active-chip count)
 toggles a `FilterPanel` over `studioFilterDefs(auth)` from
 `lib/entityFilters.js`, open when the page loads. Every entity library's
-filters open with **Entry type** and close their ordinary ones with **My
-Rating**:
+filters open with **Entry type**, and every one draws **My Rating** in its
+advanced section (behind **Advanced filters**): last there on the studio,
+publisher and person libraries, right after Identities on the character
+one. The studio library's ordinary filters are Entry type and Country; its
+advanced ones are Content rating, Relation and My Rating:
 
 - **Entry type** — anime, anime movie, game, **No entries**, then a
   **Restricted** parent chip over hentai and h-game, matched against
@@ -968,13 +971,21 @@ Rating**:
   chip of its own, and **Not set**, for one naming none, each only when a
   studio needs it. A studio matches every chip one of its countries falls
   under, so one from Japan and Poland is found under Japan and under Others.
-- **Relation** — Has relation / No relation, off `has_relations`, which
-  counts only related companies the viewer may see. The publisher library has
-  the same filter.
-- **My Rating** — `MY_RATINGS` plus Unrated (null), the viewer's own
-  rating (`myRatingFilter()` in `lib/libraryFilterDefs.js`, the media
-  libraries' def drawn in the ordinary section); only for a holder of
-  `self.list` (`studioFilterDefs(auth, { ownData })`).
+- **Content rating** (advanced) — the content ratings the active access
+  mode can be served (`contentRatingsVisibleIn(auth.mode.key)` in
+  `config/fieldOptions.js`): Normal and Borderline (15+) in the borderline
+  mode, those and Unrestricted (18+) in unrestricted. The server withholds
+  every record rated above the active mode, so a wider chip could match
+  nothing; in safe and normal only Normal is left, and the group is not
+  drawn. A row with no `content_rating` counts as Normal. The person and
+  publisher libraries have the same filter.
+- **Relation** (advanced) — Has relation / No relation, off
+  `has_relations`, which counts only related companies the viewer may see.
+  The publisher library has the same filter.
+- **My Rating** (advanced) — `MY_RATINGS` plus Unrated (null), the viewer's
+  own rating (`myRatingFilter({ advanced: true })` in
+  `lib/libraryFilterDefs.js`, the media libraries' def); only for a holder
+  of `self.list` (`studioFilterDefs(auth, { ownData })`).
 
 Every entity library opens with nothing ticked. An empty Entry type group is
 not "no filter": its `idle` rule keeps every row except one whose entries are
@@ -1013,7 +1024,8 @@ library.
 
 The filter panel is the studio library's, over `publisherFilterDefs(auth)`,
 open on the same default, with the same Clear all and Reset, in the order
-Entry type, Kind, Country, Relation, My Rating. **Kind** — 遊戲發行商 (game), 台灣出版社 (manga, book),
+Entry type, Kind, Country, then in the advanced section Content rating,
+Relation, My Rating. **Kind** — 遊戲發行商 (game), 台灣出版社 (manga, book),
 台灣代理商 (anime, anime movie) and 其他 (every other type; comic, today).
 It reads the same `media_types` **or** `scopes` as Entry type, a publisher
 covering several kinds matches each of them, and it starts empty. The kinds
@@ -1023,8 +1035,8 @@ offers the six publisher types — anime, anime movie, manga, book, comic,
 game — and No entries, with no Restricted parent (no publisher type is
 gated), and matches `media_types` **or** `scopes`: a publisher offered on
 manga but not yet credited on one is still found under Manga. No entries
-still means no visible credits, whatever the scopes. **My Rating** is the
-studio library's. **Country** is simpler than the studio one, because a
+still means no visible credits, whatever the scopes. **Content rating**,
+**Relation** and **My Rating** are the studio library's. **Country** is simpler than the studio one, because a
 publisher names one country: every country on record, the one the most
 publishers name first (`valuesByCount`, ties by name), plus Not set last
 when a publisher has none.
@@ -1040,8 +1052,8 @@ File `pages/library/PersonLibrary.jsx`. Same shape and the same reasoning as
 outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
 
 Raw `fetch` of `/api/person/` alone: the response carries `display_name`,
-`credit_count`, `display_photo_file`, `media_types`, `my_rating`, `gender`
-and the `roles` each person holds, which is what lets every filter run
+`credit_count`, `display_photo_file`, `media_types`, `my_rating`, `gender`,
+`content_rating` and the `roles` each person holds, which is what lets every filter run
 client-side — one request serves every filter, where a per-filter request
 would refetch on each click. Search runs over all four name columns
 (`PERSON_NAME_FIELDS`), not just the displayed one. Sort
@@ -1070,8 +1082,10 @@ AND across groups:
   the Club chip only for a session that can see h-comic. The admin sub-tabs
   keep their English labels.
 - **Gender** — `PERSON_GENDERS` (男, 女) plus Not set (null).
-- **My Rating** — `MY_RATINGS` plus Unrated (null); only for a holder of
-  `self.list`, as on the studio library.
+- **Content rating** (advanced) — the studio library's: the ratings the
+  active access mode can be served, not drawn in safe and normal.
+- **My Rating** (advanced) — `MY_RATINGS` plus Unrated (null); only for a
+  holder of `self.list`, as on the studio library.
 
 Each `PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
 shows `display_photo_file` — the photo, or the server-resolved fallback
@@ -1126,10 +1140,11 @@ anime movie, manga, book, game, No entries, then a **Restricted** parent chip
 over h-comic and hentai (not h-game: nobody is cast on an h-game) — then
 **Role** — Main, Core, Important Supporting, Supporting, Other, plus Not set
 for null, matched against the character's own `role` field and never against
-the roles its castings carry — then **Gender** and **My Rating**; and in the
-advanced section **Card** (Characters, Identities: tick one to show only that
-kind; empty shows both), **Identities** (Has identities, No identities: an
-identity card always counts as having them), **Appearance** and **Trait** —
+the roles its castings carry — then **Gender**; and in the advanced section
+**Card** (Characters, Identities: tick one to show only that kind; empty
+shows both), **Identities** (Has identities, No identities: an identity card
+always counts as having them), **My Rating** (only for a holder of
+`self.list`), **Appearance** and **Trait** —
 the last two `set-dynamic` groups over the values the loaded characters
 hold, the one the most characters carry first (`valuesByCount`, ties by
 name), plus Not set last when a character's list is empty; a character
@@ -1216,7 +1231,9 @@ The **Profile** card leads with the person's names, one per line — each of
 the four that is set (`namingRows`, the same list the Naming card draws
 elsewhere) — then gender and the types they are offered under, by their
 Chinese labels (`personTypeLabel`: 導演, 作曲, …, as the person library's
-Type filter names them), then **Affiliation**, the studios they belong to as
+Type filter names them) and the **Content rating** (`contentRatingLabel`:
+Normal, Borderline (15+), Unrestricted (18+); drawn always, Normal when the
+record carries none), then **Affiliation**, the studios they belong to as
 links.
 
 A person may hold several roles, so `/entries` groups by **(media type,
@@ -1371,8 +1388,9 @@ block and the credits, drawn as on the studio page.
 
 Two differences from the studio page. The **Profile** card is one row, in
 the order **Country**, **Types** (the media types the publisher is offered
-on, `scopes`, by their media-type labels) and **Active** (`founded –
-defunct`, as on the studio page). And the Links card carries the **Website**
+on, `scopes`, by their media-type labels), **Active** (`founded –
+defunct`, as on the studio page) and **Content rating**, labelled as on the
+person page. And the Links card carries the **Website**
 alone: `PublisherResponse` has no `mal_id` / `mal_link` / `anilist_link`,
 because MAL has no record of a games publisher or a TW distributor.
 
@@ -1409,7 +1427,8 @@ Layout:
 4. **Right column** — the heading and its credited-entry count, a "Profile"
    `InfoCard` (countries, comma-joined in order; **Active**: `founded –
    defunct`, or `Since founded` while the studio is still working, and no
-   invented span when both are empty), the **Notes** block, the **People**
+   invented span when both are empty; **Content rating**, labelled as on the
+   person page), the **Notes** block, the **People**
    slip (`AffiliatedPeople`, the people affiliated with the studio; none drawn
    when there are none), then the credits.
 

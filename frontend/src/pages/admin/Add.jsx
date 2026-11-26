@@ -119,7 +119,7 @@ import { ADMIN_TABS } from "../../config/adminTabs";
 import { useFormRatingSaver } from "../../api/mutations/useMyRatingMutations";
 import { PERSON_NAME_FIELDS, STUDIO_NAME_FIELDS } from "../../lib/naming";
 import { CHARACTER_NAME_FIELDS } from "../add-tabs/CharacterAddTab";
-import { OPTION_CATEGORIES } from "../../config/fieldOptions";
+import { CONTENT_RATING_NORMAL, OPTION_CATEGORIES } from "../../config/fieldOptions";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { fetchAllSources } from "../../lib/sources";
 import { withMediaType } from "../../lib/suggestionOrder";
@@ -1133,6 +1133,7 @@ export default function Add() {
         twitter_link: personForm.twitter_link?.trim() || null,
         ig_link: personForm.ig_link?.trim() || null,
         pixiv_link: personForm.pixiv_link?.trim() || null,
+        content_rating: personForm.content_rating || CONTENT_RATING_NORMAL,
         roles: personRoles,
         studio_ids: (personForm.affiliations || []).map((s) => s.system_id),
       }),
@@ -1238,6 +1239,7 @@ export default function Add() {
         mal_id: studioForm.mal_id ? parseInt(studioForm.mal_id, 10) : null,
         mal_link: studioForm.mal_link || null,
         anilist_link: studioForm.anilist_link?.trim() || null,
+        content_rating: studioForm.content_rating || CONTENT_RATING_NORMAL,
       }),
       credentials: "include",
     });
@@ -1289,6 +1291,7 @@ export default function Add() {
         // Which media types offer this publisher. POST is additive, so this
         // can only widen a publisher that already exists under this name.
         scopes: publisherForm.scopes || [],
+        content_rating: publisherForm.content_rating || CONTENT_RATING_NORMAL,
       }),
       credentials: "include",
     });

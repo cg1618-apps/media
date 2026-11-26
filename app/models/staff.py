@@ -19,6 +19,12 @@ from sqlalchemy.orm import relationship
 
 from app.database import Base, get_taipei_now
 from app.models.base import NameFallbackMixin
+from app.utils.content_rating import CONTENT_RATINGS
+
+# The CHECK each rated table carries; the migration writes the same text.
+CONTENT_RATING_CHECK = "content_rating IN ({})".format(
+    ", ".join(f"'{rating}'" for rating in CONTENT_RATINGS)
+)
 
 
 class Person(Base, NameFallbackMixin):
@@ -57,6 +63,10 @@ class Person(Base, NameFallbackMixin):
         CheckConstraint(
             "num_nonnulls(name_en, name_cn, name_jp, name_alt) >= 1",
             name="ck_person_has_a_name",
+        ),
+        CheckConstraint(
+            CONTENT_RATING_CHECK,
+            name="ck_person_content_rating",
         ),
         UniqueConstraint(
             "public_id",
@@ -128,6 +138,12 @@ class Person(Base, NameFallbackMixin):
     twitter_link = Column(String, nullable=True)
     ig_link = Column(String, nullable=True)
     pixiv_link = Column(String, nullable=True)
+    # How adult the record itself is: normal, borderline or unrestricted
+    # (app/utils/content_rating.py). Hides it from an access mode below the
+    # rating, on top of the connection rule (shared_visibility.py).
+    content_rating = Column(
+        String, nullable=False, default="normal", server_default="normal"
+    )
     # Favourite-grid slot per grid key, e.g. {"Anime Director": 3}: the entity-tier
     # twin of Franchise.type_slots, written by the Fav 3x3 editor through
     # PATCH only (no form or PUT carries it, so an edit cannot wipe it).
@@ -372,6 +388,10 @@ class Studio(Base, NameFallbackMixin):
             name="ck_studio_has_a_name",
         ),
         CheckConstraint(
+            CONTENT_RATING_CHECK,
+            name="ck_studio_content_rating",
+        ),
+        CheckConstraint(
             r"founded_date IS NULL OR founded_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_studio_founded_date",
         ),
@@ -430,6 +450,12 @@ class Studio(Base, NameFallbackMixin):
     # The studio's AniList page, entered by hand beside mal_link. A plain
     # link: no id is derived from it and nothing is fetched from it.
     anilist_link = Column(String, nullable=True)
+    # How adult the record itself is: normal, borderline or unrestricted
+    # (app/utils/content_rating.py). Hides it from an access mode below the
+    # rating, on top of the connection rule (shared_visibility.py).
+    content_rating = Column(
+        String, nullable=False, default="normal", server_default="normal"
+    )
     # Favourite-grid slot per grid key, e.g. {"Anime Studio": 3}: the entity-tier
     # twin of Franchise.type_slots, written by the Fav 3x3 editor through
     # PATCH only (no form or PUT carries it, so an edit cannot wipe it).
@@ -609,6 +635,10 @@ class Publisher(Base, NameFallbackMixin):
             name="ck_publisher_has_a_name",
         ),
         CheckConstraint(
+            CONTENT_RATING_CHECK,
+            name="ck_publisher_content_rating",
+        ),
+        CheckConstraint(
             r"founded_date IS NULL OR founded_date ~ '^\d{4}(-\d{2}(-\d{2})?)?$'",
             name="ck_publisher_founded_date",
         ),
@@ -659,6 +689,12 @@ class Publisher(Base, NameFallbackMixin):
     defunct_date = Column(String, nullable=True)
     country = Column(String, nullable=True)
     website_url = Column(String, nullable=True)
+    # How adult the record itself is: normal, borderline or unrestricted
+    # (app/utils/content_rating.py). Hides it from an access mode below the
+    # rating, on top of the connection rule (shared_visibility.py).
+    content_rating = Column(
+        String, nullable=False, default="normal", server_default="normal"
+    )
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 

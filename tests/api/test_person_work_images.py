@@ -351,3 +351,108 @@ def test_merge_appends_the_losers_pictures_after_the_survivors(owner_client):
         moved[0]["image_id"],
     ]
     assert [p["position"] for p in gallery] == [0, 1, 2]
+
+
+# ---------------------------------------------------------------------------
+# Content rating
+#
+# Each refusal is read from the owner's own account in a narrower mode
+# (mode_client): the owner holds manage.images and view.person, so a missing
+# picture or a 404 can only be the rating. Each is mirrored by the same
+# gallery read in a mode that shows the rating.
+# ---------------------------------------------------------------------------
+
+
+def _rated_gallery(owner_client, *ratings):
+    """An author with one picture per rating, in order; returns (person, ids)."""
+    person = _author(owner_client)
+    colors = [(10 * i, 20, 30) for i in range(len(ratings))]
+    body = _upload(owner_client, person["system_id"], *colors).json()
+    ids = [p["system_id"] for p in body]
+    for picture_id, rating in zip(ids, ratings):
+        if rating != "normal":
+            response = owner_client.patch(
+                f"/api/person/{person['system_id']}/work-images/{picture_id}",
+                json={"content_rating": rating},
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["content_rating"] == rating
+    return person, ids
+
+
+def test_a_picture_rated_above_the_mode_is_not_listed(owner_client, mode_client):
+    person, ids = _rated_gallery(owner_client, "normal", "borderline", "unrestricted")
+    url = f"/api/person/{person['system_id']}/work-images"
+
+    def listed(mode):
+        response = mode_client(mode).get(url)
+        assert response.status_code == 200
+        return [p["system_id"] for p in response.json()]
+
+    assert listed("safe") == [ids[0]]
+    assert listed("normal") == [ids[0]]
+    assert listed("borderline") == ids[:2]
+    assert listed("unrestricted") == ids
+
+
+def test_a_new_picture_is_normal(owner_client):
+    person = _author(owner_client)
+    picture = _upload(owner_client, person["system_id"]).json()[0]
+    assert picture["content_rating"] == "normal"
+
+
+def test_a_caption_patch_leaves_the_rating_and_a_rating_patch_the_caption(owner_client):
+    person, [picture_id] = _rated_gallery(owner_client, "borderline")
+    url = f"/api/person/{person['system_id']}/work-images/{picture_id}"
+
+    captioned = owner_client.patch(url, json={"caption": "vol. 1"}).json()
+    assert captioned["content_rating"] == "borderline"
+
+    rated = owner_client.patch(url, json={"content_rating": "normal"}).json()
+    assert rated["caption"] == "vol. 1"
+    assert rated["content_rating"] == "normal"
+
+
+@pytest.mark.parametrize("bad", ["adult", "", None])
+def test_an_unknown_picture_rating_is_refused(owner_client, db_session, bad):
+    person, [picture_id] = _rated_gallery(owner_client, "borderline")
+
+    response = owner_client.patch(
+        f"/api/person/{person['system_id']}/work-images/{picture_id}",
+        json={"content_rating": bad},
+    )
+
+    assert response.status_code == 422
+    row = db_session.get(models.ImageAttachment, uuid.UUID(picture_id))
+    db_session.refresh(row)
+    assert row.content_rating == "borderline"
+
+
+def test_a_hidden_picture_cannot_be_captioned_or_removed(owner_client, mode_client):
+    person, [shown, hidden] = _rated_gallery(owner_client, "normal", "borderline")
+    narrow = mode_client("normal")
+    base = f"/api/person/{person['system_id']}/work-images"
+
+    assert narrow.patch(f"{base}/{hidden}", json={"caption": "x"}).status_code == 404
+    assert narrow.delete(f"{base}/{hidden}").status_code == 404
+    # The mirror, same session: the picture it can see answers.
+    assert narrow.patch(f"{base}/{shown}", json={"caption": "x"}).status_code == 200
+
+
+def test_a_reorder_keeps_a_hidden_picture_in_its_slot(owner_client, mode_client):
+    person, [first, hidden, last] = _rated_gallery(
+        owner_client, "normal", "borderline", "normal"
+    )
+    url = f"/api/person/{person['system_id']}/work-images"
+
+    narrow = mode_client("normal")
+    # Naming the hidden picture is a 422, like naming a stranger's: this
+    # editor's gallery does not hold it.
+    assert narrow.put(url, json={"attachment_ids": [last, hidden, first]}).status_code == 422
+    response = narrow.put(url, json={"attachment_ids": [last, first]})
+    assert response.status_code == 200, response.text
+    assert [p["system_id"] for p in response.json()] == [last, first]
+
+    everything = owner_client.get(url).json()
+    assert [p["system_id"] for p in everything] == [last, hidden, first]
+    assert [p["position"] for p in everything] == [0, 1, 2]
