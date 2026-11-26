@@ -102,6 +102,10 @@ class SeriesResponse(SeriesBase):
     content_labels: list[ContentLabelRef] = []
     # As FranchiseResponse.entry_count, for this series.
     entry_count: Optional[int] = None
+    # As FranchiseResponse.has_relations, for related series
+    # (SERIES_RELATIONS.attach_has_relations): the series library's Relation
+    # filter reads it.
+    has_relations: bool = False
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
     public_id: int

@@ -3,7 +3,7 @@
 // CN-first names with "Romaji", release dates that hold a year or a month,
 // the Add-only search boxes, and the entry id Modify hands its pickers.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -36,6 +36,9 @@ const SOURCES = {
 const FRANCHISES = [
   { system_id: "f1", franchise_name_en: "Anime Franchise", franchise_type: "Anime" },
   { system_id: "f2", franchise_name_en: "Film Franchise", franchise_type: "Movie" },
+  { system_id: "f3", franchise_name_en: "Anime Movie Franchise", franchise_type: "Anime Movie" },
+  { system_id: "f4", franchise_name_en: "Untyped Franchise", franchise_type: null },
+  { system_id: "f5", franchise_name_en: "Mixed Franchise", franchise_type: "Movie, Anime Movie" },
 ];
 const SECTIONS = [
   "Titles & Naming",
@@ -177,15 +180,31 @@ describe("Anime movie form", () => {
     },
   );
 
-  it("offers every franchise type and writes no series keys on a pick", async () => {
+  it.each(["add", "modify"])(
+    "%s: offers only Anime Movie franchises and untyped ones",
+    async (mode) => {
+      const user = userEvent.setup();
+      renderTab(mode);
+      await user.click(screen.getByRole("combobox", { name: "Franchise" }));
+      const list = await screen.findByRole("listbox");
+      const offered = within(list).getAllByRole("option").map((o) => o.textContent);
+      // Not `Anime`: an anime movie's franchise is its own type's.
+      expect(offered.sort()).toEqual([
+        "Anime Movie Franchise",
+        "Mixed Franchise",
+        "Untyped Franchise",
+      ]);
+    },
+  );
+
+  it("writes no series keys on a franchise pick", async () => {
     const user = userEvent.setup();
     // A marker the lineage pickers would overwrite if they wrote series keys.
     renderTab("add", { series_text: "untouched" });
     await user.click(screen.getByRole("combobox", { name: "Franchise" }));
-    expect(await screen.findByRole("option", { name: "Anime Franchise" })).toBeInTheDocument();
-    await user.click(screen.getByRole("option", { name: "Film Franchise" }));
+    await user.click(await screen.findByRole("option", { name: "Anime Movie Franchise" }));
     const s = state();
-    expect(s.franchise_id).toBe("f2");
+    expect(s.franchise_id).toBe("f3");
     expect(s.series_text).toBe("untouched");
   });
 

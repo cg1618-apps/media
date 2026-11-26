@@ -42,6 +42,12 @@ label reference and the RBAC pages — never the catalogue editors.
 
 ## /system — Control Center (`Admin.jsx`)
 
+- **Layout.** Titled **Control Center**, with three links on top: **Data
+  History**, **Review Queue** and **Clean Orphans**. The nav's System group
+  leaves the last two to this page; the Entry and Note pages, Needs Work and
+  the Inbox are reached from the nav. Then, in order: pending registrations, Current
+  Season beside Data Control Actions, Calculate & Fix, Announcement & Notes,
+  Exchange Rates and the Data Control Log.
 - **Pipelines.** Buttons start `POST /api/data-control/fill/<type>`,
   `/replace/<type>`, `/fill/all`, `/replace/all` as Server-Sent Event streams
   (`startStream`). The reader parses `data: {...}` events (`processing`,
@@ -139,10 +145,31 @@ label reference and the RBAC pages — never the catalogue editors.
 - **Remarks / Duplicates modals.** The Review Queue's own views, opened in
   place: both modals render `RemarksView` and `DuplicatesView` from
   `components/review/`, so the tab lists cannot drift apart.
+- **Exchange Rates** (`FxRatesEditor.jsx`). The rates the game spend block on
+  `/statistics` converts with (`/api/fx-rates`), for USD, TWD and JPY only
+  (`FX_CURRENCIES` in `config/fieldOptions.js`): a Base select, an As of date
+  (today whenever the rates are edited) and one box per currency other than
+  the base, which converts to itself. A rate is how many units of that
+  currency one base unit buys. A box left blank is saved as no rate, and
+  spend recorded in that currency is left out of the converted totals. A rate
+  stored for any other currency is not shown, and the next save drops it.
+- **Data Control Log.** The latest runs from `GET /api/system/logs`, ten to a
+  page: action, trigger (Manual or Auto), time and status, the error as the
+  Failed status's tooltip. A batch run (Fill All, Replace All, Pull All) is
+  one row; the operations it ran are not listed beside it. Each row's
+  **Details** button, which names the run's operation count, opens
+  `LogDetailsModal` (`components/modals`), which reads
+  `GET /api/system/logs/{id}` and lists each operation's trigger, time and
+  status, with a failed operation's error beneath it: every Fill or Replace
+  of a type and the Backup a Fill All or Replace All ends in, or every tab of
+  a Pull All. A row that ran no operations lists itself. Escape or Close
+  dismisses it. A row's × deletes it with its operations, and **Clear Old**
+  keeps the ten newest runs.
 
 ## /data-history (`DataHistory.jsx`)
 
-Lists `data_control_logs` (`GET /api/system/logs`) and `deleted_record`
+Lists the runs in `data_control_logs` (`GET /api/system/logs`, which leaves
+out the operations of a batch run) and `deleted_record`
 (`GET /api/system/deleted`), each with a per-row delete
 (`DELETE /api/system/logs/{id}`, `/deleted/{id}`). Deleted-record rows link
 back to the owning franchise/series where the ids still exist.
@@ -216,7 +243,7 @@ Data: `useRequestInbox(status)` from `api/mutations/useRequestMutations.js`
 待補充 Needs Work: every entry and group whose data is not complete yet - a
 sequel not added, names missing, an official name not released. The route
 asks `manage.requests`, the inbox's key - super and the admin - and so does
-its **待補充 Needs Work** row in the System tab. Server side:
+its **待補充** row in the System tab. Server side:
 [../api.md](../api.md#needs-work--apineeds-work).
 
 - **Data**: `useNeedsWorkList()` (`GET /api/needs-work`, key
@@ -533,7 +560,13 @@ entries that do exist.
 
 **Form defaults.** A fresh form comes from `freshForm(type)`
 (`config/formFactories.js`) merged with the admin's saved defaults
-(`hooks/useFormDefaults.js`, `/api/form-defaults/<type>`).
+(`hooks/useFormDefaults.js`, `GET /api/form-defaults/`). The config is the
+form-defaults query, the one `/defaults` and Modify read too: the page loads it
+with `loadFormDefaults` inside the same `Promise.all` as `fetchAllSources()`,
+and seeds every form from it before the spinner lifts, so no form paints with
+built-in values first. A config still fresh in the cache - `/defaults` opened a
+moment ago, or saved - is used without a request. One that cannot be read (an
+error status, or a body that is not JSON) means the built-ins.
 
 **Notes for the entry just added (every media tab).** Notes hang off an
 entry's `system_id`, so the form cannot hold them before the entry exists.
@@ -625,7 +658,7 @@ job, or the create path's.
 
 **TMDB picks resolve before they write.** Movie, TV show and cartoon rows are
 keyed by IMDb, and a TMDB result's `external_id` is a TMDB ref (`movie/603`,
-`tv/1399`). `makeTmdbPick` first calls
+`tv/1399`; a person's is `person/6384`). `makeTmdbPick` first calls
 `GET /api/<prefix>/tmdb-imdb-id?ref=<ref>` (`endpoints.<type>.tmdbImdbId`)
 and only on `{imdb_id, imdb_link}` writes the two fields. A 404 (TMDB holds no
 IMDb id) or a 502 writes nothing and shows an error toast telling the admin to
@@ -636,7 +669,11 @@ from `comicvine_link` (only Fill does), so the pick sets it, the form carries
 it (`defaultComic`; hidden on `/defaults`) in a **Comic Vine ID** input beside
 the link, and both pages send it as typed, with or without a link.
 
-**Franchise / series pickers.** `ComboBox` over the loaded lists;
+**Franchise / series pickers.** `ComboBox` over the loaded lists, narrowed to
+the type's franchises (`FamilyLineageFields`; the rule per type is in
+[business-rules.md](../business-rules.md)); the Series picker offers only the
+series under an offered franchise, or under the picked one. Both pages build
+one series list with `seriesPickerItems` and hand it to every tab;
 `ComboBox.onSelect` receives `(id, label)`. Text typed that matches no
 existing group is kept, and the save creates the group before it writes the
 entry.
@@ -685,8 +722,11 @@ as an error toast.
 **The viewer's own rating.** The Collection, Franchise and Series tabs draw a
 **My Rating** select (`MY_RATINGS`) and an **Expectation** select
 (`FRANCHISE_EXPECTATIONS`, the one vocabulary all three tiers share), under
-Other Information; the Person, Character, Studio and Publisher tabs draw
-**My Rating** alone - an entity has no expectation. Both come
+Other Information; the Person, Character, Identity, Studio and Publisher tabs draw
+**My Rating** alone - an entity has no expectation - in the right-hand column
+of a row it shares: beside **Display Name** on a person, beside **Gender** on
+a character (`GenderField`'s `beside`), beside **Logo** on a studio and beside
+**Offered On** on a publisher, on Add and Modify alike. Both come
 from `MyRatingFields`, and only for a viewer who keeps a list
 (`useViewScope().ownData`, `self.list`). They are the viewer's own, not
 columns of the record, so the create call never carries them: once it has
@@ -868,11 +908,17 @@ not `<input type="date">`, because it carries the same partial precision
 `release_date` does (invalid values are flagged with a danger border). The
 entry's Ownership is derived from these rows, not typed.
 
-**Person tab (Entity).** `PersonAddTab.jsx`. Its only search box is the MAL
-`ExternalSearchBox` (see "External search box" above), over the form. No
+**Person tab (Entity).** `PersonAddTab.jsx`. Two `ExternalSearchBox`es sit
+over the form (see "External search box" above): **MAL**, which links
+`mal_link` and fills a blank Japanese name, then **IMDb**, which searches
+TMDB's people (`/api/person/search-imdb`; IMDb has no public search) and
+resolves the pick through `makeTmdbPick` with `idField: null` - only
+`imdb_link` is written, the server reading the `nm` id from it - plus a blank
+English name. The Modify editor has neither: external search is an Add-tab
+tool. No
 `PersonSubTabBar` here — the
 bar filters a list, and Add has no list; the role × scope matrix inside the
-form already says which types a new person holds. `PersonFields` holds the four name fields with a
+form already says which types a new person holds. `PersonFields` holds the four name fields (`EntityNameFields`, the layout every entity form - studio, publisher, person, character, identity, Add and Modify - shares: Chinese beside English, then Japanese beside Alternative; `STUDIO_NAME_FIELDS` keeps its en, cn, jp, alt order, the display-name fallback) with a
 "Display name" select, the **role × scope matrix**, then gender
 (`GenderField` from `components/forms/EntityProfileFields.jsx` with
 `kind="person"`, followed by **Affiliation** - the studios the person
@@ -884,13 +930,14 @@ click picks, clicking the pressed chip clears, and the select follows either
 way; unset saves as null), and a **Content rating** select
 (`ContentRatingField`, the same file: Normal, Borderline (15+), Unrestricted
 (18+) over `CONTENT_RATINGS`, starting on Normal - the `defaultPerson()`
-value - and sent as `content_rating`). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
+value - and sent as `content_rating`), then the photo. Its links sit in a
+**Links** section of their own after the profile, two to a row: a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), an
 **AniList Link** (`anilist_link`, placeholder `https://anilist.co/staff/...`;
 stored as typed, a blank one as null, nothing derived or filled from it), the
 IMDb link, then **Twitter Link**, **Instagram Link** and **pixiv Link**
 (`twitter_link`, `ig_link`, `pixiv_link`, `PERSON_SOCIAL_LINKS`; stored as
-typed, a blank one as null) and the photo. Ticking a type holds it
+typed, a blank one as null). Ticking a type holds it
 with **no media type selected** - `{role, scope: null}`, listed under the type
 and offered in no dropdown; ticking a media type replaces that with scoped
 rows, and unticking the last one goes back to it. The legal types per role come
@@ -903,7 +950,7 @@ scope cannot be unticked, because the API refuses an unscoped club. Submit is bl
 `ck_person_has_a_name`. `POST /api/person/` is find-or-create, like studio.
 `PersonFields` is exported so the Modify tab renders the same inputs.
 
-**Identity tab (Entity).** `IdentityAddTab.jsx`, self-contained: it saves through its own button, and `Add.jsx`'s page-wide submit is hidden on it. An identity is always created under an existing character, so the tab opens with a required **Character** picker (a `ComboBox` over `GET /api/character/?name=`; the character is fixed once the identity is saved), then `IdentityFields`: the four names, **Display Name**, **Gender** (an empty choice means the same as the character), **Photo** and the identity's own **First Appearances** (`CharacterFirstsFields`: First Mention, First Appearance, First Encounter, free text, a blank one sent as null). Picking a character prefills the four names and **Display Name** from it, as a starting point (`prefillFromCharacter`): a field is filled only while it is empty or still holds what the previous pick filled in, so nothing typed is overwritten and picking another character re-fills the untouched ones; clearing the character leaves the fields as they are, and gender, photo and the firsts are never prefilled. At least one name is required. The photo is attached after the create, as for characters, and Enter in a text input submits. `IdentityFields` is exported for the Modify tab. It has no `/defaults` tab (`identity` is outside `FORM_TABS`). Saves `POST /api/character-identity/`.
+**Identity tab (Entity).** `IdentityAddTab.jsx`, self-contained: it saves through its own button, and `Add.jsx`'s page-wide submit is hidden on it. An identity is always created under an existing character, so the tab opens with a required **Character** picker (a `ComboBox` over `GET /api/character/?name=`; the character is fixed once the identity is saved), then `IdentityFields`: the four names, one three-column row of **Display Name**, **Gender** (an empty choice means the same as the character) and, for a list keeper, **My Rating** (`MyRatingFields kind="identity"`, `PUT /api/me/ratings/identity/<id>` once the identity exists - see "The viewer's own rating"), **Photo** and the identity's own **First Appearances** (`CharacterFirstsFields`: First Mention, First Appearance, First Encounter, free text, a blank one sent as null). Picking a character prefills the four names and **Display Name** from it, as a starting point (`prefillFromCharacter`): a field is filled only while it is empty or still holds what the previous pick filled in, so nothing typed is overwritten and picking another character re-fills the untouched ones; clearing the character leaves the fields as they are, and gender, photo and the firsts are never prefilled. At least one name is required. The photo is attached after the create, as for characters, and Enter in a text input submits. `IdentityFields` is exported for the Modify tab. It has no `/defaults` tab (`identity` is outside `FORM_TABS`). Saves `POST /api/character-identity/`.
 
 **Character tab (Entity).** `CharacterAddTab.jsx`. Its only search box is the
 MAL `ExternalSearchBox`, over the form. `CharacterFields` is the
@@ -917,12 +964,13 @@ Trait` option categories — one vocabulary each, for every character, no
 scope; `lib/characterForm.js` turns the comma-joined form strings into the
 arrays the `POST` sends, `[]` for an empty list, and a typed value the
 vocabulary lacks is created by the character write itself, so the tab runs no
-`ensureSourceValues`; the sources are refetched after the save), a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
+`ensureSourceValues`; the sources are refetched after the save), then a
+**Links & Photos** section: a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
 page; the server reads the MAL id from it and, on save, fills the blank names
 and the photo from MAL — see [api.md](../api.md#character--apicharacter)),
 an **AniList Link** (`anilist_link`, placeholder
 `https://anilist.co/character/...`; stored as typed, a blank one as null,
-nothing filled from it), the photo, and a **First Appearances** section
+nothing filled from it) side by side, the photo and, on Modify, the photo fallback; then a **First Appearances** section
 (`CharacterFirstsFields`): **First Mention**, **First Appearance** and
 **First Encounter**, free text in the work's own notation (placeholder
 `第1卷 第13章, 1-13, S1 ep 8`), a blank one sent as null. The Role is the character's own. Left blank, it
@@ -1022,9 +1070,12 @@ lists. `POST /api/system-option` accepts any category string; the restriction
 is the form's. The picker
 arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
 see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
-categories under **Other**; a list that yields a single section — the Tags
-sub-tab, whose categories are one group — renders flat rather than under a
-heading repeating the sub-tab's own name. The Common Options sub-tab's picker
+categories under **Other**; a list that yields a single section renders flat
+rather than under one heading over every option. The Tags sub-tab's picker
+reads as four groups: **Tags** (`Genre Main`, `Genre Sub`, `Label`), **Game**
+(`Game Genre`, `Game Theme`), **H Genre** (the three gated H Genre
+categories, offered only to a session that can see a type they serve) and
+**Character** (`Character Appearance`, `Character Trait`). The Common Options sub-tab's picker
 reads as four groups: **Note Suggestion** (the seven game guide
 categories), **Music** (`Song Type`, `Song Source`), **Needs Work**
 (`Needs Work Note`) and **Studio & Publisher** (`Country`). The sub-tab's
@@ -1268,8 +1319,9 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
   order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`). The
-  Franchise tab ends with the detail page's **Related franchises** box
-  (`RelatedRecords`), which saves through its own button, not with the form.
+  Franchise tab ends with the detail page's **Related franchises** box and
+  the Series tab with its **Related series** box (`RelatedRecords`), each
+  saving through its own button, not with the form.
 - **The viewer's own rating.** The Collection, Franchise and Series tabs draw
   **My Rating** and **Expectation** under Other Information for a viewer who
   keeps a list, as on `/add`; the Person, Character, Studio and Publisher
@@ -1287,6 +1339,14 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
   keeps the new rating; an entity tab folds it into the form it reloads the
   same way. A failed PUT leaves the record saved and toasts "<Type> saved,
   but your rating did not save."
+- **An entity's notes.** Every entity editor - studio, publisher, person,
+  character, identity - ends with the entity's **Structured Notes**
+  (`EntityModifyNotes`): the same `NotesTemplate` block its detail page
+  draws, owner type the entity's, holding its 備註 Remark list, 個人筆記
+  Personal Notes and 資源 Resources. It sits in a card of its own **outside**
+  the editor's `<form>` - each row saves as it is edited, never with Save
+  Changes - and is keyed on the record, so opening another never shows the
+  last one's rows. The Add tabs have none: an unsaved record has no notes.
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
   save machinery above, which is shaped around media entries and the grouping
   tiers: it owns its own `useQuery` over `/api/studio/`, its own picker and
@@ -1345,14 +1405,18 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
   edited rather than with the form, as the photo does - each picture has its
   caption and its own **Content rating** select, PATCHed on change - see
   [components.md](components.md#entity-components-person-studio-and-character).
-- **Identity tab (Entity).** `IdentityModifyTab.jsx`, self-contained over `GET /api/character-identity/` (query key `["identities-admin"]`): `IdentityPicker`, a search box over every name of the identity and its character plus a grid of every identity showing "identity of <character>", then the `IdentityFields` form with the owning character shown read-only. Save is `PUT /api/character-identity/{id}`. A deep link `type=identity` hands the id to it as `initialId`.
+- **Identity tab (Entity).** `IdentityModifyTab.jsx`, self-contained over `GET /api/character-identity/` (query key `["identities-admin"]`): `IdentityPicker`, a search box over every name of the identity and its character plus a grid of every identity showing "identity of <character>", then the `IdentityFields` form with the owning character shown read-only. At the very top of the editor, **Other identities of the character** (`IdentityRibbon`, drawn like the media editors' "Other entries in this franchise") lists the character's other identities from the same admin list, each a chip that opens that identity's editor; an identity with no sibling has none. Save is `PUT /api/character-identity/{id}`, then the viewer's changed rating through `useFormRatingSaver` (the listed row carries the stored one). A deep link `type=identity` hands the id to it as `initialId`.
 - **Character tab (Entity).** `CharacterModifyTab.jsx`, self-contained the
   same way over `/api/character/` (query key `["characters-admin"]`) and
   picked the way people are: a `SubTabBar` of **All** then one tab per
   `CHARACTER_ROLES` value (Main, Core, Important Supporting, Supporting, Other — a character holds
   at most one), scope chips over the media types the shown characters are
   cast in, and a grid of every match up front filtered by the all-four-names
-  search. All lists characters with no type too. The pick
+  search. All lists characters with no type too. Above the editor card,
+  **Identities of this character** (`IdentityRibbon`, from the loaded
+  character's `identities`) names each of its identities in position order,
+  as plain chips rather than links - leaving would drop the form's unsaved
+  edits - and is not drawn for a character with none. The pick
   loads `CharacterFields` with the same **Photo fallback** select over
   `GET /api/character/{id}/entries`; for a character the chosen entry lends
   its casting photo first and its cover only when the casting has none, and
@@ -1378,7 +1442,7 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
 
 ## /delete (`Delete.jsx`)
 
-**Identity tab.** `IdentityDeleteTab.jsx` bypasses the per-type search/confirm pattern: it picks an identity with `IdentityPicker`, then confirms with the number of cast rows that will move to the character's main identity (`casting_count`). That count travels as `DELETE /api/character-identity/{id}?castings=N`; a 409 means it moved, and the tab shows the server's message. Deleting never deletes cast history - the rows fold into the main identity ([api.md](../api.md#character-identity--apicharacter-identity)).
+**Identity tab.** `IdentityDeleteTab.jsx` bypasses the per-type search/confirm pattern: it picks an identity with `IdentityPicker`, shows it in a `RecordSummaryCard` (names, character, gender, cast-row count and the entries it is cast in), then confirms with the number of cast rows that will move to the character's main identity (`casting_count`). That count travels as `DELETE /api/character-identity/{id}?castings=N`; a 409 means it moved, and the tab shows the server's message. Deleting never deletes cast history - the rows fold into the main identity ([api.md](../api.md#character-identity--apicharacter-identity)).
 
 Loads the five entity lists (options, studios, publishers, people,
 characters) and the three group lists (collection, franchise, series) on
@@ -1394,6 +1458,23 @@ with the consequences:
 | Franchise | **Cascade** (checkbox): deletes every series and every media entry of *every* type listed under it, or leaves them with `franchise_id = NULL` if unchecked. |
 | Series | **Cascade** over every entry listed under it, of every type; unchecked, they keep their franchise and lose the series. **Orphan franchise** offer when it is its franchise's only series and the franchise holds no entry outside a series. |
 | Any media entry | **Orphan series** offer when it is the last entry of any type in its series; **orphan franchise** offer when it is the last entry of any type in the franchise and the franchise has no (remaining) series. |
+
+**The picked record is summarised in full** (`components/info/RecordSummaryCard.jsx`,
+captioned "To delete"), on every tab, so a duplicate can be told from the
+record it duplicates before anything is confirmed:
+
+| Picked | The card shows |
+|---|---|
+| Media entry | Cover, every name, media type with its type columns (airing type, game type, region, …), primary release date, status columns, franchise and series, plus the comic's publisher and issues and the game's hours played. The game and h-game cards keep their copy-row warning. |
+| Collection, franchise, series | Every name, the franchise type, a series' franchise, then what it holds (below). |
+| Person | Photo, every name, gender, each role with its media types, affiliated studios, filled links (IMDb, MyAnimeList, AniList, …), credit count, and the entries credited. |
+| Character | Photo, every name, gender, role, media types, identities, first appearance, MAL/AniList links, casting count, and the entries cast in. |
+| Studio | Logo, every name, countries, founded – defunct, media types, filled links, credit count, and the entries credited. |
+| Publisher | Logo, every name, country, founded – defunct, scopes, website, credit count, and the entries credited. |
+
+An entity's entries come from its own `/entries` endpoint: a count of distinct
+entries, the newest five by name with their type, year and - for a person -
+credit label, each linking to its page, then "+N more".
 
 **Collection, franchise and series show what they hold.** Selecting one reads
 its members from the server (`hooks/useGroupMembers.js`), not from the page's
@@ -1456,7 +1537,11 @@ Character carry the same type tabs — All first, which lists records holding
 no type — and Person, Studio, Publisher and Character carry the same scope
 chips (`lib/entityScopes.js`), narrowing what the search dropdown offers.
 The merge-target pickers are not filtered: a duplicate's survivor can be of
-any type.
+any type. Both pickers draw each candidate with its picture and one line of
+its other names, its type (a person's roles, a character's role) and its
+count, not the name alone. Once a merge target is picked, its card sits beside
+the record being merged away - two columns from `md` up, stacked below it -
+captioned "Merged away" and "Survives", above the Confirm Merge row.
 
 **Person tab (Entity).** A `PersonSubTabBar` filters the picker to the people
 holding one type, or to everyone on All, then the selected person's whole record is edited through
@@ -1470,7 +1555,7 @@ count sent as `?credits=N` so a count that moved while the dialog was open
 comes back as a 409 rather than a silent over-deletion.
 
 **Studio tab (Entity).** A picker over `/api/studio/` showing each studio's
-display name, id and credit count, then a warning that says exactly what
+picture, names and credit count, then a warning that says exactly what
 deleting costs: `media_credit.studio_id` is `ON DELETE CASCADE`, so deleting
 destroys this studio's *n* credits on every entry linked to it, and its relations to other studios (both sides). The panel
 therefore offers **Merge Into Another Studio** beside Delete — merge
@@ -1482,7 +1567,7 @@ server's message - a 409 when the filled names would equal another record's. Del
 `deleted_record`.
 
 **Publisher tab (Entity).** The same shape as the studio tab above: a picker
-over `/api/publisher/` showing display name, id and credit count; a warning
+over `/api/publisher/` showing picture, names and credit count; a warning
 that `media_credit.publisher_id` is `ON DELETE CASCADE`, so deleting destroys
 this publisher's *n* credits; **Merge Into Another Publisher**
 (`POST /api/publisher/{keep}/merge` with the selected publisher as
@@ -1497,8 +1582,14 @@ One tab per `FORM_TABS` entry (`DefaultsTab.jsx`) — every media type, the
 three grouping tiers, and the three Entity tabs. Fields come from
 `config/formFields/fieldMeta.js` (label, control, option source, `coerce`
 rule); values are stored per type via `/api/form-defaults/<type>` and applied
-by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
-defaults for that type. No image field takes a default - `cover_image_file`,
+by `useFormDefaults` when an Add form is created. The page reads the config
+through the form-defaults query (`useFormDefaults()`) beside the suggestion
+lists, and opens once both are in; a config that cannot be read opens it on the
+built-ins with an error toast. Each tab keeps its unsaved draft while another is
+open, a dot marks every tab with one, and leaving the page with any asks first.
+**Save** (`PUT`) writes the type's config into the query cache, and "Reset"
+(`DELETE`) deletes the stored defaults for that type and drops it from the
+cache, so Add and Modify open on the change without a stale read. No image field takes a default - `cover_image_file`,
 `logo_file` and `photo_file`, and their focal points `cover_image_focus`,
 `logo_focus` and `photo_focus`, are all `control: "none"`,
 `defaultable: false`, since an image is set through `ImagePicker` and a
@@ -1510,6 +1601,17 @@ whose options do not include it - a gender saved as `Female`, outside
 `GENDERS` - because the select shows such a value as blank while the form
 would still post it and be refused with a 422. Note `coerce: "tristate"` is implemented but unused
 by any field.
+
+**The auto-fill column.** Each auto-fillable field has a tick in the third
+column, under one heading at the top of the tab, **Replace when choosing an
+existing entry**: a ticked field is the one a pick in the Add tab's
+"Auto-fill from existing entry" box overwrites. The ticks carry no text of
+their own; each has the accessible name "Replace <field> when choosing an
+existing entry", which is all that names it below `md`, where the grid
+collapses and the heading is hidden. A field that cannot be auto-filled shows
+a dash in the column. Each group header offers **Select all** while any of
+its fields is unticked, and drops it once all are; there is no group-wide
+untick - a field is unticked by its own box.
 
 **Restricted Prefill** sits under the Sources field on every type that has
 one: which restricted source names a new entry is prefilled with
@@ -1625,14 +1727,16 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic, Source & Platform, **Character** (the
+reads as Tags, Game, **H Genre** (`H Genre Plot`, `H Genre Appearance`, `H
+Genre Relation`), Comic, Source & Platform, **Character** (the
 `Character Appearance` and `Character Trait` vocabularies), then the common
 options: **Note Suggestion** (`Character Group`, `Collectible Type`, `Item
 Type`, `Weapon & Gear Type`, `Enemy Tier`, `Side Quest Type`, `Geography
 Group`, which the game note sections' free-text fields suggest from),
 **Music** (`Song Type`, `Song Source`) and **Needs Work** (`Needs Work
 Note`). Source &
-Platform holds the platform and reference vocabularies, the ones that name an outside party.
+Platform holds the platform and reference vocabularies - `Platform`,
+`Serialization Platform`, `Exclusive Platform` and `Reference Source`.
 Publishers and distributors are **not** among them — they are entities, edited
 on the Entity → Publisher tab.
 
@@ -1732,7 +1836,12 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   people, characters), search and the Random Picker, the member-only
   reading surfaces) is drawn with `fa-eye`. On `user`, `guest` and `shared`
   the three gated media types are drawn locked (on for `user`, off for the
-  other two), through the same `locked_on` / `locked_off`.
+  other two), through the same `locked_on` / `locked_off`. Each box is
+  drawn by the permission's label alone: the catalog serves a description
+  per permission, and this page does not draw it. The selected role's
+  heading carries the role's stored `description` as one line under it, and
+  nothing when that is empty. Neither Roles nor Users has an explanatory
+  line under its title.
 - **Users** — create users with a role, and edit, disable or delete them;
   the server refuses deleting or disabling your own account, and those
   refusals surface as toasts. The create form's role select offers only
@@ -1749,7 +1858,7 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
     - **Role** — a select offering only **User** and **Super**; an `admin`
       or `shared` account shows its role as text, since the server answers
       409 to changing either.
-    - **Password** — optional, and the field says that setting one signs the
+    - **Password** — optional, with no hint under it; setting one signs the
       account out everywhere.
     - **Open request limit** — a number field (blank is no limit) for any
       account whose role has one: not for `super`, which is never limited
@@ -1768,7 +1877,7 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
       included: the **ceiling** (any ranked mode, narrowest first, or none),
       the login **default** (only modes at or below the ceiling), and the
       ceiling's own labels and field groups as tick-to-show boxes, unticked
-      to deny. Lowering the ceiling below the default moves the default down
+      to deny, with no instruction line above them. Lowering the ceiling below the default moves the default down
       and drops denials the new ceiling does not show. The admin account has
       no mode — the server answers 409 to giving it one — so its dialog says
       so instead.

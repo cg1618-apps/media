@@ -27,6 +27,7 @@ from app.services.domain.character_identities import (
     identity_response,
 )
 from app.services.domain.entity_photos import character_media
+from app.services.domain.user_rating import attach_ratings
 from app.services.rbac.resolver import (
     Viewer,
     require_manage_catalog,
@@ -54,6 +55,7 @@ def _admin_response(
         character_display_name=character.display_name,
         character_public_id=character.public_id,
         casting_count=identity_casting_count(db, identity.system_id),
+        my_rating=identity.my_rating,
     )
 
 
@@ -96,6 +98,7 @@ def list_identities(
             )
         )
     identities = query.order_by(models.CharacterIdentity.position).all()
+    attach_ratings(db, "identity", identities, admin.user_id)
     out = [_admin_response(db, i, admin) for i in identities]
     out.sort(key=lambda r: (r.character_display_name.casefold(), r.position))
     return out
@@ -135,10 +138,12 @@ def get_identity(
     # The photo fallback is resolved for THIS viewer: an entry's picture it
     # may not see never stands in for the identity's.
     media = character_media(db, viewer, [character])[character.system_id]
+    attach_ratings(db, "identity", identity, viewer.user_id)
     return schemas.IdentityDetailResponse(
         **identity_response(identity, character, media).model_dump(),
         character_public_id=character.public_id,
         character_display_name=character.display_name,
+        my_rating=identity.my_rating,
     )
 
 
@@ -164,6 +169,7 @@ def create_identity(
     db.add(identity)
     db.commit()
     db.refresh(identity)
+    attach_ratings(db, "identity", identity, admin.user_id)
     return _admin_response(db, identity, admin)
 
 
@@ -185,6 +191,7 @@ def update_identity(
     prefer_cn_display_name(identity)
     db.commit()
     db.refresh(identity)
+    attach_ratings(db, "identity", identity, admin.user_id)
     return _admin_response(db, identity, admin)
 
 

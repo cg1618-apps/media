@@ -634,14 +634,22 @@ legacy sheet header `source_official` (`LEGACY_SHEET_COLUMN`), while `movie`
 [data-model.md](data-model.md#virtual-fields-on-media-entries).
 
 `TAG_CATEGORIES` (served as `/api/constants` `tag_categories`): `Genre Main`,
-`Genre Sub`, `Label` — the subset of the categories below that the
-admin Add / Modify / Delete pages offer under their **Tags** sub-tab instead
-of **Options**. The split is navigation only: every sub-tab is the same form
+`Genre Sub`, `Label`, `Game Genre`, `Game Theme`, `H Genre Plot`,
+`H Genre Appearance`, `H Genre Relation`, `Character Appearance` and
+`Character Trait` — the subset of the categories below that the admin Add /
+Modify / Delete pages offer under their **Tags** sub-tab instead of
+**Options**. The split is navigation only: every sub-tab is the same form
 over the same `system_option` rows, and nothing in the data or the API marks
-a category as a tag. The list is written out, not derived — these three are the
-vocabularies every mainstream type shares, but what puts a category here
-is that its values read as tags *on* the work, while `Platform` and the
-Comic vocabularies name an outside party. A new category is therefore not automatically a tag.
+a category as a tag. The list is written out, not derived — what puts a
+category here is that its values read as tags *on* the work or the character
+they are attached to, while `Platform` and the Comic vocabularies name an
+outside party and `Game Mode`, `Combat Mode`, `Game Platform` and `Exclusive
+Platform` say how or where a game is played. A new category is therefore not
+automatically a tag. The three H Genre categories are withheld from
+`tag_categories` as from `option_categories` for a session that can see none
+of the types they serve. The Tags sub-tab's picker reads its categories under
+four headings - **Tags**, **Game**, **H Genre** and **Character** - the
+`TIER2_GROUPS` they belong to.
 
 `COMMON_OPTION_CATEGORIES` (`app/utils/credit_roles.py`, served as
 `/api/constants` `common_option_categories`): the **common options**, which
@@ -692,9 +700,8 @@ row a seed gave it that the category would not (the game guide values
 seeded unscoped stay unscoped; a note field only asks for its category on
 the owner types its sections apply to, so the two read the same).
 
-`FILTER_ONLY_CATEGORIES`: `Franchise for Filter` and `Reference Source` (Tier
-2 categories with no `TagField` behind them — `Reference Source` instead
-backs `media_source` `kind='reference'` rows directly, resolved by
+`FILTER_ONLY_CATEGORIES`: `Reference Source` (a Tier 2 category with no
+`TagField` behind it — it backs `media_source` `kind='reference'` rows directly, resolved by
 `option_id` the same way `main`-bucket access rows are, never through
 `media_tag`). `NOTE_OPTION_CATEGORIES` (`app/utils/note_sections.py`):
 `Easter Egg Group`, `Weapon & Gear Type`, `Item Type`, `Collectible Type`, `Character Group`,
@@ -702,7 +709,7 @@ backs `media_source` `kind='reference'` rows directly, resolved by
 `option_category`, a section's `kind_category` and `link_text_category`)
 rather than listed, so a section that names a new category offers it with no
 second edit. `OPTION_CATEGORIES` = the tag-field categories, the two character
-tag categories (`CHARACTER_OPTION_CATEGORIES`), these twelve, and
+tag categories (`CHARACTER_OPTION_CATEGORIES`), these eleven, and
 `Needs Work Note` (`NEEDS_WORK_NOTE_CATEGORY`) and `Country` (`COUNTRY_CATEGORY`), served as `/api/constants` `option_categories` and unioned with the
 categories present in the stored options to build the category picker on the
 Add and Modify pages. Without it a declared category holding no values yet
@@ -806,7 +813,6 @@ ones in `OPTION_CATEGORIES`:
 | `H Genre Relation` | h-comic, h-game, hentai | tag field `h_genre_relation`; admin-managed, ships empty |
 | `Character Appearance` | unscoped (every character) | character tag field `appearance`; admin-managed, ships empty, and a value typed into the character form creates itself |
 | `Character Trait` | unscoped (every character) | character tag field `trait`; admin-managed, ships empty, and a value typed into the character form creates itself |
-| `Franchise for Filter` | movie, tv-show | nothing today; filter-only, no form field |
 | `Song Type` | anime (`COMMON_OPTION_SCOPES`) | suggestions for the Song Type (`note.kind`) of an `op` or `ed` row; `normal`, `different version`, `all inclusive version` seeded by `m1s2ongstat3`. Suggestions only - a value not in the list is stored as typed |
 | `Easter Egg Group` | the 彩蛋 owners (`COMMON_OPTION_SCOPES`) | suggestions for a 彩蛋 Easter Eggs row's Group (`easter_eggs`, `note.kind`); ships empty. Suggestions only - a group not in the list is stored as typed |
 | `Song Source` | anime (`COMMON_OPTION_SCOPES`) | suggestions for a song link's title (`text` of a titled link on `op`, `ed`, `insert_songs`, `ost`); `YouTube`, `YouTube Music`, `Spotify`, `Apple Music`, `Bilibili` seeded by `m1s2ongstat3`. Suggestions only, like `Song Type` |

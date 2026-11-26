@@ -20,9 +20,10 @@ export default function OptionCategorySelect({
   className = selectCls,
 }) {
   const sections = groupTier2Categories(categories);
-  // One section is the Tags sub-tab, whose four categories are its whole list.
-  // A heading over all of them says what the sub-tab bar just said, so the
-  // options are rendered bare instead.
+  // A list that yields one section - a filtered or near-empty picker - gets no
+  // heading: one heading over every option says nothing the list does not.
+  // Every sub-tab's full list spans several sections (the Tags sub-tab reads
+  // as Tags, Game, H Genre and Character), so each is rendered in optgroups.
   const grouped = sections.length > 1;
   return (
     <select className={className} value={value} onChange={onChange}>

@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for FranchiseModifyTab.
+import EntryNameFields from "../../components/forms/EntryNameFields";
 import MyRatingFields from "../../components/forms/MyRatingFields";
 import { useEffect, useState } from "react";
 import { getDisplayName, parseTypes } from "../../utils/media";
@@ -6,7 +7,6 @@ import { releaseYear } from "../../lib/releaseDate";
 import {
   Field,
   SectionHeader,
-  inputCls,
   selectCls,
 } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
@@ -227,43 +227,7 @@ export default function FranchiseModifyTab({
   return (
     <>
       <SectionHeader icon="fa-sitemap" title="Titles & Naming" />
-      <Field label="Franchise Name EN">
-        <input
-          className={inputCls}
-          value={ff.franchise_name_en}
-          onChange={(e) => uf("franchise_name_en", e.target.value)}
-        />
-      </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Franchise Name CN">
-          <input
-            className={inputCls}
-            value={ff.franchise_name_cn}
-            onChange={(e) => uf("franchise_name_cn", e.target.value)}
-          />
-        </Field>
-        <Field label="Franchise Name roman">
-          <input
-            className={inputCls}
-            value={ff.franchise_name_roman}
-            onChange={(e) => uf("franchise_name_roman", e.target.value)}
-          />
-        </Field>
-        <Field label="Franchise Name JP">
-          <input
-            className={inputCls}
-            value={ff.franchise_name_jp}
-            onChange={(e) => uf("franchise_name_jp", e.target.value)}
-          />
-        </Field>
-        <Field label="Franchise Name Alt">
-          <input
-            className={inputCls}
-            value={ff.franchise_name_alt}
-            onChange={(e) => uf("franchise_name_alt", e.target.value)}
-          />
-        </Field>
-      </div>
+      <EntryNameFields f={ff} u={uf} prefix="franchise" label="Franchise" />
       <SectionHeader icon="fa-info-circle" title="Other Information" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Collection">

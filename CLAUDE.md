@@ -143,12 +143,13 @@ See `.env.example` (authoritative) and `docs/setup-local.md`. Three things to kn
 - Anime Movie (table `anime_movies`, route `/api/anime-movie`) is not the same as an Anime with `airing_type = "Movie"` (table `anime`).
 - **"Related" and "relation" name two different systems.**
   - **"Related"** — "the related system", "related records", "related
-    companies", "related franchises" — means the untyped two-way links
-    between companies (`company_relation`: studios and publishers, in any mix)
-    and between franchises (`franchise_relation`). They are written only by
+    companies", "related franchises", "related series" — means the untyped
+    two-way links between companies (`company_relation`: studios and
+    publishers, in any mix), between franchises (`franchise_relation`) and
+    between series (`series_relation`). They are written only by
     `app/services/domain/peer_relation.py`, each side keeps its own remark, and
-    they show in the **Related companies** and **Related franchises** boxes
-    (`RelatedRecords.jsx`). See
+    they show in the **Related companies**, **Related franchises** and
+    **Related series** boxes (`RelatedRecords.jsx`). See
     `docs/notes/decisions/2026-11-20-peer-relations-are-two-rows.md`.
   - **"Relation"** means a media relation: a typed link between two entries
     (`media_relation`: Sequel, Adaptation, …), curated on the admin

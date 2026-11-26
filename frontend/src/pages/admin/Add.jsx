@@ -1,5 +1,6 @@
 // Frontend: page component file for Add.
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
@@ -29,6 +30,7 @@ import {
   requiredLabelsForFranchiseType,
   requiredLabelsForType,
 } from "../../lib/gatedTypes";
+import { seriesPickerItems } from "../../lib/seriesPickerItems";
 import { useGroupQuickCreate } from "../../hooks/useGroupQuickCreate";
 import { entryGroupNames, SERIES_AUTOFILL_KEYS } from "../../lib/groupQuickCreate";
 import CollectionAddTab, {
@@ -102,10 +104,12 @@ import AnimeMovieAddTab, {
 import AnimeAddTab, { defaultAnime } from "../add-tabs/AnimeAddTab";
 import AddedEntryNotes from "../add-tabs/AddedEntryNotes";
 import {
+  NO_FORM_DEFAULTS,
   autofillFields,
-  fetchFormDefaults,
+  loadFormDefaults,
   prefillPicks,
   resolveDefaults,
+  useFormDefaults,
 } from "../../hooks/useFormDefaults";
 import { buildAutofillPatch } from "../../lib/autofill";
 import {
@@ -209,8 +213,11 @@ export default function Add() {
   const setAllHGames = (v) => setList("h-game", v);
   const setAllHentai = (v) => setList("hentai", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
-  // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
-  const [formDefaults, setFormDefaults] = useState({});
+  // Admin-configured form defaults, keyed by media type - the cache /defaults
+  // writes on save. NO_FORM_DEFAULTS (the built-ins) until it loads, and on a
+  // failure.
+  const queryClient = useQueryClient();
+  const { data: formDefaults = NO_FORM_DEFAULTS } = useFormDefaults();
   // for entry lists too is what made this page slow to first paint.
   const [sourcesLoading, setSourcesLoading] = useState(true);
 
@@ -465,7 +472,7 @@ export default function Add() {
       // lists above rather than after them: nothing here reads an entry list,
       // so sequencing the two only ever cost a round trip.
       const [fd, srcData] = await Promise.all([
-        fetchFormDefaults().catch(() => ({})),
+        loadFormDefaults(queryClient),
         fetchAllSources().catch(() => ({
           options: [],
           studios: [],
@@ -477,7 +484,7 @@ export default function Add() {
       // Seed every form from the configured defaults. Safe to do here rather
       // than in the useState initializers: the page renders a spinner until
       // sourcesLoading flips, so the first paint of the form already has these.
-      setFormDefaults(fd);
+      // `fd` is the cached config formDefaults reads by then.
       setAf(resolveDefaults("anime", fd));
       setAmf(resolveDefaults("anime-movie", fd));
       setMf(resolveDefaults("movie", fd));
@@ -500,7 +507,7 @@ export default function Add() {
       setSourcesLoading(false);
     }
     load();
-  }, []);
+  }, [queryClient]);
 
   // One auto-fill handler per tab. Which fields get copied comes from the
   // admin's /defaults configuration, falling back to the built-in field sets.
@@ -591,6 +598,13 @@ export default function Add() {
     });
   const applyPersonMalPick = entityMalPick(setPersonForm);
   const applyCharacterMalPick = entityMalPick(setCharacterForm);
+  // A person keeps only imdb_link; the server reads the nm id from it. The
+  // English name is filled when blank, as MAL fills the Japanese one.
+  const applyPersonImdbPick = makeTmdbPick(setPersonForm, showToast, {
+    resolveUrl: endpoints.person.tmdbImdbId,
+    idField: null,
+    nameField: "name_en",
+  });
   const applyMovieTmdbPick = makeTmdbPick(setMf, showToast, {
     resolveUrl: endpoints.movie.tmdbImdbId,
     nameField: "movie_name_en",
@@ -2237,136 +2251,9 @@ export default function Add() {
       .filter(Boolean)
       .join(" "),
   }));
-  const seriesItems = (
-    activeTab === "anime" && af.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === af.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-  const seriesItemsForMovie = (
-    mf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === mf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForTvShow = (
-    tvf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === tvf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForCartoon = (
-    cf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === cf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForManga = (
-    mgf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === mgf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForBook = (
-    nvf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === nvf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForGame = (
-    gmf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === gmf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForHComic = (
-    hcf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === hcf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForHGame = (
-    hgf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === hgf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForHentai = (
-    htf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === htf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForComic = (
-    cmf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === cmf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
+  // One list for every tab: FamilyLineageFields narrows it to the picked
+  // franchise, or to the franchises the tab's rule offers.
+  const seriesItems = seriesPickerItems(allSeries);
 
   // Declared categories first, then whatever else the stored options carry:
   // a category a tag field reads must be offered even before its first value
@@ -2527,7 +2414,7 @@ export default function Add() {
             applyMovieEntryAutofill={applyMovieEntryAutofill}
             applyTmdbPick={applyMovieTmdbPick}
             allFranchises={allFranchises}
-            seriesItemsForMovie={seriesItemsForMovie}
+            seriesItemsForMovie={seriesItems}
             sources={formSources}
           />
         )}
@@ -2543,7 +2430,7 @@ export default function Add() {
             applyTvShowEntryAutofill={applyTvShowEntryAutofill}
             applyTmdbPick={applyTvShowTmdbPick}
             allFranchises={allFranchises}
-            seriesItemsForTvShow={seriesItemsForTvShow}
+            seriesItemsForTvShow={seriesItems}
             sources={formSources}
           />
         )}
@@ -2559,7 +2446,7 @@ export default function Add() {
             applyCartoonEntryAutofill={applyCartoonEntryAutofill}
             applyTmdbPick={applyCartoonTmdbPick}
             allFranchises={allFranchises}
-            seriesItemsForCartoon={seriesItemsForCartoon}
+            seriesItemsForCartoon={seriesItems}
             sources={formSources}
           />
         )}
@@ -2575,7 +2462,7 @@ export default function Add() {
             applyMangaEntryAutofill={applyMangaEntryAutofill}
             applyMalPick={applyMangaMalPick}
             allFranchises={allFranchises}
-            seriesItemsForManga={seriesItemsForManga}
+            seriesItemsForManga={seriesItems}
             sources={formSources}
           />
         )}
@@ -2592,7 +2479,7 @@ export default function Add() {
             applyMalPick={applyBookMalPick}
             applyOpenLibraryPick={applyBookOpenLibraryPick}
             allFranchises={allFranchises}
-            seriesItemsForBook={seriesItemsForBook}
+            seriesItemsForBook={seriesItems}
             sources={formSources}
           />
         )}
@@ -2608,7 +2495,7 @@ export default function Add() {
             applyComicEntryAutofill={applyComicEntryAutofill}
             applyComicVinePick={applyComicVinePick}
             allFranchises={allFranchises}
-            seriesItemsForComic={seriesItemsForComic}
+            seriesItemsForComic={seriesItems}
             sources={formSources}
           />
         )}
@@ -2621,7 +2508,7 @@ export default function Add() {
             ugm={ugm}
             allFranchises={allFranchises}
             allGames={allGames}
-            seriesItemsForGame={seriesItemsForGame}
+            seriesItemsForGame={seriesItems}
             sources={formSources}
             gamesLoading={isLoading("game")}
             applyGameEntryAutofill={applyGameEntryAutofill}
@@ -2640,7 +2527,7 @@ export default function Add() {
             allHComics={allHComics}
             hComicsLoading={isLoading("h-comic")}
             applyHComicEntryAutofill={applyHComicEntryAutofill}
-            seriesItemsForHComic={seriesItemsForHComic}
+            seriesItemsForHComic={seriesItems}
             sources={formSources}
           />
         )}
@@ -2654,7 +2541,7 @@ export default function Add() {
             allFranchises={allFranchises}
             allHGames={allHGames}
             hGamesLoading={isLoading("h-game")}
-            seriesItemsForHGame={seriesItemsForHGame}
+            seriesItemsForHGame={seriesItems}
             sources={formSources}
             applyIgdbPick={applyHGameIgdbPick}
             applyHGameEntryAutofill={applyHGameEntryAutofill}
@@ -2671,7 +2558,7 @@ export default function Add() {
             allHentai={allHentai}
             hentaiLoading={isLoading("hentai")}
             applyHentaiEntryAutofill={applyHentaiEntryAutofill}
-            seriesItemsForHentai={seriesItemsForHentai}
+            seriesItemsForHentai={seriesItems}
             sources={formSources}
           />
         )}
@@ -2752,6 +2639,7 @@ export default function Add() {
               roles={personRoles}
               setRoles={setPersonRoles}
               applyMalPick={applyPersonMalPick}
+              applyImdbPick={applyPersonImdbPick}
             />
           </div>
         )}

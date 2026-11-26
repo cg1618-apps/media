@@ -414,7 +414,8 @@ def parse_user_rating_from_sheet(raw: dict) -> dict:
     """
     One account's rating and expectation of one catalogue row. user_id is not
     in the sheet - pull.py resolves the row's `username` - and each owner
-    column is a uuid: the tiers' and characters' travel unchanged, and a
+    column is a uuid: the tiers', characters' and identities' travel
+    unchanged, and a
     person's, studio's or publisher's is translated through its own tab.
     """
     return {
@@ -426,6 +427,7 @@ def parse_user_rating_from_sheet(raw: dict) -> dict:
         "person_id": _uuid_or_none(raw.get("person_id")),
         "studio_id": _uuid_or_none(raw.get("studio_id")),
         "publisher_id": _uuid_or_none(raw.get("publisher_id")),
+        "identity_id": _uuid_or_none(raw.get("identity_id")),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "expectation": parse_from_sheet(raw.get("expectation"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
@@ -1641,6 +1643,22 @@ def parse_franchise_relation_from_sheet(raw: dict) -> dict:
         "system_id": parse_from_sheet(raw.get("system_id"), UUID),
         "franchise_id": _uuid_or_none(raw.get("franchise_id")),
         "related_franchise_id": _uuid_or_none(raw.get("related_franchise_id")),
+        "remark": parse_from_sheet(raw.get("remark"), str),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+        "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
+    }
+
+
+def parse_series_relation_from_sheet(raw: dict) -> dict:
+    """
+    Parses a raw dictionary from the Series Relation sheet: one side of a
+    relation, with that side's remark. A series' uuid travels with the Series
+    tab, so both ends are stored as written, as Franchise Relation's are.
+    """
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "series_id": _uuid_or_none(raw.get("series_id")),
+        "related_series_id": _uuid_or_none(raw.get("related_series_id")),
         "remark": parse_from_sheet(raw.get("remark"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),

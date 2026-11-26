@@ -1,5 +1,6 @@
-// Frontend: tests for the related records on a studio's, a publisher's or a
-// franchise's page - and in their Modify forms, which render the same box.
+// Frontend: tests for the related records on a studio's, a publisher's, a
+// franchise's or a series' page - and in their Modify forms, which render the
+// same box.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -201,6 +202,35 @@ describe("RelatedRecords on a franchise", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(putBodies).toHaveLength(1));
     expect(putBodies[0].url).toBe("/api/franchise/a/related");
+  });
+});
+
+describe("RelatedRecords on a series", () => {
+  it("reads and writes the series routes, under its own title", async () => {
+    const user = userEvent.setup();
+    related = [];
+    mount(true, "series");
+    expect(await screen.findByText("No related series.")).toBeInTheDocument();
+    expect(String(fetch.mock.calls[0][0])).toBe("/api/series/a/related");
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    // Every series, past the list route's default page of 500.
+    await waitFor(() =>
+      expect(fetch.mock.calls.map(([u]) => String(u))).toContain("/api/series/?limit=2000"),
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    expect(putBodies[0].url).toBe("/api/series/a/related");
+  });
+
+  it("names a series from the list, which carries no display_name", () => {
+    const items = pickerItems(
+      { series: [{ system_id: "s", public_id: 7, series_name_en: "Shingeki Saga" }] },
+      [],
+      { kind: "series", id: "a" },
+    );
+    expect(items).toEqual([
+      expect.objectContaining({ id: "series:s", label: "Shingeki Saga" }),
+    ]);
   });
 });
 

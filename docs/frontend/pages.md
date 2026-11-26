@@ -73,6 +73,7 @@ are a large share of the bundle and never needed on first paint.
 | `/settings` | `public/Settings.jsx` — the account's username and role, a line saying the list, ratings and personal notes are visible to that account only, and the Password card for an account holding `self.password` | lazy, **`self.list`** |
 | `/requests` | `public/MyRequests.jsx` | lazy, **`self.requests`** |
 | `/under-development` | `public/UnderDevelopment.jsx` | eager |
+| `/guide` | `public/UnderDevelopment.jsx` — the Guide is not written yet | eager, open to everyone; only the nav link is limited to guest, shared and user |
 
 **Gated routes.** The two h-comic routes sit inside
 `<ProtectedRoute gatedType="h-comic">`, the two h-game routes inside
@@ -155,8 +156,9 @@ about styling.
 | `extras` | Extras | flat | Quotes `/quote` and Memes `/meme` (each `feature: "quotes_memes"`), Resources `/resources` (`requires: "manage.resources"`, so the admin and super only) ┃ Relations `/relations`, Orders `/orders` — these two carry `requires: "manage.catalog"` on the row, inside a tab everyone may open |
 | `entry` | Entry | flat, `requires` any of `manage.catalog` / `manage.images` | Add `/add`, Modify `/modify`, Delete `/delete`, Form Defaults `/defaults`, Picker Defaults `/random-defaults` — each `requires: "manage.catalog"` — and Images `/images` (`requires: "manage.images"`). The admin holds no `manage.catalog`, so Images is the one row it sees |
 | `note` | Note | flat, `requires` any of `manage.options` / `admin.authz` / `manage.catalog` / `manage.pipelines` — whatever its rows ask, so the admin, holding no `manage.catalog`, still sees the whole section | System Options `/options`, Alias Conversion `/aliases`, External APIs `/external-apis` — the three read-only inventories of how the data is described, each `requires: "manage.options"` — Content Labels `/content-labels`, the read-only label reference, which carries `requires: ["admin.authz", "manage.catalog"]` (any of the two, the same either-of its route asks), and Business Logic `/business-logic`, what Calculate All changes step by step, which carries `requires: "manage.pipelines"` on the row, so only the super role and admin see it |
-| `system` | System | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, Review Queue, Clean Orphans, **Inbox** `/request-inbox` and **待補充 Needs Work** `/needs-work`, each carrying `requires: "manage.requests"` on the row — the key both routes ask |
+| `system` | System | flat, `requires: "manage.pipelines"` | Control Center `/system`, Data History, **Inbox** `/request-inbox` and **待補充** `/needs-work`, each carrying `requires: "manage.requests"` on the row — the key both routes ask. Review Queue and Clean Orphans are not listed: the Control Center links to both |
 | `admin` | Admin | flat, `requires: "admin.authz"` | Users, Roles, Access Modes |
+| `guide` | Guide | a link of its own (`to: "/guide"`, no `items`), `excludes: ["manage.catalog", "admin.authz"]`, `end: true` | No rows: the tab is the link, set at the right end of the strip. Drawn for guest, shared and user and never for super or the admin, who are the only holders of those two keys (`manage.catalog` is locked on for super alone, `admin.authz` for the admin alone) |
 
 Each item has `label`, `icon` (Font Awesome class), `to`, optional `matches`
 (extra path prefixes that light the tab up — `/anime/123` highlights the Anime
@@ -166,11 +168,14 @@ to `/under-development`), `divider` (a rule between item groups) and
 needed)` answers both) or `feature` (a per-row account feature switch, asked
 through `hasFeature` in place of `requires`). Helpers:
 `sectionItems`, `activeItem` / `activeSectionKey` (segment-aware prefix match,
-so `/library/anime` does not claim `/library/anime-movie`),
+so `/library/anime` does not claim `/library/anime-movie`; a section with a
+`to` of its own owns that path, with no item under it),
 `sectionRequirement` / `itemRequirement` (`adminOnly: true` is the legacy
 spelling of `requires: "admin.authz"`) and `visibleSections(sections, has,
 canSeeType, hasFeature)` — which drops both the sections and the individual
-rows the viewer lacks the permission for, a row carrying `gatedType` unless
+rows the viewer lacks the permission for, a section holding any key in its
+`excludes` list (the opposite of `requires`, for a tab meant for the reading
+accounts only), a row carrying `gatedType` unless
 `canSeeType` answers yes (Nav passes `canSeeGatedType`), and a row carrying
 `feature` unless `hasFeature` answers yes (left out, every such row is
 hidden), then drops any section
@@ -179,10 +184,14 @@ hands back the original item objects, since Nav marks the current row by
 identity. Every gate is `has()` from `useAuth()`, a plain membership test,
 so a tab or row is drawn only for a role that holds its key.
 
-A guest is therefore shown two tabs: Library, holding Groups, ACG and
-Reality, and Explore, holding Seasonal and Future Releases. A shared
-account's Explore adds the Random Picker and Statistics. The admin is shown no
-Library, Restricted, Track or Explore tab, Extras holding Resources alone,
+A section carries `items`, `columns`, or neither and a `to` of its own — a
+tab that is itself the link, with no panel (Guide). `end: true` pushes a tab
+to the right end of the strip.
+
+A guest is therefore shown two tabs and the Guide link: Library, holding
+Groups, ACG and Reality, and Explore, holding Seasonal and Future Releases. A
+shared account's Explore adds the Random Picker and Statistics. The admin is
+shown no Library, Restricted, Track, Explore or Guide tab, Extras holding Resources alone,
 Entry holding Images alone, and Note, System and Admin in full.
 
 **`components/layout/Nav.jsx`** renders two rows: an "ink" row (logo → `/`,
@@ -191,7 +200,9 @@ phone's search button and the sheet it opens are drawn only for a viewer
 holding `view.search`, the key the `/search` route asks. Mega-panel behaviour:
 click-outside closes, Escape returns focus to the trigger, ArrowUp/Down cycle
 links inside `[data-nav-panel]`, any route change closes the panel, the
-mobile drawer and the phone search. Session controls: a session indicator, the
+mobile drawer and the phone search. A section with a `to` of its own (Guide)
+renders as a plain link in both: a tab with no panel, marked current on its
+own path, and a drawer row with nothing to unfold. Session controls: a session indicator, the
 access-mode switcher, and a theme toggle (moon/sun, `useTheme().toggle`,
 `aria-pressed`). The indicator always renders: the
 account's `username` when signed in, **Guest** when not. It is a value, so it
@@ -331,7 +342,7 @@ loading state until then, because before it every viewer looks like a guest.
 | Part | Asks | Who that is, as seeded |
 |---|---|---|
 | The admin's own page (`AdminDashboard`), **instead of** everything below | `has("admin.authz")` and none of `LIBRARY_MEDIA_TYPE_PERMISSIONS`, the Library tab's own question | admin |
-| Tracker: My watch schedule, Coming Next, Followed orders, the type filter bar, Pinged, Watching, Reading, Playing | `has("self.list")` | super, user |
+| Tracker: My Schedule, Coming Next, Followed orders, the type filter bar, Pinged, Watching, Reading, Playing | `has("self.list")` | super, user |
 | Summary (`DashboardSummary`) above Announcements | `has("self.list") && has("manage.requests")` | super |
 | Libraries (`#libraries`, `LibraryLinks`) | `!has("self.list")`, and at least one library row visible | guest, shared |
 | Recently added (`#recent`, `RecentlyAdded`) | `!has("self.list") && has("view.random_picker")` | shared |
@@ -340,8 +351,7 @@ Announcements and the Broadcast schedule are drawn for every viewer of the
 catalogue dashboard. The tracker is built from the viewer's own statuses and
 progress, and its controls write the viewer's own rows, so it is a member's
 list, not catalogue, and `self.list` decides it rather than a `view.*` key.
-The TOC, the scroll-spy and the schedule's "N scheduled" count cover only the
-parts drawn.
+The TOC and the scroll-spy cover only the parts drawn.
 
 **The summary** reads `GET /api/dashboard/summary` and is fetched only for a
 viewer it is drawn for. It says, in a few words each, how many registrations
@@ -353,9 +363,22 @@ approve", unlinked, since `/system` would not show that viewer the panel.
 
 **The library links** are the nav's own Library and Restricted rows:
 `useLibraryLinks()` calls `visibleSections(NAV_SECTIONS, has, canSeeGatedType,
-hasFeature)` exactly as `Nav.jsx` does and keeps those two sections, one slip
-per section with one link per row, so the dashboard and the header never
-disagree about which libraries a viewer may open.
+hasFeature)` exactly as `Nav.jsx` does and keeps those two sections, so the
+dashboard and the header never disagree about which libraries a viewer may
+open. They are drawn in one slip, not in the nav's columns, as labelled rows
+(`LIBRARY_ROWS`, laid out by `libraryLinkRows`), each label an eyebrow:
+
+1. **Groups** — Collection, Franchise, Series, then the entity libraries
+   the viewer may open (Studio, Publisher, Person, Character).
+2. A hairline rule: what follows is the media tier.
+3. **Watch** — Anime, Anime Movie, Movie, TV Show, Cartoon, Hentai.
+4. **Read** — Manga, Book, Comic, H-Comic.
+5. **Play** — Game, H-Game.
+
+A gated type is drawn only for a session that may see it, last in its
+counterpart's row. A row with no link is not drawn, and the rule only
+separates a Groups row from media rows that follow it. A library the nav
+offers that `LIBRARY_ROWS` does not place fails `Index.perViewer.test.jsx`.
 
 **Recently added** reads `GET /api/dashboard/recent?per_type=12` — the
 newest entries of each type the viewer may see, already narrowed and cut per
@@ -435,9 +458,9 @@ headers and the filter bar already pin under the nav):
 
 | Anchor | Division | What it shows |
 |---|---|---|
-| `#announcements` | Announcement & Notes | `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only on the catalogue dashboard; written on `/system` and on the admin's own page. |
-| `#schedule` | Weekly Schedule | two `WeeklySchedule` blocks: **My Watch Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming Next** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next - the first pending, unskipped step at or above the follow's importance — see [../systems/orders.md](../systems/orders.md#what-is-next). |
-| `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown. Not drawn when there are none. |
+| `#announcements` | Announcement & Notes | Headed with the number posted. `AnnouncementBoard` cards (`components/info/AnnouncementBoard.jsx`); a clipped body expands into `AnnouncementModal`. Read-only on the catalogue dashboard; written on `/system` and on the admin's own page. |
+| `#schedule` | Weekly Schedule | The division header is the title alone. Every block in it counts its entries in its own title — **My Schedule (n)** — and draws nothing else at the right but the collapse toggle. Two `WeeklySchedule` blocks: **My Schedule** (`my_watch_day`, anime with `airing_status === "Airing"`; members only) and **Broadcast Schedule** (`broadcast_day` + `broadcast_time`, collapsible, collapsed by default). Only anime feed the schedule today. Sunday-first (`config/weekdays.js`), today highlighted and scrolled into the first visible column whenever a grid is drawn (on load, and on expanding a collapsed one), entries sort by `HH:MM` then name. Under them, **Coming next (n)** (`schedule-coming`, `components/tracker/ComingNext.jsx`), collapsed by default and drawn only for a viewer holding `self.list` — see below. Directly under it, **Followed orders (n)** (`schedule-follows`, `components/tracker/FollowedOrders.jsx`), gated and collapsed the same way: one row per followed order with its group, `done / total`, every step in progress and the step up next - the first pending, unskipped step at or above the follow's importance — see [../systems/orders.md](../systems/orders.md#what-is-next). |
+| `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown, in rows — Groups, a rule, then Watch, Read and Play (see "The library links" above). Not drawn when there are none. |
 | `#recent` | Recently added | `view.random_picker` without a list (shared): one section per visible type, newest first — anime two rows, every other type one. |
 | `#pinged` | Pinged (Watching · Reading · Playing) | members only. Every entry the viewer has pinned (`is_pinged`), whatever its status, grouped into three **soft sections** — Watching, Reading, Playing — each an eyebrow on a dotted rule (`Watching · 3`), the way a type eyebrow groups a sub-section's cards. A soft section reads its division's own sorted, filtered list, so its pins keep that division's order and follow the type filter; one with no pins is not drawn, and with none at all the division says so. The soft sections are not anchors: the contents lists Pinged alone. The cards are each type's own dashboard card (a local `TrackerCard` picks it), steppers included, and list view draws one `DashboardTable` per soft section. A pinned entry is still drawn in its own division as well. |
 | `#watching` | Watching (Anime · Anime Movie · Movie · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → Anime Movie → Movie → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A film's card has no stepper - there is no episode to count - and shows **Paused at** (`time_fin`, a dash when unset) and its **Runtime** (`length_min`) instead; in list view its progress cell reads `at <time_fin>`, or the runtime. The two film lists are the ones Coming Next already fetches for a member, outside the combined loading state, so the films join the division when they arrive. Shown when no type is picked or the picked type is one of its five. |
@@ -918,7 +941,10 @@ Search runs over all five name fields. A series carries no type, so the
 filter panel ("Holds") lists the media types the session can see — Anime,
 Manga, Book, Movie, TV, Cartoon, Comic, Game, the gated types, then Other,
 which is a series holding none of the visible types — and a series passes
-when its entries include any chosen one. "Clear all" empties it. Sort is the franchise
+when its entries include any chosen one. A second group, "Relation" - Has
+relation / No relation - is the franchise library's, reading the series'
+`has_relations`, which counts only related series the viewer may see; the two
+groups combine as both. "Clear all" empties every group. Sort is the franchise
 library's: `title (default) | my_rating | expectation` through
 `compareGroups`, the last two only for a holder of `self.list`.
 
@@ -1334,9 +1360,9 @@ File `pages/detail/Identity.jsx`, route `/identity/:publicId/:slug?`. The
 public page for one of a character's other identities (Edogawa Conan of Kudo
 Shinichi), hand-built beside `Character.jsx` and shaped like it: an identity
 is its character under another name, so the page shows what the character
-page does. The names, photo, gender, firsts and notes are the identity's own; the
-role, the appearance and trait tags, the rating and the links are the
-character's. `GET /api/character-identity/{id}` by the URL's public id comes
+page does. The names, photo, gender, firsts, notes and the viewer's rating
+are the identity's own; the role, the appearance and trait tags and the links
+are the character's. `GET /api/character-identity/{id}` by the URL's public id comes
 first, and its failing is the page's 404 ("Identity not found."). Then two
 reads run side by side: `.../entries` by the `system_id` it returns, and
 `GET /api/character/{character_public_id}`. Neither failing is a 404 — the
@@ -1349,13 +1375,15 @@ name, linking to its page / the identity's name → (admin) the admin strip with
 **Edit** to `/modify?id=<system_id>&type=identity` → left column with the
 photo (`display_photo_file`, the identity's own photo else the character's
 displayed one, as the server resolves it; else `FALLBACK_SVG`), the
-character's `my_rating` stamp on it, read-only, the character's **Links**
+identity's own `my_rating` stamp on it, the **My rating** select under it for
+a holder of `self.list` (`RatingSelect`, saved through
+`PUT /api/me/ratings/identity/{id}`, as on the character page), the character's **Links**
 card (MAL, AniList) and a **Naming** card (`NamingCard type="identity"`, each
 of the four names that is set) → right column with the heading and its
 appearance count, a "Profile" `InfoCard` — **Role**, then **Gender**
 (`display_gender`, the character's when the identity sets none), then
 **Appearance** and **Trait** (`tagChips`) from the character — with a faint
-line under it, "Role, tags, rating and links are <character>'s." Under it a
+line under it, "Role, tags and links are <character>'s." Under it a
 **First Appearances** `InfoCard` lists the identity's own firsts, only those
 set, and is left out when none is; the character's firsts never show here.
 Then the identity's own **Notes** (`NotesTemplate ownerType="identity"`, its
@@ -1363,9 +1391,8 @@ Remark list, Personal Notes and Resources - never the character's), then a
 **Character** section: the character's own card, labelled **Character** and
 linking to its page, then its other identities, labelled **Identity**, this
 one left out — all `IdentityCard`s. Then one section per media type the
-entries endpoint returned. Nothing is edited in place but the notes: an
-identity has no `PATCH` route and its rating is the character's, set on the
-character's page, so there is no rating select.
+entries endpoint returned. Nothing is edited in place but the notes and the
+viewer's rating: an identity has no `PATCH` route.
 
 The appearance sections are the character page's: `/entries` answers the same shape,
 narrowed to the cast rows that name this identity, a group the viewer may see
@@ -1486,7 +1513,7 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), eyebrow "Franchise · {types} · {n} entries" (no completion percentage), a lineage row with the parent collection link only when there is one and "Series {n}" only when n > 0 (the row is gone when neither), "Plan Next: {type} ({bucket})", "To Redo · {type}" (the rewatch mark is called **To Redo** on the franchise hub only), the cover's completed/total footer | same shape with `series_expectation`, "To Rewatch/Reread/Replay" chips, parent franchise link | eyebrow "Collection", names, my_rating — no franchise count and no expectation chip; the expectation is edited in Personal Status |
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
 | Personal Status controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), one row per type the franchise's `franchise_type` offers, that it holds entries for, and that `scopesFor("next", type)` allows at franchise scope - the whole field is absent when none qualifies - and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
-| Related | **Related franchises** (`RelatedRecords type="franchise"`) under the hero: each related franchise as a link with this franchise's remark; an admin edits the list in place, and a franchise added there offers an **Also related to** tick for each franchise above it on the list, all ticked, so the new one can join the others in the same save (the studio and publisher pages' **Related companies** box does the same). Drawn for a reader only when something is related | none | none |
+| Related | **Related franchises** (`RelatedRecords type="franchise"`) under the hero: each related franchise as a link with this franchise's remark; an admin edits the list in place, and a franchise added there offers an **Also related to** tick for each franchise above it on the list, all ticked, so the new one can join the others in the same save (the studio and publisher pages' **Related companies** box does the same). Drawn for a reader only when something is related | **Related series** (`RelatedRecords type="series"`) under the hero, the franchise's box one tier down: related series only, each with this series' remark | none |
 | Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** (sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Order, Relations, Notes. Every media tab's My rating sort is offered only with `self.list` | Media tabs by non-empty list only; same extras, and the Relations tab gives an admin "Edit relations" → `/relations?owner=series:{id}` | "Members" → Franchises (`FranchiseCard`s), sorted `title` (default) \| `my_rating` \| `expectation` through `compareGroups`, the last two only with `self.list`, by the shared `SortControl` with its direction button; extras Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
@@ -2674,7 +2701,8 @@ permission="self.list">`.
 ### UnderDevelopment — `/under-development`
 
 File `pages/public/UnderDevelopment.jsx`. Static card. Targets: unknown
-`/library/:type` values. No nav item currently carries `dev: true`.
+`/library/:type` values, and `/guide`, which renders it in place of the
+Guide. No nav item currently carries `dev: true`.
 
 ## Known rough edges (as of this commit)
 

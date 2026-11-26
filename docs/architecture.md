@@ -1,6 +1,6 @@
 # Architecture
 
-Last verified: 2026-11-24
+Last verified: 2026-11-26
 
 **What this is for.** A map of the backend: how a request travels through the
 `app/` package, where each kind of code lives, and the two generator patterns
@@ -154,7 +154,7 @@ that differ only in the hooks they declare.
 | POST | `/api/<route>/` | admin | resolve parents, pop plan flags, `pre_commit_hook`, commit, `write_hook` |
 | PUT | `/api/<route>/{id}` | admin | full update, same hook sequence |
 | PATCH | `/api/<route>/{id}` | admin | column patch through `_patching.apply_column_patch` (whitelisted columns) |
-| POST | `/api/<route>/{id}/complete` | admin | `mark_completed` + `apply_completion_timestamp` |
+| POST | `/api/<route>/{id}/complete` | admin | `mark_completed` on the entry + `finish_list_row` on the caller's list row, which stamps `completed_at`; POST / PUT / PATCH write the personal half without that stamp |
 | DELETE | `/api/<route>/{id}` | admin | deletes credits links, plans, cover image; logs to the deleted-record table |
 
 Field-level gating (`app/services/rbac/field_gate.gate`) is applied to

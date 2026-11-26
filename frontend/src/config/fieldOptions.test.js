@@ -20,6 +20,7 @@ import {
   OPTION_CATEGORIES,
   PERSON_ROLES,
   PROGRESS_DISPLAY_OPTIONS,
+  TAG_CATEGORIES,
   applyConstants,
   withLegacyProgressDisplay,
 } from "./fieldOptions";
@@ -242,6 +243,28 @@ describe("declared option categories", () => {
     ]) {
       expect(COMMON_OPTION_CATEGORIES).toContain(c);
     }
+  });
+
+  it("no longer declares the retired Franchise for Filter", () => {
+    expect(OPTION_CATEGORIES).not.toContain("Franchise for Filter");
+  });
+
+  it("files the same tag categories as the server before /api/constants answers", () => {
+    // Mirrors TAG_CATEGORIES in app/utils/credit_roles.py.
+    expect(CONSTANTS_FALLBACK.tag_categories).toBe(TAG_CATEGORIES);
+    expect(TAG_CATEGORIES).toEqual([
+      "Genre Main",
+      "Genre Sub",
+      "Label",
+      "Game Genre",
+      "Game Theme",
+      "H Genre Plot",
+      "H Genre Appearance",
+      "H Genre Relation",
+      "Character Appearance",
+      "Character Trait",
+    ]);
+    for (const c of TAG_CATEGORIES) expect(OPTION_CATEGORIES).toContain(c);
   });
 
   it("updates in place from the API payload", () => {

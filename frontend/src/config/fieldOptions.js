@@ -150,6 +150,13 @@ export const GAME_ACQUISITION_KINDS = [
 // picking aid, and the three the price columns already use lead it.
 export const PRICE_CURRENCIES = ["USD", "JPY", "TWD", "EUR", "GBP", "KRW", "CNY"];
 
+// The currencies the Control Center's exchange-rate table converts between:
+// the three the game list prices are recorded in. FX_CURRENCIES in
+// app/schemas/system.py, which refuses a rate for any other. A copy bought in
+// another PRICE_CURRENCIES code keeps its own subtotal on /statistics and is
+// left out of the converted totals, as a currency with no rate always is.
+export const FX_CURRENCIES = ["USD", "TWD", "JPY"];
+
 export const IS_MAIN = ["本傳", "外傳", "前傳", "後傳", "總集篇"];
 
 export const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];
@@ -484,7 +491,6 @@ export const OPTION_CATEGORIES = [
   // A character's two tag lists (CHARACTER_OPTION_CATEGORIES there).
   "Character Appearance",
   "Character Trait",
-  "Franchise for Filter",
   // From here on, the common options (COMMON_OPTION_CATEGORIES below).
   // What 彩蛋 Easter Eggs' optional Group suggests.
   "Easter Egg Group",
@@ -508,7 +514,20 @@ export const OPTION_CATEGORIES = [
 // The subset of OPTION_CATEGORIES the admin pages group under their "Tags"
 // sub-tab (TAG_CATEGORIES in app/utils/credit_roles.py). Navigation only -
 // both sub-tabs are the same form over the same system_option rows.
-export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label"];
+export const TAG_CATEGORIES = [
+  "Genre Main",
+  "Genre Sub",
+  "Label",
+  "Game Genre",
+  "Game Theme",
+  // Gated: withheld by /api/constants from a session that sees none of
+  // h-comic, h-game and hentai.
+  "H Genre Plot",
+  "H Genre Appearance",
+  "H Genre Relation",
+  "Character Appearance",
+  "Character Trait",
+];
 
 // The subset of OPTION_CATEGORIES the admin pages group under their "Common
 // Options" sub-tab (COMMON_OPTION_CATEGORIES in app/utils/credit_roles.py):

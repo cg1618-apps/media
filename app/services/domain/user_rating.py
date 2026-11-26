@@ -2,7 +2,7 @@
 Reading and writing one account's rating and expectation of a catalogue row.
 
 `user_rating` holds, per account, the rating of a collection, franchise,
-series, character, person, studio or publisher, and the expectation of the
+series, character, character identity, person, studio or publisher, and the expectation of the
 three tiers. The response schemas keep the field names the shared columns had
 - `my_rating`, `collection_expectation`, `franchise_expectation`,
 `series_expectation` - so this module puts the VIEWER'S own values back on the
@@ -33,6 +33,7 @@ OWNER_COLUMNS: dict[str, str] = {
     "person": "person_id",
     "studio": "studio_id",
     "publisher": "publisher_id",
+    "identity": "identity_id",
 }
 
 assert set(OWNER_COLUMNS.values()) == set(USER_RATING_OWNER_COLUMNS)
@@ -46,6 +47,7 @@ OWNER_MODELS: dict[str, type] = {
     "person": models.Person,
     "studio": models.Studio,
     "publisher": models.Publisher,
+    "identity": models.CharacterIdentity,
 }
 
 # The tiers carry an expectation as well, under a field named per tier.

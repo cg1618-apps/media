@@ -198,8 +198,8 @@ A session that sees h-comic but not hentai sees that person through the
 h-comic, with the hentai credit and the `author|hentai` role omitted; one
 credited only on hentai is hidden with it.
 
-`FILTER_ONLY_CATEGORIES = ("Franchise for Filter", "Reference Source")` exists
-as a vocabulary but backs no field. **There is no `publisher_tw` or
+`FILTER_ONLY_CATEGORIES = ("Reference Source",)` exists as a vocabulary but
+backs no tag field. **There is no `publisher_tw` or
 `comic_publisher` TagField**: a publisher names an outside company rather than
 a fact about the work, so it is a `publisher` credit on `media_credit`. The
 sheet shape is unaffected — `LEGACY_SHEET_COLUMN` maps the credit back onto

@@ -25,7 +25,10 @@ afterEach(() => {
 
 const ALL = [
   "Character Group",
+  "Character Trait",
   "Comic Era",
+  "Game Genre",
+  "Game Mode",
   "Genre Main",
   "Genre Sub",
   "Geography Group",
@@ -39,6 +42,24 @@ describe("isTagCategory", () => {
   it("recognises the tag categories", () => {
     expect(isTagCategory("Label")).toBe(true);
     expect(isTagCategory("Genre Main")).toBe(true);
+  });
+
+  it("recognises the game, H Genre and character tag vocabularies", () => {
+    for (const c of [
+      "Game Genre",
+      "Game Theme",
+      "H Genre Plot",
+      "H Genre Appearance",
+      "H Genre Relation",
+      "Character Appearance",
+      "Character Trait",
+    ]) {
+      expect(isTagCategory(c)).toBe(true);
+    }
+    // How or where a game is played is not a tag on it.
+    expect(isTagCategory("Game Mode")).toBe(false);
+    expect(isTagCategory("Game Platform")).toBe(false);
+    expect(isTagCategory("Exclusive Platform")).toBe(false);
   });
 
   it("leaves the ones that name an outside party alone", () => {
@@ -86,8 +107,14 @@ describe("categoriesForSubTab", () => {
     const tags = categoriesForSubTab(ALL, "tags");
     const options = categoriesForSubTab(ALL, "options");
     const common = categoriesForSubTab(ALL, "common");
-    expect(tags).toEqual(["Genre Main", "Genre Sub", "Label"]);
-    expect(options).toEqual(["Comic Era", "Official Source"]);
+    expect(tags).toEqual([
+      "Character Trait",
+      "Game Genre",
+      "Genre Main",
+      "Genre Sub",
+      "Label",
+    ]);
+    expect(options).toEqual(["Comic Era", "Game Mode", "Official Source"]);
     expect(common).toEqual([
       "Character Group",
       "Geography Group",

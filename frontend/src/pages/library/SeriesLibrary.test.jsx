@@ -18,6 +18,7 @@ const SERIES = [
     series_name_en: "Switch Sports",
     series_expectation: "High",
     my_rating: "B",
+    has_relations: true,
   },
   {
     system_id: "s2",
@@ -186,6 +187,40 @@ describe("SeriesLibrary Type filter", () => {
     await userEvent.click(screen.getByRole("button", { name: "Other" }));
     await userEvent.click(screen.getByRole("button", { name: "Game" }));
     expect(screen.getByText("2 series")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.getByText("3 series")).toBeInTheDocument();
+  });
+});
+
+// has_relations counts only related series the viewer may see (the API does
+// that); the filter reads it as given, as the franchise library's does.
+describe("SeriesLibrary Relation filter", () => {
+  async function openFilters() {
+    await renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+  }
+
+  it("keeps only the series with a relation", async () => {
+    await openFilters();
+    await userEvent.click(screen.getByRole("button", { name: "Has relation" }));
+    expect(screen.getByText("1 series")).toBeInTheDocument();
+    expect(screen.getByText("Switch Sports")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha Saga")).toBeNull();
+  });
+
+  it("keeps only the series without one, a missing flag included", async () => {
+    await openFilters();
+    await userEvent.click(screen.getByRole("button", { name: "No relation" }));
+    expect(screen.getByText("2 series")).toBeInTheDocument();
+    expect(screen.queryByText("Switch Sports")).toBeNull();
+  });
+
+  it("combines with the Type filter, and clears with Clear all", async () => {
+    await openFilters();
+    await userEvent.click(screen.getByRole("button", { name: "No relation" }));
+    await userEvent.click(screen.getByRole("button", { name: "Other" }));
+    expect(screen.getByText("1 series")).toBeInTheDocument();
+    expect(screen.getByText("Alpha Saga")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
     expect(screen.getByText("3 series")).toBeInTheDocument();
   });

@@ -6,6 +6,10 @@ import { endpoints } from "../../api/endpoints";
 import { backupToast, pullToast, runBackup, runPull } from "../../api/sheets";
 import { postEventStream } from "../../api/client";
 import FxRatesEditor from "./FxRatesEditor";
+import LogDetailsModal, {
+  LogStatus,
+  LogTrigger,
+} from "../../components/modals/LogDetailsModal";
 import PendingRegistrations from "./PendingRegistrations";
 import AnnouncementBoard from "../../components/info/AnnouncementBoard";
 import AnnouncementEditor, {
@@ -15,6 +19,7 @@ import { useApiQuery } from "../../hooks/useApiQuery";
 import { useAuth } from "../../contexts/AuthContext";
 import { canSeeGatedType, visibleByType } from "../../lib/gatedTypes";
 import { entityPath } from "../../lib/entityPath";
+import { formatLogTime } from "../../lib/formatters";
 import { nextSeason } from "../../lib/season";
 import RemarksView, {
   countRemarks,
@@ -24,16 +29,6 @@ import DuplicatesView, {
   countDuplicates,
   duplicateSummary,
 } from "../../components/review/DuplicatesView";
-
-function formatDate(dateStr) {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 // Streaming box (Fill or Replace)
 // specificOptions: [{ label, url }] — renders a select+play row below the "All" button
@@ -142,9 +137,13 @@ function SyncBox({
   );
 }
 
-// Paginated log table
+// Paginated log table: one row per run. A run's operations (Fill Anime
+// under Fill All), and every row's trigger, time and status, open in the
+// Details popup (LogDetailsModal).
 function LogsTable({ logs, onRefresh }) {
   const [page, setPage] = useState(1);
+  const [detailsOf, setDetailsOf] = useState(null);
+  const closeDetails = useCallback(() => setDetailsOf(null), []);
   const pageSize = 10;
   const totalPages = Math.ceil(logs.length / pageSize) || 1;
   const slice = logs.slice((page - 1) * pageSize, page * pageSize);
@@ -169,6 +168,7 @@ function LogsTable({ logs, onRefresh }) {
 
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
+      {detailsOf && <LogDetailsModal log={detailsOf} onClose={closeDetails} />}
       <div className="bg-surface-2 border-b border-border px-6 py-4 flex items-center justify-between">
         <h2 className="text-lg font-black text-text flex items-center">
           Data Control Log
@@ -197,42 +197,16 @@ function LogsTable({ logs, onRefresh }) {
               <th className="px-6 py-3">Trigger</th>
               <th className="px-6 py-3">Time</th>
               <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Metrics</th>
+              <th className="px-6 py-3"></th>
               <th className="px-3 py-3"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {slice.map((log, i) => {
-              let statusEl;
-              if (log.status === "Success") {
-                statusEl = (
-                  <span className="text-success font-bold">
-                    <i className="fas fa-check-circle mr-1"></i>Success
-                  </span>
-                );
-              } else if (log.status === "Aborted") {
-                statusEl = (
-                  <span className="text-warning font-bold">
-                    <i className="fas fa-exclamation-triangle mr-1"></i>Aborted
-                  </span>
-                );
-              } else {
-                statusEl = (
-                  <span
-                    className="text-danger font-bold"
-                    title={log.error_message || "Unknown error"}
-                  >
-                    <i className="fas fa-times-circle mr-1"></i>Failed
-                  </span>
-                );
-              }
-              const triggerCls =
-                log.type === "Auto"
-                  ? "bg-surface-2 text-text-muted"
-                  : "bg-brand-soft text-brand";
+            {slice.map((log) => {
+              const name = log.action_specific || log.action_main || "Unknown";
               return (
                 <tr
-                  key={i}
+                  key={log.id}
                   className="hover:bg-surface-2 border-b border-border last:border-0 transition-colors group"
                 >
                   <td className="px-6 py-3">
@@ -244,28 +218,25 @@ function LogsTable({ logs, onRefresh }) {
                     </div>
                   </td>
                   <td className="px-6 py-3">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[9px] font-bold ${triggerCls}`}
-                    >
-                      {log.type || "Manual"}
-                    </span>
+                    <LogTrigger log={log} />
                   </td>
                   <td className="px-6 py-3 text-text-faint whitespace-nowrap">
-                    {formatDate(log.timestamp)}
+                    {formatLogTime(log.timestamp)}
                   </td>
-                  <td className="px-6 py-3">{statusEl}</td>
-                  <td className="px-6 py-3 font-mono text-xs whitespace-nowrap">
-                    <span className="text-text">
-                      +{log.rows_added || 0}
-                    </span>{" "}
-                    /&nbsp;
-                    <span className="text-text">
-                      ~{log.rows_updated || 0}
-                    </span>{" "}
-                    /&nbsp;
-                    <span className="text-danger">
-                      -{log.rows_deleted || 0}
-                    </span>
+                  <td className="px-6 py-3">
+                    <LogStatus log={log} />
+                  </td>
+                  <td className="px-6 py-3 whitespace-nowrap">
+                    <button
+                      onClick={() => setDetailsOf(log)}
+                      aria-label={`Details for ${name}`}
+                      className="text-xs font-bold text-text-muted hover:text-brand transition"
+                    >
+                      Details
+                      {log.child_count > 0 && (
+                        <span className="ml-1 text-text-faint">({log.child_count})</span>
+                      )}
+                    </button>
                   </td>
                   <td className="px-3 py-3">
                     <button
@@ -1361,31 +1332,15 @@ export default function Admin() {
           onClose={() => setRemarksOpen(false)}
         />
       )}
-      {/* 1. Header & Entry Modification Nav */}
+      {/* 1. Header. The links are the System pages reached from here: Data
+          History, and Review Queue and Clean Orphans, which the nav leaves
+          to this page. The Entry and Note pages have nav groups of their
+          own. */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <h1 className="text-3xl font-black text-text tracking-tight mb-2">
-            System Administration
-          </h1>
-          <p className="text-text-faint font-medium">
-            Master control center for data actions, configurations, and history
-            logs.
-          </p>
-        </div>
+        <h1 className="text-3xl font-black text-text tracking-tight">
+          Control Center
+        </h1>
         <div className="flex flex-wrap gap-3">
-          <Link
-            to="/options"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
-          >
-            System
-            Options
-          </Link>
-          <Link
-            to="/aliases"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
-          >
-            Aliases
-          </Link>
           <Link
             to="/data-history"
             className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
@@ -1404,24 +1359,6 @@ export default function Admin() {
           >
             Clean Orphans
           </Link>
-          <Link
-            to="/add"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
-          >
-            New Entry
-          </Link>
-          <Link
-            to="/modify"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
-          >
-            Edit Entry
-          </Link>
-          <Link
-            to="/delete"
-            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-danger hover:border-danger transition shadow-sm flex items-center"
-          >
-            Delete Entry
-          </Link>
         </div>
       </div>
 
@@ -1438,9 +1375,6 @@ export default function Admin() {
             Season
           </h2>
           <div className="text-center mb-6">
-            <div className="text-[10px] font-bold text-text-faint mb-1">
-              Active Season Config
-            </div>
             <div className="text-3xl font-black text-brand tracking-tight">
               {currentSeason}
             </div>
@@ -1681,9 +1615,6 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* 2.5 Exchange Rates — feeds the game spend block on /statistics */}
-      <FxRatesEditor showToast={showToast} />
-
       {/* 3. Calculate & Fix */}
       <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
         <h2 className="text-lg font-black text-text mb-4 flex items-center border-b border-border pb-2">
@@ -1844,7 +1775,10 @@ export default function Admin() {
           ask, and the admin and super hold it beside manage.pipelines. */}
       {canManageAnnouncements && <AnnouncementsCard />}
 
-      {/* 5. Data Control Log */}
+      {/* 5. Exchange Rates, which feed the game spend block on /statistics */}
+      <FxRatesEditor showToast={showToast} />
+
+      {/* 6. Data Control Log */}
       <LogsTable
         logs={logs}
         onRefresh={() => {

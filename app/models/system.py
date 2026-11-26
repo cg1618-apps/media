@@ -420,11 +420,24 @@ class User(Base):
 
 
 class DataControlLog(Base):
-    """Audit log tracking the outcome of sync and maintenance pipelines."""
+    """
+    Audit log tracking the outcome of sync and maintenance pipelines.
+
+    A batch run (Fill All, Replace All, Pull All) writes one row for the run
+    and one row per operation it ran; each operation row names the run's row
+    in `parent_id`. The log lists the runs and opens each one's operations in
+    its Details popup. Deleting a run deletes its operations with it.
+    """
 
     __tablename__ = "data_control_logs"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    parent_id = Column(
+        Integer,
+        ForeignKey("data_control_logs.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     action_main = Column(String, nullable=False)
     action_specific = Column(String, nullable=False)
     type = Column(String, nullable=False)

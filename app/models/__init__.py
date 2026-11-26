@@ -30,7 +30,7 @@ from app.models.content_label import (
     MediaContentLabel,
     SeriesContentLabel,
 )
-from app.models.franchise import Franchise, FranchiseRelation, Series
+from app.models.franchise import Franchise, FranchiseRelation, Series, SeriesRelation
 from app.models.game import Game
 from app.models.game_choice import GameChoiceEdge, GameChoiceMark, GameChoiceNode
 from app.models.game_copy import GameCopy
@@ -97,6 +97,7 @@ __all__ = [
     "Franchise",
     "FranchiseRelation",
     "Series",
+    "SeriesRelation",
     "Media",
     "UserFavorite",
     "UserHighlightGroupOrder",
@@ -191,7 +192,9 @@ from sqlalchemy.orm import column_property  # noqa: E402
 #
 # Plain class attributes defaulted to None, so a path that forgot to attach
 # serialises null - never raises, never shows somebody else's value.
-for _model in (Collection, Franchise, Series, Character, Person, Studio, Publisher):
+for _model in (
+    Collection, Franchise, Series, Character, CharacterIdentity, Person, Studio, Publisher
+):
     _model.my_rating = None
 Collection.collection_expectation = None
 Franchise.franchise_expectation = None

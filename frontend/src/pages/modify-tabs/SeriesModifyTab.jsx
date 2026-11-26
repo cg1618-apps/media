@@ -1,4 +1,5 @@
 // Frontend: modify tab page file for SeriesModifyTab.
+import EntryNameFields from "../../components/forms/EntryNameFields";
 import MyRatingFields from "../../components/forms/MyRatingFields";
 import { useEffect, useState } from "react";
 import { getDisplayName } from "../../utils/media";
@@ -8,7 +9,6 @@ import {
   CollectionNote,
   Field,
   SectionHeader,
-  inputCls,
   selectCls,
 } from "../../components/forms/FormField";
 import SizeGroupControls from "../../components/plan/SizeGroupControls";
@@ -17,6 +17,7 @@ import PlanKindToggles, {
   applicableTypes,
 } from "../../components/plan/PlanKindToggles";
 import { scopesFor } from "../../config/planNextGroups";
+import RelatedRecords from "../../components/info/RelatedRecords";
 
 function getEntryYear(e) {
   const d =
@@ -227,43 +228,7 @@ export default function SeriesModifyTab({
           franchiseCollections={franchiseCollections}
         />
       </Field>
-      <Field label="Series Name EN">
-        <input
-          className={inputCls}
-          value={sf.series_name_en}
-          onChange={(e) => us("series_name_en", e.target.value)}
-        />
-      </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Series Name CN">
-          <input
-            className={inputCls}
-            value={sf.series_name_cn}
-            onChange={(e) => us("series_name_cn", e.target.value)}
-          />
-        </Field>
-        <Field label="Series Name roman">
-          <input
-            className={inputCls}
-            value={sf.series_name_roman}
-            onChange={(e) => us("series_name_roman", e.target.value)}
-          />
-        </Field>
-        <Field label="Series Name JP">
-          <input
-            className={inputCls}
-            value={sf.series_name_jp}
-            onChange={(e) => us("series_name_jp", e.target.value)}
-          />
-        </Field>
-        <Field label="Series Name Alt">
-          <input
-            className={inputCls}
-            value={sf.series_name_alt}
-            onChange={(e) => us("series_name_alt", e.target.value)}
-          />
-        </Field>
-      </div>
+      <EntryNameFields f={sf} u={us} prefix="series" label="Series" />
       <SectionHeader icon="fa-info-circle" title="Other Information" />
       {/* The viewer's own rating and expectation (self.list), saved through /api/me/ratings
           after the series itself - see saveSeries in Modify.jsx. */}
@@ -312,6 +277,9 @@ export default function SeriesModifyTab({
           />
         </Field>
       )}
+      {/* The detail page's box, here too. It saves through its own button,
+          not with this form - like the Plan Next toggles above. */}
+      {seriesId && <RelatedRecords type="series" recordId={seriesId} isAdmin />}
     </>
   );
 }

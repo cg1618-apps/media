@@ -131,6 +131,18 @@ function sourceItems(sources, source) {
     .filter((item) => !!item.name);
 }
 
+// A data control log row's time, as the Control Center's log and its
+// Details popup print it: "Nov 26, 09:40 AM". "-" when the row has none.
+export function formatLogTime(dateStr) {
+  if (!dateStr) return "-";
+  return new Date(dateStr).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function formatLength(minutes) {
   if (!minutes) return null;
   const hrs = Math.floor(minutes / 60);

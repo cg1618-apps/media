@@ -22,7 +22,13 @@
 //            for a session that may see that type (canSeeGatedType in
 //            lib/gatedTypes.js), the same question App.jsx's route asks
 //
-// Sections either carry `items` (a single list) or `columns` (a mega-panel).
+// Sections either carry `items` (a single list) or `columns` (a mega-panel),
+// or neither and a `to` of their own: a tab that is itself the link, with no
+// panel. Besides `requires`, a section may carry
+//   excludes a list of permissions; a viewer holding ANY of them is not shown
+//            the section. The opposite of `requires`, for a tab meant for the
+//            reading accounts and not for the ones that run the site
+//   end      true to push the tab to the right end of the strip
 
 // The nine ordinary media types' keys. A role holding none of them reads no
 // library at all - the admin, whose role holds no media_type.* - so the
@@ -400,16 +406,16 @@ export const NAV_SECTIONS = [
   {
     key: "system",
     label: "System",
-    // Control Center, Data History and Review Queue call only
-    // /api/system/* and /api/data-control/*, which require manage.pipelines
-    // — not the same capability as the catalogue CRUD pages above, and not
-    // the accounts/roles/labels pages below, so this is its own tab.
+    // Control Center and Data History call only /api/system/* and
+    // /api/data-control/*, which require manage.pipelines — not the same
+    // capability as the catalogue CRUD pages above, and not the
+    // accounts/roles/labels pages below, so this is its own tab. Review
+    // Queue and Clean Orphans are pipeline pages too, reached from the
+    // Control Center's own links rather than listed here a second time.
     requires: "manage.pipelines",
     items: [
       { label: "Control Center", icon: "fas fa-cog", to: "/system" },
       { label: "Data History", icon: "fas fa-history", to: "/data-history" },
-      { label: "Review Queue", icon: "fas fa-tasks", to: "/review-queue" },
-      { label: "Clean Orphans", icon: "fas fa-broom", to: "/clean-orphans" },
       // Needs Work and the inbox each ask manage.requests rather than the
       // section's key, as App.jsx's /needs-work and /request-inbox routes do,
       // and so does the rule above them. Super and the admin hold both today,
@@ -417,7 +423,7 @@ export const NAV_SECTIONS = [
       { divider: true, requires: "manage.requests" },
       // The marks on incomplete entries and groups.
       {
-        label: "待補充 Needs Work",
+        label: "待補充",
         icon: "fas fa-person-digging",
         to: "/needs-work",
         requires: "manage.requests",
@@ -450,6 +456,19 @@ export const NAV_SECTIONS = [
       },
     ],
   },
+  {
+    key: "guide",
+    label: "Guide",
+    // A tab that is itself the link: no panel. It is for the accounts that
+    // read the site - guest, shared and user - and not for the two that run
+    // it. Those two are the only holders of these keys: manage.catalog is
+    // locked on for super alone and admin.authz for the admin alone, and
+    // both are locked off for the other three roles. App.jsx's /guide route
+    // asks nothing; the page is the under-development one for now.
+    to: "/guide",
+    excludes: ["manage.catalog", "admin.authz"],
+    end: true,
+  },
 ];
 
 // Every link in a section, whether it came from `items` or from `columns`.
@@ -467,8 +486,12 @@ function ownsPath(prefix, pathname) {
 
 // Which item the current route sits under, or null when the route belongs to
 // no section (home, login, search).
+// A section that is itself a link owns its own path, with no item under it.
 export function activeItem(pathname, sections = NAV_SECTIONS) {
   for (const section of sections) {
+    if (section.to && ownsPath(section.to, pathname)) {
+      return { section, item: null };
+    }
     for (const item of sectionItems(section)) {
       const prefixes = [item.to, ...(item.matches || [])].filter(Boolean);
       if (prefixes.some((p) => ownsPath(p, pathname))) return { section, item };
@@ -546,7 +569,8 @@ function withVisibleItems(section, has, canSeeType, hasFeature) {
 }
 
 // The sections a viewer may see, each trimmed to the rows they may see. A
-// section left with nothing but dividers is dropped along with them.
+// section needs its `requires` met and none of its `excludes` held, and one
+// left with nothing but dividers is dropped along with them.
 // `canSeeType` and `hasFeature` are the gated-type and feature questions
 // (see visibleItems).
 export function visibleSections(
@@ -557,6 +581,7 @@ export function visibleSections(
 ) {
   return sections
     .filter((section) => meets(has, sectionRequirement(section)))
+    .filter((section) => !(section.excludes && meets(has, section.excludes)))
     .map((section) => withVisibleItems(section, has, canSeeType, hasFeature))
     .filter(
       (section) =>

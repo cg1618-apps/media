@@ -36,12 +36,18 @@ def log_data_control(
     rows_deleted: int = 0,
     error_message: str = None,
     details_json: str = None,
-):
+    parent_id: int | None = None,
+) -> int | None:
     """
     Safely commits an audit trail entry for Data Control Pipelines.
+
+    Returns the new row's id, or None when the row could not be written.
+    `parent_id` names the batch run (Fill All, Pull All, ...) the operation
+    ran under; see adopt_logs for a run that writes its own row last.
     """
     try:
         log_entry = DataControlLog(
+            parent_id=parent_id,
             action_main=action_main,
             action_specific=action_specific,
             type=action_type,
@@ -54,9 +60,40 @@ def log_data_control(
         )
         db.add(log_entry)
         db.commit()
+        return log_entry.id
     except Exception as e:
         logger.error("Failed to save DataControlLog: %s", e)
         db.rollback()
+        return None
+
+
+def adopt_logs(db: Session, parent_id: int | None, child_ids: list[int | None]) -> None:
+    """
+    Links the operations a batch run already logged to the run's own row.
+
+    A run writes its row last, once its outcome is known, so the operations'
+    rows exist before it does and are linked afterwards. An operation whose
+    row could not be written (None) is skipped, and so is everything when the
+    run's own row could not be.
+    """
+    ids = [i for i in child_ids if i is not None]
+    if parent_id is None or not ids:
+        return
+    try:
+        db.query(DataControlLog).filter(DataControlLog.id.in_(ids)).update(
+            {DataControlLog.parent_id: parent_id}, synchronize_session=False
+        )
+        db.commit()
+    except Exception as e:
+        logger.error("Failed to link DataControlLog rows to run %s: %s", parent_id, e)
+        db.rollback()
+
+
+def log_run(db: Session, child_ids: list[int | None], *args, **kwargs) -> int | None:
+    """log_data_control for a batch run's own row, then adopt_logs its operations."""
+    parent_id = log_data_control(db, *args, **kwargs)
+    adopt_logs(db, parent_id, child_ids)
+    return parent_id
 
 
 def log_deleted_record(db: Session, entry: Any, entry_type: str):

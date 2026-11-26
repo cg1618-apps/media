@@ -9,6 +9,7 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=person, the
 // detail page's Edit button): that person's editor opens on mount.
+import EntityModifyNotes from "../../components/forms/EntityModifyNotes";
 import {
   applyMyRating,
   useFormRatingSaver,
@@ -318,6 +319,11 @@ export default function PersonModifyTab({ initialId = null } = {}) {
             </button>
           </div>
         </form>
+      )}
+
+      {/* The record's notes. Outside the form: each row saves on its own. */}
+      {selectedId && personForm && (
+        <EntityModifyNotes ownerType="person" ownerId={selectedId} />
       )}
     </div>
   );

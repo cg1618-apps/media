@@ -15,6 +15,9 @@
 // draw disabled. The admin role's row is locked in every cell, so it draws
 // wholly disabled and gets no Save button.
 //
+// Each permission is drawn by its label alone. The catalog also serves a
+// description per permission; this page does not draw it.
+//
 // The roles themselves are fixed - admin, super, user, guest and shared - so
 // the page edits the five rows the server serves and offers no way to add or
 // remove one.
@@ -143,11 +146,6 @@ export default function Roles() {
         <h1 className="text-2xl font-bold text-text">
           <i className="fas fa-user-shield mr-2 text-brand"></i>Roles
         </h1>
-        <p className="text-sm text-text-faint mt-1">
-          A role is a named bundle of permissions. Everyone who is not logged in
-          is <strong>Guest</strong>. Narrow access by removing permissions, not
-          by adding them.
-        </p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-6">
@@ -183,7 +181,11 @@ export default function Roles() {
                   <h2 className="text-lg font-bold text-text">
                     {selected.label}
                   </h2>
-                  <p className="text-xs text-text-faint">{selected.description}</p>
+                  {selected.description && (
+                    <p className="text-xs text-text-faint">
+                      {selected.description}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   {anyEditable && (
@@ -233,14 +235,7 @@ export default function Roles() {
                               disabled={locked}
                               onChange={() => toggle(p.permission)}
                             />
-                            <span>
-                              <span className="font-medium">{p.label}</span>
-                              {p.description && (
-                                <span className="block text-[11px] text-text-faint">
-                                  {p.description}
-                                </span>
-                              )}
-                            </span>
+                            <span className="font-medium">{p.label}</span>
                           </label>
                           );
                         })}

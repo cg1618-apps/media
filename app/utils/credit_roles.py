@@ -333,7 +333,6 @@ CHARACTER_OPTION_CATEGORIES: tuple[str, ...] = tuple(
 # Categories that exist as vocabularies but back no entry column - they drive
 # list-page filters only, so no TagField names them.
 FILTER_ONLY_CATEGORIES: tuple[str, ...] = (
-    "Franchise for Filter",
     # Drawn on by media_source rows rather than by a TagField.
     "Reference Source",
 )
@@ -354,15 +353,27 @@ COUNTRY_CATEGORY = "Country"
 # the same system_option rows - the split is navigational, nothing in the
 # data or the API distinguishes a tag category from any other.
 #
-# Listed, not derived. These three are the vocabularies every mainstream
-# type shares, but that is not the rule: what puts a category here is that
-# its values read as tags ON the work, while Official Source and the Comic
-# vocabularies name an outside party. A new category is not automatically a
-# tag, so it must be added here deliberately.
+# Listed, not derived. What puts a category here is that its values read as
+# tags ON the thing they are attached to: the genres and labels every
+# mainstream type shares, a game's genres and themes, the three gated H Genre
+# vocabularies, and a character's appearance and trait lists. Platform and
+# the Comic vocabularies name an outside party, and Game Mode, Combat Mode,
+# Game Platform and Exclusive Platform say how or where a game is played, so
+# they stay under Options. A new category is not automatically a tag, so it
+# must be added here deliberately. The H Genre three are withheld from a
+# session that can see none of their types, like every gated category
+# (hidden_option_categories).
 TAG_CATEGORIES: tuple[str, ...] = (
     "Genre Main",
     "Genre Sub",
     "Label",
+    "Game Genre",
+    "Game Theme",
+    "H Genre Plot",
+    "H Genre Appearance",
+    "H Genre Relation",
+    "Character Appearance",
+    "Character Trait",
 )
 
 # Five sources, each declared where its readers live: the entry tag fields

@@ -16,6 +16,7 @@ import {
   sectionItems,
   visibleSections,
 } from "../../config/navigation";
+import { LIBRARY_ROWS } from "../../components/dashboard/LibraryLinks";
 import Index from "./Index";
 
 const GUEST_PERMS = [...LIBRARY_MEDIA_TYPE_PERMISSIONS, "view.search"];
@@ -162,7 +163,7 @@ function fetched(prefix) {
 // The catalogue dashboard is drawn once the anime list has filled the
 // broadcast schedule.
 async function catalogueLoaded() {
-  await waitFor(() => expect(screen.getByText(/^\d+\s+scheduled$/)).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText(/^Broadcast schedule \(\d+\)$/)).toBeInTheDocument());
   await waitFor(() => expect(screen.getByText("Welcome")).toBeInTheDocument());
 }
 
@@ -170,7 +171,7 @@ describe("the summary of what waits", () => {
   it("is not shown to, or fetched for, a user without manage.requests", async () => {
     setup(me("user", USER_PERMS));
     mount();
-    await waitFor(() => expect(screen.getByText("My watch schedule")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^My Schedule \(\d+\)$/)).toBeInTheDocument());
     await catalogueLoaded();
     expect(screen.queryByTestId("dashboard-summary")).toBeNull();
     expect(fetched("/api/dashboard/summary")).toBe(false);
@@ -187,7 +188,7 @@ describe("the summary of what waits", () => {
     expect(within(summary).getByText(/2 registrations waiting for the admin/)).toBeInTheDocument();
     expect(within(summary).queryByRole("link", { name: /registrations/ })).toBeNull();
     // Still the member dashboard.
-    expect(screen.getByText("My watch schedule")).toBeInTheDocument();
+    expect(screen.getByText(/^My Schedule \(\d+\)$/)).toBeInTheDocument();
   });
 
   it("is hidden entirely for super when both counts are zero", async () => {
@@ -229,7 +230,7 @@ describe("the library links", () => {
     const drawn = within(links)
       .getAllByRole("link")
       .map((a) => a.getAttribute("href"));
-    expect(drawn).toEqual(expected);
+    expect([...drawn].sort()).toEqual([...expected].sort());
     // The entity rows ask view.* keys a guest lacks, so they are absent
     // here - and present for a viewer that holds them (below).
     expect(drawn).not.toContain("/library/studio");
@@ -243,14 +244,75 @@ describe("the library links", () => {
     const drawn = within(links)
       .getAllByRole("link")
       .map((a) => a.getAttribute("href"));
-    expect(drawn).toEqual(expectedLinks(perms));
+    expect([...drawn].sort()).toEqual([...expectedLinks(perms)].sort());
     expect(drawn).toContain("/library/studio");
+  });
+
+  function rowHrefs(links, key) {
+    return within(within(links).getByTestId(`library-row-${key}`))
+      .getAllByRole("link")
+      .map((a) => a.getAttribute("href"));
+  }
+
+  it("draw the groups, a rule, then Watch, Read and Play", async () => {
+    setup(me("guest", [...GUEST_PERMS, "view.studio"]));
+    mount();
+    const links = await screen.findByTestId("library-links");
+    const order = [...links.querySelectorAll("[data-testid^='library-']")].map((el) =>
+      el.getAttribute("data-testid"),
+    );
+    expect(order).toEqual([
+      "library-row-groups",
+      "library-tier-rule",
+      "library-row-watch",
+      "library-row-read",
+      "library-row-play",
+    ]);
+    expect(rowHrefs(links, "groups")).toEqual([
+      "/library/collection",
+      "/library/franchise",
+      "/library/series",
+      "/library/studio",
+    ]);
+    expect(rowHrefs(links, "watch")).toEqual([
+      "/library/anime",
+      "/library/anime-movie",
+      "/library/movie",
+      "/library/tv-show",
+      "/library/cartoon",
+    ]);
+    expect(rowHrefs(links, "read")).toEqual(["/library/manga", "/library/book", "/library/comic"]);
+    expect(rowHrefs(links, "play")).toEqual(["/library/game"]);
+    for (const label of ["Groups", "Watch", "Read", "Play"]) {
+      expect(within(links).getByRole("heading", { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it("put each gated type the viewer may see last in its counterpart's row", async () => {
+    setup(
+      me("guest", GUEST_PERMS, { visible_gated_types: ["h-comic", "h-game", "hentai"] }),
+    );
+    mount();
+    const links = await screen.findByTestId("library-links");
+    expect(rowHrefs(links, "watch").at(-1)).toBe("/library/hentai");
+    expect(rowHrefs(links, "read").at(-1)).toBe("/library/h-comic");
+    expect(rowHrefs(links, "play")).toEqual(["/library/game", "/library/h-game"]);
+  });
+
+  it("place every library the nav offers in some row", () => {
+    const placed = new Set(LIBRARY_ROWS.flatMap((row) => row.paths));
+    const offered = NAV_SECTIONS.filter((s) => s.key === "library" || s.key === "restricted")
+      .flatMap(sectionItems)
+      .filter((item) => !item.divider)
+      .map((item) => item.to);
+    expect(offered.length).toBeGreaterThan(0);
+    for (const to of offered) expect(placed.has(to), to).toBe(true);
   });
 
   it("are not drawn for a member, who has its tracker", async () => {
     setup(me("user", USER_PERMS));
     mount();
-    await waitFor(() => expect(screen.getByText("My watch schedule")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^My Schedule \(\d+\)$/)).toBeInTheDocument());
     expect(screen.queryByTestId("library-links")).toBeNull();
     expect(document.getElementById("libraries")).toBeNull();
   });
@@ -280,7 +342,7 @@ describe("recently added", () => {
     const link = within(recent).getByRole("link", { name: /Dungeon Meshi/ });
     expect(link.getAttribute("href")).toMatch(/^\/anime\/7(\/|$)/);
     expect(screen.getByTestId("library-links")).toBeInTheDocument();
-    expect(screen.queryByText("My watch schedule")).toBeNull();
+    expect(screen.queryByText(/^My Schedule/)).toBeNull();
     const toc = within(screen.getByRole("navigation", { name: "Contents" }));
     expect(toc.getByRole("button", { name: "Recently added" })).toBeInTheDocument();
   });
@@ -305,7 +367,7 @@ describe("recently added", () => {
   ])("is not shown to %s, whose dashboard is its tracker", async (role, perms) => {
     setup(me(role, perms));
     mount();
-    await waitFor(() => expect(screen.getByText("My watch schedule")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^My Schedule \(\d+\)$/)).toBeInTheDocument());
     expect(document.getElementById("recent")).toBeNull();
     expect(fetched("/api/dashboard/recent")).toBe(false);
   });
@@ -333,8 +395,9 @@ describe("the admin's own page", () => {
       "/system",
     );
     expect(screen.getByTestId("announcement-editor")).toBeInTheDocument();
+    expect(screen.queryByText("Pinned to the top of the dashboard")).toBeNull();
 
-    expect(screen.queryByText("Broadcast schedule")).toBeNull();
+    expect(screen.queryByText(/^Broadcast schedule/)).toBeNull();
     const urls = fetchedUrls();
     expect(urls.length).toBeGreaterThan(0);
     for (const url of urls) {
@@ -358,7 +421,7 @@ describe("the admin's own page", () => {
   it("is not given to super", async () => {
     setup(me("super", SUPER_PERMS));
     mount();
-    await waitFor(() => expect(screen.getByText("My watch schedule")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/^My Schedule \(\d+\)$/)).toBeInTheDocument());
     expect(screen.queryByRole("heading", { name: "Overview" })).toBeNull();
     expect(fetched("/api/system/logs")).toBe(false);
   });

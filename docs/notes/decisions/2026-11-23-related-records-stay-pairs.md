@@ -1,6 +1,6 @@
 # Related records stay pairs; the editor offers the group
 
-Related records - `company_relation` and `franchise_relation` - relate two
+Related records - `company_relation`, `franchise_relation` and `series_relation` - relate two
 records at a time. A related to B and to C says nothing about B and C. What
 the editor does instead is offer it: a record added to a list gets an **Also
 related to** tick for each record above it, all ticked, and each ticked one is

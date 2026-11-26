@@ -267,6 +267,11 @@ export const endpoints = {
     // The Add tab's MyAnimeList picker (ExternalSearchResult rows).
     searchMal: (q, limit = 10) =>
       `/api/person/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+    // The Add tab's IMDb picker: TMDB people (IMDb has no public search),
+    // and the IMDb name id + link of the one picked.
+    searchImdb: (q, limit = 10) =>
+      `/api/person/search-imdb?q=${encodeURIComponent(q)}&limit=${limit}`,
+    tmdbImdbId: (ref) => `/api/person/tmdb-imdb-id?ref=${encodeURIComponent(ref)}`,
   },
 
   credits: {
@@ -371,6 +376,13 @@ export const endpoints = {
   franchise: {
     // GET / PUT: the related franchises, each with this side's remark.
     related: (id) => `/api/franchise/${id}/related`,
+  },
+
+  // A series' CRUD is resource("series"); this is the route it has beyond
+  // that.
+  series: {
+    // GET / PUT: the related series, each with this side's remark.
+    related: (id) => `/api/series/${id}/related`,
   },
 
   // Hand-maintained exchange rates, read by the statistics spend block and

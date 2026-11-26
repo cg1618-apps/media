@@ -7,9 +7,12 @@
 // remove call names only what is still ticked. The two game list-price
 // checks: Free Games With a List Price opens all ticked and zeroes only what
 // is still ticked, Bought Copies Without a List Price only lists, and both
-// leave out an h-game row for a session that may not see the type.
+// leave out an h-game row for a session that may not see the type. The page
+// frame: its title, the three top links (Data History, Review Queue, Clean
+// Orphans), Exchange Rates below the announcements, and the Data Control
+// Log, whose Details popup lists each operation a run ran.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render as rtlRender, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -42,6 +45,41 @@ const UNCAST_REMOVE = "/api/data-control/calculate/remove-uncast-characters";
 const FREE_SCAN = "/api/data-control/check/free-games-with-list-price";
 const FREE_ZERO = "/api/data-control/calculate/zero-free-games-list-price";
 const BOUGHT_SCAN = "/api/data-control/check/bought-copies-without-list-price";
+const LOGS = "/api/system/logs";
+
+// A Fill All run with two operations, and a single Sync Cast. The run's
+// operations are only in its own read, so the popup has to fetch them.
+const LOG_ROWS = [
+  {
+    id: 7, parent_id: null, action_main: "Fill", action_specific: "Fill All",
+    type: "Manual", status: "Failed", rows_added: 0, rows_updated: 3,
+    rows_deleted: 0, error_message: "IGDB down", details_json: null,
+    timestamp: "2026-11-26T10:00:00", child_count: 2,
+  },
+  {
+    id: 9, parent_id: null, action_main: "Calculate", action_specific: "Sync Cast",
+    type: "Manual", status: "Success", rows_added: 0, rows_updated: 0,
+    rows_deleted: 0, error_message: null, details_json: null,
+    timestamp: "2026-11-26T11:00:00", child_count: 0,
+  },
+];
+const RUN_DETAIL = {
+  ...LOG_ROWS[0],
+  children: [
+    {
+      id: 5, parent_id: 7, action_main: "Fill", action_specific: "Fill Anime",
+      type: "Manual", status: "Success", rows_added: 0, rows_updated: 3,
+      rows_deleted: 0, error_message: null, details_json: null,
+      timestamp: "2026-11-26T09:40:00", child_count: 0,
+    },
+    {
+      id: 6, parent_id: 7, action_main: "Fill", action_specific: "Fill Game",
+      type: "Manual", status: "Failed", rows_added: 0, rows_updated: 0,
+      rows_deleted: 0, error_message: "IGDB down", details_json: null,
+      timestamp: "2026-11-26T09:55:00", child_count: 0,
+    },
+  ],
+};
 
 // The h-game rows are load-bearing: the mocked session sees no gated type, so
 // without one in each payload the hiding would be asserted over nothing.
@@ -140,7 +178,16 @@ beforeEach(() => {
         json: async () => ({ status: "success", count: 2, copies: BOUGHT_ROWS }),
       };
     }
-    // Everything the page loads on mount: season, logs, announcements, rates.
+    if (url === LOGS) {
+      return { ok: true, json: async () => LOG_ROWS };
+    }
+    if (url === `${LOGS}/7`) {
+      return { ok: true, json: async () => RUN_DETAIL };
+    }
+    if (url === `${LOGS}/9`) {
+      return { ok: true, json: async () => ({ ...LOG_ROWS[1], children: [] }) };
+    }
+    // Everything else the page loads on mount: season, announcements, rates.
     return { ok: true, json: async () => [] };
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -307,5 +354,95 @@ describe("Control Center Bought Copies Without a List Price", () => {
     expect(screen.queryByText("Hidden Bought H")).not.toBeInTheDocument();
     // List only: nothing in the modal writes.
     expect(screen.queryByRole("button", { name: /Selected/ })).not.toBeInTheDocument();
+  });
+});
+
+function renderPage() {
+  return render(
+    <MemoryRouter>
+      <Admin />
+    </MemoryRouter>,
+  );
+}
+
+describe("Control Center page frame", () => {
+  it("is titled Control Center, with no subtitle", async () => {
+    renderPage();
+    expect(screen.getByRole("heading", { level: 1, name: "Control Center" })).toBeInTheDocument();
+    expect(screen.queryByText(/System Administration/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Master control center/)).not.toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  });
+
+  it("shows the current season with no Active Season Config label", async () => {
+    renderPage();
+    expect(screen.getByText("Current Season")).toBeInTheDocument();
+    expect(screen.queryByText("Active Season Config")).not.toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  });
+
+  it("links on top to Data History, Review Queue and Clean Orphans only", async () => {
+    // The nav leaves Review Queue and Clean Orphans to this page; the Entry
+    // and Note pages have nav groups of their own, and Needs Work and Inbox
+    // stay in the nav.
+    renderPage();
+    const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+    for (const kept of ["/data-history", "/review-queue", "/clean-orphans"]) {
+      expect(links).toContain(kept);
+    }
+    for (const gone of [
+      "/options", "/aliases", "/add", "/modify", "/delete", "/needs-work", "/request-inbox",
+    ]) {
+      expect(links).not.toContain(gone);
+    }
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+  });
+
+  it("draws Exchange Rates below Announcement & Notes", async () => {
+    renderPage();
+    const announcements = await screen.findByText("Announcement & Notes");
+    const rates = screen.getByText("Exchange Rates");
+    expect(
+      announcements.compareDocumentPosition(rates) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});
+
+describe("Control Center Data Control Log", () => {
+  it("lists runs without the rows-changed metrics", async () => {
+    renderPage();
+    expect(
+      await screen.findByRole("button", { name: "Details for Fill All" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Metrics")).not.toBeInTheDocument();
+    expect(screen.queryByText("+0")).not.toBeInTheDocument();
+  });
+
+  it("opens a run's operations, each with its trigger, time and status", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Details for Fill All" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Fill All" });
+    expect(await within(dialog).findByText("Fill Anime")).toBeInTheDocument();
+    expect(within(dialog).getByText("Fill Game")).toBeInTheDocument();
+    const rows = within(dialog).getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText("Manual")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("Success")).toBeInTheDocument();
+    expect(within(rows[0]).getByText(/Nov 26/)).toBeInTheDocument();
+    expect(within(rows[1]).getByText("Failed")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("IGDB down")).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("shows a single operation as its own one row", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Details for Sync Cast" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Sync Cast" });
+    await waitFor(() => expect(within(dialog).getAllByRole("row")).toHaveLength(2));
+    expect(within(dialog).getByText("Success")).toBeInTheDocument();
   });
 });

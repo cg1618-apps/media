@@ -253,6 +253,11 @@ export default function App() {
                   path="/under-development"
                   element={<UnderDevelopment />}
                 />
+                {/* The Guide is not written yet, so it shows the holding page.
+                    Open to everyone: the nav offers it to guest, shared and
+                    user only (navigation.js's `excludes`), but no one is sent
+                    to log in for opening it. */}
+                <Route path="/guide" element={<UnderDevelopment />} />
 
                 {/* Everything below is a member's view, closed to a guest.
                     Each block asks one view.* key, the same one
