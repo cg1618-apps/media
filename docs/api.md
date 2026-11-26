@@ -2419,10 +2419,10 @@ announcements, it reuses `system_configs` — one row per media type, keyed
 `media_type` is one of the form tabs — the twelve media slugs (`anime`, `anime-movie`,
 `movie`, `tv-show`, `cartoon`, `manga`, `book`, `comic`, `game`, `h-comic`, `h-game`, `hentai`), the grouping tiers
 (`collection`, `franchise`, `series`) and the entities (`studio`, `publisher`, `person`,
-`character`); anything else is 400. The list mirrors `FORM_TABS` in
-`frontend/src/config/adminTabs.js`, whose `h-comic` tab is offered only to a
-session that can see the gated type; `h-game` and `hentai` are accepted here ahead of their
-SPA tabs.
+`character`); anything else is 400. These are the keys of `FORM_TABS` in
+`frontend/src/config/adminTabs.js`, whose three gated tabs are offered only to a session
+that can see their type. The media slugs are each registered type's `owner_type` in
+`app/registry.py`; only the seven group and entity keys are written out in the router.
 
 | Method   | Path            | Auth  | Description                                                                     |
 | -------- | --------------- | ----- | ------------------------------------------------------------------------------- |

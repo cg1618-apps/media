@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
+from app.registry import MEDIA_REGISTRY
 from app.services.rbac.resolver import Viewer, require_manage_catalog
 
 logger = logging.getLogger(__name__)
@@ -37,30 +38,21 @@ router = APIRouter(prefix="/api/form-defaults", tags=["Form Defaults"])
 FORM_DEFAULTS_PREFIX = "form_defaults:"
 MAX_PAYLOAD_BYTES = 32 * 1024
 
-# Mirrors the FORM_TABS keys in frontend/src/config/adminTabs.js: the media
-# types plus the three entity tabs, which have Add forms of their own.
+# The tabs of the /defaults page (FORM_TABS in frontend/src/config/adminTabs.js):
+# every registered media type, under the hyphenated key the data layer uses,
+# plus the group and entity tabs, which have Add forms of their own but no
+# registry spec. tests/unit/test_form_defaults_types.py pins the whole set.
+_NON_MEDIA_FORM_TABS = (
+    "collection",
+    "franchise",
+    "series",
+    "studio",
+    "publisher",
+    "person",
+    "character",
+)
 VALID_MEDIA_TYPES = frozenset(
-    {
-        "anime",
-        "anime-movie",
-        "movie",
-        "tv-show",
-        "cartoon",
-        "manga",
-        "book",
-        "comic",
-        "game",
-        "h-comic",
-        "hentai",
-        "h-game",
-        "collection",
-        "franchise",
-        "series",
-        "studio",
-        "publisher",
-        "person",
-        "character",
-    }
+    {spec.owner_type for spec in MEDIA_REGISTRY.values()} | set(_NON_MEDIA_FORM_TABS)
 )
 
 
