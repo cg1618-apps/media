@@ -1511,6 +1511,17 @@ whose options do not include it - a gender saved as `Female`, outside
 would still post it and be refused with a 422. Note `coerce: "tristate"` is implemented but unused
 by any field.
 
+**The auto-fill column.** Each auto-fillable field has a tick in the third
+column, under one heading at the top of the tab, **Replace when choosing an
+existing entry**: a ticked field is the one a pick in the Add tab's
+"Auto-fill from existing entry" box overwrites. The ticks carry no text of
+their own; each has the accessible name "Replace <field> when choosing an
+existing entry", which is all that names it below `md`, where the grid
+collapses and the heading is hidden. A field that cannot be auto-filled shows
+a dash in the column. Each group header offers **Select all** while any of
+its fields is unticked, and drops it once all are; there is no group-wide
+untick - a field is unticked by its own box.
+
 **Restricted Prefill** sits under the Sources field on every type that has
 one: which restricted source names a new entry is prefilled with
 (`restricted_prefill` in the stored config). h-comic has one per region, JP

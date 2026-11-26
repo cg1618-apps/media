@@ -11,6 +11,10 @@ import { getFieldGroups } from "../../config/formFields";
 import { RestrictedPrefillEditor } from "../../components/forms/SourcesEditor";
 import { prefillVariants } from "../../lib/restrictedSources";
 
+// The auto-fill column's heading. One heading names the whole column, so the
+// ticks under it carry no text of their own - only an accessible name.
+const AUTOFILL_HEADING = "Replace when choosing an existing entry";
+
 /**
  * The picked restricted-source prefill, one editor per variant (h-comic has
  * one per region), laid out as rows of the field grid under `sources` - whose
@@ -50,7 +54,7 @@ function RestrictedPrefillRows({ type, picks, setPrefill, clearPrefill, gridCls,
           )}
         </div>
         {hasAutofill && (
-          <div className="shrink-0">
+          <div className="flex md:justify-center">
             <span className="text-[10px] text-text-faint/60">—</span>
           </div>
         )}
@@ -78,18 +82,29 @@ export default function DefaultsTab({
   // autofillable. Drop the column outright rather than render a row of
   // placeholder dashes beside every field.
   const hasAutofill = groups.some(({ fields }) => fields.some((f) => f.autofillable !== false));
-  const gridCls = `grid grid-cols-1 gap-2 md:gap-4 ${
-    hasAutofill
-      ? "md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_auto]"
-      : "md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]"
-  }`;
+  // Every row is a grid of its own, so the auto-fill column takes a fixed
+  // width - wide enough for its two-line heading - to line up row to row.
+  const columnsCls = hasAutofill
+    ? "md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_8rem]"
+    : "md:grid-cols-[minmax(0,11rem)_minmax(0,1fr)]";
+  const gridCls = `grid grid-cols-1 gap-2 md:gap-4 ${columnsCls}`;
 
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
+      {/* Shown from md up, where the ticks form a column; below it the grid
+          collapses and each tick is named by its aria-label alone. */}
+      {hasAutofill && (
+        <div className={`hidden md:grid md:gap-4 ${columnsCls}`}>
+          <div className="md:col-start-3 text-center text-[10px] font-bold text-text-faint leading-tight">
+            {AUTOFILL_HEADING}
+          </div>
+        </div>
+      )}
       {groups.map(({ group, fields }) => {
         const autofillable = fields.filter((f) => f.autofillable !== false);
-        const allOn =
-          autofillable.length > 0 && autofillable.every((f) => autofill.includes(f.key));
+        // The group button only ever ticks: it is offered while a field in
+        // the group is unticked, and unticking is per field.
+        const someOff = autofillable.some((f) => !autofill.includes(f.key));
 
         return (
           <div key={group}>
@@ -97,18 +112,19 @@ export default function DefaultsTab({
               <div className="flex-1">
                 <SectionHeader icon="fa-sliders-h" title={group} />
               </div>
-              {autofillable.length > 0 && (
+              {someOff && (
                 <button
                   type="button"
+                  title={`Replace every ${group} field when choosing an existing entry`}
                   onClick={() =>
                     setGroupAutofill(
                       autofillable.map((f) => f.key),
-                      !allOn
+                      true
                     )
                   }
                   className="ml-4 mt-2 text-[10px] font-bold text-text-faint hover:text-brand whitespace-nowrap"
                 >
-                  {allOn ? "Auto-fill: none" : "Auto-fill: all"}
+                  Select all
                 </button>
               )}
             </div>
@@ -157,19 +173,17 @@ export default function DefaultsTab({
                       </div>
 
                       {hasAutofill && (
-                        <div className="shrink-0">
+                        <div className="flex md:justify-center">
                           {field.autofillable === false ? (
                             <span className="text-[10px] text-text-faint/60">—</span>
                           ) : (
-                            <label className="flex items-center gap-1.5 text-[10px] font-bold text-text-faint cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={autofill.includes(field.key)}
-                                onChange={() => toggleAutofill(field.key)}
-                                className="rounded accent-brand"
-                              />
-                              Auto-fill
-                            </label>
+                            <input
+                              type="checkbox"
+                              aria-label={`Replace ${field.label} when choosing an existing entry`}
+                              checked={autofill.includes(field.key)}
+                              onChange={() => toggleAutofill(field.key)}
+                              className="rounded accent-brand cursor-pointer"
+                            />
                           )}
                         </div>
                       )}
