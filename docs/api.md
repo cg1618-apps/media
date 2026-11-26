@@ -2697,11 +2697,16 @@ members who are not admins. See that section.
 | `DELETE` | `/logs`          | Delete every run except the 10 most recent, and their operations with them; operations do not count toward the ten. Returns `{deleted: int}`, the runs deleted. |
 | `DELETE` | `/logs/{log_id}` | Delete a single log entry by integer ID, and its operations with it. |
 
-Fill All, Replace All and Pull All each log one row per operation as it
-finishes (`Fill Anime`, ..., the closing `Backup`; `Pull Anime`, ...), then
-their own row once the outcome is known, and point the operations'
-`parent_id` at it. A run that fails or is aborted keeps the operations it
-finished.
+Fill All, Replace All, Pull All and Calculate All each log one row per
+operation as it finishes (`Fill Anime`, ..., the closing `Backup`; `Pull
+Anime`, ...; `Post-processing`, ..., `Check Cover Images`), then their own
+row once the outcome is known, and point the operations' `parent_id` at it.
+A run that fails or is aborted keeps the operations it finished.
+
+Each row carries `status` (`Success`, `Partial`, `Failed`, `Aborted`),
+`rows_failed` (entries that failed; their names are under `failed` in
+`details_json`) and `started_at` (when it began, `null` on rows that never
+recorded it), beside `timestamp`, when it ended.
 
 ### Deleted Records
 

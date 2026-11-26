@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy.orm import Session, selectinload
 
 from app.config import settings
+from app.database import get_taipei_now
 from app.models import (
     Anime,
     AnimeMovies,
@@ -79,7 +80,7 @@ from app.services.integrations.image_manager import (
     cover_key,
     list_all_cover_images,
 )
-from app.utils.data_control_utils import log_data_control
+from app.utils.data_control_utils import log_data_control, log_run
 from app.utils.dlsite_utils import dlsite_product_id_for
 from app.utils.ehentai_utils import ehentai_gallery_key_for
 from app.utils.tenrai_utils import ALLOWED_AIRING_TYPES
@@ -605,6 +606,19 @@ def run_derive_ep_previous(db: Session) -> dict:
 
 
 def run_sync(db: Session) -> dict:
+    """
+    Every type's sync, then the cast and CN display-name syncs. Calculate
+    All runs the three as steps of their own (run_sync_types, run_sync_cast,
+    run_sync_character_display_names), so a failure names its step.
+    """
+    synced = run_sync_types(db)
+    run_sync_cast(db)
+    run_sync_character_display_names(db)
+    return synced
+
+
+def run_sync_types(db: Session) -> dict:
+    """Every type's own sync, the gated labels and the size groups."""
     run_sync_anime(db)
     run_sync_anime_movie(db)
     run_sync_tv_show(db)
@@ -616,8 +630,6 @@ def run_sync(db: Session) -> dict:
     run_sync_hentai(db)
     run_sync_gated_labels(db)
     run_sync_size_groups(db)
-    run_sync_cast(db)
-    run_sync_character_display_names(db)
     owner_missing = book["owner_missing"]
     message = "All synchronization tasks completed."
     if owner_missing:
@@ -837,42 +849,85 @@ def run_seed_sequel_relations(db: Session) -> dict:
 
 
 def run_calculate_all(db: Session) -> dict:
+    """
+    Every derivation, in order, each a step with its own log row under the
+    Calculate All run's row - the way Fill All's types are - so a failure
+    names its step. A failed step stops the run: the later steps read what
+    the earlier ones derive.
+    """
+    started_at = get_taipei_now()
+    child_ids: list[int | None] = []
+    current = None
+
+    def step(name, fn, details=None):
+        nonlocal current
+        current = name
+        step_started = get_taipei_now()
+        try:
+            result = fn(db)
+        except Exception as e:
+            db.rollback()
+            child_ids.append(log_data_control(
+                db, "Calculate", name, "Manual", "Failed",
+                error_message=str(e), started_at=step_started,
+            ))
+            raise
+        noted = details(result) if details else None
+        child_ids.append(log_data_control(
+            db, "Calculate", name, "Manual", "Success",
+            details_json=json.dumps(noted) if noted else None,
+            started_at=step_started,
+        ))
+        return result
+
     try:
-        run_post_processing(db)
-        run_derive_ep_previous(db)
-        seeded = run_seed_sequel_relations(db)
-        synced = run_sync(db)
-        bulk_check_cover_image(db)
-        message = (
-            "Full calculation complete. "
-            f"Created {seeded['relations_created']} sequel relation(s) "
-            f"in {seeded['franchises_seeded']} franchise(s); "
-            f"{seeded['groups_skipped_tied']} group(s) skipped "
-            "(tied season/part)."
+        step("Post-processing", lambda db: (run_post_processing(db), run_derive_ep_previous(db)))
+        seeded = step(
+            "Seed Sequel Relations", run_seed_sequel_relations,
+            lambda counts: {"sequel_relations": counts},
         )
-        owner_missing = synced["owner_missing"]
-        if owner_missing:
-            # The run still succeeded, but part of it derived nothing; the
-            # audit row carries the same named line the response does.
-            note = f"{no_owner_message(owner_missing)} (book list rows)."
-            message += f" {note}"
-            log_data_control(
-                db,
-                "Calculate",
-                "Calculate All",
-                "Manual",
-                "Success",
-                details_json=json.dumps({"no_installation_owner": note}),
-            )
-        else:
-            log_data_control(db, "Calculate", "Calculate All", "Manual", "Success")
-        return {
-            "status": "success",
-            "message": message,
-            "owner_missing": owner_missing,
-        }
+        synced = step(
+            "Sync", run_sync_types,
+            # The run still succeeds, but part of it derived nothing; the
+            # step's row carries the same named line the response does.
+            lambda result: (
+                {"no_installation_owner": f"{no_owner_message(result['owner_missing'])} (book list rows)."}
+                if result["owner_missing"] else None
+            ),
+        )
+        step("Sync Cast", run_sync_cast, lambda result: {"cast": result["counts"]})
+        step(
+            "Sync Display Names", run_sync_character_display_names,
+            lambda result: {"display_names": result["counts"]},
+        )
+        step(
+            "Check Cover Images", bulk_check_cover_image,
+            lambda result: {
+                "missing_covers": result["missing_count"],
+                "unused_covers": result["should_use_count"],
+            },
+        )
     except Exception as e:
-        log_data_control(
-            db, "Calculate", "Calculate All", "Manual", "Failed", error_message=str(e)
+        log_run(
+            db, child_ids, "Calculate", "Calculate All", "Manual", "Failed",
+            error_message=f"{current}: {e}", started_at=started_at,
         )
         raise
+
+    log_run(db, child_ids, "Calculate", "Calculate All", "Manual", "Success",
+            started_at=started_at)
+    message = (
+        "Full calculation complete. "
+        f"Created {seeded['relations_created']} sequel relation(s) "
+        f"in {seeded['franchises_seeded']} franchise(s); "
+        f"{seeded['groups_skipped_tied']} group(s) skipped "
+        "(tied season/part)."
+    )
+    owner_missing = synced["owner_missing"]
+    if owner_missing:
+        message += f" {no_owner_message(owner_missing)} (book list rows)."
+    return {
+        "status": "success",
+        "message": message,
+        "owner_missing": owner_missing,
+    }

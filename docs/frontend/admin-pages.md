@@ -155,14 +155,19 @@ label reference and the RBAC pages — never the catalogue editors.
   stored for any other currency is not shown, and the next save drops it.
 - **Data Control Log.** The latest runs from `GET /api/system/logs`, ten to a
   page: action, trigger (Manual or Auto), time and status, the error as the
-  Failed status's tooltip. A batch run (Fill All, Replace All, Pull All) is
-  one row; the operations it ran are not listed beside it. Each row's
+  Failed status's tooltip and the failed count as a Partial one's. A batch
+  run (Fill All, Replace All, Pull All, Calculate All) is one row; the operations it ran are not listed beside it. Each row's
   **Details** button, which names the run's operation count, opens
   `LogDetailsModal` (`components/modals`), which reads
-  `GET /api/system/logs/{id}` and lists each operation's trigger, time and
-  status, with a failed operation's error beneath it: every Fill or Replace
-  of a type and the Backup a Fill All or Replace All ends in, or every tab of
-  a Pull All. A row that ran no operations lists itself. Escape or Close
+  `GET /api/system/logs/{id}` and lists each operation's trigger, time, how
+  long it took (blank for a row that recorded no start) and status: every
+  Fill or Replace of a type and the Backup a Fill All or Replace All ends in,
+  every tab of a Pull All, or every step of a Calculate All. Beneath each
+  operation go its error and its stored details, one labelled list per kind
+  (`lib/logDetails.js`): failed entries, unread tabs, unresolved references,
+  ambiguous links, entities created from the sheet, skipped tabs and each
+  Calculate All step's notes and counts. A run's own error and details go
+  above the list. A row that ran no operations lists itself. Escape or Close
   dismisses it. A row's × deletes it with its operations, and **Clear Old**
   keeps the ten newest runs.
 

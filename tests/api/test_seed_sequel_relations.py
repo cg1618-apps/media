@@ -330,8 +330,15 @@ def test_calculate_all_runs_the_seed_and_reports_its_counts(
     # The other steps walk every table and the cover store; they are not what
     # this test is about.
     monkeypatch.setattr(calculation, "run_post_processing", lambda db: None)
-    monkeypatch.setattr(calculation, "run_sync", lambda db: {"owner_missing": 0})
-    monkeypatch.setattr(calculation, "bulk_check_cover_image", lambda db: None)
+    monkeypatch.setattr(calculation, "run_sync_types", lambda db: {"owner_missing": 0})
+    monkeypatch.setattr(calculation, "run_sync_cast", lambda db: {"counts": {}})
+    monkeypatch.setattr(
+        calculation, "run_sync_character_display_names", lambda db: {"counts": {}}
+    )
+    monkeypatch.setattr(
+        calculation, "bulk_check_cover_image",
+        lambda db: {"missing_count": 0, "should_use_count": 0},
+    )
 
     f = _franchise(db_session)
     s = _series(db_session, f)

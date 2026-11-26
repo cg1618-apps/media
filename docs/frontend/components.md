@@ -916,7 +916,8 @@ columns.
   `RequestModal` (files or edits a request - see [Requests](#requests)),
   `LogDetailsModal` (a Data Control Log row's operations, in the same chrome
   - `log`, `onClose`; reads `GET /api/system/logs/{id}` and tables each
-  operation's trigger, time and status; its `LogStatus` and `LogTrigger` are
+  operation's trigger, time, duration and status, with its error and stored
+  details beneath it (`lib/logDetails.js`); its `LogStatus` and `LogTrigger` are
   the log table's own cells; see [admin-pages.md](admin-pages.md)).
 - **`components/requests`** <a id="requests"></a> — requests and reports
   ([systems/requests.md](../systems/requests.md)).
