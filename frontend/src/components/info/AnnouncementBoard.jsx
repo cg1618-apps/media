@@ -1,4 +1,6 @@
 // Frontend: dashboard board that lists announcement notes from system_configs.
+// Draws nothing when there are none; the dashboard leaves out the whole
+// division then.
 import { useState } from "react";
 import AnnouncementModal from "../modals/AnnouncementModal";
 import { Slip } from "../ui/primitives";
@@ -6,18 +8,7 @@ import { Slip } from "../ui/primitives";
 export default function AnnouncementBoard({ announcements = [] }) {
   const [expanded, setExpanded] = useState(null);
 
-  if (announcements.length === 0) {
-    return (
-      <div className="mt-2 border border-dashed border-border-strong px-4 py-6 text-center">
-        <div className="font-mono text-[11px] text-text-muted mb-1">
-          Announcements
-        </div>
-        <p className="text-sm text-text-faint">
-          No announcements or notes yet.
-        </p>
-      </div>
-    );
-  }
+  if (announcements.length === 0) return null;
 
   return (
     <>
