@@ -1141,10 +1141,11 @@ writers keep the rows naming a person the writer cannot see, as the scope
 writers below do.
 
 **A peer relation is not a connection either.** `company_relation` never
-makes a hidden studio or publisher visible, and `franchise_relation` never
-makes a hidden franchise visible; each end reads through its own kind's rule
-(the shared-record rule for a studio or a publisher, the label rule for a
-franchise). Nor is a person's affiliation (`person_affiliation`): each page
+makes a hidden studio or publisher visible, `franchise_relation` never
+makes a hidden franchise visible, and `series_relation` never makes a hidden
+series visible; each end reads through its own kind's rule (the
+shared-record rule for a studio or a publisher, the label rule for a
+franchise or a series). Nor is a person's affiliation (`person_affiliation`): each page
 omits the studios or people its viewer may not see, and the person writer
 keeps the rows naming a studio it cannot see. A visible record's
 `/related` omits the related records the viewer cannot see, and 404s when the

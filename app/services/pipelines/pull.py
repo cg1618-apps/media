@@ -261,6 +261,11 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "franchise_id",
         "related_franchise_id",
     ),  # uq_franchise_relation
+    # The same shape: both ends cite a series, whose uuid travels too.
+    "Series Relation": (
+        "series_id",
+        "related_series_id",
+    ),  # uq_series_relation
     # No `role` in the key: a publisher holds exactly one.
     "Publisher Scope": ("publisher_id", "scope"),  # uq_publisher_scope
     # These two mint their own uuid but cite entry ids, which the sheet does

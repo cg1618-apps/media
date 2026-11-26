@@ -1268,8 +1268,9 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
   order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`). The
-  Franchise tab ends with the detail page's **Related franchises** box
-  (`RelatedRecords`), which saves through its own button, not with the form.
+  Franchise tab ends with the detail page's **Related franchises** box and
+  the Series tab with its **Related series** box (`RelatedRecords`), each
+  saving through its own button, not with the form.
 - **The viewer's own rating.** The Collection, Franchise and Series tabs draw
   **My Rating** and **Expectation** under Other Information for a viewer who
   keeps a list, as on `/add`; the Person, Character, Studio and Publisher

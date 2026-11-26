@@ -1,25 +1,26 @@
 """
 Peer relations: a record related to other records, each side with its own
 remark. Companies relate to companies - a studio or a publisher at either end,
-in any mix (company_relation) - and franchises to franchises
-(franchise_relation). The rules are the same, so the code is one class with an
-instance per table.
+in any mix (company_relation) - franchises to franchises
+(franchise_relation), and series to series (series_relation). The rules are
+the same, so the code is one class with an instance per table.
 
 A relation is mutual and stored as two rows, one per side (see the models,
-CompanyRelation in app/models/staff.py and FranchiseRelation in
-app/models/franchise.py). This module is the only writer, and it keeps the
+CompanyRelation in app/models/staff.py, FranchiseRelation and SeriesRelation
+in app/models/franchise.py). This module is the only writer, and it keeps the
 pair whole: adding a relation from one side creates the other side's row with
 no remark, and removing it from either side removes both. Each side's remark
 is its own and is written only from that side.
 
 A record is named by its KIND and its id: ("studio", id), ("publisher", id),
-("franchise", id). Each kind is one `Kind` below - the table it lives in, the
+("franchise", id), ("series", id). Each kind is one `Kind` below - the table it lives in, the
 pair of relation columns that name it on each end, and its visibility rule.
-A table holding one kind (franchise_relation) is the same code with one Kind.
+A table holding one kind (franchise_relation, series_relation) is the same
+code with one Kind.
 
 Visibility follows each kind's own rule without adding to it - the
 shared-record rule for a studio or a publisher, the label rule for a
-franchise. A relation is NOT a connection: it never makes a hidden record
+franchise or a series. A relation is NOT a connection: it never makes a hidden record
 visible. What it does is filter - a visible record's related list, and the
 count a library filters on, omit the records the viewer may not see.
 
@@ -43,7 +44,10 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Query, Session
 
 from app import models
-from app.services.rbac.enforcement import apply_franchise_visibility
+from app.services.rbac.enforcement import (
+    apply_franchise_visibility,
+    apply_series_visibility,
+)
 from app.services.rbac.shared_visibility import apply_shared_visibility
 
 # (kind, system_id): one end of a relation.
@@ -75,8 +79,10 @@ class PeerRelations:
 
     model: type
     kinds: tuple[Kind, ...]
-    # How an error names a record: "company", "franchise".
+    # How an error names a record: "company", "franchise", "series".
     noun: str
+    # Its plural, where adding an "s" is wrong ("series").
+    plural: str = ""
 
     # --- the two ends of a row ----------------------------------------------
 
@@ -245,7 +251,7 @@ class PeerRelations:
             if one not in wanted or other not in wanted:
                 raise HTTPException(
                     status_code=422,
-                    detail=f"Also-related {self.noun}s must both be on this list.",
+                    detail=f"Also-related {self.plural or self.noun + 's'} must both be on this list.",
                 )
         visible_wanted = self._visible_records(db, viewer, wanted)
         missing = [f"{key} {record_id}" for key, record_id in wanted
@@ -367,4 +373,19 @@ FRANCHISE_RELATIONS = PeerRelations(
         ),
     ),
     noun="franchise",
+)
+
+SERIES_RELATIONS = PeerRelations(
+    model=models.SeriesRelation,
+    kinds=(
+        Kind(
+            "series",
+            models.Series,
+            "series_id",
+            "related_series_id",
+            apply_series_visibility,
+        ),
+    ),
+    noun="series",
+    plural="series",
 )

@@ -205,6 +205,8 @@ The franchise library's Relation filter reads it.
 | -------- | -------------- | ------ | ---------------------------------------------------------------------------------- |
 | `GET`    | `/`            | Public | List all series. Optional params: `franchise_id` (UUID), `search_query`. Each row carries a viewer-filtered `entry_count`, as the franchise list does. |
 | `GET`    | `/{system_id}` | Public | Get a single series by UUID.                                                       |
+| `GET`    | `/{system_id}/related` | Public | The related series the viewer may see, by display name: `PeerRelationRef[]` - `kind` (`"series"`), `system_id`, `public_id`, `display_name` and `remark`, the remark this series' side gives the relation (null when none). 404 if the series is absent or hidden. Takes a public_id or UUID. |
+| `PUT`    | `/{system_id}/related` | Admin  | Replace this side's related series. Body `PeerRelationsReplace`: `{"relations": [{"id", "remark", "also_related_to"}]}`. The franchise route's rules: a new relation also appears on the other series with no remark there, one left out is removed from both sides, a blank remark is null, 422 for this series itself or one absent or hidden from the writer, relations to series the writer cannot see are kept, and `also_related_to` relates an item to other series on the list as well. Answers as `GET`. |
 
 **A series is hidden by its own labels and by every group above it.** A
 series carrying a label the viewer's mode lacks, or whose franchise is hidden
@@ -218,9 +220,14 @@ not its franchise or its sibling series.
 | `PATCH`  | `/{system_id}` | Admin  | Partial update. Body: raw JSON dict. A body naming `franchise_id` is resolved as `PUT` resolves it - a UUID string is the id, any other string a franchise name - and a body not naming it leaves the franchise alone. The viewer's rating and expectation go through `PUT /api/me/ratings/series/{id}`. |
 | `DELETE` | `/{system_id}` | Admin  | Delete a series. Linked `anime.series_id` set to `NULL`. Logs to `deleted_record`. |
 
+**`has_relations`.** The list and `GET /{system_id}` set it on every series:
+`true` when it relates to at least one series the viewer may see
+(`SERIES_RELATIONS.attach_has_relations`), as on a franchise. The series
+library's Relation filter reads it.
+
 **`SeriesCreate` / `SeriesUpdate` body (= `SeriesBase`):** `franchise_id`, `series_name_en`, `series_name_cn`, `series_name_roman`, `series_name_jp`, `series_name_alt`, `cover_entry_id`, `type_slots`, `size_group_derived`, `size_group_manual`. No `to_rewatch` field — `series` has no rewatch column or virtual field at all; a series' rewatch marks are read and written through `POST` / `DELETE /api/plan-next/target` with `scope=series` directly (see Plan Next below).
 
-**Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`, `entry_count` (list only), the viewer's own `my_rating` and `series_expectation` (null without a rating row), and `content_labels`, the series' own labels, read-only here: the only writer is `PUT /api/content-labels/series/{series_id}`.
+**Response model:** `SeriesResponse` — `SeriesCreate`/`SeriesUpdate` fields above plus `system_id`, `created_at`, `updated_at`, `entry_count` (list only), `has_relations` (list and detail), the viewer's own `my_rating` and `series_expectation` (null without a rating row), and `content_labels`, the series' own labels, read-only here: the only writer is `PUT /api/content-labels/series/{series_id}`.
 
 ---
 
