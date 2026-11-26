@@ -1,6 +1,7 @@
 """
 Schemas for peer relations - a company (studio or publisher) related to
-companies, a franchise to franchises (app/services/domain/peer_relation.py).
+companies, a franchise to franchises, a series to series
+(app/services/domain/peer_relation.py).
 Every kind reads and writes the same shapes.
 """
 
@@ -14,7 +15,7 @@ class PeerRelationRef(BaseModel):
     """One related record, as a page lists it, with the remark this side
     gives the relation (null when it gives none)."""
 
-    # "studio", "publisher" or "franchise": which page the link goes to.
+    # "studio", "publisher", "franchise" or "series": which page the link goes to.
     kind: str
     system_id: UUID
     public_id: int

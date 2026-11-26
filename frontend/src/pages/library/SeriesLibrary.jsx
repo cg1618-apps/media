@@ -1,7 +1,7 @@
 // Frontend: page component file for SeriesLibrary. Laid out as
 // FranchiseLibrary is, one tier down: a series names its parent franchise,
 // and its type filter is the media types it holds, since a series carries
-// no type of its own.
+// no type of its own. Its Relation filter is the franchise library's.
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { getDisplayName, cleanString } from "../../utils/media";
@@ -56,7 +56,13 @@ function typeCategories(entries) {
   return held.length > 0 ? held : [OTHER_TYPE];
 }
 
-const EMPTY_FILTERS = { mediaType: new Set() };
+// Read off the list's has_relations, which counts only related series the
+// viewer may see - so a relation to a hidden series filters as none. The
+// same values as FranchiseLibrary's.
+export const HAS_RELATIONS = "Has relation";
+export const NO_RELATIONS = "No relation";
+
+const EMPTY_FILTERS = { mediaType: new Set(), relation: new Set() };
 
 // Breakpoints below which a column collapses, matching libraryColumns.jsx.
 const HIDDEN = {
@@ -227,12 +233,12 @@ export default function SeriesLibrary() {
     load();
   }, [authLoading, visibleTypes]);
 
-  function toggleFilter(value) {
+  function toggleFilter(value, group = "mediaType") {
     setFilters((prev) => {
-      const next = new Set(prev.mediaType);
+      const next = new Set(prev[group]);
       if (next.has(value)) next.delete(value);
       else next.add(value);
-      return { mediaType: next };
+      return { ...prev, [group]: next };
     });
   }
 
@@ -240,7 +246,7 @@ export default function SeriesLibrary() {
     setFilters(EMPTY_FILTERS);
   }
 
-  const activeFilterCount = filters.mediaType.size;
+  const activeFilterCount = filters.mediaType.size + filters.relation.size;
 
   const filteredAndSorted = useMemo(() => {
     const qClean = cleanString(searchQuery);
@@ -259,6 +265,12 @@ export default function SeriesLibrary() {
       if (filters.mediaType.size > 0) {
         const cats = typeCategories(entriesBySeries[s.system_id]);
         if (!cats.some((t) => filters.mediaType.has(t))) return false;
+      }
+      if (
+        filters.relation.size > 0 &&
+        !filters.relation.has(s.has_relations ? HAS_RELATIONS : NO_RELATIONS)
+      ) {
+        return false;
       }
       return true;
     });
@@ -331,7 +343,8 @@ export default function SeriesLibrary() {
             view={{ value: currentView, onChange: setCurrentView }}
           />
 
-          {/* Filter panel: the media types the session can see */}
+          {/* Filter panel: the media types the session can see, then whether
+              a series relates to another */}
           {showFilters && (
             <div className="border-t border-border mt-3 pt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
               <Eyebrow className="shrink-0">Holds</Eyebrow>
@@ -350,6 +363,21 @@ export default function SeriesLibrary() {
                     );
                   },
                 )}
+              </div>
+              <Eyebrow className="shrink-0">Relation</Eyebrow>
+              <div className="flex flex-wrap gap-1.5">
+                {[HAS_RELATIONS, NO_RELATIONS].map((value) => {
+                  const active = filters.relation.has(value);
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => toggleFilter(value, "relation")}
+                      className={`px-3 py-1 border text-xs font-medium transition-colors ${active ? PILL_ON : PILL_OFF}`}
+                    >
+                      {value}
+                    </button>
+                  );
+                })}
               </div>
               <ClearAllButton
                 active={activeFilterCount > 0}

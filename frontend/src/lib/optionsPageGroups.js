@@ -3,8 +3,8 @@
 //
 // Each tier arrives as one flat list whose natural order scatters the entries
 // an admin reads together: alphabetically anime_airing_type sits three screens
-// above cartoon_airing_type, and the five Comic vocabularies are split by
-// Franchise for Filter. The groups below are presentation only - nothing in
+// above cartoon_airing_type, and a character's two tag vocabularies are split
+// by Character Group, a game guide suggestion. The groups below are presentation only - nothing in
 // the data says two lists are related, and no business logic reads this file.
 //
 // A group is a heading plus the entries it claims, in the order they should be
@@ -90,10 +90,11 @@ export const TIER1_GROUPS = [
 // OPTION_CATEGORIES builds them in app/utils/credit_roles.py - a rename there
 // drops the category into Other rather than hiding it.
 //
-// Listed rather than derived. "Tags" holds the same three categories as
-// TAG_CATEGORIES today, but that list answers a different question (which
-// sub-tab of Add/Modify edits a category, see optionCategoryGroups.js) and the
-// two are free to diverge.
+// Listed rather than derived. The "Tags" group here is not TAG_CATEGORIES:
+// that list answers a different question (which sub-tab of Add/Modify edits a
+// category, see optionCategoryGroups.js) and spans the Tags, Game, H Genre and
+// Character groups below, so the Tags sub-tab's picker reads under those four
+// headings.
 //
 // Two categories left this list on 2026-09-07: "Publisher / Distributor TW"
 // (which sat under Source & Platform) and "Comic Publisher" (which sat with
@@ -115,6 +116,11 @@ export const TIER2_GROUPS = [
       "Game Platform",
     ],
   },
+  // The three adult genre vocabularies the gated types share.
+  {
+    title: "H Genre",
+    categories: ["H Genre Plot", "H Genre Appearance", "H Genre Relation"],
+  },
   {
     title: "Comic",
     categories: [
@@ -129,6 +135,7 @@ export const TIER2_GROUPS = [
     categories: [
       "Platform",
       "Serialization Platform",
+      "Exclusive Platform",
       "Reference Source",
     ],
   },

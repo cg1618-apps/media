@@ -274,3 +274,51 @@ class Series(Base, NameFallbackMixin):
             ("JP", self.series_name_jp),
         ]
         return self.get_fallback_name(sequence, "CN")
+
+
+class SeriesRelation(Base):
+    """
+    One side of a relation between two series - the same design as
+    FranchiseRelation above: a relation is mutual and always the two rows
+    (A, B) and (B, A), each holding the remark its `series_id`'s page shows
+    beside the other series. SERIES_RELATIONS in
+    app/services/domain/peer_relation.py is the only writer and keeps the pair
+    whole.
+
+    Not the entry-to-entry `media_relation`: that table links entries with a
+    typed kind; this one links whole series, with free words per side.
+
+    A relation is NOT a visibility connection: it cannot make a hidden series
+    visible, and a visible series' related list simply omits the series the
+    viewer may not see.
+    """
+
+    __tablename__ = "series_relation"
+    __table_args__ = (
+        UniqueConstraint("series_id", "related_series_id", name="uq_series_relation"),
+        CheckConstraint(
+            "series_id <> related_series_id",
+            name="ck_series_relation_not_self",
+        ),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
+    )
+    series_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("series.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    related_series_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("series.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    remark = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=True, default=get_taipei_now)
+    updated_at = Column(
+        DateTime, nullable=True, default=get_taipei_now, onupdate=get_taipei_now
+    )

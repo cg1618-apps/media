@@ -2,13 +2,24 @@ import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 import DefaultsTab from "./DefaultsTab";
+import { getFieldGroups } from "../../config/formFields";
 
 const noop = () => {};
+
+const AUTOFILL_HEADING = "Replace when choosing an existing entry";
+const autofillBoxes = () =>
+  screen.queryAllByRole("checkbox", { name: /^Replace .+ when choosing an existing entry$/ });
+const autofillableKeys = (type, group) =>
+  getFieldGroups(type)
+    .filter((g) => group === undefined || g.group === group)
+    .flatMap((g) => g.fields)
+    .filter((f) => f.autofillable !== false)
+    .map((f) => f.key);
 
 function renderTab(
   type,
   draft = { defaults: {}, autofill: [], restricted_prefill: null },
-  { setPrefill = noop, clearPrefill = noop } = {},
+  { setPrefill = noop, clearPrefill = noop, setGroupAutofill = noop } = {},
 ) {
   return render(
     <DefaultsTab
@@ -17,7 +28,7 @@ function renderTab(
       setFieldDefault={noop}
       clearFieldDefault={noop}
       toggleAutofill={noop}
-      setGroupAutofill={noop}
+      setGroupAutofill={setGroupAutofill}
       setPrefill={setPrefill}
       clearPrefill={clearPrefill}
       sources={{ options: [], studios: [], people: {} }}
@@ -29,23 +40,72 @@ const prefillInputs = () =>
   screen.getAllByRole("combobox", { name: "Prefilled restricted sources name" });
 
 describe("DefaultsTab", () => {
-  it("offers auto-fill on a media type whose Add form has the search", () => {
-    renderTab("anime");
-    expect(screen.getAllByText("Auto-fill").length).toBeGreaterThan(0);
-  });
+  describe("auto-fill column", () => {
+    it("heads the column once, and labels each tick without visible text", () => {
+      renderTab("anime");
 
-  it("shows no auto-fill column on an entity tab", () => {
-    // Studio, Person and Character have no "auto-fill from an existing record"
-    // search on the Add page, so the whole column would be dead weight.
-    renderTab("studio");
+      expect(screen.getAllByText(AUTOFILL_HEADING)).toHaveLength(1);
+      // The heading names the column, so a tick carries no text of its own -
+      // only an accessible name, for when the grid collapses on a phone.
+      expect(screen.queryByText("Auto-fill")).toBeNull();
+      expect(autofillBoxes()).toHaveLength(autofillableKeys("anime").length);
+      const [firstGroup] = getFieldGroups("anime");
+      const first = firstGroup.fields.find((f) => f.autofillable !== false);
+      expect(
+        screen.getByRole("checkbox", {
+          name: `Replace ${first.label} when choosing an existing entry`,
+        }),
+      ).toBeInTheDocument();
+    });
 
-    expect(screen.queryByText("Auto-fill")).toBeNull();
-    expect(screen.queryByText("Auto-fill: all")).toBeNull();
-    // Not even the per-field "not auto-fillable" placeholder: a column of
-    // dashes is noise on a tab where auto-fill does not exist at all.
-    expect(screen.queryAllByText("—")).toHaveLength(0);
-    // The fields themselves still render.
-    expect(screen.getByText("Countries")).toBeInTheDocument();
+    it("offers to select a whole group while one of its fields is unticked", () => {
+      const setGroupAutofill = vi.fn();
+      renderTab("anime", undefined, { setGroupAutofill });
+
+      const groups = getFieldGroups("anime").filter(
+        (g) => autofillableKeys("anime", g.group).length > 0,
+      );
+      const buttons = screen.getAllByRole("button", { name: "Select all" });
+      expect(buttons).toHaveLength(groups.length);
+
+      fireEvent.click(buttons[0]);
+      expect(setGroupAutofill).toHaveBeenCalledWith(
+        autofillableKeys("anime", groups[0].group),
+        true,
+      );
+    });
+
+    it("never offers to untick a group: the button goes once all are ticked", () => {
+      // Every group fully ticked bar the first, which is missing one field.
+      const all = autofillableKeys("anime");
+      const [firstGroup] = getFieldGroups("anime").filter(
+        (g) => autofillableKeys("anime", g.group).length > 0,
+      );
+      const missing = autofillableKeys("anime", firstGroup.group)[0];
+      renderTab("anime", {
+        defaults: {},
+        autofill: all.filter((k) => k !== missing),
+        restricted_prefill: null,
+      });
+
+      expect(screen.getAllByRole("button", { name: "Select all" })).toHaveLength(1);
+      expect(screen.queryByText(/Auto-fill: none/)).toBeNull();
+    });
+
+    it("shows no auto-fill column on an entity tab", () => {
+      // Studio, Person and Character have no "auto-fill from an existing record"
+      // search on the Add page, so the whole column would be dead weight.
+      renderTab("studio");
+
+      expect(screen.queryByText(AUTOFILL_HEADING)).toBeNull();
+      expect(autofillBoxes()).toHaveLength(0);
+      expect(screen.queryByRole("button", { name: "Select all" })).toBeNull();
+      // Not even the per-field "not auto-fillable" placeholder: a column of
+      // dashes is noise on a tab where auto-fill does not exist at all.
+      expect(screen.queryAllByText("—")).toHaveLength(0);
+      // The fields themselves still render.
+      expect(screen.getByText("Countries")).toBeInTheDocument();
+    });
   });
 
   it("edits the sources default with the same editor the Add form uses", () => {

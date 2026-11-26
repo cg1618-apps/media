@@ -30,7 +30,7 @@ from app.models.content_label import (
     MediaContentLabel,
     SeriesContentLabel,
 )
-from app.models.franchise import Franchise, FranchiseRelation, Series
+from app.models.franchise import Franchise, FranchiseRelation, Series, SeriesRelation
 from app.models.game import Game
 from app.models.game_choice import GameChoiceEdge, GameChoiceMark, GameChoiceNode
 from app.models.game_copy import GameCopy
@@ -97,6 +97,7 @@ __all__ = [
     "Franchise",
     "FranchiseRelation",
     "Series",
+    "SeriesRelation",
     "Media",
     "UserFavorite",
     "UserHighlightGroupOrder",

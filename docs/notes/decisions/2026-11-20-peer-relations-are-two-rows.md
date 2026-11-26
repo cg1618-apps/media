@@ -1,9 +1,9 @@
 # A peer relation is two rows, one per side
 
-A relation between two companies, or between two franchises, shows on both
+A relation between two companies, two franchises or two series shows on both
 pages, and each side carries its own remark: A's page can say B is its
 "animation subsidiary" while B's page says A is its "parent company". So
-`company_relation` and `franchise_relation` each store a relation as the pair
+`company_relation`, `franchise_relation` and `series_relation` each store a relation as the pair
 (A, B) and (B, A), each row holding the remark its owner's page shows beside
 the other record.
 
@@ -29,7 +29,7 @@ side's row, so writing it never touches the other side.
   typed kinds and derived inverse labels; a peer relation has no kind, and its
   two ends are companies or franchises, held by two real foreign keys so that
   cascading on delete is the database's job rather than a sweep's.
-- **One table for companies and franchises**, with an owner-type column. Two
+- **One table for companies, franchises and series**, with an owner-type column. Two
   real foreign keys per kind are what make the cascade the database's; a
   polymorphic table would have to give them up. The rules are shared instead,
   in code: one `PeerRelations` class in `app/services/domain/peer_relation.py`,

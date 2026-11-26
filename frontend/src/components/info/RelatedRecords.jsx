@@ -1,12 +1,12 @@
-// Frontend: the records related to a studio, a publisher or a franchise, each
-// with this side's remark.
+// Frontend: the records related to a studio, a publisher, a franchise or a
+// series, each with this side's remark.
 //
 // A relation is mutual and each side keeps its own remark, read and replaced
-// whole through GET/PUT /api/{studio|publisher|franchise}/{id}/related.
+// whole through GET/PUT /api/{studio|publisher|franchise|series}/{id}/related.
 // Studios and publishers are one pool - a studio may relate to a publisher
 // and the other way round (company_relation) - so their picker offers both,
 // each marked with its kind, and every row carries `kind`. A franchise relates
-// to franchises only. Adding a record here shows this one on the other's page
+// to franchises only, and a series to series only. Adding a record here shows this one on the other's page
 // too, with no remark until that page writes one; removing it here removes it
 // from both.
 //
@@ -42,8 +42,8 @@ const linkCls =
 const ENTITY_NAMES = ["name_en", "name_cn", "name_jp", "name_alt"];
 
 // Each kind a picker can offer: what it is called, where its list lives, and
-// which of its fields a search reads. The franchise list asks for every
-// franchise: the list route pages at 500 by default, and there are more.
+// which of its fields a search reads. The franchise and series lists ask for
+// every record: the list routes page at 500 by default, and there are more.
 const CANDIDATES = {
   studio: {
     label: "Studio",
@@ -66,6 +66,17 @@ const CANDIDATES = {
       "franchise_name_alt",
     ],
   },
+  series: {
+    label: "Series",
+    list: () => `${endpoints.resource("series").list()}?limit=2000`,
+    nameFields: [
+      "series_name_en",
+      "series_name_cn",
+      "series_name_roman",
+      "series_name_jp",
+      "series_name_alt",
+    ],
+  },
 };
 
 // What each page's box is called, where its relations live, and which kinds
@@ -86,10 +97,15 @@ const KINDS = {
     related: (id) => endpoints.franchise.related(id),
     relatesTo: ["franchise"],
   },
+  series: {
+    title: "Related series",
+    related: (id) => endpoints.series.related(id),
+    relatesTo: ["series"],
+  },
 };
 
 // A record's name: the server's display_name where the list carries one, the
-// SPA's own fallback chain where it does not (the franchise list).
+// SPA's own fallback chain where it does not (the franchise and series lists).
 export function recordName(record, kind) {
   return record.display_name || getDisplayName(record, kind) || "Unknown";
 }

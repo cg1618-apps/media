@@ -1105,9 +1105,21 @@ card and the favourite AniManga franchises grid - count a franchise of either
 type as one of theirs.
 
 Which franchises an entry is offered in follows the same split (the Add and
-Modify pickers, `MangaAddTab.jsx` / `BookAddTab.jsx`): a manga sits in a
-`Manga` franchise or an untyped one; a book in a `Book`, `Anime` or `Manga`
-franchise or an untyped one. The franchise hub lists anime on an `Anime`
+Modify pickers, each type's `<Type>LineageFields` in `pages/add-tabs/`): an
+anime sits in an `Anime` franchise or an untyped one; an anime movie in an
+`Anime Movie` franchise or an untyped one; a manga in a `Manga` franchise or
+an untyped one; a book in a `Book`, `Anime` or `Manga` franchise or an
+untyped one; a movie, TV show, cartoon, comic or game in a franchise of its
+own type (`Movie`, `TV`, `Cartoon`, `Comic`, `Game`) or an untyped one; an
+h-comic, hentai or h-game in a franchise of the restricted family. A type
+list matches when any one of its tokens does, so an `"Anime, Manga"`
+franchise is offered to anime, manga and books alike. The Series picker is
+narrowed the same way: before a franchise is picked it offers only the series
+under a franchise the type is offered, and once one is picked only that
+franchise's series. The franchise and series an entry already has are shown
+on Modify even when the rule no longer offers them. This is the pickers'
+rule, not the server's: a write naming another mainstream franchise by id is
+accepted, and only the family rule above is enforced. The franchise hub lists anime on an `Anime`
 franchise, anime movies on an `Anime` or `Anime Movie` one, manga on a `Manga`
 one, and books on a `Book`, `Anime` or `Manga` one.
 

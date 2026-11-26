@@ -50,7 +50,7 @@ src/
 | `hooks/useFilterState(filterDefs, data, initial?)` | The chip/toggle values for a list of FilterDefs, opened on `initial` (else empty), plus `toggleFilter`, `clearFilters` (all empty), `resetFilters` (back to `initial`), `activeFilterCount` and the derived options of `set-dynamic` defs. Shared by `useLibraryState`, the random picker and Picker Defaults; the defs and `initial` are read once, so a caller whose defs change remounts. `useEntityFilterState(filterDefs, data)` beside it is the entity libraries' (character, person, studio, publisher) form: `initial` is the empty state, and it adds `isDefault` (`sameFilters` against that default) so the page hands `FilterPanel` its `resetFilters` only once the state has moved off it. |
 | `hooks/useViewScope()` | The member-only reading surfaces as flags - `{ studio, publisher, person, character, search, randomPicker }`, one per `view.*` permission (`person` covers seiyuu, who are people, `character` covers identities) - plus `ownData` (`self.list`): whether the viewer keeps a list - its status, progress and plan flags, written through `/api/me` - and its own ratings, expectations, remarks on entries and groups, and book unit ratings and remarks, so whether there is one to draw (`has()` from `AuthContext`; all false outside an `AuthProvider`). A component that draws or fetches something a guest may not read asks this rather than spelling the key itself - see [pages.md, "The guest scope"](pages.md#the-guest-scope). |
 | `hooks/usePickerData(mode, typesKey)` | One random picker mode's entries (`{type, item}` over the types' lists, on the library pages' cache keys), its FilterDefs (every def flagged `personal: true` only with `self.list`, `ownData` - see [pages.md, "RandomPicker"](pages.md#randompicker--random--randomtype)), its stored default filters resolved against them (`["random-picker-defaults", mode]`; unreadable defaults count as none), and `defaultWeighted` (true unless saved off). Shared by the picker and Picker Defaults. |
-| `hooks/useFormDefaults` | Loads and applies `/api/form-defaults/<type>` to a fresh form (`resolveDefaults`, `coerceToShape`). A stored select value its options do not offer is skipped, so it cannot sit hidden behind a blank select and be posted. Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
+| `hooks/useFormDefaults` | `useFormDefaults()` is the query for the whole config (`GET /api/form-defaults/`, key `formDefaultsQueryKey()`), shared by `/defaults`, Add and Modify; `data` is undefined until it loads and on a failure, which every reader takes as the built-ins (`NO_FORM_DEFAULTS`). The query does not retry. `loadFormDefaults(queryClient)` reads it through the same cache for a page that seeds its forms before first paint, and never throws. Applies a config to a fresh form (`resolveDefaults`, `coerceToShape`). A stored select value its options do not offer is skipped, so it cannot sit hidden behind a blank select and be posted. Repeater defaults (source rows, game copies) arrive as arrays with any `system_id` stripped — a default row is a template that must insert, never update. The restricted source rows come from the picked prefill instead (`prefillPicks`, `startingSources`), and on h-comic from the region the form starts on. |
 | `hooks/useGroupQuickCreate({ showToast, onFranchiseCreated, onSeriesCreated })` | The Add and Modify saves' franchise and series creation: `createMissingGroups({ franchiseId, seriesId, franchise, series })` shows `GroupCreateModal` (rendered from `groupCreateModal`) when either group is to be created, POSTs the confirmed franchise and then the series under it, and answers their ids - or `null` when cancelled or a create failed. See [admin-pages.md](admin-pages.md), "Creating the missing franchise and series". |
 | `hooks/useGlobalMediaSearch(query)` | Debounced `/api/search/?q=&limit=10`, flattened to entry hits for pickers. |
 | `pages/plan/usePlanData` | The Plan page's lists (franchise, series and the twelve entry types - `h-comic`, `h-game` and `hentai` each fetched only for a session that can see it) plus `["plan-next"]`. |
@@ -542,7 +542,7 @@ columns.
 - **`components/info`** — `InfoCard` (+`InfoRow`), `NamingCard`, `GenresCard`, `TimeToBeatCard`, `ScoreBlock`,
   `SourcesCard`, `RatingDistributionBlock`, `AnnouncementBoard`,
   `ClubMembership` (see [Entity components](#entity-components-person-studio-and-character)),
-  `RelatedRecords` (`type` "studio", "publisher" or "franchise": the
+  `RelatedRecords` (`type` "studio", "publisher", "franchise" or "series": the
   record's related records through GET/PUT `/api/{type}/{id}/related`, each
   row a link to its own kind's page with this side's remark; for an admin an
   Edit mode of rows with a remark input and a remove button, plus a
@@ -556,7 +556,18 @@ columns.
   to - and per offered kind one `CANDIDATES` entry. The same box sits on the
   detail pages and under the franchise, studio and publisher Modify forms),
   `AffiliatedPeople` (a studio's people from `GET /api/studio/{id}/people`,
-  each a person link; nothing at all when there are none).
+  each a person link; nothing at all when there are none),
+  `RecordSummaryCard` (one record of any type the Delete page handles - entry,
+  group or entity - summarised so that two similarly named records can be told
+  apart: its picture, every name it holds, label/value facts, filled external
+  links, its `system_id`, and for an entity the entries it is credited on or
+  cast in, read from its own `/entries` endpoint under
+  `["record-summary-entries", type, id]` and listed newest first, the first
+  five by name with type and year, then "+N more". `heading` captions it,
+  children are drawn under the facts. What each type shows is
+  `lib/recordSummary.js`; the card only draws it. `RecordSummaryOption` is the
+  same record as a search-dropdown row: a small picture, the name, and one line
+  of other names, type and count).
   `NamingCard` lists the type's name fields (`getNamingFields`) that hold a
   value: a null or blank name gets no row rather than a "—", and with none
   set the card is not rendered at all, on every page that uses it. The
@@ -734,9 +745,15 @@ columns.
   franchise and one doujin franchise can hold all three types - or
   `accepts(franchise_type)`, a predicate over the comma-joined franchise type
   (null when untyped): a mainstream type accepts its own franchise type or an
-  untyped one, anime and anime movie accept every franchise. With neither,
-  every franchise is offered. Series renders only when `seriesItems` is
-  given, so anime movie has none; retyping the franchise drops the series),
+  untyped one - anime `Anime`, anime movie `Anime Movie`, book `Book`,
+  `Anime` or `Manga`. With neither, every franchise is offered. Series
+  renders only when `seriesItems` is given, so anime movie has none; the
+  items come from `seriesPickerItems` (`lib/seriesPickerItems.js`), which
+  carries each series' parent as `franchiseId`, and the picker offers the
+  picked franchise's series, or before a pick the series under a franchise
+  it offers. The franchise and series already chosen stay offered whatever
+  the rule, so Modify still names them; retyping the franchise drops the
+  series),
   `EntityNameFields` (`{ form, update, fields }`: the four name inputs of
   every entity form, each labelled and named "Name (<label>)", as Chinese |
   English then Japanese | Alternative - a fixed layout, so `fields`
@@ -1376,6 +1393,7 @@ functions `tagsForLabels`, `labelsForTags`, `applyLabelEdit` and
 | `naming.js` | `getDisplayName`, `getSortName`, `entitySortName`, `compareTitles` (every library's title comparator, collating as `en`), `cleanString`, name-field lists |
 | `gamePlatforms.js` | `platformFamilies(options)`: `{console: family}` read off the loaded `Game Platform` options' `family`; `withPlatformFamilies(raw, families)`: the tags string with each console's family added and the main platforms put first, in their fixed order, ahead of every specific one - the browser half of `with_platform_families` in `app/utils/game_vocabulary.py`. The Game form's Platform field runs every change through it. `MAIN_PLATFORMS` (the six families, in order, kept equal to `GAME_PLATFORMS` by a unit test) and `mainPlatformsFirst(values)`: the main platforms among `values` in `MAIN_PLATFORMS` order, then every other value in the order it had - what both of the above and the library's Platform filter order with |
 | `requests.js` | The words the request pages print: `requestKindLabel` / `requestStatusLabel` (a code with no label prints as itself), `DELETED_ACCOUNT` ("deleted account", for a null username) and `formatRequestDate` |
+| `recordSummary.js` | What `RecordSummaryCard` shows per type, read off the list row: `summarySpec(type)` (`kind` entity / entry / group, the picture, the count, the `/entries` endpoint and the link list), `summaryNames`, `summaryFacts(type, record, {franchise, series})` (an entity's gender, roles with their media types, affiliations, countries, active span, scopes or identities; an entry's type columns, primary release date, status columns, franchise and series; a group's type and franchise), `summaryLinks`, `flattenEntryGroups(groups)` (an `/entries` answer as distinct entries, newest first, each carrying every group label it sits under) and `summaryOptionLine` (a picker row's second line). |
 | `releaseDate.js` | `releaseYear`, `releaseScore` for truncated-ISO dates; `todayIso` (the viewer's local date), `isUpcomingReleaseDate(value, today)` (true while the last day of the period a value names has not passed - a bare year through 31 December, a year-month through its last day, today included; never for a blank or malformed value) and `earliestUpcomingReleaseDate(values, today)`, which Future Releases' Books and Manga tabs use |
 | `gameHours.js` | `hours(value)` (`"32.5 h"`, null for a missing or unreadable figure) and `timeToBeatFields(entry)`: the recorded IGDB time-to-beat figures (`hltb_main`, `hltb_main_extra`, `hltb_completionist`) as `InfoCard` fields Main, Main + Extra, Completionist, `[]` when none is recorded. Shared by the game and h-game pages |
 | `mediaTabs.js` | `buildMediaTabs(rows)`: the franchise and series hubs' "Media" tab row from `{ label, type, entries, offered }` rows → `{ tabs, countOf, total, completed }`. A tab shows when offered and its list is non-empty; its count and the hero's totals are read from the same rows, so no tab is shown without being counted. `isCompleted(type, entry)`: whether the entry's own status field (`MEDIA_CONFIG[type].statusField`) holds one of `COMPLETED_STATUSES` |

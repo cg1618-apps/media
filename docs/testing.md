@@ -1,6 +1,6 @@
 # Testing
 
-Last verified: 2026-11-18
+Last verified: 2026-11-26
 
 ## What this is for
 
@@ -391,6 +391,10 @@ gets its own files following the comic precedent: `test_comic_model.py`,
 `test_comic_autofill.py` plus the `sample_comic` fixture in `tests/api/`. On the
 frontend, `lib/autofill.test.js` pins one expected patch per media type and
 `hooks/useFormDefaults.test.js` checks the defaults shape; extend both.
+`hooks/useFormDefaults.query.test.jsx`, `pages/admin/FormDefaults.test.jsx` and
+`pages/admin/Add.formDefaults.test.jsx` pin how the config is loaded: one shared
+cache entry, a failure meaning the built-ins, save and reset writing the cache,
+and Add loading it beside the suggestion lists before any form paints.
 
 ## Gates that compute over a set, and fixtures that look like decoration
 

@@ -17,6 +17,7 @@ import PlanKindToggles, {
   applicableTypes,
 } from "../../components/plan/PlanKindToggles";
 import { scopesFor } from "../../config/planNextGroups";
+import RelatedRecords from "../../components/info/RelatedRecords";
 
 function getEntryYear(e) {
   const d =
@@ -276,6 +277,9 @@ export default function SeriesModifyTab({
           />
         </Field>
       )}
+      {/* The detail page's box, here too. It saves through its own button,
+          not with this form - like the Plan Next toggles above. */}
+      {seriesId && <RelatedRecords type="series" recordId={seriesId} isAdmin />}
     </>
   );
 }

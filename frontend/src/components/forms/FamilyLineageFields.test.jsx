@@ -62,6 +62,57 @@ describe("FamilyLineageFields", () => {
     expect(offered).not.toContain("Doujin Circle");
   });
 
+  // The series picker follows the franchise rule: a series names its parent,
+  // so with no franchise picked it offers only series whose franchise the
+  // picker would offer. The out-of-scope series is what makes this bite.
+  const SERIES = [
+    { id: "s-acg", label: "Shonen Arc", franchiseId: "fr-acg" },
+    { id: "s-movie", label: "Heist Trilogy", franchiseId: "fr-movie" },
+    { id: "s-none", label: "Loose Arc", franchiseId: "fr-none" },
+    { id: "s-h", label: "Doujin Run", franchiseId: "fr-h" },
+  ];
+  const NO_SERIES_YET = { ...BLANK, series_text: "" };
+
+  async function offeredSeries() {
+    await userEvent.click(screen.getByRole("combobox", { name: "Series" }));
+    return screen.getAllByRole("option").map((o) => o.textContent);
+  }
+
+  it("offers, with no franchise picked, only series under a franchise `accepts` passes", async () => {
+    renderFields({
+      f: NO_SERIES_YET,
+      accepts: (type) => type === "Movie" || !type,
+      seriesItems: SERIES,
+    });
+    expect((await offeredSeries()).sort()).toEqual(["Heist Trilogy", "Loose Arc"]);
+  });
+
+  it("offers, with no franchise picked, only series under a franchise of `family`", async () => {
+    renderFields({ f: NO_SERIES_YET, family: RESTRICTED_FAMILY, seriesItems: SERIES });
+    expect(await offeredSeries()).toEqual(["Doujin Run"]);
+  });
+
+  it("offers only the picked franchise's series once one is picked", async () => {
+    renderFields({
+      f: { ...NO_SERIES_YET, franchise_id: "fr-none" },
+      accepts: () => true,
+      seriesItems: SERIES,
+    });
+    expect(await offeredSeries()).toEqual(["Loose Arc"]);
+  });
+
+  it("still shows a franchise and series already chosen outside the rule", () => {
+    // Modify opens an entry saved before the rule narrowed: its franchise and
+    // series stay named rather than going blank.
+    renderFields({
+      f: { franchise_id: "fr-movie", franchise_text: "", series_id: "s-movie", series_text: "" },
+      accepts: (type) => type === "Anime",
+      seriesItems: SERIES,
+    });
+    expect(screen.getByText("Heist Films")).toBeInTheDocument();
+    expect(screen.getByText("Heist Trilogy")).toBeInTheDocument();
+  });
+
   it("puts franchise and series side by side in one row", () => {
     renderFields({ accepts: () => true, seriesItems: [] });
     const franchise = screen.getByRole("combobox", { name: "Franchise" });

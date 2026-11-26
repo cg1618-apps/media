@@ -533,7 +533,13 @@ entries that do exist.
 
 **Form defaults.** A fresh form comes from `freshForm(type)`
 (`config/formFactories.js`) merged with the admin's saved defaults
-(`hooks/useFormDefaults.js`, `/api/form-defaults/<type>`).
+(`hooks/useFormDefaults.js`, `GET /api/form-defaults/`). The config is the
+form-defaults query, the one `/defaults` and Modify read too: the page loads it
+with `loadFormDefaults` inside the same `Promise.all` as `fetchAllSources()`,
+and seeds every form from it before the spinner lifts, so no form paints with
+built-in values first. A config still fresh in the cache - `/defaults` opened a
+moment ago, or saved - is used without a request. One that cannot be read (an
+error status, or a body that is not JSON) means the built-ins.
 
 **Notes for the entry just added (every media tab).** Notes hang off an
 entry's `system_id`, so the form cannot hold them before the entry exists.
@@ -636,7 +642,11 @@ from `comicvine_link` (only Fill does), so the pick sets it, the form carries
 it (`defaultComic`; hidden on `/defaults`) in a **Comic Vine ID** input beside
 the link, and both pages send it as typed, with or without a link.
 
-**Franchise / series pickers.** `ComboBox` over the loaded lists;
+**Franchise / series pickers.** `ComboBox` over the loaded lists, narrowed to
+the type's franchises (`FamilyLineageFields`; the rule per type is in
+[business-rules.md](../business-rules.md)); the Series picker offers only the
+series under an offered franchise, or under the picked one. Both pages build
+one series list with `seriesPickerItems` and hand it to every tab;
 `ComboBox.onSelect` receives `(id, label)`. Text typed that matches no
 existing group is kept, and the save creates the group before it writes the
 entry.
@@ -1033,9 +1043,12 @@ lists. `POST /api/system-option` accepts any category string; the restriction
 is the form's. The picker
 arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
 see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
-categories under **Other**; a list that yields a single section — the Tags
-sub-tab, whose categories are one group — renders flat rather than under a
-heading repeating the sub-tab's own name. The Common Options sub-tab's picker
+categories under **Other**; a list that yields a single section renders flat
+rather than under one heading over every option. The Tags sub-tab's picker
+reads as four groups: **Tags** (`Genre Main`, `Genre Sub`, `Label`), **Game**
+(`Game Genre`, `Game Theme`), **H Genre** (the three gated H Genre
+categories, offered only to a session that can see a type they serve) and
+**Character** (`Character Appearance`, `Character Trait`). The Common Options sub-tab's picker
 reads as four groups: **Note Suggestion** (the seven game guide
 categories), **Music** (`Song Type`, `Song Source`), **Needs Work**
 (`Needs Work Note`) and **Studio & Publisher** (`Country`). The sub-tab's
@@ -1279,8 +1292,9 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
   order; reordering them is the detail page's.
 - **Franchise / Series tabs** also expose the plan-next / rewatch toggles
   (`PlanKindToggles`) and size-group overrides (`SizeGroupControls`). The
-  Franchise tab ends with the detail page's **Related franchises** box
-  (`RelatedRecords`), which saves through its own button, not with the form.
+  Franchise tab ends with the detail page's **Related franchises** box and
+  the Series tab with its **Related series** box (`RelatedRecords`), each
+  saving through its own button, not with the form.
 - **The viewer's own rating.** The Collection, Franchise and Series tabs draw
   **My Rating** and **Expectation** under Other Information for a viewer who
   keeps a list, as on `/add`; the Person, Character, Studio and Publisher
@@ -1401,7 +1415,7 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
 
 ## /delete (`Delete.jsx`)
 
-**Identity tab.** `IdentityDeleteTab.jsx` bypasses the per-type search/confirm pattern: it picks an identity with `IdentityPicker`, then confirms with the number of cast rows that will move to the character's main identity (`casting_count`). That count travels as `DELETE /api/character-identity/{id}?castings=N`; a 409 means it moved, and the tab shows the server's message. Deleting never deletes cast history - the rows fold into the main identity ([api.md](../api.md#character-identity--apicharacter-identity)).
+**Identity tab.** `IdentityDeleteTab.jsx` bypasses the per-type search/confirm pattern: it picks an identity with `IdentityPicker`, shows it in a `RecordSummaryCard` (names, character, gender, cast-row count and the entries it is cast in), then confirms with the number of cast rows that will move to the character's main identity (`casting_count`). That count travels as `DELETE /api/character-identity/{id}?castings=N`; a 409 means it moved, and the tab shows the server's message. Deleting never deletes cast history - the rows fold into the main identity ([api.md](../api.md#character-identity--apicharacter-identity)).
 
 Loads the five entity lists (options, studios, publishers, people,
 characters) and the three group lists (collection, franchise, series) on
@@ -1417,6 +1431,23 @@ with the consequences:
 | Franchise | **Cascade** (checkbox): deletes every series and every media entry of *every* type listed under it, or leaves them with `franchise_id = NULL` if unchecked. |
 | Series | **Cascade** over every entry listed under it, of every type; unchecked, they keep their franchise and lose the series. **Orphan franchise** offer when it is its franchise's only series and the franchise holds no entry outside a series. |
 | Any media entry | **Orphan series** offer when it is the last entry of any type in its series; **orphan franchise** offer when it is the last entry of any type in the franchise and the franchise has no (remaining) series. |
+
+**The picked record is summarised in full** (`components/info/RecordSummaryCard.jsx`,
+captioned "To delete"), on every tab, so a duplicate can be told from the
+record it duplicates before anything is confirmed:
+
+| Picked | The card shows |
+|---|---|
+| Media entry | Cover, every name, media type with its type columns (airing type, game type, region, …), primary release date, status columns, franchise and series, plus the comic's publisher and issues and the game's hours played. The game and h-game cards keep their copy-row warning. |
+| Collection, franchise, series | Every name, the franchise type, a series' franchise, then what it holds (below). |
+| Person | Photo, every name, gender, each role with its media types, affiliated studios, filled links (IMDb, MyAnimeList, AniList, …), credit count, and the entries credited. |
+| Character | Photo, every name, gender, role, media types, identities, first appearance, MAL/AniList links, casting count, and the entries cast in. |
+| Studio | Logo, every name, countries, founded – defunct, media types, filled links, credit count, and the entries credited. |
+| Publisher | Logo, every name, country, founded – defunct, scopes, website, credit count, and the entries credited. |
+
+An entity's entries come from its own `/entries` endpoint: a count of distinct
+entries, the newest five by name with their type, year and - for a person -
+credit label, each linking to its page, then "+N more".
 
 **Collection, franchise and series show what they hold.** Selecting one reads
 its members from the server (`hooks/useGroupMembers.js`), not from the page's
@@ -1479,7 +1510,11 @@ Character carry the same type tabs — All first, which lists records holding
 no type — and Person, Studio, Publisher and Character carry the same scope
 chips (`lib/entityScopes.js`), narrowing what the search dropdown offers.
 The merge-target pickers are not filtered: a duplicate's survivor can be of
-any type.
+any type. Both pickers draw each candidate with its picture and one line of
+its other names, its type (a person's roles, a character's role) and its
+count, not the name alone. Once a merge target is picked, its card sits beside
+the record being merged away - two columns from `md` up, stacked below it -
+captioned "Merged away" and "Survives", above the Confirm Merge row.
 
 **Person tab (Entity).** A `PersonSubTabBar` filters the picker to the people
 holding one type, or to everyone on All, then the selected person's whole record is edited through
@@ -1493,7 +1528,7 @@ count sent as `?credits=N` so a count that moved while the dialog was open
 comes back as a 409 rather than a silent over-deletion.
 
 **Studio tab (Entity).** A picker over `/api/studio/` showing each studio's
-display name, id and credit count, then a warning that says exactly what
+picture, names and credit count, then a warning that says exactly what
 deleting costs: `media_credit.studio_id` is `ON DELETE CASCADE`, so deleting
 destroys this studio's *n* credits on every entry linked to it, and its relations to other studios (both sides). The panel
 therefore offers **Merge Into Another Studio** beside Delete — merge
@@ -1505,7 +1540,7 @@ server's message - a 409 when the filled names would equal another record's. Del
 `deleted_record`.
 
 **Publisher tab (Entity).** The same shape as the studio tab above: a picker
-over `/api/publisher/` showing display name, id and credit count; a warning
+over `/api/publisher/` showing picture, names and credit count; a warning
 that `media_credit.publisher_id` is `ON DELETE CASCADE`, so deleting destroys
 this publisher's *n* credits; **Merge Into Another Publisher**
 (`POST /api/publisher/{keep}/merge` with the selected publisher as
@@ -1520,8 +1555,14 @@ One tab per `FORM_TABS` entry (`DefaultsTab.jsx`) — every media type, the
 three grouping tiers, and the three Entity tabs. Fields come from
 `config/formFields/fieldMeta.js` (label, control, option source, `coerce`
 rule); values are stored per type via `/api/form-defaults/<type>` and applied
-by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
-defaults for that type. No image field takes a default - `cover_image_file`,
+by `useFormDefaults` when an Add form is created. The page reads the config
+through the form-defaults query (`useFormDefaults()`) beside the suggestion
+lists, and opens once both are in; a config that cannot be read opens it on the
+built-ins with an error toast. Each tab keeps its unsaved draft while another is
+open, a dot marks every tab with one, and leaving the page with any asks first.
+**Save** (`PUT`) writes the type's config into the query cache, and "Reset"
+(`DELETE`) deletes the stored defaults for that type and drops it from the
+cache, so Add and Modify open on the change without a stale read. No image field takes a default - `cover_image_file`,
 `logo_file` and `photo_file`, and their focal points `cover_image_focus`,
 `logo_focus` and `photo_focus`, are all `control: "none"`,
 `defaultable: false`, since an image is set through `ImagePicker` and a
@@ -1533,6 +1574,17 @@ whose options do not include it - a gender saved as `Female`, outside
 `GENDERS` - because the select shows such a value as blank while the form
 would still post it and be refused with a 422. Note `coerce: "tristate"` is implemented but unused
 by any field.
+
+**The auto-fill column.** Each auto-fillable field has a tick in the third
+column, under one heading at the top of the tab, **Replace when choosing an
+existing entry**: a ticked field is the one a pick in the Add tab's
+"Auto-fill from existing entry" box overwrites. The ticks carry no text of
+their own; each has the accessible name "Replace <field> when choosing an
+existing entry", which is all that names it below `md`, where the grid
+collapses and the heading is hidden. A field that cannot be auto-filled shows
+a dash in the column. Each group header offers **Select all** while any of
+its fields is unticked, and drops it once all are; there is no group-wide
+untick - a field is unticked by its own box.
 
 **Restricted Prefill** sits under the Sources field on every type that has
 one: which restricted source names a new entry is prefilled with
@@ -1648,14 +1700,16 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic, Source & Platform, **Character** (the
+reads as Tags, Game, **H Genre** (`H Genre Plot`, `H Genre Appearance`, `H
+Genre Relation`), Comic, Source & Platform, **Character** (the
 `Character Appearance` and `Character Trait` vocabularies), then the common
 options: **Note Suggestion** (`Character Group`, `Collectible Type`, `Item
 Type`, `Weapon & Gear Type`, `Enemy Tier`, `Side Quest Type`, `Geography
 Group`, which the game note sections' free-text fields suggest from),
 **Music** (`Song Type`, `Song Source`) and **Needs Work** (`Needs Work
 Note`). Source &
-Platform holds the platform and reference vocabularies, the ones that name an outside party.
+Platform holds the platform and reference vocabularies - `Platform`,
+`Serialization Platform`, `Exclusive Platform` and `Reference Source`.
 Publishers and distributors are **not** among them — they are entities, edited
 on the Entity → Publisher tab.
 

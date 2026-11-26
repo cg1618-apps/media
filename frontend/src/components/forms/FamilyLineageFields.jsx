@@ -11,10 +11,18 @@
 //     franchise can hold all three.
 //   - `accepts(franchise_type)` - any other rule, as a predicate over the
 //     franchise's comma-joined `franchise_type` (null when untyped). A
-//     mainstream type passes its own franchise type or an untyped one; anime
-//     and anime movie accept every franchise.
+//     mainstream type passes its own franchise type or an untyped one - anime
+//     `Anime`, anime movie `Anime Movie`, book `Book`, `Anime` or `Manga`.
 //
-// With neither, every franchise is offered.
+// With neither, every franchise is offered. The franchise already chosen is
+// offered whatever the rule, so an entry saved under a franchise the rule now
+// excludes still shows it on Modify rather than a blank picker.
+//
+// The Series picker follows the same rule, since a series names its parent:
+// `seriesItems` (lib/seriesPickerItems.js) carry their parent's id as
+// `franchiseId`, and the picker offers the picked franchise's series, or,
+// before a franchise is picked, the series under a franchise it offers. The
+// series already chosen is offered whatever the rule, as above.
 //
 // Both pickers rank what is typed as exact, then prefix, then contains
 // (ComboBox rankMatches), each rank in the order the items came in - which for
@@ -44,8 +52,21 @@ export default function FamilyLineageFields({
     accepts ?? (family ? (type) => inFranchiseFamily(type, family) : () => true);
   const hasSeries = seriesItems !== undefined && seriesItems !== null;
 
-  const franchiseItems = allFranchises
-    .filter((fr) => offers(fr.franchise_type))
+  const offeredFranchises = allFranchises.filter(
+    (fr) => fr.system_id === f.franchise_id || offers(fr.franchise_type),
+  );
+  const offeredFranchiseIds = new Set(offeredFranchises.map((fr) => fr.system_id));
+  const offeredSeries = hasSeries
+    ? seriesItems.filter(
+        (s) =>
+          s.id === f.series_id ||
+          (f.franchise_id
+            ? s.franchiseId === f.franchise_id
+            : offeredFranchiseIds.has(s.franchiseId)),
+      )
+    : [];
+
+  const franchiseItems = offeredFranchises
     .map((fr) => ({
       id: fr.system_id,
       label: getDisplayName(fr, "franchise"),
@@ -92,7 +113,7 @@ export default function FamilyLineageFields({
       {hasSeries && (
         <Field label="Series">
           <ComboBox
-            items={seriesItems}
+            items={offeredSeries}
             selectedId={f.series_id}
             inputText={f.series_text}
             onSelect={(id, label) => {

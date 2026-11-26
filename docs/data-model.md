@@ -243,6 +243,28 @@ Relationships: `franchise`, `animes`. Virtual: `display_name`,
 [`series_content_label`](#series_content_label)), and the viewer's own `my_rating` and `series_expectation` (from
 [`user_rating`](#user_rating)).
 
+### `series_relation`
+
+One side of a relation between two series - the
+[`franchise_relation`](#franchise_relation) design one tier down: a series
+relates to series only. Model: `SeriesRelation` (`app/models/franchise.py`).
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `series_id` | UUID | no | | FK `series.system_id` ON DELETE CASCADE, indexed - the series whose page lists the relation |
+| `related_series_id` | UUID | no | | FK `series.system_id` ON DELETE CASCADE, indexed - the series listed there |
+| `remark` | Text | yes | | What `series_id`'s page says beside `related_series_id`; null when that side gives none |
+| `created_at` / `updated_at` | DateTime | yes | now | |
+
+Constraints: `uq_series_relation` UNIQUE (`series_id`, `related_series_id`)
+and `ck_series_relation_not_self`. A relation is the pair (A, B) and (B, A);
+`SERIES_RELATIONS` in `app/services/domain/peer_relation.py` is the only
+writer and keeps the pair whole, with the same rules as franchises. Not
+`media_relation`: that links entries with a typed kind, this links whole
+series with free words per side. A relation never makes a hidden series
+visible ([authorization.md](authorization.md)).
+
 ---
 
 ## Media entries

@@ -378,6 +378,13 @@ export const endpoints = {
     related: (id) => `/api/franchise/${id}/related`,
   },
 
+  // A series' CRUD is resource("series"); this is the route it has beyond
+  // that.
+  series: {
+    // GET / PUT: the related series, each with this side's remark.
+    related: (id) => `/api/series/${id}/related`,
+  },
+
   // Hand-maintained exchange rates, read by the statistics spend block and
   // written from the admin page. Not under `system`: those routes all sit
   // behind manage.pipelines, and the read has to be open to any member who
