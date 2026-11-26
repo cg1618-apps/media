@@ -1332,8 +1332,10 @@ export default function Admin() {
           onClose={() => setRemarksOpen(false)}
         />
       )}
-      {/* 1. Header. The one link is the System nav group's other page; the
-          Entry and Note pages have nav groups of their own. */}
+      {/* 1. Header. The links are the System pages reached from here: Data
+          History, and Review Queue and Clean Orphans, which the nav leaves
+          to this page. The Entry and Note pages have nav groups of their
+          own. */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-6">
         <h1 className="text-3xl font-black text-text tracking-tight">
           Control Center
@@ -1344,6 +1346,18 @@ export default function Admin() {
             className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
           >
             Data History
+          </Link>
+          <Link
+            to="/review-queue"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
+          >
+            Review Queue
+          </Link>
+          <Link
+            to="/clean-orphans"
+            className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:text-brand hover:border-brand transition shadow-sm flex items-center"
+          >
+            Clean Orphans
           </Link>
         </div>
       </div>

@@ -42,9 +42,10 @@ label reference and the RBAC pages — never the catalogue editors.
 
 ## /system — Control Center (`Admin.jsx`)
 
-- **Layout.** Titled **Control Center**, with one link on top: **Data
-  History**, the System nav group's other page (the Entry and Note pages have
-  nav groups of their own). Then, in order: pending registrations, Current
+- **Layout.** Titled **Control Center**, with three links on top: **Data
+  History**, **Review Queue** and **Clean Orphans**. The nav's System group
+  leaves the last two to this page; the Entry and Note pages, Needs Work and
+  the Inbox are reached from the nav. Then, in order: pending registrations, Current
   Season beside Data Control Actions, Calculate & Fix, Announcement & Notes,
   Exchange Rates and the Data Control Log.
 - **Pipelines.** Buttons start `POST /api/data-control/fill/<type>`,

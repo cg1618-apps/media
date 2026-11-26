@@ -8,8 +8,8 @@
 // checks: Free Games With a List Price opens all ticked and zeroes only what
 // is still ticked, Bought Copies Without a List Price only lists, and both
 // leave out an h-game row for a session that may not see the type. The page
-// frame: its title, the one top link (Data History, the System nav group's
-// other page), Exchange Rates below the announcements, and the Data Control
+// frame: its title, the three top links (Data History, Review Queue, Clean
+// Orphans), Exchange Rates below the announcements, and the Data Control
 // Log, whose Details popup lists each operation a run ran.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render as rtlRender, screen, waitFor, within } from "@testing-library/react";
@@ -381,14 +381,17 @@ describe("Control Center page frame", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalled());
   });
 
-  it("links on top only to the System group's other page, Data History", async () => {
-    // Review Queue and Clean Orphans are gone from the nav's System group,
-    // and the Entry and Note pages have nav groups of their own.
+  it("links on top to Data History, Review Queue and Clean Orphans only", async () => {
+    // The nav leaves Review Queue and Clean Orphans to this page; the Entry
+    // and Note pages have nav groups of their own, and Needs Work and Inbox
+    // stay in the nav.
     renderPage();
     const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(links).toContain("/data-history");
+    for (const kept of ["/data-history", "/review-queue", "/clean-orphans"]) {
+      expect(links).toContain(kept);
+    }
     for (const gone of [
-      "/options", "/aliases", "/review-queue", "/clean-orphans", "/add", "/modify", "/delete",
+      "/options", "/aliases", "/add", "/modify", "/delete", "/needs-work", "/request-inbox",
     ]) {
       expect(links).not.toContain(gone);
     }
