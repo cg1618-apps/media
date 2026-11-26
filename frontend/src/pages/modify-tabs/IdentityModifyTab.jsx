@@ -7,6 +7,7 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=identity): that
 // identity's editor opens on mount.
+import EntityModifyNotes from "../../components/forms/EntityModifyNotes";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import { editorTitle } from "../../lib/pageTitle";
 import { useMemo, useState } from "react";
@@ -162,60 +163,66 @@ export default function IdentityModifyTab({ initialId = null } = {}) {
   }
 
   return (
-    <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
-      {selected && (
-        <IdentityRibbon
-          identities={siblings}
-          excludeId={selected.system_id}
-          title="Other identities of the character"
-          onOpen={openIdentity}
-        />
-      )}
-      <SectionHeader icon="fa-masks-theater" title="Modify Identity" />
-      {!selected ? (
-        <IdentityPicker
-          identities={identities}
-          isLoading={isLoading}
-          onPick={(i) => setPickedId(i.system_id)}
-          placeholder="Search identities to modify..."
-        />
-      ) : (
-        form && (
-          <form onSubmit={save} className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-text-muted">
-                Identity of <span className="font-black text-text">{selected.character_display_name}</span>
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setPickedId(null);
-                  setFormFor(null);
-                  setForm(null);
-                }}
-                className="text-xs font-bold text-text-muted hover:text-text"
-              >
-                Pick another
-              </button>
-            </div>
-            <IdentityFields
-              form={form}
-              update={update}
-              ownerId={selected.system_id}
-              characterGender={characterGender}
-            />
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={!hasAnyIdentityName(form) || submitting}
-                className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
-              >
-                <i className={`fas ${submitting ? "fa-spinner fa-spin" : "fa-save"}`}></i>
-                Save Identity
-              </button>
-            </div>
-          </form>
-        )
+    <div className="space-y-4">
+      <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
+        {selected && (
+          <IdentityRibbon
+            identities={siblings}
+            excludeId={selected.system_id}
+            title="Other identities of the character"
+            onOpen={openIdentity}
+          />
+        )}
+        <SectionHeader icon="fa-masks-theater" title="Modify Identity" />
+        {!selected ? (
+          <IdentityPicker
+            identities={identities}
+            isLoading={isLoading}
+            onPick={(i) => setPickedId(i.system_id)}
+            placeholder="Search identities to modify..."
+          />
+        ) : (
+          form && (
+            <form onSubmit={save} className="space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-text-muted">
+                  Identity of <span className="font-black text-text">{selected.character_display_name}</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPickedId(null);
+                    setFormFor(null);
+                    setForm(null);
+                  }}
+                  className="text-xs font-bold text-text-muted hover:text-text"
+                >
+                  Pick another
+                </button>
+              </div>
+              <IdentityFields
+                form={form}
+                update={update}
+                ownerId={selected.system_id}
+                characterGender={characterGender}
+              />
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={!hasAnyIdentityName(form) || submitting}
+                  className="flex items-center gap-2 px-6 py-3 bg-brand text-on-brand rounded-xl font-black text-sm hover:bg-brand-hover transition disabled:opacity-60"
+                >
+                  <i className={`fas ${submitting ? "fa-spinner fa-spin" : "fa-save"}`}></i>
+                  Save Identity
+                </button>
+              </div>
+            </form>
+          )
+        )}
+      </div>
+      {/* The identity's own notes. Outside the form: each row saves on its own. */}
+      {selected && form && (
+        <EntityModifyNotes ownerType="identity" ownerId={selected.system_id} />
       )}
     </div>
   );

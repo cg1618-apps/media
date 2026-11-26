@@ -1292,6 +1292,14 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
   keeps the new rating; an entity tab folds it into the form it reloads the
   same way. A failed PUT leaves the record saved and toasts "<Type> saved,
   but your rating did not save."
+- **An entity's notes.** Every entity editor - studio, publisher, person,
+  character, identity - ends with the entity's **Structured Notes**
+  (`EntityModifyNotes`): the same `NotesTemplate` block its detail page
+  draws, owner type the entity's, holding its 備註 Remark list, 個人筆記
+  Personal Notes and 資源 Resources. It sits in a card of its own **outside**
+  the editor's `<form>` - each row saves as it is edited, never with Save
+  Changes - and is keyed on the record, so opening another never shows the
+  last one's rows. The Add tabs have none: an unsaved record has no notes.
 - **Studio tab (Entity).** `StudioModifyTab.jsx` bypasses the search / open /
   save machinery above, which is shaped around media entries and the grouping
   tiers: it owns its own `useQuery` over `/api/studio/`, its own picker and

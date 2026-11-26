@@ -14,6 +14,7 @@
 // `sources` is Modify.jsx's fetchAllSources() bag, which the Appearance and
 // Trait pickers suggest from; a save can create values in either vocabulary,
 // so it calls `refreshSources` to make them selectable straight away.
+import EntityModifyNotes from "../../components/forms/EntityModifyNotes";
 import {
   applyMyRating,
   useFormRatingSaver,
@@ -332,6 +333,11 @@ export default function CharacterModifyTab({
             </button>
           </div>
         </form>
+      )}
+
+      {/* The record's notes. Outside the form: each row saves on its own. */}
+      {selectedId && characterForm && (
+        <EntityModifyNotes ownerType="character" ownerId={selectedId} />
       )}
     </div>
   );

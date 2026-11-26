@@ -11,6 +11,7 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=publisher, the
 // detail page's Edit button): that publisher's editor opens on mount.
+import EntityModifyNotes from "../../components/forms/EntityModifyNotes";
 import RelatedRecords from "../../components/info/RelatedRecords";
 import { CONTENT_RATING_NORMAL } from "../../config/fieldOptions";
 import {
@@ -269,6 +270,11 @@ export default function PublisherModifyTab({ initialId = null } = {}) {
           its own button, never with Save Changes. */}
       {selectedId && publisherForm && (
         <RelatedRecords type="publisher" recordId={selectedId} isAdmin />
+      )}
+
+      {/* The record's notes. Outside the form: each row saves on its own. */}
+      {selectedId && publisherForm && (
+        <EntityModifyNotes ownerType="publisher" ownerId={selectedId} />
       )}
     </div>
   );
