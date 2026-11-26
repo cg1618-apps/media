@@ -734,9 +734,15 @@ columns.
   franchise and one doujin franchise can hold all three types - or
   `accepts(franchise_type)`, a predicate over the comma-joined franchise type
   (null when untyped): a mainstream type accepts its own franchise type or an
-  untyped one, anime and anime movie accept every franchise. With neither,
-  every franchise is offered. Series renders only when `seriesItems` is
-  given, so anime movie has none; retyping the franchise drops the series),
+  untyped one - anime `Anime`, anime movie `Anime Movie`, book `Book`,
+  `Anime` or `Manga`. With neither, every franchise is offered. Series
+  renders only when `seriesItems` is given, so anime movie has none; the
+  items come from `seriesPickerItems` (`lib/seriesPickerItems.js`), which
+  carries each series' parent as `franchiseId`, and the picker offers the
+  picked franchise's series, or before a pick the series under a franchise
+  it offers. The franchise and series already chosen stay offered whatever
+  the rule, so Modify still names them; retyping the franchise drops the
+  series),
   `EntryNameFields` (`{ f, u, prefix, label, names, shows, placeholders }`:
   the name inputs of every entry form, laid out CN | EN, Romaji | JP (or KR),
   Alt full width, whatever order `names` lists them in; a lone name keeps the
