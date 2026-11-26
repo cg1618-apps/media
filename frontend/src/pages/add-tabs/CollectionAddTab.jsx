@@ -1,10 +1,7 @@
 // Frontend: add tab page file for CollectionAddTab.
+import EntryNameFields from "../../components/forms/EntryNameFields";
 import MyRatingFields from "../../components/forms/MyRatingFields";
-import {
-  Field,
-  SectionHeader,
-  inputCls,
-} from "../../components/forms/FormField";
+import { SectionHeader } from "../../components/forms/FormField";
 import { useViewScope } from "../../hooks/useViewScope";
 
 export { defaultCollection } from "../../config/formFactories";
@@ -14,44 +11,7 @@ export default function CollectionAddTab({ cf, uf }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-boxes-stacked" title="Titles & Naming" />
-      <Field label="Collection Name EN">
-        <input
-          className={inputCls}
-          value={cf.collection_name_en}
-          onChange={(e) => uf("collection_name_en", e.target.value)}
-          placeholder="e.g. Marvel, Type-Moon"
-        />
-      </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Collection Name CN">
-          <input
-            className={inputCls}
-            value={cf.collection_name_cn}
-            onChange={(e) => uf("collection_name_cn", e.target.value)}
-          />
-        </Field>
-        <Field label="Collection Name roman">
-          <input
-            className={inputCls}
-            value={cf.collection_name_roman}
-            onChange={(e) => uf("collection_name_roman", e.target.value)}
-          />
-        </Field>
-        <Field label="Collection Name JP">
-          <input
-            className={inputCls}
-            value={cf.collection_name_jp}
-            onChange={(e) => uf("collection_name_jp", e.target.value)}
-          />
-        </Field>
-        <Field label="Collection Name Alt">
-          <input
-            className={inputCls}
-            value={cf.collection_name_alt}
-            onChange={(e) => uf("collection_name_alt", e.target.value)}
-          />
-        </Field>
-      </div>
+      <EntryNameFields f={cf} u={uf} prefix="collection" label="Collection" placeholders={{ en: "e.g. Marvel, Type-Moon" }} />
 
       {/* The viewer's own rating and expectation (self.list), saved through /api/me/ratings
           once the collection exists - see submitCollection in Add.jsx. */}

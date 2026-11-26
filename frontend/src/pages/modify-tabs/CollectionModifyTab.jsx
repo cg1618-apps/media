@@ -1,10 +1,10 @@
 // Frontend: modify tab page file for CollectionModifyTab.
+import EntryNameFields from "../../components/forms/EntryNameFields";
 import MyRatingFields from "../../components/forms/MyRatingFields";
 import { getDisplayName } from "../../utils/media";
 import {
   Field,
   SectionHeader,
-  inputCls,
   selectCls,
 } from "../../components/forms/FormField";
 
@@ -29,43 +29,7 @@ export default function CollectionModifyTab({
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-boxes-stacked" title="Titles & Naming" />
-      <Field label="Collection Name EN">
-        <input
-          className={inputCls}
-          value={cf.collection_name_en}
-          onChange={(e) => uf("collection_name_en", e.target.value)}
-        />
-      </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Collection Name CN">
-          <input
-            className={inputCls}
-            value={cf.collection_name_cn}
-            onChange={(e) => uf("collection_name_cn", e.target.value)}
-          />
-        </Field>
-        <Field label="Collection Name roman">
-          <input
-            className={inputCls}
-            value={cf.collection_name_roman}
-            onChange={(e) => uf("collection_name_roman", e.target.value)}
-          />
-        </Field>
-        <Field label="Collection Name JP">
-          <input
-            className={inputCls}
-            value={cf.collection_name_jp}
-            onChange={(e) => uf("collection_name_jp", e.target.value)}
-          />
-        </Field>
-        <Field label="Collection Name Alt">
-          <input
-            className={inputCls}
-            value={cf.collection_name_alt}
-            onChange={(e) => uf("collection_name_alt", e.target.value)}
-          />
-        </Field>
-      </div>
+      <EntryNameFields f={cf} u={uf} prefix="collection" label="Collection" />
 
       <SectionHeader icon="fa-info-circle" title="Other Information" />
       {/* The viewer's own rating and expectation (self.list), saved through /api/me/ratings

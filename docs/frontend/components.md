@@ -738,7 +738,8 @@ columns.
   every franchise is offered. Series renders only when `seriesItems` is
   given, so anime movie has none; retyping the franchise drops the series),
   `EntryNameFields` (`{ f, u, prefix, label, names, shows, placeholders }`:
-  the name inputs of every entry form, laid out CN | EN, Romaji | JP (or KR),
+  the name inputs of every entry form and of the collection, franchise and
+  series forms (prefix `collection`, `franchise`, `series`), laid out CN | EN, Romaji | JP (or KR),
   Alt full width, whatever order `names` lists them in; a lone name keeps the
   left half, none is marked required, and `shows(key)` narrows the list at
   render time - h-comic passes its region's `showsField`), `MalAnilistScores`
