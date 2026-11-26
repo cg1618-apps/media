@@ -10,7 +10,7 @@
 //                  only fetch lists it is refused. "Reads the catalogue" is
 //                  the question the Library tab and Future Releases ask
 //                  (LIBRARY_MEDIA_TYPE_PERMISSIONS), so the three agree.
-//   tracker        self.list - the viewer's own watch schedule, Coming Next,
+//   tracker        self.list - the viewer's own My Schedule, Coming Next,
 //                  followed orders and the Watching, Reading and Playing
 //                  divisions.
 //   summary        self.list and manage.requests - what waits for a handler,

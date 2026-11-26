@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { entityPath } from "../../lib/entityPath";
-import { Chip, ProgressRule, Slip } from "../ui/primitives";
+import { ProgressRule, Slip } from "../ui/primitives";
 import FollowedStep from "./FollowedStep";
 
 function FollowedRow({ follow }) {
@@ -59,7 +59,6 @@ export default function FollowedOrders({ id, follows }) {
 
   const actions = (
     <>
-      <Chip tone="ink">{rows.length}</Chip>
       <button
         type="button"
         onClick={(e) => {

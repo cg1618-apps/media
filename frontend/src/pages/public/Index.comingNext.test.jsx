@@ -73,7 +73,7 @@ it("is not drawn for a guest, who has no statuses of their own", async () => {
   mount();
   // A guest's dashboard has no Watching division to hold Frieren; the
   // Broadcast schedule is what loads.
-  await waitFor(() => expect(screen.getByText("Broadcast schedule")).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByText(/^Broadcast schedule/)).toBeInTheDocument());
   expect(document.getElementById("schedule-coming")).toBeNull();
 });
 
@@ -102,9 +102,12 @@ it("opens onto next season's entries, grouped by type under each sub-section", a
     expect(el).not.toBeNull();
     return el;
   });
-  await waitFor(() => expect(within(coming).getByText(/FAL 2026/)).toBeInTheDocument());
   // Wait for the extra movie list before opening, so every group is present.
-  await waitFor(() => expect(within(coming).getByText("4")).toBeInTheDocument());
+  // The count sits beside the title, and nothing else is at the right.
+  await waitFor(() =>
+    expect(within(coming).getByRole("heading", { name: "Coming next (4)" }).parentElement)
+      .toHaveTextContent(/^Coming next \(4\)$/),
+  );
   await user.click(within(coming).getByRole("button", { name: "Expand" }));
 
   const next = within(coming).getByRole("region", { name: /^Next season · FAL 2026/ });
@@ -132,7 +135,7 @@ it("shows this season's not-yet-aired entries in their own block, before next se
     expect(el).not.toBeNull();
     return el;
   });
-  await waitFor(() => expect(within(coming).getByText("4")).toBeInTheDocument());
+  await waitFor(() => expect(within(coming).getByText("Coming next (4)")).toBeInTheDocument());
   await user.click(within(coming).getByRole("button", { name: "Expand" }));
 
   const current = within(coming).getByRole("region", { name: /^This season · SUM 2026/ });

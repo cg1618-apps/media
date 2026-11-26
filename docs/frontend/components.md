@@ -419,12 +419,14 @@ columns.
   is in [pages.md](pages.md#index-dashboard--). `dashboardSections.js`
   holds the choice as pure functions over the session (`isAdminDashboard`,
   `dashboardSections`), so it is tested without a
-  render. `DivisionHeader` is the sticky eyebrow-title-count header every
-  dashboard division uses. `DashboardSummary` (pending registrations and
+  render. `DivisionHeader` is the sticky header every dashboard division uses: a
+  title, with an eyebrow above it and a count at the right only when the
+  division passes them. `DashboardSummary` (pending registrations and
   open requests, `GET /api/dashboard/summary`; `alwaysShow` keeps it drawn
   when nothing waits), `LibraryLinks` with `useLibraryLinks()` and the pure
   `libraryLinkGroups(sections)` (the nav's Library and Restricted rows,
-  from `visibleSections`), `RecentlyAdded` (`GET /api/dashboard/recent?per_type=12`, one section per type; `rowsFor`, `cardVisibility` and `sectionsOf` turn "anime two rows, every other type one" into whole rows at each grid width),
+  from `visibleSections`) and `libraryLinkRows(groups)` (those links laid
+  out as `LIBRARY_ROWS`: Groups, then Watch, Read and Play below a rule), `RecentlyAdded` (`GET /api/dashboard/recent?per_type=12`, one section per type; `rowsFor`, `cardVisibility` and `sectionsOf` turn "anime two rows, every other type one" into whole rows at each grid width),
   `RecentPipelineRuns` (the latest `GET /api/system/logs` rows),
   `AnnouncementEditor` (add, edit and delete through the announcement
   routes, invalidating `["announcements"]`; the one announcement editor,
@@ -450,7 +452,9 @@ columns.
   (`/api/me`) for a holder of `self.list`, absent for anyone else),
   `MarkReleaseButton` (the admin actions' release step; with `canTrack`
   false it carries none of the viewer's own fields - see
-  `RELEASE_PERSONAL_FIELDS` in `lib/releaseAction.js`), `WeeklySchedule`,
+  `RELEASE_PERSONAL_FIELDS` in `lib/releaseAction.js`), `WeeklySchedule`
+  (titled `title (n)`; at the right only its collapse toggle, when
+  `collapsible`),
   `ComingNext` (the dashboard's next-season block; its selection is the pure
   `selectComingNext` in `lib/comingNext.js`), `FollowedOrders` (the
   dashboard's followed orders, under Coming Next), `FollowedOrderPanel`

@@ -184,7 +184,7 @@ function TypeFilterBar({ types, value, onChange, onHeightChange, view, onViewCha
 const TOC_ITEMS = [
   { id: "announcements", label: "Announcements", level: 1 },
   { id: "schedule", label: "Schedule", level: 1 },
-  { id: "schedule-watch", label: "My Watch", level: 2 },
+  { id: "schedule-watch", label: "My Schedule", level: 2 },
   { id: "schedule-broadcast", label: "Broadcast", level: 2 },
   { id: "schedule-coming", label: "Coming next", level: 2 },
   { id: "schedule-follows", label: "Followed orders", level: 2 },
@@ -701,7 +701,7 @@ function CatalogueDashboard() {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   // Who the dashboard is for. Everything below Announcements and the
-  // Broadcast schedule - My watch schedule, Coming Next, Followed orders, the
+  // Broadcast schedule - My Schedule, Coming Next, Followed orders, the
   // type filter and the Watching/Reading/Playing divisions - is built from
   // the viewer's OWN statuses and progress, and its controls write the
   // viewer's own rows. self.list is the SPA's existing spelling of "a
@@ -1108,7 +1108,6 @@ function CatalogueDashboard() {
           {/* Announcement Division */}
           <div id="announcements">
             <DivisionHeader
-              eyebrow="Pinned to the top of the dashboard"
               title={<>Announcements &amp; notes</>}
               count={`${announcements.length} posted`}
             />
@@ -1117,20 +1116,13 @@ function CatalogueDashboard() {
 
           {/* Schedule Division */}
           <div id="schedule">
-            <DivisionHeader
-              eyebrow="Sunday · Saturday"
-              title="Weekly schedule"
-              count={`${
-                broadcastSchedule.length + (isMember ? watchSchedule.length : 0)
-              } scheduled`}
-            />
+            <DivisionHeader title="Weekly schedule" />
             <div className="pt-8 space-y-12">
               {isMember && (
                 <WeeklySchedule
                   id="schedule-watch"
-                  title="My watch schedule"
+                  title="My Schedule"
                   icon="fa-user-clock"
-                  subtitle="Airing · by my watch day"
                   dayField="my_watch_day"
                   items={watchSchedule}
                   emptyText="No airing entries have a watch day set."
@@ -1140,7 +1132,6 @@ function CatalogueDashboard() {
                 id="schedule-broadcast"
                 title="Broadcast schedule"
                 icon="fa-satellite-dish"
-                subtitle="Airing · by broadcast day"
                 dayField="broadcast_day"
                 timeField="broadcast_time"
                 items={broadcastSchedule}
@@ -1170,7 +1161,7 @@ function CatalogueDashboard() {
               nav's own Library and Restricted rows (LibraryLinks.jsx). */}
           {showLibraries && (
             <div id="libraries">
-              <DivisionHeader eyebrow="Browse the catalogue" title="Libraries" />
+              <DivisionHeader title="Libraries" />
               <LibraryLinks groups={libraryGroups} />
             </div>
           )}
@@ -1179,7 +1170,7 @@ function CatalogueDashboard() {
               without a list). */}
           {sections.recentlyAdded && (
             <div id="recent">
-              <DivisionHeader eyebrow="Newest first" title="Recently added" />
+              <DivisionHeader title="Recently added" />
               <RecentlyAdded />
             </div>
           )}
