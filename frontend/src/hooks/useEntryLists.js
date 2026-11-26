@@ -35,7 +35,17 @@ export const MEDIA_LIST_TYPES = [
 // Loaded on mount by every page: read across all tabs, not owned by one.
 export const GROUP_LIST_TYPES = ["collection", "franchise", "series"];
 
-export const ALL_LIST_TYPES = [...GROUP_LIST_TYPES, ...MEDIA_LIST_TYPES];
+// Studios and people, for the favourite-entity grids of the fav3x3 tab. Not
+// media: they have no MEDIA_CONFIG entry, so their list URL is named here.
+export const ENTITY_LIST_TYPES = ["studio", "person"];
+
+export const ALL_LIST_TYPES = [...GROUP_LIST_TYPES, ...MEDIA_LIST_TYPES, ...ENTITY_LIST_TYPES];
+
+function listUrl(type) {
+  return ENTITY_LIST_TYPES.includes(type)
+    ? endpoints[type].list()
+    : `${endpoints.resource(type).list()}?limit=2000`;
+}
 
 // The tiers an entry's franchise and series fields are picked from. They are
 // held busiest first (the server's entry_count, viewer-filtered), so a picker
@@ -86,7 +96,7 @@ export function useEntryLists() {
   const rows = useRef(blankLists());
 
   const fetchOne = useCallback(async (type) => {
-    const res = await fetch(`${endpoints.resource(type).list()}?limit=2000`, {
+    const res = await fetch(listUrl(type), {
       credentials: "include",
     });
     if (!res.ok) throw new Error(`${type}: ${res.status}`);

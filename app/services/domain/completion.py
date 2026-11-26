@@ -170,13 +170,18 @@ def reached_total(fin_before, fin_after, total) -> bool:
     return (fin_before or 0) < total <= fin_after
 
 
-def apply_list_completion_timestamp(row, status_value: Optional[str]) -> None:
+def apply_list_completion_timestamp(
+    row, status_value: Optional[str], status_before: Optional[str]
+) -> None:
     """
-    Sets the list row's completed_at the first time this user reaches a
-    Completed status. The per-user twin of the retired
-    apply_completion_timestamp: when
-    two people finish the same anime on different days, two different dates
-    are the correct answer and one shared column cannot hold them.
+    Stamps the list row's completed_at when the row moves INTO a Completed
+    status, so completed_at is this user's latest finish: an entry finished,
+    moved back to an unfinished status and finished again sorts as finished
+    today. A write that keeps an already-completed row completed keeps its
+    stamp. Per user, because two people finish the same anime on different
+    days and one shared column cannot hold both dates.
     """
-    if status_value in COMPLETED_WATCH_STATUSES and row.completed_at is None:
+    if status_value not in COMPLETED_WATCH_STATUSES:
+        return
+    if status_before not in COMPLETED_WATCH_STATUSES or row.completed_at is None:
         row.completed_at = get_taipei_now()

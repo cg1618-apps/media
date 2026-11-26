@@ -151,6 +151,7 @@ def _to_response(
         twitter_link=person.twitter_link,
         ig_link=person.ig_link,
         pixiv_link=person.pixiv_link,
+        type_slots=person.type_slots,
         roles=[
             schemas.PersonRoleIn(role=r.role, scope=r.scope)
             for r in without_hidden_scopes(person.roles, hidden, "scope")

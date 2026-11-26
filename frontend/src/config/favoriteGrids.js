@@ -39,7 +39,7 @@ export const FAVORITE_GRIDS = [
     key: "ACG",
     tier: "franchise",
     franchiseTypes: ANIMANGA_FRANCHISE_TYPES,
-    title: "Favourite AniManga franchises",
+    title: "AniManga franchises",
     short: "AniManga",
     forType: null,
   },
@@ -50,7 +50,7 @@ export const FAVORITE_GRIDS = [
     key: "Novel",
     tier: "franchise",
     franchiseTypes: ["Book"],
-    title: "Favourite book franchises",
+    title: "Book franchises",
     short: "Book",
     forType: "Book",
   },
@@ -58,7 +58,7 @@ export const FAVORITE_GRIDS = [
     id: "movie-franchises",
     key: "Movie",
     tier: "franchise",
-    title: "Favourite movie franchises",
+    title: "Movie franchises",
     short: "Movie",
     forType: "Movie",
   },
@@ -67,14 +67,14 @@ export const FAVORITE_GRIDS = [
     key: "Movie",
     tier: "entry",
     entryType: "movie",
-    title: "Favourite movies",
+    title: "Movies",
     short: "Movie entries",
   },
   {
     id: "tv-franchises",
     key: "TV",
     tier: "franchise",
-    title: "Favourite TV show franchises",
+    title: "TV show franchises",
     short: "TV show",
     forType: "TV",
   },
@@ -82,7 +82,7 @@ export const FAVORITE_GRIDS = [
     id: "cartoon-franchises",
     key: "Cartoon",
     tier: "franchise",
-    title: "Favourite cartoon franchises",
+    title: "Cartoon franchises",
     short: "Cartoon",
     forType: "Cartoon",
   },
@@ -91,7 +91,7 @@ export const FAVORITE_GRIDS = [
     key: "Comic",
     tier: "series",
     entryType: "comic",
-    title: "Favourite comic series",
+    title: "Comic series",
     short: "Comic series",
     forType: "Comic",
   },
@@ -99,7 +99,7 @@ export const FAVORITE_GRIDS = [
     id: "game-franchises",
     key: "Game",
     tier: "franchise",
-    title: "Favourite game franchises",
+    title: "Game franchises",
     short: "Game",
     forType: "Game",
   },
@@ -108,14 +108,14 @@ export const FAVORITE_GRIDS = [
     key: "Game",
     tier: "entry",
     entryType: "game",
-    title: "Favourite games",
+    title: "Games",
     short: "Game entries",
   },
   {
     id: "h-game-franchises",
     key: "H-Game",
     tier: "franchise",
-    title: "Favourite h-game franchises",
+    title: "H-game franchises",
     short: "H-Game",
     forType: "H-Game",
     gatedType: "h-game",
@@ -125,9 +125,108 @@ export const FAVORITE_GRIDS = [
     key: "H-Game",
     tier: "entry",
     entryType: "h-game",
-    title: "Favourite h-games",
+    title: "H-games",
     short: "H-Game entries",
     gatedType: "h-game",
+  },
+];
+
+// The favourite-entity grids: studios and people rather than media. `tier`
+// is "studio" or "person" and the slot is stored in that row's own
+// `type_slots`, under `key`. Which rows a grid offers is read off the list
+// payload (favoritePool in utils/statsUtils):
+//
+//   mediaTypes - a studio credited on any of these media types.
+//   roles      - a person holding any of these `{ role, scopes? }` role rows,
+//                in one of `scopes` when it names some, in any scope when not.
+//   gender     - a person whose gender is this (男 / 女).
+//
+// "Non-anime director" is every director scope that is not an animation
+// one; hentai is gated and so in neither director grid.
+const ANIME_SCOPES = ["anime", "anime-movie"];
+
+export const FAVORITE_ENTITY_GRIDS = [
+  {
+    id: "anime-studios",
+    key: "Anime Studio",
+    tier: "studio",
+    mediaTypes: ANIME_SCOPES,
+    title: "Anime studios",
+    short: "Anime studio",
+  },
+  {
+    id: "game-studios",
+    key: "Game Studio",
+    tier: "studio",
+    mediaTypes: ["game"],
+    title: "Game studios",
+    short: "Game studio",
+  },
+  {
+    id: "non-anime-directors",
+    key: "Non-Anime Director",
+    tier: "person",
+    roles: [{ role: "director", scopes: ["movie", "tv-show", "cartoon", "game"] }],
+    title: "Non-anime directors",
+    short: "Non-anime director",
+  },
+  {
+    id: "anime-directors",
+    key: "Anime Director",
+    tier: "person",
+    roles: [{ role: "director", scopes: ANIME_SCOPES }],
+    title: "Anime directors",
+    short: "Anime director",
+  },
+  {
+    id: "composers",
+    key: "Composer",
+    tier: "person",
+    roles: [{ role: "composer" }],
+    title: "Music / Composers",
+    short: "Composer",
+  },
+  {
+    id: "manga-authors",
+    key: "Manga Author",
+    tier: "person",
+    roles: [{ role: "author", scopes: ["manga"] }],
+    title: "Manga authors",
+    short: "Manga author",
+  },
+  {
+    id: "book-authors",
+    key: "Book Author",
+    tier: "person",
+    roles: [{ role: "author", scopes: ["book"] }],
+    title: "Book authors",
+    short: "Book author",
+  },
+  {
+    id: "illustrators",
+    key: "Illustrator",
+    tier: "person",
+    roles: [{ role: "illustrator" }],
+    title: "Illustrators",
+    short: "Illustrator",
+  },
+  {
+    id: "female-seiyuu",
+    key: "Female Seiyuu",
+    tier: "person",
+    roles: [{ role: "seiyuu" }],
+    gender: "女",
+    title: "Female seiyuu",
+    short: "Female seiyuu",
+  },
+  {
+    id: "male-seiyuu",
+    key: "Male Seiyuu",
+    tier: "person",
+    roles: [{ role: "seiyuu" }],
+    gender: "男",
+    title: "Male seiyuu",
+    short: "Male seiyuu",
   },
 ];
 

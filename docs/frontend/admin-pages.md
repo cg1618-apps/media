@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -1081,15 +1081,32 @@ is gone.
 
 Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
 **Fav 3x3** (`Fav3x3ModifyTab.jsx`: the favourite grids of
-`config/favoriteGrids.js` - nine, and eleven for a session that can see
-h-game - each stored as a `type_slots` map on the row it
-holds — a franchise, a series or an entry; see
+`config/favoriteGrids.js`, under two headings as on the statistics page -
+**Favourite Media**, nine grids and eleven for a session that can see h-game,
+then **Favourite Entity**, the ten studio and people grids - each stored as a
+`type_slots` map on the row it holds — a franchise, a series, an entry, a
+studio or a person; see
 [pages.md](pages.md#statistics--statistics--completions--completions)).
 Beside each grid a ranked list of its nine slots reorders it: a row dragged
 onto another slot **swaps** the two (`swapSlots`; nothing else moves, and an
 empty slot simply takes the row), ArrowUp / ArrowDown on a focused row swaps
 it with its neighbour, and each grid has its own drag context, so a row can
 only land in its own grid. The swap is a draft until **Save Grid**.
+
+This tab is the only place a slot is set: the franchise and series forms
+carry no slot field. What a group form still owns is the cover a grid
+borrows — the franchise form's per-type **3x3 Cover** (`type_covers`) and a
+group's `cover_entry_id`. Clicking a card opens the picker, which assigns a
+row or clears the slot; a filled card and a filled ranked row also carry a
+**×** that empties the slot directly, without opening the picker or starting
+a drag. Save then PATCHes every row whose slot in that grid changed — a
+removed row is written back with the grid's key dropped from its
+`type_slots` (`null` when no key is left), the other grids' keys untouched.
+The 3×3 has a fixed width, so a grid with nothing in it still shows nine
+full-size empty slots to click. A studio or person row is saved through its
+own `PATCH /api/studio/{id}` / `PATCH /api/person/{id}`, the only writer of
+those tables' `type_slots`; the tab fetches the two lists with the rest
+(`MODIFY_TAB_LISTS.fav3x3`, `ENTITY_LIST_TYPES` in `useEntryLists`).
 
 - **Data loading** is `hooks/useEntryLists.js`, as on `/add`: collections,
   franchises and series eagerly, the media lists per tab. The three

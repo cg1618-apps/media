@@ -203,3 +203,33 @@ def test_a_type_the_viewer_lacks_is_absent_from_every_count(
     assert _buckets(body, "mal", "anime") == {}
     assert _buckets(body, "anilist", "anime") == {}
     assert _buckets(body, "mal", "manga") == {7: 1}
+
+
+def test_the_imdb_and_metacritic_distributions(client, db_session, sample_franchise):
+    """IMDb's rating is a string column, so a value that is not a number
+    ("N/A") must be in no bucket rather than fail the whole request; the
+    fixture holds one to make that bite. Metacritic is 0-100 on games."""
+    for name, rating in (("A", "7.9"), ("B", "7.2"), ("C", "10"), ("D", "N/A")):
+        db_session.add(
+            models.Movies(
+                system_id=uuid.uuid4(),
+                franchise_id=sample_franchise.system_id,
+                movie_name_en=name,
+                imdb_rating=rating,
+            )
+        )
+    for name, score in (("G1", 88), ("G2", 100), ("G3", None)):
+        db_session.add(
+            models.Game(
+                system_id=uuid.uuid4(),
+                franchise_id=sample_franchise.system_id,
+                game_name_en=name,
+                metacritic_score=score,
+            )
+        )
+    db_session.flush()
+    response = _as_shared(db_session, client).get(STATS)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert _buckets(body, "imdb", "movie") == {9: 1, 7: 2}
+    assert _buckets(body, "metacritic", "game") == {90: 1, 80: 1}

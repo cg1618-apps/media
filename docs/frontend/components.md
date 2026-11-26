@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -1429,6 +1429,12 @@ under sticky division headers and the filter bar.
   level-2 row per year group of the future-releases section, from the same
   `usePlanFuture` the section draws. Its `ContentsBar` is pinned under the
   nav, as on a detail page, and the offset is the nav plus that bar.
+- **The statistics page** writes its rows down too (`statsTocItems` in
+  `pages/statistics/sections.js`): one level-1 row per block, and under the
+  Favourite Media row a level-2 row per favourite grid, a gated grid's only
+  for a session that can see its type. Its `ContentsBar` is pinned under the
+  nav and its offset is the nav plus that bar, as on the Plan page. A
+  viewer without a list has no contents.
 - **Notes** list at card level only. `NotesBlocks` wraps the Notes card
   (`#notes`), each group card (`#notes-<group key>`) and each standalone
   section (`#notes-<section key>`) in a `TocSection`, labelled with only the
@@ -1469,9 +1475,6 @@ under sticky division headers and the filter bar.
   - On the **dashboard** it is not pinned: the division headers and the
     filter bar already pin under the nav, and a third sticky strip would
     stack on them. It sits above the first division and scrolls away.
-
-The statistics page keeps its own `StatsSidebar` (IntersectionObserver,
-`lg:`-only, left), see [pages.md](pages.md).
 
 ## Testing conventions
 
@@ -1548,7 +1551,7 @@ another:
 | Add / Modify / Delete / Form Defaults tab | `AdminTabBar` filters every tab list through `visibleByType` |
 | Nav search scope | `canSearchScope` in `NavSearch.jsx`: `canSeeGatedType` and the role's `media_type.<type>` key, the rule the server picks its search buckets by |
 | Plan tabs, Completions tabs, Random Picker mode strip and media-type chips, Quotes filter, image owner-type filter, order type filter, Control Center Fill (and, for h-game and hentai, Replace) button, `PersonSubTabBar` Club tab, Franchise Library filter chip | `visibleByType` / `canSeeGatedType` at the list |
-| Favourite grids (the h-game franchise and entry grids) | `gatedType` on the grid in `config/favoriteGrids.js`; `visibleFavoriteGrids(auth)` filters them for the statistics page and the admin 3x3 editor, and the statistics sidebar drops their links the same way |
+| Favourite grids (the h-game franchise and entry grids) | `gatedType` on the grid in `config/favoriteGrids.js`; `visibleFavoriteGrids(auth)` filters them for the statistics page and the admin 3x3 editor, and the statistics contents drop their rows the same way |
 | Options scope picker (`ScopePicker`, both Options tabs) | `visibleMediaTypes` over the list it is handed, so the `MEDIA_TYPES` fallback drawn before `/api/constants` answers does not name a hidden gated type either |
 | Lists fetched only when visible | `usePlanData`, `Completions`, `RandomPicker`, `useStatisticsData` (the h-comic, h-game and hentai rating cards and the h-game favourite grids), `SeriesPage` (h-games and hentai only under a parent franchise of the restricted family) and `FranchiseLibrary` (which waits for `/api/auth/me`) |
 | Club membership on the person page | `ClubMembership` renders, and fetches, nothing for a narrow session |

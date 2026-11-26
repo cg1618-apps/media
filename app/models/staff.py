@@ -128,6 +128,10 @@ class Person(Base, NameFallbackMixin):
     twitter_link = Column(String, nullable=True)
     ig_link = Column(String, nullable=True)
     pixiv_link = Column(String, nullable=True)
+    # Favourite-grid slot per grid key, e.g. {"Anime Director": 3}: the entity-tier
+    # twin of Franchise.type_slots, written by the Fav 3x3 editor through
+    # PATCH only (no form or PUT carries it, so an edit cannot wipe it).
+    type_slots = Column(JSONB, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 
@@ -426,6 +430,10 @@ class Studio(Base, NameFallbackMixin):
     # The studio's AniList page, entered by hand beside mal_link. A plain
     # link: no id is derived from it and nothing is fetched from it.
     anilist_link = Column(String, nullable=True)
+    # Favourite-grid slot per grid key, e.g. {"Anime Studio": 3}: the entity-tier
+    # twin of Franchise.type_slots, written by the Fav 3x3 editor through
+    # PATCH only (no form or PUT carries it, so an edit cannot wipe it).
+    type_slots = Column(JSONB, nullable=True)
     created_at = Column(DateTime, default=get_taipei_now)
     updated_at = Column(DateTime, default=get_taipei_now, onupdate=get_taipei_now)
 

@@ -262,6 +262,8 @@ function SeasonalBlock({
                       franchise={franchiseMap[anime.franchise_id]}
                       canTrack={canTrack}
                       onEpChange={onEpChange}
+                      showTypeSpine={false}
+                      showMalScore
                     />
                   ))}
                 </div>
@@ -447,15 +449,9 @@ function SeasonalOverallWithList() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Page header */}
       <header>
-        <Eyebrow className="mb-2">Calendar</Eyebrow>
         <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none">
           Seasonal
         </h1>
-        {currentSeason && (
-          <p className="text-sm text-text-muted mt-2">
-            Current season <span className="font-mono text-text">{currentSeason}</span>
-          </p>
-        )}
       </header>
 
       {/* Tab bar */}
@@ -717,15 +713,9 @@ function SeasonalOverallCatalogue() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       <header>
-        <Eyebrow className="mb-2">Calendar</Eyebrow>
         <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none">
           Seasonal
         </h1>
-        {currentSeason && (
-          <p className="text-sm text-text-muted mt-2">
-            Current season <span className="font-mono text-text">{currentSeason}</span>
-          </p>
-        )}
       </header>
 
       <nav className="flex flex-wrap gap-2">

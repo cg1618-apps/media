@@ -449,7 +449,7 @@ export default function Manga() {
               <Button onClick={() => navigate(`/modify?id=${system_id}&type=manga`)}>
                 Edit
               </Button>
-              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+              <Button onClick={handleAutofill} disabled={autofilling}>
                 {autofilling ? "Autofilling…" : "Autofill & update"}
               </Button>
             </>

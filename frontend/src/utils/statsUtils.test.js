@@ -145,3 +145,59 @@ describe("novelsOnly", () => {
     expect(novelsOnly([])).toEqual([]);
   });
 });
+
+// The favourite-entity grids filter studios on the types they are credited on
+// and people on their role rows (and gender, for the seiyuu grids). Each
+// fixture holds a row that must be left out, so a filter that passed
+// everything would fail.
+describe("favoritePool on the entity tiers", () => {
+  const ids = (rows) => rows.map((r) => r.system_id);
+  const studios = [
+    { system_id: "anime", media_types: ["anime"] },
+    { system_id: "both", media_types: ["anime-movie", "game"] },
+    { system_id: "game", media_types: ["game"] },
+    { system_id: "none", media_types: [] },
+  ];
+  const people = [
+    { system_id: "ad", roles: [{ role: "director", scope: "anime" }] },
+    { system_id: "md", roles: [{ role: "director", scope: "movie" }] },
+    { system_id: "ma", roles: [{ role: "author", scope: "manga" }] },
+    { system_id: "ba", roles: [{ role: "author", scope: "book" }] },
+    { system_id: "f", gender: "女", roles: [{ role: "seiyuu", scope: "anime" }] },
+    { system_id: "m", gender: "男", roles: [{ role: "seiyuu", scope: "anime" }] },
+    { system_id: "c", roles: [{ role: "composer", scope: null }] },
+  ];
+
+  it("a studio grid holds the studios credited on its types", () => {
+    const grid = { tier: "studio", mediaTypes: ["anime", "anime-movie"] };
+    expect(ids(favoritePool(grid, { studios }))).toEqual(["anime", "both"]);
+  });
+
+  it("a role grid with scopes holds only that role in those scopes", () => {
+    const grid = { tier: "person", roles: [{ role: "director", scopes: ["anime", "anime-movie"] }] };
+    expect(ids(favoritePool(grid, { people }))).toEqual(["ad"]);
+    const books = { tier: "person", roles: [{ role: "author", scopes: ["book"] }] };
+    expect(ids(favoritePool(books, { people }))).toEqual(["ba"]);
+  });
+
+  it("a role grid with no scopes holds the role in any scope", () => {
+    const grid = { tier: "person", roles: [{ role: "composer" }] };
+    expect(ids(favoritePool(grid, { people }))).toEqual(["c"]);
+  });
+
+  it("a seiyuu grid narrows on gender", () => {
+    const grid = { tier: "person", roles: [{ role: "seiyuu" }], gender: "女" };
+    expect(ids(favoritePool(grid, { people }))).toEqual(["f"]);
+  });
+
+  it("an entity's cover is its own image, the server's fallback first", () => {
+    const grid = { tier: "studio" };
+    const cover = favoriteCover(
+      { display_logo_file: "studio/x.png", logo_file: "studio/y.png", display_logo_focus: "10% 20%" },
+      grid,
+      { byFranchise: {}, bySeries: {} },
+    );
+    expect(cover).toEqual({ url: "/api/covers/studio/x.png", focus: "10% 20%" });
+    expect(favoriteCover({}, { tier: "person" }, {}).url).toBe(FALLBACK_SVG);
+  });
+});

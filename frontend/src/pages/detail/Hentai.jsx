@@ -295,7 +295,7 @@ export default function Hentai() {
               <Button onClick={() => navigate(`/modify?id=${system_id}&type=hentai`)}>
                 Edit
               </Button>
-              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+              <Button onClick={handleAutofill} disabled={autofilling}>
                 {autofilling ? "Autofilling…" : "Autofill & update"}
               </Button>
             </>

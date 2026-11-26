@@ -1,23 +1,45 @@
 // The statistics page's own table of contents.
 //
-// One list, read by the sidebar and by the page: a section's `id` is the
-// anchor the sidebar scrolls to AND the `id` the block renders with, so a
-// renamed section cannot leave the sidebar pointing at nothing.
-import { FAVORITE_GRIDS } from "../../config/favoriteGrids";
+// One list, read by the contents column and by the page: a section's `id` is
+// the anchor the contents scroll to AND the `id` the block renders with, so a
+// renamed section cannot leave the contents pointing at nothing.
+import { FAVORITE_ENTITY_GRIDS, FAVORITE_GRIDS } from "../../config/favoriteGrids";
+import { visibleByType } from "../../lib/gatedTypes";
 
-export const STATS_SECTIONS = [
-  {
-    id: "favourites",
-    label: "Favourites",
-    // Nine grids is too many to find by scrolling, so each one is its own
-    // sidebar target. A gated grid's link carries its type, and the sidebar
-    // drops it for a session that cannot see the type.
-    children: FAVORITE_GRIDS.map((grid) => ({
+// A favourites section: its heading, and one sub-row per grid - there are too
+// many grids to find by scrolling. A gated grid's row carries its type, and
+// statsTocItems drops it for a session that cannot see the type.
+function favoriteSection(id, label, grids) {
+  return {
+    id,
+    label,
+    grids,
+    children: grids.map((grid) => ({
       id: grid.id,
       label: grid.short,
       gatedType: grid.gatedType,
     })),
-  },
+  };
+}
+
+export const FAVORITE_MEDIA_SECTION = favoriteSection(
+  "favourites",
+  "Favourite Media",
+  FAVORITE_GRIDS,
+);
+
+// Studios and people. Drawn, and listed in the contents, only for a viewer
+// who may read both (view.studio and view.person): statsTocItems is given
+// the sections the page actually renders.
+export const FAVORITE_ENTITY_SECTION = favoriteSection(
+  "favourite-entities",
+  "Favourite Entity",
+  FAVORITE_ENTITY_GRIDS,
+);
+
+export const STATS_SECTIONS = [
+  FAVORITE_MEDIA_SECTION,
+  FAVORITE_ENTITY_SECTION,
   { id: "rating-distribution", label: "Rating distribution" },
   { id: "anime-seasonal", label: "Anime seasonal" },
   { id: "game-spend", label: "Game spend" },
@@ -27,9 +49,18 @@ export const STATS_SECTIONS = [
   { id: "catalogue-ratings", label: "Catalogue ratings" },
 ];
 
-// Flattened, parents included, in the order they appear down the page. What
-// the scroll spy watches.
-export const STATS_SECTION_IDS = STATS_SECTIONS.flatMap((section) => [
-  section.id,
-  ...(section.children || []).map((child) => child.id),
-]);
+/**
+ * The TableOfContents rows for this session, in page order: each section at
+ * level 1, its children at level 2, a gated child only when its type is
+ * visible.
+ */
+export function statsTocItems(auth, sections = STATS_SECTIONS) {
+  return sections.flatMap((section) => [
+    { id: section.id, label: section.label, level: 1 },
+    ...visibleByType(auth, section.children || [], (c) => c.gatedType).map((child) => ({
+      id: child.id,
+      label: child.label,
+      level: 2,
+    })),
+  ]);
+}

@@ -80,7 +80,7 @@ function AutofillButton({ ownerType, systemId, onAutofilled }) {
   }
 
   return (
-    <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+    <Button onClick={handleAutofill} disabled={autofilling}>
       {autofilling ? "Autofilling…" : "Autofill & update"}
     </Button>
   );

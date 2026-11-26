@@ -1,7 +1,7 @@
 // Frontend: the statistics page's catalogue sections.
 //
 // Counts of the catalogue - entries and franchises per type, anime per
-// season, and the MAL and AniList score distributions - from
+// season, and the MAL, AniList, IMDb and Metacritic score distributions - from
 // GET /api/statistics/catalogue, which counts over what the viewer's role and
 // mode show, so a mode never learns what it hides. Every holder of
 // view.statistics sees them: a viewer with a list below its personal sections
@@ -175,6 +175,8 @@ export function StatsCatalogueSections() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ScoreCard title="MAL rating" scaleKey="mal" rows={scores.mal} />
           <ScoreCard title="AniList score" scaleKey="anilist" rows={scores.anilist} />
+          <ScoreCard title="IMDb rating" scaleKey="imdb" rows={scores.imdb} />
+          <ScoreCard title="Metacritic score" scaleKey="metacritic" rows={scores.metacritic} />
         </div>
       </section>
 
