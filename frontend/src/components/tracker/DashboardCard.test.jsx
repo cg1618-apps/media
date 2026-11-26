@@ -39,7 +39,8 @@ describe("DashboardCard on a film", () => {
     expect(screen.getByText("Heat")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "One forward" })).toBeNull();
     expect(screen.getByTestId("film-paused-at")).toHaveTextContent("1:02:30");
-    expect(screen.getByText("170 min")).toBeInTheDocument();
+    // Hours and minutes, as the detail pages print it.
+    expect(screen.getByText("2hr 50min")).toBeInTheDocument();
   });
 
   it("links an anime movie to its own detail page", () => {

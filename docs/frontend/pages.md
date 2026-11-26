@@ -348,7 +348,8 @@ loading state until then, because before it every viewer looks like a guest.
 | Recently added (`#recent`, `RecentlyAdded`) | `!has("self.list") && has("view.random_picker")` | shared |
 
 Announcements and the Broadcast schedule are drawn for every viewer of the
-catalogue dashboard. The tracker is built from the viewer's own statuses and
+catalogue dashboard - Announcements only while one is posted: with none, the
+division and its TOC row are left out entirely. The tracker is built from the viewer's own statuses and
 progress, and its controls write the viewer's own rows, so it is a member's
 list, not catalogue, and `self.list` decides it rather than a `view.*` key.
 The TOC and the scroll-spy cover only the parts drawn.
@@ -402,7 +403,9 @@ nothing waits (`manage.requests`), and the five latest pipeline runs from
 `GET /api/system/logs` with status and time, linking to the full log on
 `/system` (`manage.pipelines`) — and **Announcements & notes**: the
 `AnnouncementBoard`, with `AnnouncementEditor` (add, edit, delete) below it
-for `manage.announcements`. Each part asks its own key, so a role edited on
+for `manage.announcements`. With none posted the board draws nothing, and the
+division is left out unless the viewer holds `manage.announcements`, whose
+editor then stands alone under the heading. Each part asks its own key, so a role edited on
 `/roles` keeps only the parts it may read.
 
 **Data** (the catalogue dashboard; the admin's page reads only what is listed
@@ -463,7 +466,7 @@ headers and the filter bar already pin under the nav):
 | `#libraries` | Libraries | viewers without a list (guest, shared): one link per Library and Restricted nav row the viewer is shown, in rows — Groups, a rule, then Watch, Read and Play (see "The library links" above). Not drawn when there are none. |
 | `#recent` | Recently added | `view.random_picker` without a list (shared): one section per visible type, newest first — anime two rows, every other type one. |
 | `#pinged` | Pinged (Watching · Reading · Playing) | members only. Every entry the viewer has pinned (`is_pinged`), whatever its status, grouped into three **soft sections** — Watching, Reading, Playing — each an eyebrow on a dotted rule (`Watching · 3`), the way a type eyebrow groups a sub-section's cards. A soft section reads its division's own sorted, filtered list, so its pins keep that division's order and follow the type filter; one with no pins is not drawn, and with none at all the division says so. The soft sections are not anchors: the contents lists Pinged alone. The cards are each type's own dashboard card (a local `TrackerCard` picks it), steppers included, and list view draws one `DashboardTable` per soft section. A pinned entry is still drawn in its own division as well. |
-| `#watching` | Watching (Anime · Anime Movie · Movie · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → Anime Movie → Movie → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A film's card has no stepper - there is no episode to count - and shows **Paused at** (`time_fin`, a dash when unset) and its **Runtime** (`length_min`) instead; in list view its progress cell reads `at <time_fin>`, or the runtime. The two film lists are the ones Coming Next already fetches for a member, outside the combined loading state, so the films join the division when they arrive. Shown when no type is picked or the picked type is one of its five. |
+| `#watching` | Watching (Anime · Anime Movie · Movie · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → Anime Movie → Movie → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A film's card has no stepper - there is no episode to count - and shows **Paused at** (`time_fin`, a dash when unset) and its **Runtime** (`length_min`, in hours and minutes - `2hr 50min` - through `formatLength`) instead; in list view its progress cell reads `at <time_fin>`, or the runtime. The two film lists are the ones Coming Next already fetches for a member, outside the combined loading state, so the films join the division when they arrive. Shown when no type is picked or the picked type is one of its five. |
 | `#reading` | Reading (Manga · Book · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Book → `BookDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
 
@@ -2346,9 +2349,9 @@ select is drawn for a holder of `self.list` and the release bolt for an editor
 (`isAdmin`); `onUpdated` patches the `["media-list", type]` caches.
 **With a list**, anime and anime-movie groups are ordered by the viewer's
 status (Watch When Airs or Watch When Released, Plan to Watch, Might Watch) and then franchise
-expectation, and under each card an **On your list** chip (any status) and a
-**Planned** chip (any plan flag) are drawn from the fields the list response
-carries. **Without one**, every group is in release-date order
+expectation, and under each card a **Planned** chip (any plan flag) is drawn
+from the fields the list response carries; being on the list at all is not
+marked, since the card's status select already says it. **Without one**, every group is in release-date order
 (`primaryReleaseValue` + `releaseScore`, undated last) and no chip is
 drawn.
 

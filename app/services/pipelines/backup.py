@@ -6,6 +6,7 @@ from typing import Callable, Optional
 
 from sqlalchemy.orm import Session
 
+from app.database import get_taipei_now
 from app.services.domain.character_tags import (
     character_tag_sheet_headers,
     character_tag_sheet_rows,
@@ -120,6 +121,7 @@ def _write_backup(
 ) -> dict:
     sink = log_ids if log_ids is not None else []
     logger.info("Starting Google Sheets Backup Pipeline (%s)...", action_type)
+    started_at = get_taipei_now()
 
     try:
         # One block per tab, driven by the registry Pull restores from, so the
@@ -160,13 +162,16 @@ def _write_backup(
             bulk_overwrite_sheet(tab.name, [headers] + matrix)
 
         logger.info("Backup Pipeline completed successfully.")
-        sink.append(log_data_control(db, "Backup", "Backup", action_type, "Success"))
+        sink.append(log_data_control(
+            db, "Backup", "Backup", action_type, "Success", started_at=started_at
+        ))
         return {"status": "success", "message": "All tabs backed up to Google Sheets"}
     except Exception as e:
         logger.error("Backup failed: %s", e)
         sink.append(
             log_data_control(
-                db, "Backup", "Backup", action_type, "Failed", error_message=str(e)
+                db, "Backup", "Backup", action_type, "Failed", error_message=str(e),
+                started_at=started_at,
             )
         )
         raise e

@@ -9,7 +9,7 @@
 // (`showMalScore`); the dashboard mixes types and keeps the spine.
 import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
-import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
+import { getCoverUrl, FALLBACK_SVG, formatLength, getDisplayName } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp } from "../ui/primitives";
 import { EntryRow } from "./DashboardTable";
 import { entityPath } from "../../lib/entityPath";
@@ -118,7 +118,8 @@ export default function DashboardCard({
 
   // A film's progress is a playback position, not a count.
   const pausedAt = anime.time_fin || null;
-  const runtime = anime.length_min ? `${anime.length_min} min` : null;
+  // Hours and minutes ("2hr 50min"), as the detail pages print it.
+  const runtime = formatLength(anime.length_min);
 
   // List view reuses every derivation above and none of the card's layout.
   // The stepper does not come with it - see the note in DashboardTable.

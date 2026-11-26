@@ -17,9 +17,16 @@ import Index from "./Index";
 const MEMBER = { is_admin: false, username: "reader", role: "user", permissions: ["self.list"] };
 const GUEST = { is_admin: false, username: null, role: "guest", permissions: [] };
 
+// One posted by default, so the Announcements division is drawn; the case
+// that empties it asserts the division and its TOC row are gone.
+let posted;
+beforeEach(() => {
+  posted = [{ title: "Welcome", body: "Read me" }];
+});
+
 function respond(url, me) {
   if (url.startsWith("/api/auth/me")) return me;
-  if (url.startsWith("/api/announcements")) return [];
+  if (url.startsWith("/api/announcements")) return posted;
   if (url.startsWith("/api/anime/"))
     return [
       {
@@ -115,6 +122,22 @@ describe("a guest's dashboard", () => {
       "Schedule",
       "Broadcast",
     ]);
+  });
+
+  it("leaves out Announcements, and its TOC row, while nothing is posted", async () => {
+    posted = [];
+    stub(GUEST);
+    mount();
+    await loaded();
+    await waitFor(() => expect(fetched("/api/announcements")).toBe(true));
+    await waitFor(() => {
+      const toc = within(screen.getByRole("navigation", { name: "Contents" }));
+      expect(toc.getAllByRole("button").map((b) => b.textContent)).toEqual([
+        "Schedule",
+        "Broadcast",
+      ]);
+    });
+    expect(screen.queryByText(/announcements & notes/i)).toBeNull();
   });
 
   it("fetches the anime list and none of the tracker lists", async () => {

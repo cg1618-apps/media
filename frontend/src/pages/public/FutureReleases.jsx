@@ -23,7 +23,6 @@ import {
   releaseYear,
   todayIso,
 } from "../../lib/releaseDate";
-import { MEDIA_CONFIG } from "../../config/mediaRegistry";
 import { PLAN_FLAG_KEYS } from "../../hooks/useStatusToggle";
 import { useViewScope } from "../../hooks/useViewScope";
 import { useQueryClient } from "@tanstack/react-query";
@@ -31,7 +30,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import FutureReleaseCard from "../../components/cards/FutureReleaseCard";
 import { useApiQuery } from "../../hooks/useApiQuery";
 import { useMediaList } from "../../hooks/useMediaList";
-import { Chip, Eyebrow } from "../../components/ui/primitives";
+import { Chip } from "../../components/ui/primitives";
 import {
   UnitCoverThumb,
   UnitReleaseDates,
@@ -117,17 +116,15 @@ function sortByReleaseDate(entries, mediaType) {
   });
 }
 
-// The viewer's own marks on a card: on its list (any status), and planned
-// (any plan flag). Read from the fields every list response carries.
-function ListMarkers({ type, data }) {
-  const statusField = MEDIA_CONFIG[type]?.statusField;
-  const onList = Boolean(statusField && data[statusField]);
+// The viewer's own mark on a card: planned (any plan flag), read from the
+// fields every list response carries. Whether it is on the list at all is
+// not marked: the card's status select already says so.
+function ListMarkers({ data }) {
   const planned = [...PLAN_FLAG_KEYS].some((key) => data[key] === true);
-  if (!onList && !planned) return null;
+  if (!planned) return null;
   return (
     <div className="flex flex-wrap gap-1 mt-1" data-testid="list-markers">
-      {onList && <Chip tone="brand">On your list</Chip>}
-      {planned && <Chip>Planned</Chip>}
+      <Chip>Planned</Chip>
     </div>
   );
 }
@@ -136,7 +133,7 @@ function FutureCard({ ownData, ...cardProps }) {
   return (
     <div>
       <FutureReleaseCard {...cardProps} />
-      {ownData && <ListMarkers type={cardProps.type} data={cardProps.data} />}
+      {ownData && <ListMarkers data={cardProps.data} />}
     </div>
   );
 }
@@ -604,11 +601,9 @@ export default function FutureReleases() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
       <header className="mb-8">
-        <Eyebrow className="mb-2">Calendar</Eyebrow>
         <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none">
           Future releases
         </h1>
-        <p className="text-text-muted mt-2 text-sm">Upcoming titles yet to release</p>
       </header>
 
       {/* Main tabs */}
