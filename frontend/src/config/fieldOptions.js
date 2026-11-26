@@ -484,7 +484,6 @@ export const OPTION_CATEGORIES = [
   // A character's two tag lists (CHARACTER_OPTION_CATEGORIES there).
   "Character Appearance",
   "Character Trait",
-  "Franchise for Filter",
   // From here on, the common options (COMMON_OPTION_CATEGORIES below).
   // What 彩蛋 Easter Eggs' optional Group suggests.
   "Easter Egg Group",
@@ -508,7 +507,20 @@ export const OPTION_CATEGORIES = [
 // The subset of OPTION_CATEGORIES the admin pages group under their "Tags"
 // sub-tab (TAG_CATEGORIES in app/utils/credit_roles.py). Navigation only -
 // both sub-tabs are the same form over the same system_option rows.
-export const TAG_CATEGORIES = ["Genre Main", "Genre Sub", "Label"];
+export const TAG_CATEGORIES = [
+  "Genre Main",
+  "Genre Sub",
+  "Label",
+  "Game Genre",
+  "Game Theme",
+  // Gated: withheld by /api/constants from a session that sees none of
+  // h-comic, h-game and hentai.
+  "H Genre Plot",
+  "H Genre Appearance",
+  "H Genre Relation",
+  "Character Appearance",
+  "Character Trait",
+];
 
 // The subset of OPTION_CATEGORIES the admin pages group under their "Common
 // Options" sub-tab (COMMON_OPTION_CATEGORIES in app/utils/credit_roles.py):
