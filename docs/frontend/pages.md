@@ -2349,9 +2349,9 @@ select is drawn for a holder of `self.list` and the release bolt for an editor
 (`isAdmin`); `onUpdated` patches the `["media-list", type]` caches.
 **With a list**, anime and anime-movie groups are ordered by the viewer's
 status (Watch When Airs or Watch When Released, Plan to Watch, Might Watch) and then franchise
-expectation, and under each card an **On your list** chip (any status) and a
-**Planned** chip (any plan flag) are drawn from the fields the list response
-carries. **Without one**, every group is in release-date order
+expectation, and under each card a **Planned** chip (any plan flag) is drawn
+from the fields the list response carries; being on the list at all is not
+marked, since the card's status select already says it. **Without one**, every group is in release-date order
 (`primaryReleaseValue` + `releaseScore`, undated last) and no chip is
 drawn.
 

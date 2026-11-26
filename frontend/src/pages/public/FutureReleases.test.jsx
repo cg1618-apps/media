@@ -166,14 +166,19 @@ describe("FutureReleases", () => {
       expect(cardNames()).toEqual(["晚", "早", "中"]);
     });
 
-    it("marks what is on the list and what is planned", () => {
+    it("marks what is planned, and nothing for merely being on the list", () => {
       renderPage();
-      expect(cardOf("晚")).toHaveTextContent("On your list");
       expect(cardOf("晚")).toHaveTextContent("Planned");
-      expect(cardOf("早")).toHaveTextContent("On your list");
+      // 早 carries a status and no plan flag: no marker at all.
       expect(cardOf("早")).not.toHaveTextContent("Planned");
-      expect(cardOf("中")).not.toHaveTextContent("On your list");
-      expect(cardOf("中")).not.toHaveTextContent("Planned");
+      expect(screen.queryByText("On your list")).toBeNull();
+    });
+
+    it("has no eyebrow or subtitle over its heading", () => {
+      renderPage();
+      expect(screen.getByRole("heading", { name: "Future releases" })).toBeInTheDocument();
+      expect(screen.queryByText("Calendar")).toBeNull();
+      expect(screen.queryByText("Upcoming titles yet to release")).toBeNull();
     });
 
     it("reads the franchise list its expectation sort needs", () => {
