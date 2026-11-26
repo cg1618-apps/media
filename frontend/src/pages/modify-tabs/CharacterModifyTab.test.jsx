@@ -485,3 +485,34 @@ it("loads and saves the character's firsts", async () => {
     CHARACTERS[0] = original;
   }
 });
+
+describe("the character's identities", () => {
+  it("are listed at the top, as plain names rather than links", async () => {
+    CHARACTERS[0].identities = [
+      { system_id: "i2", display_name: "Spike (Swordfish)", position: 1 },
+      { system_id: "i1", display_name: "Spike (young)", position: 0 },
+    ];
+    try {
+      mount({ initialId: "c1" });
+      const ribbon = await screen.findByRole("region", { name: "Identities of this character" });
+      expect(ribbon.textContent).toContain("Spike (young)");
+      expect(within(ribbon).queryAllByRole("button")).toHaveLength(0);
+      expect(within(ribbon).queryAllByRole("link")).toHaveLength(0);
+      const names = [...ribbon.querySelectorAll("span")].map((s) => s.textContent);
+      expect(names).toEqual(["Spike (young)", "Spike (Swordfish)"]);
+      // Above the form's own fields.
+      expect(
+        ribbon.compareDocumentPosition(screen.getByDisplayValue("Spike Spiegel")) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    } finally {
+      delete CHARACTERS[0].identities;
+    }
+  });
+
+  it("are not drawn for a character with none", async () => {
+    mount({ initialId: "c1" });
+    await screen.findByDisplayValue("Spike Spiegel");
+    expect(screen.queryByRole("region", { name: "Identities of this character" })).toBeNull();
+  });
+});

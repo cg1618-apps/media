@@ -46,6 +46,7 @@ import {
   firstsToForm,
 } from "../../lib/characterForm";
 import { releaseYear } from "../../lib/releaseDate";
+import IdentityRibbon from "../../components/forms/IdentityRibbon";
 
 function cleanString(str) {
   return (str || "").toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "");
@@ -90,6 +91,8 @@ export default function CharacterModifyTab({
   usePageTitle(selectedId ? editorTitle(savedName) : null);
   const saveFormRating = useFormRatingSaver();
   const [characterForm, setCharacterForm] = useState(null);
+  // The loaded character's identities, listed read-only above the form.
+  const [identities, setIdentities] = useState([]);
   // The form as last loaded or saved: what "unsaved edits" is measured
   // against, so Sync from cast never overwrites them unseen.
   const [loadedForm, setLoadedForm] = useState(null);
@@ -139,6 +142,7 @@ export default function CharacterModifyTab({
 
   function showCharacter(character) {
     setSavedName(character.display_name);
+    setIdentities(character.identities || []);
     const form = characterToForm(character);
     setCharacterForm(form);
     setLoadedForm(form);
@@ -158,6 +162,7 @@ export default function CharacterModifyTab({
     setSelectedId(null);
     setCharacterForm(null);
     setLoadedForm(null);
+    setIdentities([]);
   }
 
   const dirty =
@@ -291,6 +296,8 @@ export default function CharacterModifyTab({
               {selectedId}
             </span>
           </div>
+
+          <IdentityRibbon identities={identities} title="Identities of this character" />
 
           <div className="bg-surface rounded-2xl border border-border shadow-sm p-6">
             <CharacterFields

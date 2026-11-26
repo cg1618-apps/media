@@ -25,6 +25,7 @@ import {
 } from "../add-tabs/IdentityAddTab";
 import { firstsToForm } from "../../lib/characterForm";
 import { useFormRatingSaver } from "../../api/mutations/useMyRatingMutations";
+import IdentityRibbon from "../../components/forms/IdentityRibbon";
 
 export { IDENTITIES_QUERY_KEY };
 
@@ -150,8 +151,26 @@ export default function IdentityModifyTab({ initialId = null } = {}) {
     }
   }
 
+  // The character's other identities, for the ribbon at the very top.
+  const siblings = selected
+    ? identities.filter((i) => i.character_id === selected.character_id)
+    : [];
+  function openIdentity(other) {
+    setPickedId(other.system_id);
+    setFormFor(null);
+    setForm(null);
+  }
+
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
+      {selected && (
+        <IdentityRibbon
+          identities={siblings}
+          excludeId={selected.system_id}
+          title="Other identities of the character"
+          onOpen={openIdentity}
+        />
+      )}
       <SectionHeader icon="fa-masks-theater" title="Modify Identity" />
       {!selected ? (
         <IdentityPicker

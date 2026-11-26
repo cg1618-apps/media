@@ -1350,14 +1350,18 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
   edited rather than with the form, as the photo does - each picture has its
   caption and its own **Content rating** select, PATCHed on change - see
   [components.md](components.md#entity-components-person-studio-and-character).
-- **Identity tab (Entity).** `IdentityModifyTab.jsx`, self-contained over `GET /api/character-identity/` (query key `["identities-admin"]`): `IdentityPicker`, a search box over every name of the identity and its character plus a grid of every identity showing "identity of <character>", then the `IdentityFields` form with the owning character shown read-only. Save is `PUT /api/character-identity/{id}`, then the viewer's changed rating through `useFormRatingSaver` (the listed row carries the stored one). A deep link `type=identity` hands the id to it as `initialId`.
+- **Identity tab (Entity).** `IdentityModifyTab.jsx`, self-contained over `GET /api/character-identity/` (query key `["identities-admin"]`): `IdentityPicker`, a search box over every name of the identity and its character plus a grid of every identity showing "identity of <character>", then the `IdentityFields` form with the owning character shown read-only. At the very top of the editor, **Other identities of the character** (`IdentityRibbon`, drawn like the media editors' "Other entries in this franchise") lists the character's other identities from the same admin list, each a chip that opens that identity's editor; an identity with no sibling has none. Save is `PUT /api/character-identity/{id}`, then the viewer's changed rating through `useFormRatingSaver` (the listed row carries the stored one). A deep link `type=identity` hands the id to it as `initialId`.
 - **Character tab (Entity).** `CharacterModifyTab.jsx`, self-contained the
   same way over `/api/character/` (query key `["characters-admin"]`) and
   picked the way people are: a `SubTabBar` of **All** then one tab per
   `CHARACTER_ROLES` value (Main, Core, Important Supporting, Supporting, Other — a character holds
   at most one), scope chips over the media types the shown characters are
   cast in, and a grid of every match up front filtered by the all-four-names
-  search. All lists characters with no type too. The pick
+  search. All lists characters with no type too. Above the editor card,
+  **Identities of this character** (`IdentityRibbon`, from the loaded
+  character's `identities`) names each of its identities in position order,
+  as plain chips rather than links - leaving would drop the form's unsaved
+  edits - and is not drawn for a character with none. The pick
   loads `CharacterFields` with the same **Photo fallback** select over
   `GET /api/character/{id}/entries`; for a character the chosen entry lends
   its casting photo first and its cover only when the casting has none, and
