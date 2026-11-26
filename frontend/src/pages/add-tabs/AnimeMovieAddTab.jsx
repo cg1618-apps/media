@@ -23,7 +23,7 @@ import {
   inputCls,
   selectCls,
 } from "../../components/forms/FormField";
-import { getSourceValues } from "../../utils/media";
+import { getSourceValues, parseTypes } from "../../utils/media";
 import { getIdleSourceValues } from "../../lib/formatters";
 import {
   ANIME_MOVIE_ONA,
@@ -270,13 +270,19 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
   );
 }
 
-/** The franchise picker, shared by both anime movie tabs. Every franchise
- *  type is accepted, and there is no Series picker. */
+/** An anime movie sits in an `Anime Movie` franchise or an untyped one. */
+const acceptsAnimeMovieFranchise = (type) =>
+  !type || parseTypes(type).includes("Anime Movie");
+
+/** The franchise picker, shared by both anime movie tabs. There is no
+ *  Series picker. */
+
 export function AnimeMovieLineageFields({ f, u, allFranchises, franchiseCollections }) {
   return (
     <FamilyLineageFields
       f={f}
       u={u}
+      accepts={acceptsAnimeMovieFranchise}
       allFranchises={allFranchises}
       franchiseCollections={franchiseCollections}
     />

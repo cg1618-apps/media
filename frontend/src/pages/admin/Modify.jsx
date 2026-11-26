@@ -41,6 +41,7 @@ import {
 import { genreLabelSourceFields } from "../../lib/genreLabelFields";
 import OptionCategorySelect from "../../components/forms/OptionCategorySelect";
 import OptionValueGroups from "../../components/forms/OptionValueGroups";
+import { seriesPickerItems } from "../../lib/seriesPickerItems";
 import { useGroupQuickCreate } from "../../hooks/useGroupQuickCreate";
 import { entryGroupNames, SERIES_AUTOFILL_KEYS } from "../../lib/groupQuickCreate";
 import CollectionModifyTab from "../modify-tabs/CollectionModifyTab";
@@ -2600,133 +2601,9 @@ export default function Modify() {
       .filter(Boolean)
       .join(" "),
   }));
-  const seriesItemsForAnime = (
-    af.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === af.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-  const seriesItemsForMovie = (
-    mmf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === mmf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-  const seriesItemsForTvShow = (
-    tvmf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === tvmf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-  const seriesItemsForCartoon = (
-    cmf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === cmf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-  const seriesItemsForManga = (
-    cmgf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === cmgf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForBook = (
-    cnvf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === cnvf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForComic = (
-    ccmf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === ccmf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForGame = (
-    cgmf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === cgmf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForHGame = (
-    chgf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === chgf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForHComic = (
-    chcf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === chcf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForHentai = (
-    chtf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === chtf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
+  // One list for every tab: FamilyLineageFields narrows it to the picked
+  // franchise, or to the franchises the tab's rule offers.
+  const seriesItems = seriesPickerItems(allSeries);
 
   // The editor's "Other entries in this franchise" ribbon: which list its
   // siblings come from, the open form's franchise, and the chip badge. Read
@@ -3150,7 +3027,7 @@ export default function Modify() {
                 af={af}
                 ua={ua}
                 allFranchises={allFranchises}
-                seriesItemsForAnime={seriesItemsForAnime}
+                seriesItemsForAnime={seriesItems}
                 sources={formSources}
                 editingItem={editingItem}
               />
@@ -3221,7 +3098,7 @@ export default function Modify() {
                 mmf={mmf}
                 umm={umm}
                 allFranchises={allFranchises}
-                seriesItemsForMovie={seriesItemsForMovie}
+                seriesItemsForMovie={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
@@ -3234,7 +3111,7 @@ export default function Modify() {
                 tvmf={tvmf}
                 utv={utv}
                 allFranchises={allFranchises}
-                seriesItemsForTvShow={seriesItemsForTvShow}
+                seriesItemsForTvShow={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
@@ -3247,7 +3124,7 @@ export default function Modify() {
                 cmf={cmf}
                 uc={uc}
                 allFranchises={allFranchises}
-                seriesItemsForCartoon={seriesItemsForCartoon}
+                seriesItemsForCartoon={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
@@ -3260,7 +3137,7 @@ export default function Modify() {
                 cmgf={cmgf}
                 umg={umg}
                 allFranchises={allFranchises}
-                seriesItemsForManga={seriesItemsForManga}
+                seriesItemsForManga={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
@@ -3273,7 +3150,7 @@ export default function Modify() {
                 cnvf={cnvf}
                 unv={unv}
                 allFranchises={allFranchises}
-                seriesItemsForBook={seriesItemsForBook}
+                seriesItemsForBook={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
@@ -3286,7 +3163,7 @@ export default function Modify() {
                 ccmf={ccmf}
                 ucm={ucm}
                 allFranchises={allFranchises}
-                seriesItemsForComic={seriesItemsForComic}
+                seriesItemsForComic={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
@@ -3300,7 +3177,7 @@ export default function Modify() {
                 ugm={ugm}
                 allFranchises={allFranchises}
                 allGames={allGames}
-                seriesItemsForGame={seriesItemsForGame}
+                seriesItemsForGame={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
@@ -3314,7 +3191,7 @@ export default function Modify() {
                 chcf={chcf}
                 uhc={uhc}
                 allFranchises={allFranchises}
-                seriesItemsForHComic={seriesItemsForHComic}
+                seriesItemsForHComic={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
@@ -3328,7 +3205,7 @@ export default function Modify() {
                 uhg={uhg}
                 allFranchises={allFranchises}
                 allHGames={allHGames}
-                seriesItemsForHGame={seriesItemsForHGame}
+                seriesItemsForHGame={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
@@ -3341,7 +3218,7 @@ export default function Modify() {
                 chtf={chtf}
                 uht={uht}
                 allFranchises={allFranchises}
-                seriesItemsForHentai={seriesItemsForHentai}
+                seriesItemsForHentai={seriesItems}
                 editingItem={editingItem}
                 sources={formSources}
               />
