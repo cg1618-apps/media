@@ -23,7 +23,7 @@ descriptions are display copy, so that loss is accepted rather than declared
 irreversible.
 
 Revision ID: r1o2ledesc3
-Revises: s1e2rrelate3
+Revises: u1i2dentrate3
 Create Date: 2026-11-26 00:00:00.000000
 
 """
@@ -34,7 +34,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "r1o2ledesc3"
-down_revision: Union[str, Sequence[str], None] = "s1e2rrelate3"
+down_revision: Union[str, Sequence[str], None] = "u1i2dentrate3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
