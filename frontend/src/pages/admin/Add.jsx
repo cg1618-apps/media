@@ -30,6 +30,7 @@ import {
   requiredLabelsForFranchiseType,
   requiredLabelsForType,
 } from "../../lib/gatedTypes";
+import { seriesPickerItems } from "../../lib/seriesPickerItems";
 import { useGroupQuickCreate } from "../../hooks/useGroupQuickCreate";
 import { entryGroupNames, SERIES_AUTOFILL_KEYS } from "../../lib/groupQuickCreate";
 import CollectionAddTab, {
@@ -2243,136 +2244,9 @@ export default function Add() {
       .filter(Boolean)
       .join(" "),
   }));
-  const seriesItems = (
-    activeTab === "anime" && af.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === af.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-  const seriesItemsForMovie = (
-    mf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === mf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForTvShow = (
-    tvf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === tvf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForCartoon = (
-    cf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === cf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForManga = (
-    mgf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === mgf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForBook = (
-    nvf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === nvf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForGame = (
-    gmf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === gmf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForHComic = (
-    hcf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === hcf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForHGame = (
-    hgf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === hgf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForHentai = (
-    htf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === htf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
-
-  const seriesItemsForComic = (
-    cmf.franchise_id
-      ? allSeries.filter((s) => s.franchise_id === cmf.franchise_id)
-      : allSeries
-  ).map((s) => ({
-    id: s.system_id,
-    label: getDisplayName(s, "series"),
-    searchText: [s.series_name_cn, s.series_name_en, s.series_name_alt]
-      .filter(Boolean)
-      .join(" "),
-  }));
+  // One list for every tab: FamilyLineageFields narrows it to the picked
+  // franchise, or to the franchises the tab's rule offers.
+  const seriesItems = seriesPickerItems(allSeries);
 
   // Declared categories first, then whatever else the stored options carry:
   // a category a tag field reads must be offered even before its first value
@@ -2533,7 +2407,7 @@ export default function Add() {
             applyMovieEntryAutofill={applyMovieEntryAutofill}
             applyTmdbPick={applyMovieTmdbPick}
             allFranchises={allFranchises}
-            seriesItemsForMovie={seriesItemsForMovie}
+            seriesItemsForMovie={seriesItems}
             sources={formSources}
           />
         )}
@@ -2549,7 +2423,7 @@ export default function Add() {
             applyTvShowEntryAutofill={applyTvShowEntryAutofill}
             applyTmdbPick={applyTvShowTmdbPick}
             allFranchises={allFranchises}
-            seriesItemsForTvShow={seriesItemsForTvShow}
+            seriesItemsForTvShow={seriesItems}
             sources={formSources}
           />
         )}
@@ -2565,7 +2439,7 @@ export default function Add() {
             applyCartoonEntryAutofill={applyCartoonEntryAutofill}
             applyTmdbPick={applyCartoonTmdbPick}
             allFranchises={allFranchises}
-            seriesItemsForCartoon={seriesItemsForCartoon}
+            seriesItemsForCartoon={seriesItems}
             sources={formSources}
           />
         )}
@@ -2581,7 +2455,7 @@ export default function Add() {
             applyMangaEntryAutofill={applyMangaEntryAutofill}
             applyMalPick={applyMangaMalPick}
             allFranchises={allFranchises}
-            seriesItemsForManga={seriesItemsForManga}
+            seriesItemsForManga={seriesItems}
             sources={formSources}
           />
         )}
@@ -2598,7 +2472,7 @@ export default function Add() {
             applyMalPick={applyBookMalPick}
             applyOpenLibraryPick={applyBookOpenLibraryPick}
             allFranchises={allFranchises}
-            seriesItemsForBook={seriesItemsForBook}
+            seriesItemsForBook={seriesItems}
             sources={formSources}
           />
         )}
@@ -2614,7 +2488,7 @@ export default function Add() {
             applyComicEntryAutofill={applyComicEntryAutofill}
             applyComicVinePick={applyComicVinePick}
             allFranchises={allFranchises}
-            seriesItemsForComic={seriesItemsForComic}
+            seriesItemsForComic={seriesItems}
             sources={formSources}
           />
         )}
@@ -2627,7 +2501,7 @@ export default function Add() {
             ugm={ugm}
             allFranchises={allFranchises}
             allGames={allGames}
-            seriesItemsForGame={seriesItemsForGame}
+            seriesItemsForGame={seriesItems}
             sources={formSources}
             gamesLoading={isLoading("game")}
             applyGameEntryAutofill={applyGameEntryAutofill}
@@ -2646,7 +2520,7 @@ export default function Add() {
             allHComics={allHComics}
             hComicsLoading={isLoading("h-comic")}
             applyHComicEntryAutofill={applyHComicEntryAutofill}
-            seriesItemsForHComic={seriesItemsForHComic}
+            seriesItemsForHComic={seriesItems}
             sources={formSources}
           />
         )}
@@ -2660,7 +2534,7 @@ export default function Add() {
             allFranchises={allFranchises}
             allHGames={allHGames}
             hGamesLoading={isLoading("h-game")}
-            seriesItemsForHGame={seriesItemsForHGame}
+            seriesItemsForHGame={seriesItems}
             sources={formSources}
             applyIgdbPick={applyHGameIgdbPick}
             applyHGameEntryAutofill={applyHGameEntryAutofill}
@@ -2677,7 +2551,7 @@ export default function Add() {
             allHentai={allHentai}
             hentaiLoading={isLoading("hentai")}
             applyHentaiEntryAutofill={applyHentaiEntryAutofill}
-            seriesItemsForHentai={seriesItemsForHentai}
+            seriesItemsForHentai={seriesItems}
             sources={formSources}
           />
         )}

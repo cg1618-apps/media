@@ -642,7 +642,11 @@ from `comicvine_link` (only Fill does), so the pick sets it, the form carries
 it (`defaultComic`; hidden on `/defaults`) in a **Comic Vine ID** input beside
 the link, and both pages send it as typed, with or without a link.
 
-**Franchise / series pickers.** `ComboBox` over the loaded lists;
+**Franchise / series pickers.** `ComboBox` over the loaded lists, narrowed to
+the type's franchises (`FamilyLineageFields`; the rule per type is in
+[business-rules.md](../business-rules.md)); the Series picker offers only the
+series under an offered franchise, or under the picked one. Both pages build
+one series list with `seriesPickerItems` and hand it to every tab;
 `ComboBox.onSelect` receives `(id, label)`. Text typed that matches no
 existing group is kept, and the save creates the group before it writes the
 entry.
