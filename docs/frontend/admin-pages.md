@@ -722,9 +722,10 @@ Play Next / To Replay flags; Information - **Main / Remake** (`is_main` over
 `GAME_IS_MAIN`, starting on Main), game type, a **Base Game** `ComboBox`
 that never offers the row being edited (`ck_games_not_self_parent`), release
 status, release date, current patch, the three HLTB tiers and the platform,
-mode and combat vocabularies - picking a platform console picks its family
-too, and a family stays picked while one of its consoles is
-(`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
+mode and combat vocabularies - the platform list offers the six main
+platforms first, picking a platform console picks its family too, the main
+platforms stay ahead of the consoles in the field, and a family stays picked
+while one of its consoles is (`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
 is a **studio** row, Publisher a **publisher** row offered from the
 `game`-scoped list, both **picked, never created here** - the field has no
 add row, and a new company is made on the Studio or Publisher tab first;

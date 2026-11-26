@@ -91,8 +91,8 @@ export const GAME_TYPES = ["Base Game", "DLC", "Expansion", "Bundle"];
 export const GAME_IS_MAIN = ["Main", "Remake", "Remaster"];
 
 // The platform families a game may be exclusive to (EXCLUSIVE_PLATFORMS in
-// app/utils/game_vocabulary.py), in picker order.
-export const GAME_EXCLUSIVE_PLATFORMS = ["Nintendo", "PlayStation", "Xbox", "PC", "Mobile"];
+// app/utils/game_vocabulary.py), in picker order - the main-platform order.
+export const GAME_EXCLUSIVE_PLATFORMS = ["PC", "PlayStation", "Xbox", "Nintendo", "Mobile"];
 
 // Anime's original_or_remake (ANIME_ORIGINAL_OR_REMAKE in app/utils/constants.py).
 // A column beside anime's is_main, never empty: a new anime is the original.

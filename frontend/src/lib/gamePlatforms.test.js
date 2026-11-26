@@ -1,6 +1,11 @@
 // Frontend: a Game Platform console brings its family (lib/gamePlatforms.js).
 import { describe, expect, it } from "vitest";
-import { platformFamilies, withPlatformFamilies } from "./gamePlatforms";
+import {
+  MAIN_PLATFORMS,
+  mainPlatformsFirst,
+  platformFamilies,
+  withPlatformFamilies,
+} from "./gamePlatforms";
 
 const OPTIONS = [
   { category: "Game Platform", value: "Nintendo", family: null },
@@ -22,13 +27,41 @@ describe("platformFamilies", () => {
   });
 });
 
-describe("withPlatformFamilies", () => {
-  it("adds a console's family just before it", () => {
-    expect(withPlatformFamilies("PC, Switch", FAMILIES)).toBe("PC, Nintendo, Switch");
+describe("MAIN_PLATFORMS", () => {
+  it("lists the six families in main-platform order", () => {
+    expect(MAIN_PLATFORMS).toEqual(["PC", "PlayStation", "Xbox", "Nintendo", "Mobile", "Browser"]);
+  });
+});
+
+describe("mainPlatformsFirst", () => {
+  it("moves every main platform ahead in the fixed order, the rest keeping theirs", () => {
+    expect(mainPlatformsFirst(["PS5", "Nintendo", "Windows", "PC", "Steam Deck"])).toEqual([
+      "PC",
+      "Nintendo",
+      "PS5",
+      "Windows",
+      "Steam Deck",
+    ]);
   });
 
-  it("keeps a family that is already there, wherever it is", () => {
-    expect(withPlatformFamilies("Switch, Nintendo", FAMILIES)).toBe("Switch, Nintendo");
+  it("leaves a list already in order alone", () => {
+    expect(mainPlatformsFirst(["PC", "Browser", "PS5"])).toEqual(["PC", "Browser", "PS5"]);
+    expect(mainPlatformsFirst(["Browser", "Xbox", "PC"])).toEqual(["PC", "Xbox", "Browser"]);
+    expect(mainPlatformsFirst([])).toEqual([]);
+  });
+});
+
+describe("withPlatformFamilies", () => {
+  it("adds a console's family, ahead of every specific platform", () => {
+    expect(withPlatformFamilies("PC, Switch", FAMILIES)).toBe("PC, Nintendo, Switch");
+    expect(withPlatformFamilies("Switch, PS5, PC", FAMILIES)).toBe(
+      "PC, PlayStation, Nintendo, Switch, PS5",
+    );
+    expect(withPlatformFamilies("Windows, PS5, PC", FAMILIES)).toBe("PC, PlayStation, Windows, PS5");
+  });
+
+  it("moves a family that is already there ahead of the consoles", () => {
+    expect(withPlatformFamilies("Switch, Nintendo", FAMILIES)).toBe("Nintendo, Switch");
   });
 
   it("puts a removed family back while its console stays", () => {
@@ -36,8 +69,13 @@ describe("withPlatformFamilies", () => {
     expect(withPlatformFamilies("Switch", FAMILIES)).toBe("Nintendo, Switch");
   });
 
-  it("leaves families and other values alone", () => {
+  it("counts Browser as main though it has no console", () => {
+    expect(withPlatformFamilies("PS5, Browser", FAMILIES)).toBe("PlayStation, Browser, PS5");
+  });
+
+  it("leaves a list already in order alone", () => {
     expect(withPlatformFamilies("Nintendo, Browser", FAMILIES)).toBe("Nintendo, Browser");
+    expect(withPlatformFamilies("Nintendo, Switch", FAMILIES)).toBe("Nintendo, Switch");
     expect(withPlatformFamilies("", FAMILIES)).toBe("");
   });
 });

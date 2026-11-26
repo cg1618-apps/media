@@ -1,6 +1,6 @@
 # External APIs
 
-Last verified: 2026-11-20
+Last verified: 2026-11-26
 
 ## What this is for
 
@@ -572,7 +572,7 @@ link — see [HowLongToBeat](#howlongtobeat).
 | `involved_companies` where `developer` | `developers` | `media_credit` role `studio` | only when the entry has no studio credit yet — a game's developer **is** its studio. Credited **only when a studio of that name already exists**: IGDB never creates one. A name matching no studio, or several, is skipped and logged as a warning |
 | `involved_companies` where `publisher` | `publishers` | `media_credit` role `publisher` | only when the entry has no publisher credit yet, and **only for an existing publisher**, as the developer; a credited publisher is offered on the entry's type (its scope is widened) |
 | `genres.name` / `themes.name` / `game_modes.name` | `genres` / `themes` / `game_modes` | `media_tag` fields `game_genre` / `game_theme` / `game_mode` | raw **English**, translated by the alias layer — see below |
-| `platforms.name` | `platforms` | `media_tag` field `game_platform` | raw **English**; each console's IGDB name is an alias of the console and of its family, so `PlayStation 4` resolves to `PlayStation` and `PS4`, and a family two consoles share (`PlayStation 4`, `PlayStation 5`) is kept once |
+| `platforms.name` | `platforms` | `media_tag` field `game_platform` | raw **English**; each console's IGDB name is an alias of the console and of its family, so `PlayStation 4` resolves to `PlayStation` and `PS4`, and a family two consoles share (`PlayStation 4`, `PlayStation 5`) is kept once. Stored through `replace_tags`, so the main platforms (families) come first, in their fixed order: `PlayStation 4, PlayStation 5, PC (Microsoft Windows)` is stored as `PC, PlayStation, PS4, PS5, Windows` |
 | `parent_game` | `parent_igdb_id` | `games.base_game_id` | a bare IGDB id; resolved against the database by the autofill |
 
 A company that is neither a developer nor a publisher (a porting or supporting

@@ -170,7 +170,8 @@ tags. See `app/services/domain/label_tags.py` and authorization.md.
 
 **A Game Platform console brings its family.** `game_platform` holds families
 (`Nintendo`) and consoles (`Switch`), and every write stores a console's
-family beside it; a family stays while any of its consoles does. See
+family with it and every family ahead of every console, in the fixed
+main-platform order; a family stays while any of its consoles does. See
 [options.md](../options.md#game-platform-families-and-consoles).
 
 The three H genre vocabularies are admin-managed and shared by the gated
@@ -265,7 +266,7 @@ Sheets restore — so a Tenrai name and a hand-typed name land on the same row.
 | `resolve_publisher(db, name, *, scope=None)` | Find-or-create, under `name_en` when new, and — when a scope is given — make sure the publisher holds a `publisher_scope` row for that media type. Additive, never subtractive, exactly like `resolve_person`: crediting a publisher on a manga can only widen where it is offered. Safe precisely because zero scope rows means "offered nowhere". `replace_credits` dispatches to it by name rather than through `_RESOLVERS`, since it takes a scope and `resolve_studio` does not. |
 | `resolve_option(db, category, value, scope=None)` | Find-or-create the `system_option`; adds a scope row only when `scope` is passed explicitly (backfill seeding, admin edits) — never derived from the caller's media type. |
 | `replace_credits(db, media_type, entry_id, role, names)` | Whole-set replace for one role, preserving order in `position`. The person role is scoped to the entry's own media type. Dispatches on `spec.target` through `_RESOLVERS` / `_TARGET_COLUMNS` — three explicit entries, no `else` meaning person. |
-| `replace_tags(...)` | Whole-set replace for one field. Deliberately does **not** auto-scope the option to the media type: doing so once silently narrowed an unscoped "Disney+" to TV-only after one TV use. On `game_platform` alone it first adds each console's family (`with_platform_families`), so `Switch` is stored with `Nintendo` - see [options.md](../options.md#game-platform-families-and-consoles). |
+| `replace_tags(...)` | Whole-set replace for one field. Deliberately does **not** auto-scope the option to the media type: doing so once silently narrowed an unscoped "Disney+" to TV-only after one TV use. On `game_platform` alone it first adds each console's family and moves the families ahead of the consoles (`with_platform_families`), so `Switch` is stored as `Nintendo, Switch` - see [options.md](../options.md#game-platform-families-and-consoles). |
 | `delete_links_for` | Removes all credit + tag rows of a deleted entry; returns the count. |
 | `credit_names` / `tag_values` | One entry, one role/field, stored order. |
 | `credits_to_sheet_value` / `tags_to_sheet_value` | `", ".join(...)` of the above. |

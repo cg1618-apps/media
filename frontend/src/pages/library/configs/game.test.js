@@ -122,6 +122,27 @@ describe("game library filters and sorts", () => {
     expect(platform.deriveOptions(games)).toEqual(["PC", "PS5"]);
   });
 
+  it("offers the main platforms first in the fixed order, then the specific ones by appearance", () => {
+    const platform = GAME_LIBRARY_CONFIG.filterDefs.find((f) => f.key === "gamePlatform");
+    const games = [
+      { game_platform: "PlayStation, PS5" },
+      { game_platform: "PlayStation, PS5, Windows" },
+      { game_platform: "PlayStation, PS4, PC, Windows" },
+      { game_platform: "PC" },
+      { game_platform: "PS5, Browser" },
+    ];
+    // PlayStation is carried by more games than PC and still follows it; PS5
+    // is carried by more games than PC and still follows every main one.
+    expect(platform.deriveOptions(games)).toEqual([
+      "PC",
+      "PlayStation",
+      "Browser",
+      "PS5",
+      "Windows",
+      "PS4",
+    ]);
+  });
+
   it("keeps Main/Remake, Ownership and HLTB in the advanced section, ahead of the genres", () => {
     const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
     expect(advanced).toEqual(["isMain", "ownership", "hltbMainExtra", "myRating", "gameGenre", "gameTheme", "label"]);
