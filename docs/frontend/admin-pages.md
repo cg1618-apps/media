@@ -1786,7 +1786,12 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   people, characters), search and the Random Picker, the member-only
   reading surfaces) is drawn with `fa-eye`. On `user`, `guest` and `shared`
   the three gated media types are drawn locked (on for `user`, off for the
-  other two), through the same `locked_on` / `locked_off`.
+  other two), through the same `locked_on` / `locked_off`. Each box is
+  drawn by the permission's label alone: the catalog serves a description
+  per permission, and this page does not draw it. The selected role's
+  heading carries the role's stored `description` as one line under it, and
+  nothing when that is empty. Neither Roles nor Users has an explanatory
+  line under its title.
 - **Users** — create users with a role, and edit, disable or delete them;
   the server refuses deleting or disabling your own account, and those
   refusals surface as toasts. The create form's role select offers only
@@ -1803,7 +1808,7 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
     - **Role** — a select offering only **User** and **Super**; an `admin`
       or `shared` account shows its role as text, since the server answers
       409 to changing either.
-    - **Password** — optional, and the field says that setting one signs the
+    - **Password** — optional, with no hint under it; setting one signs the
       account out everywhere.
     - **Open request limit** — a number field (blank is no limit) for any
       account whose role has one: not for `super`, which is never limited
@@ -1822,7 +1827,7 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
       included: the **ceiling** (any ranked mode, narrowest first, or none),
       the login **default** (only modes at or below the ceiling), and the
       ceiling's own labels and field groups as tick-to-show boxes, unticked
-      to deny. Lowering the ceiling below the default moves the default down
+      to deny, with no instruction line above them. Lowering the ceiling below the default moves the default down
       and drops denials the new ceiling does not show. The admin account has
       no mode — the server answers 409 to giving it one — so its dialog says
       so instead.

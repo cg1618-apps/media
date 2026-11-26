@@ -2536,7 +2536,7 @@ A named bundle of permissions. Permissions themselves are Python constants
 | `system_id` | UUID | no | uuid4 | PK |
 | `name` | String | no | | UNIQUE, indexed. Exactly five rows — `admin`, `super`, `user`, `guest`, `shared` (`permissions.ROLE_NAMES`) — each read by name; no route creates, renames or deletes one. |
 | `label` | String | no | | |
-| `description` | Text | yes | | |
+| `description` | Text | yes | | One line shown under the role's heading on `/roles`; NULL shows nothing. `shared` and `admin` carry one, `guest`, `user` and `super` none. Written when `ensure_rbac_seed` creates a missing role and otherwise only by `PATCH /api/roles/{id}`. |
 | `sort_order` | Integer | no | `0` (server default) | |
 | `created_at` / `updated_at` | DateTime | yes | now | Yes, roles have timestamps. |
 

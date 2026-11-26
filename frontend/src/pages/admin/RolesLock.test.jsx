@@ -24,7 +24,8 @@ const ROLES = [
     system_id: "u",
     name: "user",
     label: "User",
-    description: "A signed-in member.",
+    // Empty, as the seed leaves it: the editor draws no line for it.
+    description: "",
     permissions: ["media_type.anime", "self.list"],
     user_count: 1,
     locked_on: [],
@@ -66,7 +67,13 @@ const CATALOG = [
     family: "manage",
     label: "Management",
     permissions: [
-      { permission: "manage.catalog", label: "Manage Catalogue", description: null },
+      // A served description, so the test that it is not drawn has one to
+      // not draw.
+      {
+        permission: "manage.catalog",
+        label: "Manage Catalogue",
+        description: "Edit every catalogue entry.",
+      },
       { permission: "manage.pipelines", label: "Run Pipelines", description: null },
     ],
   },
@@ -204,5 +211,32 @@ describe("the User role", () => {
   it("offers a Save button, since something is editable", async () => {
     await selectRole("User");
     await waitFor(() => expect(screen.queryByText("Save")).not.toBeNull());
+  });
+});
+
+describe("the page's copy", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("carries no explanatory line under the page heading", async () => {
+    await selectRole("Super");
+    await screen.findAllByText("Super");
+    expect(screen.queryByText(/named bundle of permissions/)).toBeNull();
+  });
+
+  it("draws a role's description when it has one", async () => {
+    await selectRole("Super");
+    expect(await screen.findByText("Everything but authorization.")).toBeTruthy();
+  });
+
+  it("draws no description line for a role whose description is empty", async () => {
+    await selectRole("User");
+    const heading = await screen.findByRole("heading", { level: 2, name: "User" });
+    expect(heading.parentElement.querySelector("p")).toBeNull();
+  });
+
+  it("draws a permission's label but not its description", async () => {
+    await selectRole("User");
+    expect(await screen.findByText("Manage Catalogue")).toBeTruthy();
+    expect(screen.queryByText("Edit every catalogue entry.")).toBeNull();
   });
 });
