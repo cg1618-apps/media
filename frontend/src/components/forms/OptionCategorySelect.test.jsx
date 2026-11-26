@@ -1,8 +1,8 @@
 // The category picker shared by the Add, Modify and Delete pages. Guards the
 // two things that separate it from a plain <select>: the categories arrive
 // arranged into the same sections the /options page reads them in, and a list
-// that yields only one section is rendered flat rather than under a heading
-// that repeats the sub-tab's own name.
+// that yields only one section is rendered flat rather than under one heading
+// over the whole list.
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -74,6 +74,39 @@ describe("OptionCategorySelect", () => {
     expect(groupLabels(container)).toEqual(["Note Suggestion", "Music", "Needs Work"]);
     expect(groupOptions(container, "Music")).toEqual(["Song Type", "Song Source"]);
     expect(groupOptions(container, "Needs Work")).toEqual(["Needs Work Note"]);
+  });
+
+  it("groups the Tags sub-tab's categories, which span several sections", () => {
+    const { container } = render(
+      <OptionCategorySelect
+        categories={[
+          "Character Appearance",
+          "Character Trait",
+          "Game Genre",
+          "Game Theme",
+          "Genre Main",
+          "Genre Sub",
+          "H Genre Appearance",
+          "H Genre Plot",
+          "H Genre Relation",
+          "Label",
+        ]}
+        value=""
+        onChange={vi.fn()}
+      />,
+    );
+    expect(groupLabels(container)).toEqual([
+      "Tags",
+      "Game",
+      "H Genre",
+      "Character",
+    ]);
+    expect(groupOptions(container, "Game")).toEqual(["Game Genre", "Game Theme"]);
+    expect(groupOptions(container, "H Genre")).toEqual([
+      "H Genre Plot",
+      "H Genre Appearance",
+      "H Genre Relation",
+    ]);
   });
 
   it("renders one section flat, with no heading over the whole list", () => {

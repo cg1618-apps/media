@@ -1026,9 +1026,12 @@ lists. `POST /api/system-option` accepts any category string; the restriction
 is the form's. The picker
 arranges its categories with `groupTier2Categories` (`lib/optionsPageGroups.js`,
 see [/options](#options-systemoptionsjsx)) into `<optgroup>`s, with unclaimed
-categories under **Other**; a list that yields a single section — the Tags
-sub-tab, whose categories are one group — renders flat rather than under a
-heading repeating the sub-tab's own name. The Common Options sub-tab's picker
+categories under **Other**; a list that yields a single section renders flat
+rather than under one heading over every option. The Tags sub-tab's picker
+reads as four groups: **Tags** (`Genre Main`, `Genre Sub`, `Label`), **Game**
+(`Game Genre`, `Game Theme`), **H Genre** (the three gated H Genre
+categories, offered only to a session that can see a type they serve) and
+**Character** (`Character Appearance`, `Character Trait`). The Common Options sub-tab's picker
 reads as four groups: **Note Suggestion** (the seven game guide
 categories), **Music** (`Song Type`, `Song Source`), **Needs Work**
 (`Needs Work Note`) and **Studio & Publisher** (`Country`). The sub-tab's
@@ -1650,14 +1653,16 @@ work is this" lists together under Entry Type, files the game lists by the
 question they answer (`game_release_status` under Publication Status,
 `playing_status` under My Progress) and keeps only the game_copy vocabularies
 in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, Comic, Source & Platform, **Character** (the
+reads as Tags, Game, **H Genre** (`H Genre Plot`, `H Genre Appearance`, `H
+Genre Relation`), Comic, Source & Platform, **Character** (the
 `Character Appearance` and `Character Trait` vocabularies), then the common
 options: **Note Suggestion** (`Character Group`, `Collectible Type`, `Item
 Type`, `Weapon & Gear Type`, `Enemy Tier`, `Side Quest Type`, `Geography
 Group`, which the game note sections' free-text fields suggest from),
 **Music** (`Song Type`, `Song Source`) and **Needs Work** (`Needs Work
 Note`). Source &
-Platform holds the platform and reference vocabularies, the ones that name an outside party.
+Platform holds the platform and reference vocabularies - `Platform`,
+`Serialization Platform`, `Exclusive Platform` and `Reference Source`.
 Publishers and distributors are **not** among them — they are entities, edited
 on the Entity → Publisher tab.
 

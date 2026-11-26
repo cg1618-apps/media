@@ -8,10 +8,12 @@ import OptionsAddTab from "./OptionsAddTab";
 
 const CATEGORIES = [
   "Character Group",
+  "Combat Mode",
   "Comic Era",
   "Comic Imprint",
   "Enemy Tier",
   "Game Genre",
+  "Game Mode",
   "Game Theme",
   "Genre Main",
   "Label",
@@ -61,14 +63,20 @@ describe("OptionsAddTab", () => {
     );
     expect(values).not.toContain("Label");
     expect(values).not.toContain("Genre Main");
+    // A game's genres and themes are tags; its modes stay here.
+    expect(values).not.toContain("Game Genre");
+    expect(values).not.toContain("Game Theme");
+    expect(values).toContain("Game Mode");
   });
 
-  it("offers only the tag categories on the Tags sub-tab", () => {
+  it("offers only the tag categories on the Tags sub-tab, grouped", () => {
     const { container } = renderTab("tags");
     const values = [...container.querySelectorAll("option")]
       .map((o) => o.value)
       .filter(Boolean);
-    expect(values).toEqual(["Genre Main", "Label"]);
+    expect(values).toEqual(["Genre Main", "Label", "Game Genre", "Game Theme"]);
+    const labels = [...container.querySelectorAll("optgroup")].map((g) => g.label);
+    expect(labels).toEqual(["Tags", "Game"]);
   });
 
   it("offers only the common option categories on their sub-tab, grouped", () => {

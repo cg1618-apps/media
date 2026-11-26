@@ -150,7 +150,7 @@ const CATEGORIES = [
   "Comic Event",
   "Comic Imprint",
   "Country",
-  "Franchise for Filter",
+  "Exclusive Platform",
   "Game Genre",
   "Game Mode",
   "Game Platform",
@@ -158,6 +158,9 @@ const CATEGORIES = [
   "Genre Main",
   "Genre Sub",
   "Geography Group",
+  "H Genre Appearance",
+  "H Genre Plot",
+  "H Genre Relation",
   "Item Type",
   "Label",
   "Needs Work Note",
@@ -170,10 +173,29 @@ const CATEGORIES = [
 
 describe("groupTier2Categories", () => {
   it("keeps the groups in their declared order, Other last", () => {
-    const titles = groupTier2Categories(CATEGORIES).map((s) => s.title);
+    const titles = groupTier2Categories([
+      ...CATEGORIES,
+      "Board Game Mechanic",
+    ]).map((s) => s.title);
     expect(titles).toEqual([
       ...TIER2_GROUPS.map((g) => g.title),
       UNGROUPED_TITLE,
+    ]);
+  });
+
+  it("claims every category the server declares, so none falls into Other", () => {
+    const titles = groupTier2Categories(CATEGORIES).map((s) => s.title);
+    expect(titles).not.toContain(UNGROUPED_TITLE);
+  });
+
+  it("reads the three gated H Genre vocabularies together", () => {
+    const hGenre = groupTier2Categories(CATEGORIES).find(
+      (s) => s.title === "H Genre",
+    );
+    expect(hGenre.categories).toEqual([
+      "H Genre Plot",
+      "H Genre Appearance",
+      "H Genre Relation",
     ]);
   });
 
@@ -205,6 +227,7 @@ describe("groupTier2Categories", () => {
     expect(sources.categories).toEqual([
       "Platform",
       "Serialization Platform",
+      "Exclusive Platform",
       "Reference Source",
     ]);
   });
@@ -242,18 +265,15 @@ describe("groupTier2Categories", () => {
       ...CATEGORIES,
       "Board Game Mechanic",
     ]).find((s) => s.title === UNGROUPED_TITLE);
-    expect(other.categories).toEqual([
-      "Board Game Mechanic",
-      "Franchise for Filter",
-    ]);
+    expect(other.categories).toEqual(["Board Game Mechanic"]);
   });
 
   it("demotes a group left with a single member instead of heading it", () => {
-    const sections = groupTier2Categories(["Comic Era", "Franchise for Filter"]);
+    const sections = groupTier2Categories(["Comic Era", "Board Game Mechanic"]);
     expect(sections).toEqual([
       {
         title: UNGROUPED_TITLE,
-        categories: ["Comic Era", "Franchise for Filter"],
+        categories: ["Board Game Mechanic", "Comic Era"],
       },
     ]);
   });
@@ -272,12 +292,11 @@ describe("groupTier2Categories", () => {
     // than what the data shrank it to.
     expect(byTitle["Needs Work"]).toEqual(["Needs Work Note"]);
     expect(byTitle["Studio & Publisher"]).toEqual(["Country"]);
-    expect(sections.map((s) => s.title).slice(-5)).toEqual([
+    expect(sections.map((s) => s.title).slice(-4)).toEqual([
       "Note Suggestion",
       "Music",
       "Needs Work",
       "Studio & Publisher",
-      UNGROUPED_TITLE,
     ]);
   });
 
