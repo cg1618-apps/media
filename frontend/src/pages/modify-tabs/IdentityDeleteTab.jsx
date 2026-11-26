@@ -3,13 +3,16 @@
 // Picks an identity the way IdentityModifyTab does, then confirms with the
 // number of cast rows that will move to the character's main identity. That
 // number travels with the request: the server answers 409 if it has moved
-// since, so the admin never confirms one count and deletes another.
+// since, so the admin never confirms one count and deletes another. The picked
+// identity is shown in full first (RecordSummaryCard): its names, character,
+// and the entries it is cast in.
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { endpoints } from "../../api/endpoints";
 import { useToast } from "../../hooks/useToast";
 import { SectionHeader } from "../../components/forms/FormField";
+import RecordSummaryCard from "../../components/info/RecordSummaryCard";
 import { IDENTITIES_QUERY_KEY, IdentityPicker, useIdentities } from "./IdentityModifyTab";
 
 export default function IdentityDeleteTab() {
@@ -59,6 +62,12 @@ export default function IdentityDeleteTab() {
         />
       ) : (
         <div className="space-y-4">
+          <RecordSummaryCard
+            type="identity"
+            record={selected}
+            title={selected.display_name}
+            heading="To delete"
+          />
           <p className="text-sm text-text">
             Delete <span className="font-black">{selected.display_name}</span>, an identity of{" "}
             <span className="font-black">{selected.character_display_name}</span>?

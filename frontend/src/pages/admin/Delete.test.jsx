@@ -4,7 +4,7 @@
 // the generic "primary deletion" below it, which re-issued the same DELETE
 // against an already-gone id and turned a successful delete into an error
 // toast.
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -481,5 +481,145 @@ describe("Delete page - series orphan franchise", () => {
     expect(
       screen.queryByRole("checkbox", { name: /last series in franchise/i }),
     ).not.toBeInTheDocument();
+  });
+});
+
+// Two people with near-identical names: the card has to say enough - every
+// name, their roles, what they are credited on - to tell the duplicate from
+// the one that survives a merge.
+const PERSON = {
+  system_id: "p-1",
+  public_id: 41,
+  display_name: "Kaori Sato",
+  name_en: "Kaori Sato",
+  name_cn: "佐藤香織",
+  gender: "女",
+  roles: [
+    { role: "seiyuu", scope: "anime" },
+    { role: "seiyuu", scope: "game" },
+  ],
+  affiliations: [{ system_id: "s-1", public_id: 5, display_name: "Aoni" }],
+  mal_link: "https://myanimelist.net/people/1",
+  credit_count: 7,
+};
+const PERSON_TWIN = {
+  system_id: "p-2",
+  public_id: 42,
+  display_name: "Kaori Satou",
+  name_en: "Kaori Satou",
+  name_jp: "佐藤かおり",
+  roles: [{ role: "author", scope: "manga" }],
+  credit_count: 2,
+};
+
+// Seven distinct entries over two groups; one entry sits in both, so the
+// card counts it once.
+function personEntries() {
+  const card = (n, year) => ({
+    system_id: `e-${n}`,
+    public_id: n,
+    display_name: `Show ${n}`,
+    release_date: `${year}-04-01`,
+  });
+  return {
+    groups: [
+      {
+        media_type: "anime",
+        role: "seiyuu",
+        label: "聲優",
+        entries: [card(1, 2024), card(2, 2023), card(3, 2022), card(4, 2021), card(5, 2020)],
+      },
+      {
+        media_type: "game",
+        role: "seiyuu",
+        label: "聲優",
+        entries: [
+          { ...card(6, 2019), system_id: "g-6" },
+          { ...card(7, 2018), system_id: "g-7" },
+        ],
+      },
+    ],
+  };
+}
+
+function installPersonFetch() {
+  const fetchMock = vi.fn(async (url) => {
+    const u = String(url);
+    let body = [];
+    if (u.startsWith("/api/person/p-1/entries")) body = personEntries();
+    else if (u.startsWith("/api/person/p-2/entries")) body = { groups: [] };
+    else if (u.startsWith("/api/person/")) body = [PERSON, PERSON_TWIN];
+    return { ok: true, status: 200, json: async () => body };
+  });
+  globalThis.fetch = fetchMock;
+  return fetchMock;
+}
+
+async function pickPerson(user) {
+  await user.click(await screen.findByRole("button", { name: /^entity$/i }));
+  await user.click(screen.getByRole("button", { name: /^person$/i }));
+  await user.type(screen.getByPlaceholderText(/search person to delete/i), "Kaori Sato");
+  await user.click(await screen.findByText("Kaori Sato"));
+}
+
+describe("Delete page - record summary", () => {
+  beforeEach(() => {
+    showToast.mockClear();
+  });
+
+  it("shows an entity's names, roles and entries once it is picked", async () => {
+    installPersonFetch();
+    const user = userEvent.setup();
+    renderDelete();
+    await pickPerson(user);
+
+    const card = await screen.findByRole("region", { name: "To delete: Kaori Sato" });
+    expect(card).toHaveTextContent("佐藤香織");
+    expect(card).toHaveTextContent("女");
+    expect(card).toHaveTextContent("聲優: Anime, Game");
+    expect(card).toHaveTextContent("Aoni");
+    expect(card).toHaveTextContent("MyAnimeList");
+    const entries = await within(card).findByTestId("record-summary-entries");
+    expect(entries).toHaveTextContent("Entries · 7");
+    expect(entries).toHaveTextContent("Show 1");
+    expect(entries).toHaveTextContent("Anime · 2024");
+    expect(entries).toHaveTextContent("+2 more");
+    expect(entries).not.toHaveTextContent("Show 6");
+  });
+
+  it("shows the merge target beside the record and tells candidates apart", async () => {
+    installPersonFetch();
+    const user = userEvent.setup();
+    renderDelete();
+    await pickPerson(user);
+
+    await user.click(screen.getByRole("button", { name: /merge into another person/i }));
+    await user.type(screen.getByPlaceholderText(/search person to merge into/i), "Satou");
+    // The candidate row carries its other name and type, not just its name.
+    const option = await screen.findByText("Kaori Satou");
+    expect(option.parentElement).toHaveTextContent("佐藤かおり");
+    expect(option.parentElement).toHaveTextContent("作家");
+    await user.click(option);
+
+    const target = await screen.findByRole("region", { name: "Survives: Kaori Satou" });
+    expect(target).toHaveTextContent("作家: Manga");
+    expect(await within(target).findByText("Not credited on any entry.")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Merged away: Kaori Sato" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an entry's card with its type and franchise once it is picked", async () => {
+    installFetch();
+    const user = userEvent.setup();
+    renderDelete();
+
+    await user.click(await screen.findByRole("button", { name: /game/i }));
+    await user.type(screen.getByPlaceholderText(/search game to delete/i), "Chrono");
+    await user.click(await screen.findByText("Chrono Trigger"));
+
+    const card = await screen.findByRole("region", { name: "To delete: Chrono Trigger" });
+    expect(card).toHaveTextContent("Game · RPG");
+    expect(card).toHaveTextContent("Standalone");
   });
 });
