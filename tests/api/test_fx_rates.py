@@ -132,3 +132,41 @@ def test_an_unreadable_stored_row_serves_no_rates(client, db_session):
     response = client.get("/api/fx-rates")
     assert response.status_code == 200, response.text
     assert response.json()["rates"] == {}
+
+
+def test_a_rate_outside_usd_twd_and_jpy_is_refused(owner_client, db_session):
+    """
+    The editor offers exactly USD, TWD and JPY, so the API takes exactly
+    those: a EUR rate written past the editor could never be seen or changed
+    on the page, and would be dropped by the next save from it anyway.
+    """
+    owner_client.put("/api/fx-rates", json=RATES)
+
+    response = owner_client.put(
+        "/api/fx-rates",
+        json={"base": "USD", "as_of": "2026-09-13", "rates": {"TWD": 32.0, "EUR": 0.9}},
+    )
+    assert response.status_code == 422, response.text
+    assert "EUR" not in _stored(db_session)["rates"]
+
+
+def test_a_base_outside_usd_twd_and_jpy_is_refused(owner_client):
+    response = owner_client.put(
+        "/api/fx-rates",
+        json={"base": "EUR", "as_of": "2026-09-13", "rates": {"TWD": 35.0}},
+    )
+    assert response.status_code == 422, response.text
+
+
+def test_a_stored_rate_in_another_currency_still_reads_back(client, db_session):
+    """
+    Narrowing what may be written deletes nothing already stored: a table
+    saved with a EUR rate reads back whole until the next save replaces it.
+    """
+    stored = {"base": "TWD", "as_of": "2026-09-13", "rates": {"TWD": 1.0, "EUR": 0.028}}
+    db_session.add(
+        models.SystemConfigs(config_key="fx_rates", config_value=json.dumps(stored))
+    )
+    db_session.commit()
+
+    assert client.get("/api/fx-rates").json()["rates"]["EUR"] == 0.028

@@ -126,7 +126,7 @@ from app.utils.credit_roles import (
     sheet_column_for,
     tag_fields_for,
 )
-from app.utils.data_control_utils import log_data_control
+from app.utils.data_control_utils import log_data_control, log_run
 from app.utils.formatter import (
     parse_from_sheet,
     parse_row_to_dict,
@@ -1196,6 +1196,7 @@ def execute_pull_specific(
     log_action: bool = True,
     may_restore_authz: bool = False,
     split_acg_types: bool = True,
+    log_ids: Optional[list] = None,
 ) -> dict:
     """
     Pulls data from a specific Google Sheet tab and gracefully Upserts it into PostgreSQL.
@@ -1220,7 +1221,16 @@ def execute_pull_specific(
     role_for_user takes when a role row has vanished. A caller that should be
     able to restore them says so explicitly; the permissive case is therefore
     visible at every call site instead of inherited by accident.
+
+    `log_ids`, when given, receives the id of the row this tab logs, so Pull
+    All can link each tab's row to its own.
     """
+
+    def _log(*args, **kwargs):
+        log_id = log_data_control(*args, **kwargs)
+        if log_ids is not None:
+            log_ids.append(log_id)
+
     MODEL_MAP = TAB_MODELS
     PARSER_MAP = TAB_PARSERS
 
@@ -1261,7 +1271,7 @@ def execute_pull_specific(
         # through a full Pull with the tab silently skipped.
         logger.error("Pull aborted for '%s': %s", tab_name, e)
         if log_action:
-            log_data_control(
+            _log(
                 db,
                 "Pull",
                 f"Pull {tab_name}",
@@ -1278,7 +1288,7 @@ def execute_pull_specific(
     if not raw_matrix or len(raw_matrix) < 2:
         logger.info("No data found in '%s' to pull.", tab_name)
         if log_action:
-            log_data_control(db, "Pull", f"Pull {tab_name}", action_type, "Success")
+            _log(db, "Pull", f"Pull {tab_name}", action_type, "Success")
         return {"status": "success", "processed": 0, "rows_added": 0, "rows_updated": 0}
 
     headers = raw_matrix[0]
@@ -2590,7 +2600,7 @@ def execute_pull_specific(
         db.rollback()
         logger.error("Error committing batch for %s: %s", tab_name, e)
         if log_action:
-            log_data_control(
+            _log(
                 db,
                 "Pull",
                 f"Pull {tab_name}",
@@ -2645,7 +2655,7 @@ def execute_pull_specific(
 
     logger.info("Successfully pulled and upserted %s records from '%s'.", processed, tab_name)
     if log_action:
-        log_data_control(
+        _log(
             db,
             "Pull",
             f"Pull {tab_name}",
@@ -2708,6 +2718,10 @@ def execute_pull_all(
     # Tabs a policy gate declined to restore - see AUTHZ_TABS. Reported, but
     # kept out of unresolved_refs so an expected skip does not read as failure.
     skipped_tabs: list[str] = []
+    # The id of the row each tab logs, linked to the run's own row once it
+    # is written (log_run), so the Data Control log opens them as its
+    # operations.
+    child_ids: list = []
 
     try:
         for index, tab in enumerate(tabs_in_order, start=1):
@@ -2720,6 +2734,7 @@ def execute_pull_all(
                 log_action=True,
                 may_restore_authz=may_restore_authz,
                 split_acg_types=False,
+                log_ids=child_ids,
             )
 
             if res.get("status") == "error":
@@ -2760,8 +2775,8 @@ def execute_pull_all(
         # rollback, and an audit row added to it would be lost with it. The
         # tab's own rows are discarded either way: its commit never ran.
         db.rollback()
-        log_data_control(
-            db, "Pull", "Pull All", action_type, "Failed", error_message=str(e)
+        log_run(
+            db, child_ids, "Pull", "Pull All", action_type, "Failed", error_message=str(e)
         )
         raise e
 
@@ -2771,8 +2786,9 @@ def execute_pull_all(
             f"{', '.join(unread_tabs)}"
         )
         logger.error(summary)
-        log_data_control(
+        log_run(
             db,
+            child_ids,
             "Pull",
             "Pull All",
             action_type,
@@ -2796,8 +2812,9 @@ def execute_pull_all(
             + "; ".join(unresolved_refs)
         )
         logger.error(summary)
-        log_data_control(
+        log_run(
             db,
+            child_ids,
             "Pull",
             "Pull All",
             action_type,
@@ -2834,8 +2851,9 @@ def execute_pull_all(
             "pull again: " + "; ".join(credit_conflicts)
         )
         logger.error(summary)
-        log_data_control(
+        log_run(
             db,
+            child_ids,
             "Pull",
             "Pull All",
             action_type,
@@ -2878,8 +2896,9 @@ def execute_pull_all(
         )
     elif not skipped_tabs:
         logger.info("Full Pull Pipeline completed successfully.")
-    log_data_control(
+    log_run(
         db,
+        child_ids,
         "Pull",
         "Pull All",
         action_type,

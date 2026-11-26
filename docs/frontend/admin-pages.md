@@ -42,6 +42,12 @@ label reference and the RBAC pages — never the catalogue editors.
 
 ## /system — Control Center (`Admin.jsx`)
 
+- **Layout.** Titled **Control Center**, with three links on top: **Data
+  History**, **Review Queue** and **Clean Orphans**. The nav's System group
+  leaves the last two to this page; the Entry and Note pages, Needs Work and
+  the Inbox are reached from the nav. Then, in order: pending registrations, Current
+  Season beside Data Control Actions, Calculate & Fix, Announcement & Notes,
+  Exchange Rates and the Data Control Log.
 - **Pipelines.** Buttons start `POST /api/data-control/fill/<type>`,
   `/replace/<type>`, `/fill/all`, `/replace/all` as Server-Sent Event streams
   (`startStream`). The reader parses `data: {...}` events (`processing`,
@@ -139,10 +145,31 @@ label reference and the RBAC pages — never the catalogue editors.
 - **Remarks / Duplicates modals.** The Review Queue's own views, opened in
   place: both modals render `RemarksView` and `DuplicatesView` from
   `components/review/`, so the tab lists cannot drift apart.
+- **Exchange Rates** (`FxRatesEditor.jsx`). The rates the game spend block on
+  `/statistics` converts with (`/api/fx-rates`), for USD, TWD and JPY only
+  (`FX_CURRENCIES` in `config/fieldOptions.js`): a Base select, an As of date
+  (today whenever the rates are edited) and one box per currency other than
+  the base, which converts to itself. A rate is how many units of that
+  currency one base unit buys. A box left blank is saved as no rate, and
+  spend recorded in that currency is left out of the converted totals. A rate
+  stored for any other currency is not shown, and the next save drops it.
+- **Data Control Log.** The latest runs from `GET /api/system/logs`, ten to a
+  page: action, trigger (Manual or Auto), time and status, the error as the
+  Failed status's tooltip. A batch run (Fill All, Replace All, Pull All) is
+  one row; the operations it ran are not listed beside it. Each row's
+  **Details** button, which names the run's operation count, opens
+  `LogDetailsModal` (`components/modals`), which reads
+  `GET /api/system/logs/{id}` and lists each operation's trigger, time and
+  status, with a failed operation's error beneath it: every Fill or Replace
+  of a type and the Backup a Fill All or Replace All ends in, or every tab of
+  a Pull All. A row that ran no operations lists itself. Escape or Close
+  dismisses it. A row's × deletes it with its operations, and **Clear Old**
+  keeps the ten newest runs.
 
 ## /data-history (`DataHistory.jsx`)
 
-Lists `data_control_logs` (`GET /api/system/logs`) and `deleted_record`
+Lists the runs in `data_control_logs` (`GET /api/system/logs`, which leaves
+out the operations of a batch run) and `deleted_record`
 (`GET /api/system/deleted`), each with a per-row delete
 (`DELETE /api/system/logs/{id}`, `/deleted/{id}`). Deleted-record rows link
 back to the owning franchise/series where the ids still exist.

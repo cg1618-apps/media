@@ -150,6 +150,13 @@ export const GAME_ACQUISITION_KINDS = [
 // picking aid, and the three the price columns already use lead it.
 export const PRICE_CURRENCIES = ["USD", "JPY", "TWD", "EUR", "GBP", "KRW", "CNY"];
 
+// The currencies the Control Center's exchange-rate table converts between:
+// the three the game list prices are recorded in. FX_CURRENCIES in
+// app/schemas/system.py, which refuses a rate for any other. A copy bought in
+// another PRICE_CURRENCIES code keeps its own subtotal on /statistics and is
+// left out of the converted totals, as a currency with no rate always is.
+export const FX_CURRENCIES = ["USD", "TWD", "JPY"];
+
 export const IS_MAIN = ["本傳", "外傳", "前傳", "後傳", "總集篇"];
 
 export const MY_RATINGS = ["S", "A+", "A", "B", "C", "D", "E", "F"];

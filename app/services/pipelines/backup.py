@@ -55,18 +55,24 @@ def claim_backup() -> Claim:
 
 
 def execute_backup(
-    db: Session, action_type: str = "Manual", on_progress: Optional[Progress] = None
+    db: Session,
+    action_type: str = "Manual",
+    on_progress: Optional[Progress] = None,
+    log_ids: Optional[list] = None,
 ) -> dict:
     """
     Retrieves the entire PostgreSQL database and permanently overwrites
     the target tabs in Google Sheets dynamically based on the DB schema.
+
+    `log_ids`, when given, receives the id of the row this Backup logs, so a
+    batch run that ends in a Backup (Fill All, Replace All) can link it.
 
     Raises BackupAlreadyRunning, and writes and logs nothing, while another
     Backup or a Pull is in flight.
     """
     held = claim_backup()
     try:
-        return _write_backup(db, action_type, on_progress)
+        return _write_backup(db, action_type, on_progress, log_ids)
     finally:
         held.release()
 
@@ -106,7 +112,13 @@ def start_backup(
     return start_worker("backup", held, run)
 
 
-def _write_backup(db: Session, action_type: str, on_progress: Optional[Progress]) -> dict:
+def _write_backup(
+    db: Session,
+    action_type: str,
+    on_progress: Optional[Progress],
+    log_ids: Optional[list] = None,
+) -> dict:
+    sink = log_ids if log_ids is not None else []
     logger.info("Starting Google Sheets Backup Pipeline (%s)...", action_type)
 
     try:
@@ -148,11 +160,13 @@ def _write_backup(db: Session, action_type: str, on_progress: Optional[Progress]
             bulk_overwrite_sheet(tab.name, [headers] + matrix)
 
         logger.info("Backup Pipeline completed successfully.")
-        log_data_control(db, "Backup", "Backup", action_type, "Success")
+        sink.append(log_data_control(db, "Backup", "Backup", action_type, "Success"))
         return {"status": "success", "message": "All tabs backed up to Google Sheets"}
     except Exception as e:
         logger.error("Backup failed: %s", e)
-        log_data_control(
-            db, "Backup", "Backup", action_type, "Failed", error_message=str(e)
+        sink.append(
+            log_data_control(
+                db, "Backup", "Backup", action_type, "Failed", error_message=str(e)
+            )
         )
         raise e
