@@ -1,5 +1,6 @@
 // Frontend: page component file for Add.
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../hooks/useToast";
 import {
   getDisplayName,
@@ -103,10 +104,12 @@ import AnimeMovieAddTab, {
 import AnimeAddTab, { defaultAnime } from "../add-tabs/AnimeAddTab";
 import AddedEntryNotes from "../add-tabs/AddedEntryNotes";
 import {
+  NO_FORM_DEFAULTS,
   autofillFields,
-  fetchFormDefaults,
+  loadFormDefaults,
   prefillPicks,
   resolveDefaults,
+  useFormDefaults,
 } from "../../hooks/useFormDefaults";
 import { buildAutofillPatch } from "../../lib/autofill";
 import {
@@ -210,8 +213,11 @@ export default function Add() {
   const setAllHGames = (v) => setList("h-game", v);
   const setAllHentai = (v) => setList("hentai", v);
   const [sources, setSources] = useState({ options: [], studios: [], people: {} });
-  // Admin-configured form defaults, keyed by media type. {} = use the built-ins.
-  const [formDefaults, setFormDefaults] = useState({});
+  // Admin-configured form defaults, keyed by media type - the cache /defaults
+  // writes on save. NO_FORM_DEFAULTS (the built-ins) until it loads, and on a
+  // failure.
+  const queryClient = useQueryClient();
+  const { data: formDefaults = NO_FORM_DEFAULTS } = useFormDefaults();
   // for entry lists too is what made this page slow to first paint.
   const [sourcesLoading, setSourcesLoading] = useState(true);
 
@@ -466,7 +472,7 @@ export default function Add() {
       // lists above rather than after them: nothing here reads an entry list,
       // so sequencing the two only ever cost a round trip.
       const [fd, srcData] = await Promise.all([
-        fetchFormDefaults().catch(() => ({})),
+        loadFormDefaults(queryClient),
         fetchAllSources().catch(() => ({
           options: [],
           studios: [],
@@ -478,7 +484,7 @@ export default function Add() {
       // Seed every form from the configured defaults. Safe to do here rather
       // than in the useState initializers: the page renders a spinner until
       // sourcesLoading flips, so the first paint of the form already has these.
-      setFormDefaults(fd);
+      // `fd` is the cached config formDefaults reads by then.
       setAf(resolveDefaults("anime", fd));
       setAmf(resolveDefaults("anime-movie", fd));
       setMf(resolveDefaults("movie", fd));
@@ -501,7 +507,7 @@ export default function Add() {
       setSourcesLoading(false);
     }
     load();
-  }, []);
+  }, [queryClient]);
 
   // One auto-fill handler per tab. Which fields get copied comes from the
   // admin's /defaults configuration, falling back to the built-in field sets.

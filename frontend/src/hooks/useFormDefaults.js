@@ -1,5 +1,10 @@
-// Resolves admin-configured form defaults (GET /api/form-defaults/) against the
-// built-in factory values.
+// Loads admin-configured form defaults (GET /api/form-defaults/) through one
+// query cache entry, and resolves them against the built-in factory values.
+//
+// /defaults, /add and /modify all read the config through useFormDefaults()
+// (or, where a page seeds its forms before first paint, loadFormDefaults()
+// with the same query), so it is fetched once and shared between them; saving
+// on /defaults writes the cache, so the other two never show stale defaults.
 //
 // The stored config is a SPARSE per-field override map, so the factories in
 // config/formFactories.js remain the baseline: if nothing is configured, or the
@@ -12,10 +17,13 @@
 // factory value's type, and a select's value its options no longer offer is
 // dropped, before any of them reach form state.
 
+import { useQuery } from "@tanstack/react-query";
+
 import { FORM_FACTORIES } from "../config/formFactories";
 import { BUILTIN_AUTOFILL, getFieldMap } from "../config/formFields";
 import { endpoints } from "../api/endpoints";
 import { prefillVariants, startingSources } from "../lib/restrictedSources";
+import { fetchJson } from "./queryUtils";
 
 /** Forces a stored value into the shape the form state expects. */
 export function coerceToShape(builtIn, value) {
@@ -106,18 +114,43 @@ export function autofillFields(type, config) {
   return config?.[type]?.autofill ?? BUILTIN_AUTOFILL[type] ?? [];
 }
 
+/** No config: every form takes its built-ins. */
+export const NO_FORM_DEFAULTS = Object.freeze({});
+
+export function formDefaultsQueryKey() {
+  return ["form-defaults"];
+}
+
 /**
- * Loads the whole form-defaults config. Never throws — an unreachable or
- * failing endpoint resolves to {}, which means "use the built-ins".
+ * The query behind useFormDefaults and loadFormDefaults: the whole config,
+ * keyed by type. A failure - an error status, or a body that is not JSON
+ * (the SPA catch-all answers an unknown route 200 with index.html) - is an
+ * error state with no data, which every reader takes as the built-ins.
  */
-export async function fetchFormDefaults() {
-  try {
-    const res = await fetch(endpoints.formDefaults.list(), {
-      credentials: "include",
-    });
-    if (!res.ok) return {};
-    return await res.json();
-  } catch {
-    return {};
-  }
+export function formDefaultsQuery() {
+  return {
+    queryKey: formDefaultsQueryKey(),
+    queryFn: () => fetchJson(endpoints.formDefaults.list()),
+    staleTime: 30_000,
+    // Add holds its first paint for this, so a failure goes to the built-ins
+    // at once rather than after a retry.
+    retry: false,
+  };
+}
+
+/** The form-defaults config; `data` is undefined until it loads, and on a failure. */
+export function useFormDefaults() {
+  return useQuery(formDefaultsQuery());
+}
+
+/**
+ * The config for a page that seeds its forms from it before first paint:
+ * read from the cache while fresh, fetched into it otherwise (joining a
+ * fetch useFormDefaults already started). Never throws - a failure resolves
+ * to NO_FORM_DEFAULTS, the built-ins.
+ */
+export function loadFormDefaults(queryClient) {
+  return queryClient
+    .fetchQuery(formDefaultsQuery())
+    .catch(() => NO_FORM_DEFAULTS);
 }

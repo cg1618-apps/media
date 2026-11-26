@@ -533,7 +533,13 @@ entries that do exist.
 
 **Form defaults.** A fresh form comes from `freshForm(type)`
 (`config/formFactories.js`) merged with the admin's saved defaults
-(`hooks/useFormDefaults.js`, `/api/form-defaults/<type>`).
+(`hooks/useFormDefaults.js`, `GET /api/form-defaults/`). The config is the
+form-defaults query, the one `/defaults` and Modify read too: the page loads it
+with `loadFormDefaults` inside the same `Promise.all` as `fetchAllSources()`,
+and seeds every form from it before the spinner lifts, so no form paints with
+built-in values first. A config still fresh in the cache - `/defaults` opened a
+moment ago, or saved - is used without a request. One that cannot be read (an
+error status, or a body that is not JSON) means the built-ins.
 
 **Notes for the entry just added (every media tab).** Notes hang off an
 entry's `system_id`, so the form cannot hold them before the entry exists.
@@ -1525,8 +1531,14 @@ One tab per `FORM_TABS` entry (`DefaultsTab.jsx`) — every media type, the
 three grouping tiers, and the three Entity tabs. Fields come from
 `config/formFields/fieldMeta.js` (label, control, option source, `coerce`
 rule); values are stored per type via `/api/form-defaults/<type>` and applied
-by `useFormDefaults` when an Add form is created. "Reset" deletes the stored
-defaults for that type. No image field takes a default - `cover_image_file`,
+by `useFormDefaults` when an Add form is created. The page reads the config
+through the form-defaults query (`useFormDefaults()`) beside the suggestion
+lists, and opens once both are in; a config that cannot be read opens it on the
+built-ins with an error toast. Each tab keeps its unsaved draft while another is
+open, a dot marks every tab with one, and leaving the page with any asks first.
+**Save** (`PUT`) writes the type's config into the query cache, and "Reset"
+(`DELETE`) deletes the stored defaults for that type and drops it from the
+cache, so Add and Modify open on the change without a stale read. No image field takes a default - `cover_image_file`,
 `logo_file` and `photo_file`, and their focal points `cover_image_focus`,
 `logo_focus` and `photo_focus`, are all `control: "none"`,
 `defaultable: false`, since an image is set through `ImagePicker` and a
@@ -1538,6 +1550,17 @@ whose options do not include it - a gender saved as `Female`, outside
 `GENDERS` - because the select shows such a value as blank while the form
 would still post it and be refused with a 422. Note `coerce: "tristate"` is implemented but unused
 by any field.
+
+**The auto-fill column.** Each auto-fillable field has a tick in the third
+column, under one heading at the top of the tab, **Replace when choosing an
+existing entry**: a ticked field is the one a pick in the Add tab's
+"Auto-fill from existing entry" box overwrites. The ticks carry no text of
+their own; each has the accessible name "Replace <field> when choosing an
+existing entry", which is all that names it below `md`, where the grid
+collapses and the heading is hidden. A field that cannot be auto-filled shows
+a dash in the column. Each group header offers **Select all** while any of
+its fields is unticked, and drops it once all are; there is no group-wide
+untick - a field is unticked by its own box.
 
 **Restricted Prefill** sits under the Sources field on every type that has
 one: which restricted source names a new entry is prefilled with

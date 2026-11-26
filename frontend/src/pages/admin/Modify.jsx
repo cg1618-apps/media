@@ -2,6 +2,7 @@
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import { editorTitle } from "../../lib/pageTitle";
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { ownerTypeLabel } from "../../config/mediaRegistry";
 import { useToast } from "../../hooks/useToast";
@@ -86,8 +87,11 @@ import OptionSubTabBar from "../../components/forms/OptionSubTabBar";
 import { categoriesForSubTab } from "../../lib/optionCategoryGroups";
 import { RestrictedPrefillProvider } from "../../contexts/RestrictedPrefillContext";
 import {
-  fetchFormDefaults,
+  NO_FORM_DEFAULTS,
+  formDefaultsQueryKey,
+  loadFormDefaults,
   resolveDefaults,
+  useFormDefaults,
 } from "../../hooks/useFormDefaults";
 import { endpoints } from "../../api/endpoints";
 import {
@@ -480,10 +484,16 @@ export default function Modify() {
   const [optAliases, setOptAliases] = useState([]);
 
   // Admin-configured form defaults, used to fill in fields a saved entry left
-  // NULL. Held in a ref rather than state because the deep-link path opens an
-  // editor from inside the load effect, before a state update would flush.
-  const formDefaultsRef = useRef({});
-  const md = (type) => resolveDefaults(type, formDefaultsRef.current);
+  // NULL - the cache /defaults writes on save. `md` reads the cache at call
+  // time rather than the render's value, because the deep-link path opens an
+  // editor from inside an effect, before a render would have caught up.
+  const queryClient = useQueryClient();
+  const { data: formDefaults = NO_FORM_DEFAULTS } = useFormDefaults();
+  const md = (type) =>
+    resolveDefaults(
+      type,
+      queryClient.getQueryData(formDefaultsQueryKey()) ?? NO_FORM_DEFAULTS,
+    );
 
   // Splits a tags field's comma-joined string into trimmed, non-empty names.
   const splitTags = (raw) =>
@@ -695,8 +705,10 @@ export default function Modify() {
       // Form defaults and suggestion sources start together with the entry
       // lists above rather than after them: nothing here reads an entry list,
       // so sequencing the two only ever cost a round trip.
-      const [fd, srcData] = await Promise.all([
-        fetchFormDefaults().catch(() => ({})),
+      // loadFormDefaults fills the cache md and formDefaults read, before the
+      // state updates whose render reads it (the prefill picks).
+      const [, srcData] = await Promise.all([
+        loadFormDefaults(queryClient),
         fetchAllSources().catch(() => ({
           options: [],
           studios: [],
@@ -704,13 +716,11 @@ export default function Modify() {
           people: {},
         })),
       ]);
-      // Before the state updates, whose render reads it (the prefill picks).
-      formDefaultsRef.current = fd;
       setSources(srcData);
       setSourcesLoading(false);
     }
     load();
-  }, []);
+  }, [queryClient]);
 
   // A deep link (?id=&type=) opens one entry's editor directly. It is the one
   // path that may need a list the visible tab does not: the type is optional,
@@ -2679,7 +2689,7 @@ export default function Modify() {
   }[editingType];
 
   return (
-    <RestrictedPrefillProvider config={formDefaultsRef.current}>
+    <RestrictedPrefillProvider config={formDefaults}>
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-6">
         <h1 className="text-2xl font-black text-text flex items-center gap-3">
