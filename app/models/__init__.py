@@ -191,7 +191,9 @@ from sqlalchemy.orm import column_property  # noqa: E402
 #
 # Plain class attributes defaulted to None, so a path that forgot to attach
 # serialises null - never raises, never shows somebody else's value.
-for _model in (Collection, Franchise, Series, Character, Person, Studio, Publisher):
+for _model in (
+    Collection, Franchise, Series, Character, CharacterIdentity, Person, Studio, Publisher
+):
     _model.my_rating = None
 Collection.collection_expectation = None
 Franchise.franchise_expectation = None

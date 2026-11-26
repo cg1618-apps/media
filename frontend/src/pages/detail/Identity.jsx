@@ -9,16 +9,16 @@
 // rows of this identity.
 //
 // An identity IS its character under another name, so the page shows what
-// the character page does: the character's role, appearance and trait tags,
-// rating and links (MAL, AniList - the left column's links card,
+// the character page does: the character's role, appearance and trait tags
+// and links (MAL, AniList - the left column's links card,
 // components/info/EntityLinksCard.jsx) come from GET /api/character/{id},
-// read beside the entries; the names, photo, gender, firsts and notes are the identity's own. A
+// read beside the entries; the names, photo, gender, firsts, notes and the
+// viewer's rating are the identity's own. A
 // Character section links back to the character and to its other identities.
 //
-// Like Character.jsx it reads the API with plain fetch. Unlike it, nothing is
-// edited in place: an identity has no PATCH route, and the rating is the
-// character's (set on its page), so the admin gets only the jump to the
-// Modify editor. Its remark list, resources and personal notes are a notes
+// Like Character.jsx it reads the API with plain fetch. Only the viewer's
+// own rating is edited in place (self.list, PUT /api/me/ratings): an identity
+// has no PATCH route, so the admin gets the jump to the Modify editor. Its remark list, resources and personal notes are a notes
 // block of its own (NotesTemplate, owner type "identity").
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -36,7 +36,10 @@ import EntityLinksCard, { ENTITY_LINKS } from "../../components/info/EntityLinks
 import NamingCard from "../../components/info/NamingCard";
 import { tagChips } from "../../components/info/tagChips";
 import { firstsRows } from "../../lib/characterForm";
-import { AdminToolbar } from "../../components/info/EntityProfileControls";
+import {
+  AdminToolbar,
+  RatingSelect,
+} from "../../components/info/EntityProfileControls";
 import MediaLoadingState from "../../components/layout/MediaLoadingState";
 import { Eyebrow, RatingStamp } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
@@ -44,6 +47,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { usePageTitle } from "../../contexts/PageTitleContext";
 import { useCanonicalPath } from "../../hooks/useCanonicalPath";
 import { entityPath } from "../../lib/entityPath";
+import { useViewScope } from "../../hooks/useViewScope";
+import { useMyRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 export default function Identity() {
   const { publicId } = useParams();
@@ -53,6 +58,9 @@ export default function Identity() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isAdmin } = useAuth();
+  // My rating is the viewer's own (self.list), saved through /api/me/ratings.
+  const { ownData: canRate } = useViewScope();
+  const saveMyRating = useMyRatingSaver("identity", identity?.system_id, setIdentity);
 
   useCanonicalPath("identity", identity);
 
@@ -191,15 +199,20 @@ export default function Identity() {
                   e.target.src = FALLBACK_SVG;
                 }}
               />
-              {/* The character's rating: an identity is the same character.
-                  Read-only here - it is set on the character's page. */}
-              {character?.my_rating && (
+              {identity.my_rating && (
                 <div className="absolute top-2 right-2">
-                  <RatingStamp rating={character.my_rating} />
+                  <RatingStamp rating={identity.my_rating} />
                 </div>
               )}
             </div>
           </div>
+
+          {canRate && (
+            <RatingSelect
+              rating={identity.my_rating}
+              onChange={(v) => saveMyRating({ my_rating: v }, "Rating saved")}
+            />
+          )}
 
           {/* The character's links: an identity is the same character. */}
           <EntityLinksCard item={character} links={ENTITY_LINKS.character} />
@@ -226,7 +239,7 @@ export default function Identity() {
               ]}
             />
             <p className="text-[10px] text-text-faint">
-              Role, tags, rating and links are {characterName}&apos;s.
+              Role, tags and links are {characterName}&apos;s.
             </p>
           </div>
 

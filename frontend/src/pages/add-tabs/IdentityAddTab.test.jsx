@@ -7,8 +7,12 @@ import { ToastProvider } from "../../hooks/useToast";
 import IdentityAddTab, { IDENTITIES_QUERY_KEY } from "./IdentityAddTab";
 
 let post;
+// No permission by default; a test that rates gives the viewer self.list.
+const auth = vi.hoisted(() => ({ has: () => false }));
+vi.mock("../../contexts/AuthContext", () => ({ useAuth: () => auth }));
 
 beforeEach(() => {
+  auth.has = () => false;
   post = vi.fn(() =>
     Promise.resolve({
       ok: true,
@@ -189,5 +193,47 @@ it("posts the identity's firsts, blank ones as null", async () => {
     first_mention: null,
     first_appearance: "S1 ep 8",
     first_encounter: null,
+  });
+});
+
+describe("My Rating", () => {
+  it("sits on one row with Display Name and Gender, and is PUT after the create", async () => {
+    auth.has = (p) => p === "self.list";
+    const put = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ owner_type: "identity", owner_id: "i1", my_rating: "A" }),
+      }),
+    );
+    const base = global.fetch;
+    global.fetch = vi.fn((url, options = {}) =>
+      options.method === "PUT" ? put(url, options) : base(url, options),
+    );
+    mount();
+    const row = screen.getByLabelText("My Rating").closest(".grid");
+    expect(screen.getByLabelText("Display Name").closest(".grid")).toBe(row);
+    expect(screen.getByLabelText("Gender").closest(".grid")).toBe(row);
+    expect(row.className).toContain("md:grid-cols-3");
+
+    await userEvent.type(screen.getByRole("combobox", { name: /character/i }), "kudo");
+    await userEvent.click(await screen.findByText("Kudo Shinichi"));
+    await userEvent.type(screen.getByLabelText("Name (English)"), "Conan");
+    await userEvent.selectOptions(screen.getByLabelText("My Rating"), "A");
+    await userEvent.click(screen.getByRole("button", { name: /add identity/i }));
+
+    await waitFor(() => expect(put).toHaveBeenCalledTimes(1));
+    expect(put.mock.calls[0][0]).toBe("/api/me/ratings/identity/i1");
+    expect(JSON.parse(put.mock.calls[0][1].body)).toEqual({ my_rating: "A" });
+    // The catalogue write never carries it.
+    expect(JSON.parse(post.mock.calls[0][1].body)).not.toHaveProperty("my_rating");
+  });
+
+  it("is not drawn for a viewer who keeps no list", () => {
+    mount();
+    expect(screen.queryByLabelText("My Rating")).toBeNull();
+    expect(screen.getByLabelText("Display Name").closest(".grid")).toBe(
+      screen.getByLabelText("Gender").closest(".grid"),
+    );
   });
 });

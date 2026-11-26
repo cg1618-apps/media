@@ -24,6 +24,7 @@ import {
   identityPayload,
 } from "../add-tabs/IdentityAddTab";
 import { firstsToForm } from "../../lib/characterForm";
+import { useFormRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 export { IDENTITIES_QUERY_KEY };
 
@@ -51,6 +52,8 @@ function identityToForm(i) {
     ...firstsToForm(i),
     photo_file: i.photo_file || "",
     photo_focus: i.photo_focus || null,
+    // The viewer's own, not a column: PUT /api/me/ratings on save.
+    my_rating: i.my_rating || "",
   };
 }
 
@@ -111,6 +114,7 @@ export default function IdentityModifyTab({ initialId = null } = {}) {
   const [form, setForm] = useState(null);
   const [formFor, setFormFor] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const saveFormRating = useFormRatingSaver();
 
   const selected = identities.find((i) => i.system_id === pickedId) || null;
   // The listed row is refetched after a save, so this is the saved name.
@@ -134,6 +138,9 @@ export default function IdentityModifyTab({ initialId = null } = {}) {
         method: "PUT",
         ...jsonBody(identityPayload(form)),
       });
+      // The rating after the identity: the listed row carries the stored
+      // one, so only a change is sent.
+      await saveFormRating("identity", selected.system_id, form, selected, "Identity");
       await queryClient.invalidateQueries({ queryKey: IDENTITIES_QUERY_KEY });
       showToast("success", "Identity saved.");
     } catch (err) {

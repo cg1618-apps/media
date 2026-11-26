@@ -23,6 +23,8 @@ import { isEnterKey } from "../../hooks/useEnterToAdd";
 import { useToast } from "../../hooks/useToast";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
 import { firstsPayload, firstsToForm } from "../../lib/characterForm";
+import MyRatingFields from "../../components/forms/MyRatingFields";
+import { useFormRatingSaver } from "../../api/mutations/useMyRatingMutations";
 
 export const IDENTITY_NAME_FIELDS = PERSON_NAME_FIELDS;
 
@@ -36,6 +38,8 @@ export function defaultIdentity() {
     display_name_field: "", gender: "",
     ...firstsToForm(null),
     photo_file: "", photo_focus: null, pending_image_id: null,
+    // The viewer's own, not a column: PUT /api/me/ratings after the save.
+    my_rating: "",
   };
 }
 
@@ -88,22 +92,27 @@ export function IdentityFields({ form, update, ownerId, characterGender }) {
       {!hasAnyIdentityName(form) && (
         <p className="text-[10px] font-bold text-danger -mt-2">An identity needs at least one name.</p>
       )}
-      <Field label="Display Name" hint="Which name to show. Falls back through English, Chinese, Japanese, Alternative when unset.">
-        <select aria-label="Display Name" className={selectCls} value={form.display_name_field ?? ""} onChange={(e) => update("display_name_field", e.target.value)}>
-          <option value="">Default (English)</option>
-          {IDENTITY_NAME_FIELDS.map(({ key, label }) => (
-            <option key={key} value={key}>{label}</option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Gender" hint="Empty means the same as the character.">
-        <select aria-label="Gender" className={selectCls} value={form.gender ?? ""} onChange={(e) => update("gender", e.target.value)}>
-          <option value="">Same as character{characterGender ? ` (${characterGender})` : ""}</option>
-          {GENDERS.map((g) => (
-            <option key={g} value={g}>{g}</option>
-          ))}
-        </select>
-      </Field>
+      {/* One row: which name shows, the gender, and the viewer's own rating
+          (drawn only for a list keeper, saved through /api/me/ratings). */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Field label="Display Name" hint="Which name to show. Falls back through English, Chinese, Japanese, Alternative when unset.">
+          <select aria-label="Display Name" className={selectCls} value={form.display_name_field ?? ""} onChange={(e) => update("display_name_field", e.target.value)}>
+            <option value="">Default (English)</option>
+            {IDENTITY_NAME_FIELDS.map(({ key, label }) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Gender" hint="Empty means the same as the character.">
+          <select aria-label="Gender" className={selectCls} value={form.gender ?? ""} onChange={(e) => update("gender", e.target.value)}>
+            <option value="">Same as character{characterGender ? ` (${characterGender})` : ""}</option>
+            {GENDERS.map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
+        </Field>
+        <MyRatingFields kind="identity" form={form} update={update} />
+      </div>
       <Field label="Photo">
         <ImagePicker
           ownerType="character-identity"
@@ -173,6 +182,7 @@ export default function IdentityAddTab() {
   // holding its value is the admin's to keep or have re-filled.
   const [prefilled, setPrefilled] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const saveFormRating = useFormRatingSaver();
   const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const ready = !!character && hasAnyIdentityName(form);
 
@@ -191,6 +201,8 @@ export default function IdentityAddTab() {
           showToast("error", err.message || "Identity saved, but attaching the image failed.");
         }
       }
+      // The rating once the identity exists: only a value chosen is sent.
+      await saveFormRating("identity", created.system_id, form, null, "Identity");
       // Modify and Delete read this list: a just-added identity shows at once.
       queryClient.invalidateQueries({ queryKey: IDENTITIES_QUERY_KEY });
       showToast("success", `Identity added to ${character.display_name}.`);

@@ -1485,8 +1485,8 @@ request".
 
 ## Ratings and expectations (`user_rating`)
 
-The rating of a collection, franchise, series, character, person, studio or
-publisher, the expectation of the three tiers, and a book unit's rating and
+The rating of a collection, franchise, series, character, character identity,
+person, studio or publisher, the expectation of the three tiers, and a book unit's rating and
 remark are **each account's own**, not catalogue columns. They live on
 `user_rating` and `user_book_unit_rating` (see
 [data-model.md](data-model.md)), and no permission reveals one account's to
@@ -2135,7 +2135,7 @@ matters is enforced server-side.
 | `tests/api/test_visibility_aggregates.py` | quotes, memes, credits, notes, plan, relations, orders, person counts |
 | `tests/api/test_visibility_graph.py` | `/graph` filtering |
 | `tests/api/test_resources.py` | the Resources page: a guest and a `user` are refused the read (401) against a populated tree, which `super` reads; both are refused every write (401), and the same writes succeed for a `manage.resources` holder |
-| `tests/api/test_user_rating.py`, `test_user_rating_sheets.py` | two accounts rating one row each read their own, a guest reads null, every write without `self.list` (the admin's included) is 401 against an existing row and changes nothing, the vocabularies on all seven owners, writes following reads, merges moving rows; the two Sheets tabs round-tripping and an old sheet's columns landing on the owner |
+| `tests/api/test_user_rating.py`, `test_user_rating_sheets.py` | two accounts rating one row each read their own, a guest reads null, every write without `self.list` (the admin's included) is 401 against an existing row and changes nothing, the vocabularies on all eight owners, writes following reads, merges moving rows; the two Sheets tabs round-tripping and an old sheet's columns landing on the owner |
 | `tests/api/test_guest_has_no_list.py` | a guest reads no status, rating or progress; the personal-column filter matches nothing rather than cross-joining; `installation_owner_id` answers the flag holder over every fallback, and a member over the admin |
 | `tests/api/test_viewer_user_id.py` | `Viewer.user_id`, and that `acting_user_id` does **not** fall back |
 | `tests/api/test_view_permissions.py` | the `view` family: the seven keys in the catalog with labels, `view.personal` in neither the catalog nor any seeded role, offered by the role editor, the seed defaults, `super` holding all seven by lock with the entity keys free below it; every gated read refused to a guest and read by a holder against populated rows, a seeded member reading no entity page, and each key opening exactly its own reads; entity writes still need `manage.catalog` and do not need the read; group, entity and book-unit ratings, expectations and remarks the viewer's own - null for a guest and for another viewer, the member's own through list, detail and search, and a catalogue manager's own rather than the member's |

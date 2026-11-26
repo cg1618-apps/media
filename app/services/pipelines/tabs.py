@@ -322,10 +322,10 @@ SHEET_TABS: tuple[SheetTab, ...] = (
     ),
     SheetTab("Series", models.Series, f.parse_series_from_sheet),
     # Per-user, like Order Follow: user_id is dropped for `username`.
-    # After the three tiers and the four entities its owner columns name -
+    # After the three tiers and the five entities its owner columns name -
     # person_id, studio_id and publisher_id are translated through their own
     # tabs (DERIVED_IDENTITY_PARENTS in pull.py), since those uuids are
-    # minted per database; the tiers' and characters' travel.
+    # minted per database; the tiers', characters' and identities' travel.
     SheetTab(
         "User Rating",
         models.UserRating,

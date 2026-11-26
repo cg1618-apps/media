@@ -414,7 +414,8 @@ def parse_user_rating_from_sheet(raw: dict) -> dict:
     """
     One account's rating and expectation of one catalogue row. user_id is not
     in the sheet - pull.py resolves the row's `username` - and each owner
-    column is a uuid: the tiers' and characters' travel unchanged, and a
+    column is a uuid: the tiers', characters' and identities' travel
+    unchanged, and a
     person's, studio's or publisher's is translated through its own tab.
     """
     return {
@@ -426,6 +427,7 @@ def parse_user_rating_from_sheet(raw: dict) -> dict:
         "person_id": _uuid_or_none(raw.get("person_id")),
         "studio_id": _uuid_or_none(raw.get("studio_id")),
         "publisher_id": _uuid_or_none(raw.get("publisher_id")),
+        "identity_id": _uuid_or_none(raw.get("identity_id")),
         "my_rating": parse_from_sheet(raw.get("my_rating"), str),
         "expectation": parse_from_sheet(raw.get("expectation"), str),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),

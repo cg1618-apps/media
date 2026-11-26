@@ -1334,9 +1334,9 @@ File `pages/detail/Identity.jsx`, route `/identity/:publicId/:slug?`. The
 public page for one of a character's other identities (Edogawa Conan of Kudo
 Shinichi), hand-built beside `Character.jsx` and shaped like it: an identity
 is its character under another name, so the page shows what the character
-page does. The names, photo, gender, firsts and notes are the identity's own; the
-role, the appearance and trait tags, the rating and the links are the
-character's. `GET /api/character-identity/{id}` by the URL's public id comes
+page does. The names, photo, gender, firsts, notes and the viewer's rating
+are the identity's own; the role, the appearance and trait tags and the links
+are the character's. `GET /api/character-identity/{id}` by the URL's public id comes
 first, and its failing is the page's 404 ("Identity not found."). Then two
 reads run side by side: `.../entries` by the `system_id` it returns, and
 `GET /api/character/{character_public_id}`. Neither failing is a 404 — the
@@ -1349,13 +1349,15 @@ name, linking to its page / the identity's name → (admin) the admin strip with
 **Edit** to `/modify?id=<system_id>&type=identity` → left column with the
 photo (`display_photo_file`, the identity's own photo else the character's
 displayed one, as the server resolves it; else `FALLBACK_SVG`), the
-character's `my_rating` stamp on it, read-only, the character's **Links**
+identity's own `my_rating` stamp on it, the **My rating** select under it for
+a holder of `self.list` (`RatingSelect`, saved through
+`PUT /api/me/ratings/identity/{id}`, as on the character page), the character's **Links**
 card (MAL, AniList) and a **Naming** card (`NamingCard type="identity"`, each
 of the four names that is set) → right column with the heading and its
 appearance count, a "Profile" `InfoCard` — **Role**, then **Gender**
 (`display_gender`, the character's when the identity sets none), then
 **Appearance** and **Trait** (`tagChips`) from the character — with a faint
-line under it, "Role, tags, rating and links are <character>'s." Under it a
+line under it, "Role, tags and links are <character>'s." Under it a
 **First Appearances** `InfoCard` lists the identity's own firsts, only those
 set, and is left out when none is; the character's firsts never show here.
 Then the identity's own **Notes** (`NotesTemplate ownerType="identity"`, its
@@ -1363,9 +1365,8 @@ Remark list, Personal Notes and Resources - never the character's), then a
 **Character** section: the character's own card, labelled **Character** and
 linking to its page, then its other identities, labelled **Identity**, this
 one left out — all `IdentityCard`s. Then one section per media type the
-entries endpoint returned. Nothing is edited in place but the notes: an
-identity has no `PATCH` route and its rating is the character's, set on the
-character's page, so there is no rating select.
+entries endpoint returned. Nothing is edited in place but the notes and the
+viewer's rating: an identity has no `PATCH` route.
 
 The appearance sections are the character page's: `/entries` answers the same shape,
 narrowed to the cast rows that name this identity, a group the viewer may see
