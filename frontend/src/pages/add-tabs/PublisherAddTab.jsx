@@ -66,10 +66,15 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
           ))}
         </select>
       </Field>
-      <PublisherScopePills
-        scopes={publisherForm.scopes}
-        setScopes={(next) => upf("scopes", next)}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <PublisherScopePills
+          scopes={publisherForm.scopes}
+          setScopes={(next) => upf("scopes", next)}
+        />
+        {/* The viewer's own rating, saved through /api/me/ratings by the
+            page once the publisher itself has saved. */}
+        <MyRatingFields kind="publisher" form={publisherForm} update={upf} />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Logo">
           <ImagePicker
@@ -122,11 +127,6 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ContentRatingField form={publisherForm} update={upf} />
-      </div>
-      {/* The viewer's own rating, saved through /api/me/ratings by the
-          page once the publisher itself has saved. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <MyRatingFields kind="publisher" form={publisherForm} update={upf} />
       </div>
     </div>
   );

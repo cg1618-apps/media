@@ -86,7 +86,13 @@ export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
           onChange={(v) => ucf("role", v)}
         />
       </Field>
-      <GenderField form={characterForm} update={ucf} />
+      {/* The viewer's own rating, saved through /api/me/ratings by the
+          page once the character itself has saved. */}
+      <GenderField
+        form={characterForm}
+        update={ucf}
+        beside={<MyRatingFields kind="character" form={characterForm} update={ucf} />}
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {CHARACTER_TAG_FIELDS.map(({ field, label, category }) => (
           <Field key={field} label={label}>
@@ -100,28 +106,31 @@ export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
           </Field>
         ))}
       </div>
-      <Field
-        label="MAL Link"
-        hint="The character's myanimelist.net/character/<id> page. On save, blank names and the photo are filled from it."
-      >
-        <input
-          className={inputCls}
-          value={characterForm.mal_link ?? ""}
-          onChange={(e) => ucf("mal_link", e.target.value)}
-          placeholder="https://myanimelist.net/character/..."
-        />
-      </Field>
-      <Field
-        label="AniList Link"
-        hint="The character's anilist.co/character/<id> page. Stored as given; nothing is filled from it."
-      >
-        <input
-          className={inputCls}
-          value={characterForm.anilist_link ?? ""}
-          onChange={(e) => ucf("anilist_link", e.target.value)}
-          placeholder="https://anilist.co/character/..."
-        />
-      </Field>
+      <SectionHeader icon="fa-external-link-alt" title="Links & Photos" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Field
+          label="MAL Link"
+          hint="The character's myanimelist.net/character/<id> page. On save, blank names and the photo are filled from it."
+        >
+          <input
+            className={inputCls}
+            value={characterForm.mal_link ?? ""}
+            onChange={(e) => ucf("mal_link", e.target.value)}
+            placeholder="https://myanimelist.net/character/..."
+          />
+        </Field>
+        <Field
+          label="AniList Link"
+          hint="The character's anilist.co/character/<id> page. Stored as given; nothing is filled from it."
+        >
+          <input
+            className={inputCls}
+            value={characterForm.anilist_link ?? ""}
+            onChange={(e) => ucf("anilist_link", e.target.value)}
+            placeholder="https://anilist.co/character/..."
+          />
+        </Field>
+      </div>
       <Field label="Photo">
         <ImagePicker
           ownerType="character"
@@ -144,11 +153,6 @@ export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
           onChange={(id) => ucf("photo_fallback_entry_id", id)}
         />
       )}
-      {/* The viewer's own rating, saved through /api/me/ratings by the
-          page once the character itself has saved. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <MyRatingFields kind="character" form={characterForm} update={ucf} />
-      </div>
       <CharacterFirstsFields form={characterForm} update={ucf} />
     </div>
   );

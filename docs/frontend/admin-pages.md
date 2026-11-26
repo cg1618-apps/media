@@ -686,7 +686,10 @@ as an error toast.
 **My Rating** select (`MY_RATINGS`) and an **Expectation** select
 (`FRANCHISE_EXPECTATIONS`, the one vocabulary all three tiers share), under
 Other Information; the Person, Character, Studio and Publisher tabs draw
-**My Rating** alone - an entity has no expectation. Both come
+**My Rating** alone - an entity has no expectation - in the right-hand column
+of a row it shares: beside **Display Name** on a person, beside **Gender** on
+a character (`GenderField`'s `beside`), beside **Logo** on a studio and beside
+**Offered On** on a publisher, on Add and Modify alike. Both come
 from `MyRatingFields`, and only for a viewer who keeps a list
 (`useViewScope().ownData`, `self.list`). They are the viewer's own, not
 columns of the record, so the create call never carries them: once it has
@@ -884,13 +887,14 @@ click picks, clicking the pressed chip clears, and the select follows either
 way; unset saves as null), and a **Content rating** select
 (`ContentRatingField`, the same file: Normal, Borderline (15+), Unrestricted
 (18+) over `CONTENT_RATINGS`, starting on Normal - the `defaultPerson()`
-value - and sent as `content_rating`). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
+value - and sent as `content_rating`), then the photo. Its links sit in a
+**Links** section of their own after the profile, two to a row: a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), an
 **AniList Link** (`anilist_link`, placeholder `https://anilist.co/staff/...`;
 stored as typed, a blank one as null, nothing derived or filled from it), the
 IMDb link, then **Twitter Link**, **Instagram Link** and **pixiv Link**
 (`twitter_link`, `ig_link`, `pixiv_link`, `PERSON_SOCIAL_LINKS`; stored as
-typed, a blank one as null) and the photo. Ticking a type holds it
+typed, a blank one as null). Ticking a type holds it
 with **no media type selected** - `{role, scope: null}`, listed under the type
 and offered in no dropdown; ticking a media type replaces that with scoped
 rows, and unticking the last one goes back to it. The legal types per role come
@@ -917,12 +921,13 @@ Trait` option categories — one vocabulary each, for every character, no
 scope; `lib/characterForm.js` turns the comma-joined form strings into the
 arrays the `POST` sends, `[]` for an empty list, and a typed value the
 vocabulary lacks is created by the character write itself, so the tab runs no
-`ensureSourceValues`; the sources are refetched after the save), a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
+`ensureSourceValues`; the sources are refetched after the save), then a
+**Links & Photos** section: a **MAL Link** (`mal_link`, the character's `myanimelist.net/character/<id>`
 page; the server reads the MAL id from it and, on save, fills the blank names
 and the photo from MAL — see [api.md](../api.md#character--apicharacter)),
 an **AniList Link** (`anilist_link`, placeholder
 `https://anilist.co/character/...`; stored as typed, a blank one as null,
-nothing filled from it), the photo, and a **First Appearances** section
+nothing filled from it) side by side, the photo and, on Modify, the photo fallback; then a **First Appearances** section
 (`CharacterFirstsFields`): **First Mention**, **First Appearance** and
 **First Encounter**, free text in the work's own notation (placeholder
 `第1卷 第13章, 1-13, S1 ep 8`), a blank one sent as null. The Role is the character's own. Left blank, it

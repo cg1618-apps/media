@@ -68,6 +68,9 @@ export function StudioFields({ studioForm, usf, ownerId }) {
             }}
           />
         </Field>
+        {/* The viewer's own rating, saved through /api/me/ratings by the
+            page once the studio itself has saved. */}
+        <MyRatingFields kind="studio" form={studioForm} update={usf} />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Countries">
@@ -126,11 +129,6 @@ export function StudioFields({ studioForm, usf, ownerId }) {
             placeholder="https://anilist.co/studio/..."
           />
         </Field>
-      </div>
-      {/* The viewer's own rating, saved through /api/me/ratings by the
-          page once the studio itself has saved. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <MyRatingFields kind="studio" form={studioForm} update={usf} />
       </div>
     </div>
   );
