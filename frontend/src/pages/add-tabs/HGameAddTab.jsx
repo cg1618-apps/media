@@ -19,7 +19,6 @@ import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
 import TagReplace from "../../components/forms/TagReplace";
 import CoverFields from "../../components/forms/CoverFields";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import {
   Field,
@@ -197,14 +196,6 @@ export function HGameFormBody({ f, u, allHGames = [], excludeId, sources, ownerI
         {select("all_endings", "All Endings", GAME_COMPLETION_FLAGS, "Separate axis from completion level")}
         {select("all_cg", "All CG", GAME_COMPLETION_FLAGS, "Every CG unlocked")}
       </div>
-      <EntryFlags
-        f={f}
-        u={u}
-        flags={[
-          ["play_next", "Play Next", "Add to Play Next list"],
-          ["to_replay", "To Replay", "Mark for replay"],
-        ]}
-      />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

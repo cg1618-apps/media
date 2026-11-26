@@ -6,7 +6,8 @@ that dropped the column would silently empty a grid and nothing would say so.
 That is not hypothetical: every one of the Franchise tab's JSONB columns was
 omitted from its parser once, and each Pull wiped them.
 
-`type_slots` now lives on four tables - franchise, series, movies and games -
+`type_slots` lives on six tables - franchise, series, movies, games, studio
+and person -
 and a parser is what carries it back off the sheet.
 """
 
@@ -18,7 +19,9 @@ from app.utils.formatter import (
     parse_franchise_from_sheet,
     parse_game_from_sheet,
     parse_movie_from_sheet,
+    parse_person_from_sheet,
     parse_series_from_sheet,
+    parse_studio_from_sheet,
 )
 
 PARSERS = [
@@ -26,6 +29,8 @@ PARSERS = [
     parse_series_from_sheet,
     parse_movie_from_sheet,
     parse_game_from_sheet,
+    parse_studio_from_sheet,
+    parse_person_from_sheet,
 ]
 
 

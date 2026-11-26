@@ -140,3 +140,48 @@ class TestSlotsSurviveTheRoundTrip:
         movie = owner_client.get(f"/api/movies/{sample_movie.public_id}").json()
         assert franchise["type_slots"] == {"Movie": 1}
         assert movie["type_slots"] == {"Movie": 7}
+
+
+@pytest.fixture
+def sample_studio(db_session):
+    studio = models.Studio(system_id=uuid.uuid4(), name_en="Test Studio")
+    db_session.add(studio)
+    db_session.flush()
+    return studio
+
+
+class TestTheEntityTiers:
+    """The favourite-entity grids store their slots on studio and person,
+    written by the same whole-map PATCH as the media tiers."""
+
+    def test_studio(self, owner_client, sample_studio):
+        response = _patch_slots(
+            owner_client, "/api/studio", sample_studio, {"Anime Studio": 1}
+        )
+        assert response.status_code == 200
+        assert response.json()["type_slots"] == {"Anime Studio": 1}
+        studios = owner_client.get("/api/studio/").json()
+        assert [s["type_slots"] for s in studios if s["name_en"] == "Test Studio"] == [
+            {"Anime Studio": 1}
+        ]
+
+    def test_person(self, owner_client, person):
+        response = _patch_slots(
+            owner_client, "/api/person", person, {"Female Seiyuu": 4}
+        )
+        assert response.status_code == 200
+        assert response.json()["type_slots"] == {"Female Seiyuu": 4}
+        people = owner_client.get("/api/person/").json()
+        assert [p["type_slots"] for p in people if p["system_id"] == str(person.system_id)] == [
+            {"Female Seiyuu": 4}
+        ]
+
+    def test_a_form_save_keeps_the_slots(self, owner_client, sample_studio):
+        """The studio edit form PUTs the whole studio and carries no
+        type_slots; the grid's slot must survive it."""
+        _patch_slots(owner_client, "/api/studio", sample_studio, {"Game Studio": 2})
+        current = owner_client.get(f"/api/studio/{sample_studio.public_id}").json()
+        body = {k: current[k] for k in ("name_en", "name_cn", "name_jp", "name_alt")}
+        response = owner_client.put(f"/api/studio/{sample_studio.system_id}", json=body)
+        assert response.status_code == 200, response.text
+        assert response.json()["type_slots"] == {"Game Studio": 2}

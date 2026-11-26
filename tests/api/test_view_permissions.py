@@ -216,7 +216,7 @@ def gated_reads(db, person, character, anime_with_studio, sample_anime):
         # test_account_features.py.
         # /api/resources is not here: it answers to manage.resources - see
         # test_admin_page_permissions.py.
-        PERM_VIEW_RANDOM_PICKER: ["/api/random-picker-defaults/all"],
+        PERM_VIEW_RANDOM_PICKER: ["/api/random-picker-defaults/franchise"],
         # sample_anime is the entry these counts have to keep from a guest.
         PERM_VIEW_STATISTICS: ["/api/statistics/catalogue"],
     }

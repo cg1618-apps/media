@@ -268,3 +268,18 @@ it("suggests the Country common options and saves what is typed", async () => {
   await waitFor(() => expect(lastPut).not.toBeNull());
   expect(lastPut.body.country).toBe("Korea");
 });
+
+// Content rating loads as stored, reads Normal when unset, and the PUT sends
+// the edited value.
+it("loads the content rating and sends the edited one on save", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "p1" });
+  const select = await screen.findByLabelText("Content rating");
+  expect(select).toHaveValue("normal");
+
+  await user.selectOptions(select, "unrestricted");
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  await waitFor(() => expect(lastPut).not.toBeNull());
+  expect(lastPut.body.content_rating).toBe("unrestricted");
+});

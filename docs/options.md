@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 ## What this is for
 
@@ -799,8 +799,8 @@ ones in `OPTION_CATEGORIES`:
 | `Game Theme` | game, h-game | tag field `game_theme`; 20 seeded values, each with an IGDB alias |
 | `Game Mode` | game | tag field `game_mode`; 5 seeded values, each with an IGDB alias |
 | `Combat Mode` | game | tag field `combat_mode`; `PvE` and `PvP`, seeded **without** aliases - it is not an IGDB field |
-| `Exclusive Platform` | game | tag field `exclusive_platform`, a game's Exclusive Source: `Nintendo`, `PlayStation`, `Xbox`, `PC`, `Mobile`, seeded in that order by `g1x2clusive3` (`seed_exclusive_platforms`). Single-valued - the form offers one or none. Not anime's `exclusive_source`, which draws from Platform and must match a main access row |
-| `Game Platform` | game | tag field `game_platform`; six **families** - `PlayStation`, `Nintendo`, `Xbox`, `PC`, `Mobile`, `Browser` - each followed by its **consoles** under short names (`PS5`, `Switch`, …; the list is under [Game Platform: families and consoles](#game-platform-families-and-consoles)). A console brings its family on every write. Brand names, so English rather than Chinese |
+| `Exclusive Platform` | game | tag field `exclusive_platform`, a game's Exclusive Source: `PC`, `PlayStation`, `Xbox`, `Nintendo`, `Mobile`, the main-platform order of `Game Platform` without `Browser` (`EXCLUSIVE_PLATFORMS`, seeded by `seed_exclusive_platforms`; `g1m2ainplat3` gives an existing database the same order). The Game form's single choice offers them in that order. Single-valued - the form offers one or none. Not anime's `exclusive_source`, which draws from Platform and must match a main access row |
+| `Game Platform` | game | tag field `game_platform`; six **main platforms** (families) - `PC`, `PlayStation`, `Xbox`, `Nintendo`, `Mobile`, `Browser` - offered first, then every **specific platform** (console) under its short name (`PS5`, `Switch`, …), grouped by family in the same order; the list is under [Game Platform: families and consoles](#game-platform-families-and-consoles). A console brings its family on every write, and a game stores its main platforms first. Brand names, so English rather than Chinese |
 | `H Genre Plot` | h-comic, h-game, hentai | tag field `h_genre_plot`; admin-managed, ships empty |
 | `H Genre Appearance` | h-comic, h-game, hentai | tag field `h_genre_appearance`; admin-managed, ships empty |
 | `H Genre Relation` | h-comic, h-game, hentai | tag field `h_genre_relation`; admin-managed, ships empty |
@@ -946,41 +946,57 @@ model.
 `GAME_PLATFORMS` in `app/utils/game_vocabulary.py` is the one statement of
 which console belongs to which family; the seed, the tag write and the picker
 all read it. The values are short, compact tag names; the IGDB alias is the
-full name IGDB uses.
+full name IGDB uses. A family is a **main platform** and a console a
+**specific platform**; the table lists the families in main-platform order.
 
 | Family | Consoles (IGDB name, where it differs) |
 | --- | --- |
-| `PlayStation` | `PS1` (PlayStation), `PS2`, `PS3`, `PS4`, `PS5` (PlayStation 2–5), `PSP` (PlayStation Portable), `Vita` (PlayStation Vita), `PS VR`, `PS VR2` (PlayStation VR, VR2) |
-| `Nintendo` | `Switch`, `Switch 2` (Nintendo Switch, Switch 2), `Wii`, `Wii U`, `GameCube` (Nintendo GameCube), `N64` (Nintendo 64), `SNES` (Super Nintendo Entertainment System), `Super Famicom`, `NES` (Nintendo Entertainment System), `Famicom` (Family Computer), `DS`, `DSi`, `3DS`, `New 3DS` (Nintendo DS, DSi, 3DS, New Nintendo 3DS), `Game Boy`, `Game Boy Color`, `Game Boy Advance` |
-| `Xbox` | `Original Xbox` (Xbox), `Xbox 360`, `Xbox One`, `Xbox Series X\|S` |
 | `PC` | `Windows` (PC (Microsoft Windows)), `Mac`, `Linux`, `DOS` |
+| `PlayStation` | `PS1` (PlayStation), `PS2`, `PS3`, `PS4`, `PS5` (PlayStation 2–5), `PSP` (PlayStation Portable), `Vita` (PlayStation Vita), `PS VR`, `PS VR2` (PlayStation VR, VR2) |
+| `Xbox` | `Original Xbox` (Xbox), `Xbox 360`, `Xbox One`, `Xbox Series X\|S` |
+| `Nintendo` | `Switch`, `Switch 2` (Nintendo Switch, Switch 2), `Wii`, `Wii U`, `GameCube` (Nintendo GameCube), `N64` (Nintendo 64), `SNES` (Super Nintendo Entertainment System), `Super Famicom`, `NES` (Nintendo Entertainment System), `Famicom` (Family Computer), `DS`, `DSi`, `3DS`, `New 3DS` (Nintendo DS, DSi, 3DS, New Nintendo 3DS), `Game Boy`, `Game Boy Color`, `Game Boy Advance` |
 | `Mobile` | `iOS`, `Android`, `Windows Phone` |
 | `Browser` | none - a family alone, aliased `Web browser` |
 
 The first Xbox is `Original Xbox` because `Xbox` is the family's value and
-`uq_system_option_value` allows one per category. The picker offers each
-family followed by its consoles, which is the `sort_order` the seed and
-`g1c2onsoles3` give them.
+`uq_system_option_value` allows one per category.
+
+**Main platforms come first, everywhere a list of platforms is shown.** The
+`sort_order` the seed and `g1m2ainplat3` give the category is the six families
+in the order above, then every console grouped by family in that same order,
+so the picker - and anything else ordered by `sort_order` - offers the main
+platforms first. There is no heading or separate section: the two grains read
+as one list.
 
 **A console brings its family.** `replace_tags` is the one write path for
 tags - the credits API, Fill and Pull all go through it - and for
 `game_platform` it runs `with_platform_families` first: a console whose family
-is not among the values gets the family inserted just before it, so `Switch`
-is stored as `Nintendo, Switch`. A family alone brings no console, and the
+is not among the values gets the family added, and the families come first in
+the fixed main-platform order - PC, PlayStation, Xbox, Nintendo, Mobile,
+Browser - whatever order they were handed in, then every other value in the
+order it was handed. So `Switch, PS5, PC` is stored as
+`PC, PlayStation, Nintendo, Switch, PS5`, and `Windows, PS5, PC` as
+`PC, PlayStation, Windows, PS5`. A value that is neither a family nor
+a known console counts as specific. A family alone brings no console, and the
 rule applies to no other tag field. **Removing a family while one of its
 consoles stays tagged keeps the family**: the write puts it straight back.
 Remove the consoles too and the family goes with them.
 
 The picker does the same before the save (`lib/gamePlatforms.js`, used by
-the Game form's Platform field), so picking `Switch` shows `Nintendo` picked
-and removing `Nintendo` beside `Switch` does nothing. It holds no copy of the
-map: every `Game Platform` option on `GET /api/options` carries `family`, the
+the Game form's Platform field), so picking `Switch` shows `Nintendo` picked,
+ahead of every console, and removing `Nintendo` beside `Switch` does nothing.
+It holds no copy of the console-to-family map: every `Game Platform` option on `GET /api/options` carries `family`, the
 console's family name (null on a family and on every other category), read
-from `GAME_PLATFORMS` rather than stored.
+from `GAME_PLATFORMS` rather than stored. It does hold the six main
+platforms, as `MAIN_PLATFORMS`, because the library's Platform filter orders
+its chips without loading options; a unit test keeps it equal to
+`GAME_PLATFORMS`' families.
 
-Fill tags both grains from one IGDB platform. Games tagged before the
-consoles existed keep their family tags alone; no console was guessed for
-them.
+Fill tags both grains from one IGDB platform, and stores them through
+`replace_tags`, so IGDB's `PlayStation 4, PlayStation 5, PC (Microsoft
+Windows)` is stored as `PC, PlayStation, PS4, PS5, Windows`. Games tagged
+before the consoles existed keep their family tags alone; no console was
+guessed for them.
 
 **Deleting a conversion** removes only the external name, never the value it
 points at. There is no alias endpoint, so it is a `PUT` of the option without
@@ -1185,7 +1201,7 @@ anime-movie, manga, book) and comic.
 | `frontend/src/config/weekdays.js` | `WEEKDAYS` | same in-place overwrite via `day_of_week` |
 | `frontend/src/config/planNextGroups.js` | `SIZE_GROUPS`, `ALLOWED_SCOPES`, `KINDS`, `PLATFORM_GROUPS` and `PLATFORM_GROUP_MEDIA_TYPES` (as `PLATFORM_GROUP_TYPES`) from `plan_next_kinds.py` | **hand-maintained**; `GET /api/plan-next/kinds` is not called. `planNext.test.js` guards `ALLOWED_SCOPES`, `KINDS`, the five types' `SIZE_GROUPS` keys and `PLATFORM_GROUP_TYPES` against drift. It also adds three frontend-only groupings: manga by `serialization_status` (`完結`, `連載中`, `腰斬`, `停更`, ungrouped label `其他`), book by `type` (`網路小說` first, then `輕小說`, `小說`, `短篇集`, `指南/設定集`, `其他`; an empty type falls into `其他`), and anime's `movie` "Movie" and `others` "Others" by `airing_type`, after its size buckets (`planNextGroups(mediaType)` returns a tab's whole list). |
 | `frontend/src/utils/planNext.js` | `COMIC_BANDS` (a copy of the comic `SIZE_THRESHOLDS`) | hand-maintained |
-| `frontend/src/config/statusGroups.js` | `COMPLETED_STATUSES`; `WATCHING_STATUS_GROUP` / `READING_STATUS_GROUP` filter buckets (`Might Watch`/`Might Read`, `Planned`, `Watching`/`Reading`, `Completed`, `Dropped`); `STATUS_PICKER_GROUP` / `groupStatusOptions()` picker groups (`Not Released`, `On-Going`, `Done`) | hand-maintained; both groupings exist only in the frontend. The picker groups are a **display aid only** - `components/ui/StatusOptions.jsx` renders them as `<optgroup>`s in every Add/Modify and detail-page status `<select>`, and nothing filters, sorts or counts by them. A status the map does not know still renders, ungrouped, at the end of the list. |
+| `frontend/src/config/statusGroups.js` | `COMPLETED_STATUSES`; `WATCHING_STATUS_GROUP` / `READING_STATUS_GROUP` filter buckets (`Might Watch`/`Might Read`/`Might Play`, `Planned`, `Watching`/`Reading`/`Playing`, `Stopped` - Paused and Temp Dropped -, `Completed`, `Dropped`); `STATUS_PICKER_GROUP` / `groupStatusOptions()` picker groups (`Not Released`, `On-Going`, `Done`) | hand-maintained; both groupings exist only in the frontend. The picker groups are a **display aid only** - `components/ui/StatusOptions.jsx` renders them as `<optgroup>`s in every Add/Modify and detail-page status `<select>`, and nothing filters, sorts or counts by them. A status the map does not know still renders, ungrouped, at the end of the list. |
 | `frontend/src/components/tracker/OrderEditor.jsx` | `ITEM_IMPORTANCE` | hand-maintained mirror |
 | `fieldOptions.js` extras | `PROGRESS_DISPLAY_OPTIONS` - two entries, `""` (label "— Default (VOL JP/KR) —") and `vol_tw` (label "VOL TW (Taiwan Volumes)"): `book.type` drives structure, so the only genuine choice left is JP/KR volumes vs TW volumes. A book holding any other stored value (`ch`, `vol_original`, `arc_ch`) has it appended back by `withLegacyProgressDisplay()` as a selectable "(legacy)" entry rather than silently reverting to the default. Also `RELEASE_SEASONS` (`WIN`, `SPR`, `SUM`, `FAL`), `RELEASE_MONTHS`, `SEASON_NUMS` (1-10), `PART_NUMS` (1-7), `TRISTATE` (`"true"`, `"false"`) | frontend-only vocabularies with no backend list |
 

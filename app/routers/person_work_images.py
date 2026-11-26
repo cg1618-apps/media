@@ -12,6 +12,9 @@ Writes answer to manage.images, the key every image upload and attach
 already answers to; reads to view.person, like the person page they are
 drawn on. Every route resolves the person through the shared-record rule
 first, so a person the caller cannot see is a 404 here as everywhere else.
+
+A picture rated above the caller's access mode (its content_rating) is not
+listed, and is a 404 to PATCH and DELETE; the reorder leaves it in its slot.
 """
 
 from typing import List
@@ -23,11 +26,12 @@ from sqlalchemy.orm import Session
 from app import models
 from app.dependencies import get_db
 from app.routers.images import read_upload, save_upload
-from app.schemas.image import WorkImageCaptionIn, WorkImageOut, WorkImagesReorder
+from app.schemas.image import WorkImageOut, WorkImagePatchIn, WorkImagesReorder
 from app.services.domain import person_work_images as works
 from app.services.integrations import image_library
 from app.services.rbac.resolver import Viewer, require_manage_images, require_view_person
 from app.services.rbac.shared_visibility import (
+    hidden_ratings,
     hidden_scopes,
     require_visible_shared,
     without_hidden_scopes,
@@ -52,19 +56,25 @@ def _person_or_404(db: Session, viewer, system_id: str) -> models.Person:
     return person
 
 
-def _gallery_out(db: Session, person_id: UUID) -> list[WorkImageOut]:
+def _work_image_out(attachment: models.ImageAttachment, image: models.Image) -> WorkImageOut:
+    return WorkImageOut(
+        system_id=attachment.system_id,
+        image_id=image.system_id,
+        storage_key=image.storage_key,
+        thumb_key=image.thumb_key,
+        width=image.width,
+        height=image.height,
+        caption=attachment.caption,
+        position=attachment.position,
+        content_rating=attachment.content_rating,
+    )
+
+
+def _gallery_out(db: Session, person_id: UUID, viewer) -> list[WorkImageOut]:
+    """The gallery as `viewer` may see it: no picture rated above its mode."""
     return [
-        WorkImageOut(
-            system_id=attachment.system_id,
-            image_id=image.system_id,
-            storage_key=image.storage_key,
-            thumb_key=image.thumb_key,
-            width=image.width,
-            height=image.height,
-            caption=attachment.caption,
-            position=attachment.position,
-        )
-        for attachment, image in works.gallery(db, person_id)
+        _work_image_out(attachment, image)
+        for attachment, image in works.gallery(db, person_id, hidden_ratings(viewer))
     ]
 
 
@@ -88,7 +98,7 @@ def get_work_images(
     visible_roles = without_hidden_scopes(person.roles, hidden_scopes(db, viewer), "scope")
     if not works.holds_gallery_role(visible_roles):
         return []
-    return _gallery_out(db, person.system_id)
+    return _gallery_out(db, person.system_id, viewer)
 
 
 @router.post(
@@ -121,7 +131,7 @@ def upload_work_images(
         image = save_upload(db, picture, filename, admin)
         works.append(db, person.system_id, image)
     db.commit()
-    return _gallery_out(db, person.system_id)
+    return _gallery_out(db, person.system_id, admin)
 
 
 @router.put(
@@ -137,43 +147,56 @@ def reorder_work_images(
 ):
     """
     Whole-list order: `attachment_ids` must name every picture in the gallery
-    exactly once (422 otherwise). Returns the gallery in its new order.
+    the editor can see exactly once (422 otherwise). A picture rated above
+    the editor's access mode is neither named nor moved: it keeps its slot.
+    Returns the gallery in its new order.
     """
     person = _person_or_404(db, admin, system_id)
-    current = {row.system_id: row for row, _ in works.gallery(db, person.system_id)}
+    hidden = hidden_ratings(admin)
+    current = {
+        row.system_id for row, _ in works.gallery(db, person.system_id, hidden)
+    }
     ids = payload.attachment_ids
-    if len(ids) != len(set(ids)) or set(ids) != set(current):
+    if len(ids) != len(set(ids)) or set(ids) != current:
         raise HTTPException(
             status_code=422,
             detail="The order must name every picture in the gallery exactly once.",
         )
-    works.renumber(db, [current[attachment_id] for attachment_id in ids])
+    works.reorder_visible(db, person.system_id, ids, hidden)
     db.commit()
-    return _gallery_out(db, person.system_id)
+    return _gallery_out(db, person.system_id, admin)
 
 
 @router.patch(
     "/{system_id}/work-images/{attachment_id}",
     response_model=WorkImageOut,
-    summary="Caption a Picture in a Person's Gallery of Works",
+    summary="Caption or Rate a Picture in a Person's Gallery of Works",
 )
-def caption_work_image(
+def patch_work_image(
     system_id: str,
     attachment_id: UUID,
-    payload: WorkImageCaptionIn,
+    payload: WorkImagePatchIn,
     db: Session = Depends(get_db),
     admin: Viewer = Depends(require_manage_images),
 ):
-    """Set or clear one picture's caption; blank clears it."""
+    """
+    Set one picture's caption (blank clears it) and/or its content rating.
+    Only the keys sent change. A picture rated above the editor's mode is a
+    404; one the editor rates above its own mode is still answered once,
+    and is then absent from the editor's gallery.
+    """
     person = _person_or_404(db, admin, system_id)
-    attachment = works.find(db, person.system_id, attachment_id)
+    attachment = works.find(db, person.system_id, attachment_id, hidden_ratings(admin))
     if attachment is None:
         raise HTTPException(status_code=404, detail=PICTURE_NOT_FOUND)
-    attachment.caption = payload.caption
+    sent = payload.model_fields_set
+    if "caption" in sent:
+        attachment.caption = payload.caption
+    if "content_rating" in sent:
+        attachment.content_rating = payload.content_rating
     db.commit()
-    return next(
-        row for row in _gallery_out(db, person.system_id) if row.system_id == attachment_id
-    )
+    db.refresh(attachment)
+    return _work_image_out(attachment, db.get(models.Image, attachment.image_id))
 
 
 @router.delete(
@@ -193,7 +216,7 @@ def delete_work_image(
     image.
     """
     person = _person_or_404(db, admin, system_id)
-    attachment = works.find(db, person.system_id, attachment_id)
+    attachment = works.find(db, person.system_id, attachment_id, hidden_ratings(admin))
     if attachment is None:
         raise HTTPException(status_code=404, detail=PICTURE_NOT_FOUND)
     dropped = works.remove(db, person.system_id, attachment)

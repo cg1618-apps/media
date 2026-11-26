@@ -191,18 +191,13 @@ describe("GameAddTab layout", () => {
     expect(endings).toEqual(["", "Yes", "No", "Inapplicable"]);
   });
 
-  it("ends My Tracker with Pinged, then the plan flags", () => {
+  it("leaves the flags out of My Tracker - they are in the marks section", () => {
     const { container } = renderTab();
     const tracker = labelsBySection(container)["My Tracker"];
     expect(tracker.slice(0, 2)).toEqual(["Playing Status", "My Rating"]);
-    expect(tracker.slice(-6)).toEqual([
-      "Pinged",
-      "Pin to the dashboard",
-      "Play Next",
-      "Add to Play Next list",
-      "To Replay",
-      "Mark for replay",
-    ]);
+    for (const flag of ["Pin to dashboard", "Plan Next", "Redo"]) {
+      expect(tracker).not.toContain(flag);
+    }
   });
 });
 
@@ -250,5 +245,5 @@ it("offers Exclusive Source as a single choice of the five platforms", () => {
   renderTab();
   const select = screen.getByLabelText("Exclusive Source");
   const values = [...select.querySelectorAll("option")].map((o) => o.value).filter(Boolean);
-  expect(values).toEqual(["Nintendo", "PlayStation", "Xbox", "PC", "Mobile"]);
+  expect(values).toEqual(["PC", "PlayStation", "Xbox", "Nintendo", "Mobile"]);
 });

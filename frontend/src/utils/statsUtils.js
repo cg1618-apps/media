@@ -1,6 +1,6 @@
 // Frontend: helper functions for statistics calculations.
 import { parseTypes } from "./media";
-import { NO_COVER, entryCover } from "../lib/covers";
+import { NO_COVER, entryCover, getCoverUrl } from "../lib/covers";
 import { getDisplayName as getEntityName } from "../lib/naming";
 import { entityPath } from "../lib/entityPath";
 
@@ -96,10 +96,48 @@ function pickCover(entries, chosen, forType) {
 // FAVOURITE GRIDS
 // ==========================================
 //
-// A grid holds franchises, series or entries (see config/favoriteGrids.js),
-// and the three differ only in how a row is named, covered, linked and
-// filtered. These four dispatch on grid.tier so the grid component and the
-// admin editor can stay tier-blind.
+// A grid holds franchises, series, entries, studios or people (see
+// config/favoriteGrids.js), and the tiers differ only in how a row is named,
+// covered, linked and filtered. These four dispatch on grid.tier so the grid
+// component and the admin editor can stay tier-blind.
+
+const ENTITY_TIERS = ["studio", "person"];
+
+/** Whether `grid` holds studios or people rather than media. */
+export function isEntityGrid(grid) {
+  return ENTITY_TIERS.includes(grid.tier);
+}
+
+// A studio's logo or a person's photo, as the library cards draw it: the
+// server's display_* fallback first (a credited entry's cover), then the
+// row's own image.
+function entityCover(row, tier) {
+  const [file, focus] =
+    tier === "studio"
+      ? [row.display_logo_file ?? row.logo_file, row.display_logo_focus ?? row.logo_focus]
+      : [row.display_photo_file ?? row.photo_file, row.display_photo_focus ?? row.photo_focus];
+  if (!file || file === "N/A") return NO_COVER;
+  return { url: getCoverUrl(file), focus: focus || null };
+}
+
+// Whether an entity row belongs in an entity grid. `mediaTypes` reads the
+// types a studio is credited on; `roles` reads a person's role rows, each
+// `{ role, scopes? }` matching that role in any of `scopes` (or in any scope
+// when it names none); `gender` narrows a person to 男 or 女.
+function entityMatches(row, grid) {
+  if (grid.mediaTypes && !(row.media_types || []).some((t) => grid.mediaTypes.includes(t))) {
+    return false;
+  }
+  if (grid.roles) {
+    const held = row.roles || [];
+    const holds = grid.roles.some(({ role, scopes }) =>
+      held.some((r) => r.role === role && (!scopes || scopes.includes(r.scope))),
+    );
+    if (!holds) return false;
+  }
+  if (grid.gender && row.gender !== grid.gender) return false;
+  return true;
+}
 
 // The slot a row holds in `grid`, or null. A slot outside 1..9 is treated as
 // absent rather than clamped: it cannot be drawn, and silently moving it
@@ -110,16 +148,19 @@ export function slotIn(row, grid) {
 }
 
 export function favoriteName(row, grid) {
+  if (isEntityGrid(grid)) return row.display_name || "—";
   if (grid.tier === "franchise") return getDisplayName(row);
   if (grid.tier === "series") return getEntityName(row, "series");
   return getEntityName(row, grid.entryType);
 }
 
 export function favoritePath(row, grid) {
+  // Every tier but "entry" is also the entity's own path type.
   return entityPath(grid.tier === "entry" ? grid.entryType : grid.tier, row);
 }
 
 export function favoriteCover(row, grid, { byFranchise, bySeries }) {
+  if (isEntityGrid(grid)) return entityCover(row, grid.tier);
   if (grid.tier === "franchise") {
     return getCoverForSlot(row, byFranchise, grid.forType);
   }
@@ -133,7 +174,9 @@ export function favoriteCover(row, grid, { byFranchise, bySeries }) {
 // declare - any of the grid's franchiseTypes, else its key; a series on whether it actually holds an entry of the grid's type,
 // because a series declares no type of its own; an entry list arrives already
 // narrowed to its type.
-export function favoritePool(grid, { franchises, series, bySeries, entries }) {
+export function favoritePool(grid, { franchises, series, bySeries, entries, studios, people }) {
+  if (grid.tier === "studio") return (studios || []).filter((s) => entityMatches(s, grid));
+  if (grid.tier === "person") return (people || []).filter((p) => entityMatches(p, grid));
   if (grid.tier === "franchise") {
     const wanted = grid.franchiseTypes || [grid.key];
     return (franchises || []).filter((f) =>
@@ -151,13 +194,14 @@ export function favoritePool(grid, { franchises, series, bySeries, entries }) {
 }
 
 // Every name a row carries, for the admin picker's search box. Tier-blind on
-// purpose: the five name columns are spelled the same way on a franchise, a
-// series and every entry table, so nothing here has to know which it has.
+// purpose: the name columns are spelled `<prefix>_name_<lang>` on a
+// franchise, a series and every entry table, and bare `name_<lang>` on a
+// studio and a person, so nothing here has to know which it has.
 export function favoriteSearchNames(row) {
   return Object.entries(row)
     .filter(
       ([key, value]) =>
-        /_name_(en|cn|roman|jp|alt)$/.test(key) && typeof value === "string",
+        /(^|_)name_(en|cn|roman|jp|alt)$/.test(key) && typeof value === "string",
     )
     .map(([, value]) => value);
 }

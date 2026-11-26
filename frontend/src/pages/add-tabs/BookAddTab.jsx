@@ -16,7 +16,6 @@ import MultiSelect from "../../components/forms/MultiSelect";
 import CastEditor from "../../components/forms/CastEditor";
 import SourcesEditor from "../../components/forms/SourcesEditor";
 import CoverFields from "../../components/forms/CoverFields";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import MalAnilistScores from "../../components/forms/MalAnilistScores";
@@ -45,12 +44,6 @@ import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import { endpoints } from "../../api/endpoints";
 
 export { defaultBook } from "../../config/formFactories";
-
-const FLAGS = [
-  ["is_pinged", "Pinged", "Pin to the dashboard"],
-  ["read_next", "Read Next", "Add to Read Next list"],
-  ["to_reread", "To Reread", "Mark for reread"],
-];
 
 // A book sits in a Book, Anime or Manga franchise, or an untyped one.
 const BOOK_FRANCHISE_TYPES = ["Book", "Anime", "Manga"];
@@ -126,6 +119,26 @@ export function BookFormBody({ f, u, sources, ownerId }) {
   const chapters = countsChapters(f);
   const volumes = countsVolumes(f);
 
+  const progressDisplay = (
+    <Field label="Progress Display" hint="Which tracker to show on the card">
+      <select
+        className={selectCls}
+        value={f.progress_display ?? ""}
+        onChange={(e) => u("progress_display", e.target.value)}
+        aria-label="Progress display"
+      >
+        {withLegacyProgressDisplay(
+          progressDisplayOptions(f),
+          f.progress_display,
+        ).map(({ value, label }) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
+      </select>
+    </Field>
+  );
+
   return (
     <>
       <EntryNameFields
@@ -151,25 +164,11 @@ export function BookFormBody({ f, u, sources, ownerId }) {
         </Field>
         <SelectInput f={f} u={u} name="my_rating" label="My Rating" options={MY_RATINGS} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Progress Display" hint="Which tracker to show on the card">
-          <select
-            className={selectCls}
-            value={f.progress_display ?? ""}
-            onChange={(e) => u("progress_display", e.target.value)}
-            aria-label="Progress display"
-          >
-            {withLegacyProgressDisplay(
-              progressDisplayOptions(f),
-              f.progress_display,
-            ).map(({ value, label }) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
+      {/* Progress Display closes the volume row; a 網路小說, which has no
+          volume row, keeps it on a row of its own here. */}
+      {!volumes && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{progressDisplay}</div>
+      )}
       {/* Arc and chapter counters exist only for the types that count them.
           A 輕小說 or a 小說 counts volumes, and the server clears these
           columns on save, so offering the inputs would invite an edit that is
@@ -190,7 +189,7 @@ export function BookFormBody({ f, u, sources, ownerId }) {
           columns keep whatever they hold (a later print run, or a type change
           back) but are not edited from here. */}
       {volumes && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <NumberInput f={f} u={u} name="vol_fin" label="Vol Finished" />
           <NumberInput
             f={f}
@@ -199,9 +198,9 @@ export function BookFormBody({ f, u, sources, ownerId }) {
             label="Total Volumes (JP/KR)"
           />
           <NumberInput f={f} u={u} name="vol_total_tw" label="Vol Total (TW)" />
+          {progressDisplay}
         </div>
       )}
-      <EntryFlags f={f} u={u} flags={FLAGS} />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -217,7 +216,7 @@ export function BookFormBody({ f, u, sources, ownerId }) {
           />
         </Field>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <SelectInput
           f={f}
           u={u}
@@ -225,8 +224,6 @@ export function BookFormBody({ f, u, sources, ownerId }) {
           label="Serialization Status"
           options={SERIALIZATION_STATUSES}
         />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <ReleaseDateInput
           label="Release Date JP"
           value={f.release_date_jp}

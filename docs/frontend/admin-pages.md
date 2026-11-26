@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -390,14 +390,34 @@ server's `entry_count`, highest first (`busiestFirst`; ties keep A-Z). The
 same order reaches every franchise and series picker on Add, Modify and
 Delete.
 
-The pages differ only in their wrappers and in `ownerId`:
+**The marks section** opens both pages: one card (`FormMarksSection`,
+styled like the editor card) drawn by `Add.jsx` and `Modify.jsx` rather than
+by the bodies. It holds, in order, each piece only on the tabs that have it:
+
+- **the flags** (`EntryFlags`, the twelve media types) — one checkbox each,
+  labelled **Pin to dashboard** (`is_pinged`), **Plan Next** (`watch_next`,
+  `read_next`, `play_next`) and **Redo** (`to_rewatch`, `to_reread`,
+  `to_replay`). Which a type has is `ENTRY_FLAGS` in `config/entryFlags.js`:
+  cartoon has no Redo, and the gated types have no pin. They are fields of
+  the tab's form and save with it;
+- **待補充** (`NEEDS_WORK_OWNER_TYPES`: the twelve media types and the three
+  tiers) — see "待補充 Needs Work" under each page below;
+- **the content labels** (`LABELLABLE_TABS`; on Modify, once the open record
+  has an id).
+
+So a collection, franchise or series tab shows 待補充 and the labels only,
+and a tab with none of the three (options, the entity tabs) draws no
+section.
+
+The pages differ otherwise only in their wrappers and in `ownerId`:
 
 - **Add wrapper** — a card holding the auto-fill box (`EntryAutofillSearch`)
   and the type's external search box(es), then the **Titles & Naming** header,
-  the lineage fields and the body.
+  the lineage fields and the body. The marks section sits above this card.
 - **Modify wrapper** — the **Titles & Naming** header, the lineage fields, the
   body with `ownerId` (the open entry's `system_id`), then **Structured
-  Notes**. The franchise ribbon sits above the card, drawn by `Modify.jsx`.
+  Notes**. Above the card, drawn by `Modify.jsx`: the marks section under the
+  Back bar, then the franchise ribbon.
 - **`ownerId`** is the only thing a body does differently between the pages:
   it goes to `ImagePicker` (and decides whether an upload is held as
   `pending_image_id` until the entry exists), to `CastEditor`'s `entryId`, and
@@ -424,17 +444,20 @@ on every type.
 **Sections**, in the detail page's order, with the same title and icon on
 every type; a type leaves out what it lacks:
 
-1. **Titles & Naming** (`fa-tag`) — h-comic's region first; franchise | series
+1. **Titles & Naming** (`fa-tag`) — h-comic's serialization status and
+   region first; franchise | series
    (anime movie: franchise only); names, CN always top-left: `cn | en`, then
    `roman | jp` where the type has them (h-comic: its region's JP or KR name),
    then `alt` full width. The romanised name is labelled **Romaji** everywhere.
 2. **Scores** (`fa-star`) — MAL and AniList, IMDb, or Metacritic. A TV show or
-   cartoon has two IMDb fields: **IMDb Rating** (this season) and **IMDb Show
-   Rating** (the whole show).
+   cartoon has two IMDb fields: **IMDb Rating** (hint "this season's avg ep
+   score") and **IMDb Show Rating** (hint "all seasons"). MAL and AniList
+   (`MalAnilistScores`) are two rows: MAL Rating | MAL Rank, then AniList
+   Rating | AniList Rank | AniList Popularity Rank.
 3. **My Tracker** (`fa-chart-bar`) — status | my rating (| usefulness on the
    gated types), each progress count beside its total (`ep_fin | ep_total`,
-   `ch_fin | ch_total`, …), Paused at, the type's extras, and the flags row
-   last.
+   `ch_fin | ch_total`, …), Paused at and the type's extras. The flags are
+   not here: they are in the marks section.
 4. **Information** (`fa-info-circle`) — classification, status, release dates,
    lone totals and lengths.
 5. **Genres & Labels** (`fa-tags`; **Genres** on the gated types, which carry
@@ -675,9 +698,9 @@ the record is still created, and an error toast says "<Type> saved, but your
 rating did not save."
 
 **待補充 Needs Work.** The twelve media tabs and the three tier tabs
-(`NEEDS_WORK_OWNER_TYPES`) draw `NeedsWorkAddField` under the content labels,
-for a `manage.requests` holder only: a **待補充 Needs Work** checkbox and,
-once ticked, the note field (`NeedsWorkNoteInput`, common notes as chips).
+(`NEEDS_WORK_OWNER_TYPES`) draw `NeedsWorkAddField` in the marks section,
+between the flags and the content labels, for a `manage.requests` holder
+only: a checkbox labelled just **待補充** and, once ticked, the note field (`NeedsWorkNoteInput`, common notes as chips).
 Like the content labels it is held on the page (`needsWork`, `{flagged,
 note}`), not in a tab's form. Nothing is written while editing: once the
 create has returned the new id, `saveNeedsWork` sends `PUT
@@ -722,9 +745,10 @@ Play Next / To Replay flags; Information - **Main / Remake** (`is_main` over
 `GAME_IS_MAIN`, starting on Main), game type, a **Base Game** `ComboBox`
 that never offers the row being edited (`ck_games_not_self_parent`), release
 status, release date, current patch, the three HLTB tiers and the platform,
-mode and combat vocabularies - picking a platform console picks its family
-too, and a family stays picked while one of its consoles is
-(`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
+mode and combat vocabularies - the platform list offers the six main
+platforms first, picking a platform console picks its family too, the main
+platforms stay ahead of the consoles in the field, and a family stays picked
+while one of its consoles is (`lib/gamePlatforms.js`); Genre, Theme and Label; Production (Developer
 is a **studio** row, Publisher a **publisher** row offered from the
 `game`-scoped list, both **picked, never created here** - the field has no
 add row, and a new company is made on the Studio or Publisher tab first;
@@ -857,7 +881,10 @@ from every studio in `StudioAffiliationField` and sent with the person as
 `studio_ids`: **男** and **女** as `QuickPicks` chips beside a closed
 select of "—", 男 and 女 — `PERSON_GENDERS`, a person's whole vocabulary — one
 click picks, clicking the pressed chip clears, and the select follows either
-way; unset saves as null). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
+way; unset saves as null), and a **Content rating** select
+(`ContentRatingField`, the same file: Normal, Borderline (15+), Unrestricted
+(18+) over `CONTENT_RATINGS`, starting on Normal - the `defaultPerson()`
+value - and sent as `content_rating`). Then a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), an
 **AniList Link** (`anilist_link`, placeholder `https://anilist.co/staff/...`;
 stored as typed, a blank one as null, nothing derived or filled from it), the
@@ -1014,8 +1041,9 @@ in the list is kept as typed and never added to it), founded/defunct dates
 (`ReleaseDateInput`, so partial precision is allowed), website, MAL
 id/link and **AniList Link** (`anilist_link`, placeholder
 `https://anilist.co/studio/...`; stored as typed, a blank one as null,
-nothing filled from it), with **My Rating** for a list keeper (see "The viewer's
-own rating" above). Submit is blocked client-side until at least one name is filled,
+nothing filled from it), a **Content rating** select (`ContentRatingField`,
+as on the person tab, sent as `content_rating`), with **My Rating** for a list
+keeper (see "The viewer's own rating" above). Submit is blocked client-side until at least one name is filled,
 matching `ck_studio_has_a_name` and the schema's 422. `POST /api/studio/` is
 find-or-create: posting a name that already exists returns the existing
 studio rather than splitting its credits, and leaves its metadata untouched.
@@ -1030,7 +1058,8 @@ fields with the "Display name" select — it is the third consumer of the shared
 logo key, country (one, free text: a `SuggestInput` suggesting the
 `Country` common options the studio Countries field reads, with no chip
 picks; what is typed is stored, and never added to the list),
-founded/defunct `ReleaseDateInput`s and website. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
+founded/defunct `ReleaseDateInput`s, website and the **Content rating**
+select the studio tab has. **MAL ID and MAL Link are deliberately absent**: the `publisher` table
 carries no MAL columns, because MAL has no record of a games publisher or a
 Taiwanese distributor. Submit is blocked until at least one name is filled,
 matching `ck_publisher_has_a_name`. Below the name fields sits
@@ -1081,15 +1110,32 @@ is gone.
 
 Same tab bar and the same per-type forms (`pages/modify-tabs/*`), plus
 **Fav 3x3** (`Fav3x3ModifyTab.jsx`: the favourite grids of
-`config/favoriteGrids.js` - nine, and eleven for a session that can see
-h-game - each stored as a `type_slots` map on the row it
-holds — a franchise, a series or an entry; see
+`config/favoriteGrids.js`, under two headings as on the statistics page -
+**Favourite Media**, nine grids and eleven for a session that can see h-game,
+then **Favourite Entity**, the ten studio and people grids - each stored as a
+`type_slots` map on the row it holds — a franchise, a series, an entry, a
+studio or a person; see
 [pages.md](pages.md#statistics--statistics--completions--completions)).
 Beside each grid a ranked list of its nine slots reorders it: a row dragged
 onto another slot **swaps** the two (`swapSlots`; nothing else moves, and an
 empty slot simply takes the row), ArrowUp / ArrowDown on a focused row swaps
 it with its neighbour, and each grid has its own drag context, so a row can
 only land in its own grid. The swap is a draft until **Save Grid**.
+
+This tab is the only place a slot is set: the franchise and series forms
+carry no slot field. What a group form still owns is the cover a grid
+borrows — the franchise form's per-type **3x3 Cover** (`type_covers`) and a
+group's `cover_entry_id`. Clicking a card opens the picker, which assigns a
+row or clears the slot; a filled card and a filled ranked row also carry a
+**×** that empties the slot directly, without opening the picker or starting
+a drag. Save then PATCHes every row whose slot in that grid changed — a
+removed row is written back with the grid's key dropped from its
+`type_slots` (`null` when no key is left), the other grids' keys untouched.
+The 3×3 has a fixed width, so a grid with nothing in it still shows nine
+full-size empty slots to click. A studio or person row is saved through its
+own `PATCH /api/studio/{id}` / `PATCH /api/person/{id}`, the only writer of
+those tables' `type_slots`; the tab fetches the two lists with the rest
+(`MODIFY_TAB_LISTS.fav3x3`, `ENTITY_LIST_TYPES` in `useEntryLists`).
 
 - **Data loading** is `hooks/useEntryLists.js`, as on `/add`: collections,
   franchises and series eagerly, the media lists per tab. The three
@@ -1122,15 +1168,17 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   counter), and the label picker clears the previous selection before
   fetching, so a slow or failed fetch can never save one entry's credits or
   labels onto another.
-- **待補充 Needs Work.** Under the editor card's heading, for the twelve
+- **待補充 Needs Work.** In the marks section, for the twelve
   media types and the three tiers (`NEEDS_WORK_OWNER_TYPES` in
   `lib/needsWork.js`) and a `manage.requests` holder only:
-  `components/needs-work/NeedsWorkControl.jsx`, a checkbox and, once
+  `components/needs-work/NeedsWorkControl.jsx`, a checkbox labelled just
+  **待補充** and, once
   ticked, the note field (`NeedsWorkNoteInput`: the common notes as chips
   and as its only suggestions) with **Save note**. It saves on its own - ticking PUTs, unticking DELETEs - and never
   through the editor's Save: the mark is its own row, not a column of the
   entry. See [/needs-work](#needs-work-needsworkjsx).
-- **Other entries in this franchise.** Above the editor card, a media entry
+- **Other entries in this franchise.** Between the marks section and the
+  editor card, a media entry
   in a franchise gets a ribbon of that franchise's other entries of the same
   type, grouped by series (a "No Series" group last), each a chip that opens
   its editor. Every media type draws it with `FranchiseRibbon`
@@ -1294,7 +1342,8 @@ only land in its own grid. The swap is a draft until **Save Grid**.
   show that entry's cover when the person has no photo. Below that, while the
   form's roles hold `author` or `illustrator`, sits **Works**
   (`WorkImagesEditor`): the person's gallery of works, which saves as it is
-  edited rather than with the form, as the photo does - see
+  edited rather than with the form, as the photo does - each picture has its
+  caption and its own **Content rating** select, PATCHed on change - see
   [components.md](components.md#entity-components-person-studio-and-character).
 - **Identity tab (Entity).** `IdentityModifyTab.jsx`, self-contained over `GET /api/character-identity/` (query key `["identities-admin"]`): `IdentityPicker`, a search box over every name of the identity and its character plus a grid of every identity showing "identity of <character>", then the `IdentityFields` form with the owning character shown read-only. Save is `PUT /api/character-identity/{id}`. A deep link `type=identity` hands the id to it as `initialId`.
 - **Character tab (Entity).** `CharacterModifyTab.jsx`, self-contained the
@@ -1514,7 +1563,7 @@ for them entirely.
 ## /random-defaults (`PickerDefaults.jsx`)
 
 What each Random Picker mode opens with. A mode strip (`components/picker/ModeStrip.jsx`,
-the picker's own, as buttons) offers All, every type the session may see, and Franchise;
+the picker's own, as buttons) offers Franchise, then every type the session may see, in the picker's order, and opens on Franchise;
 each mode loads through `usePickerData`, the same hook the picker uses, so the
 panel shows exactly the picker's filters - including the chips of a dynamic
 filter, derived from the current lists - opened on what is saved. The footer

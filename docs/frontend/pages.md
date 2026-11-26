@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -720,7 +720,7 @@ viewer. In the table below the personal defs are marked *(p)*.
 | manga | yes | serializationStatus (BOOK_SERIALIZATION_STATUSES order) · readingStatus: set-grouped *(p)* · region (MANGA_REGIONS order: 日漫 韓漫 國漫 台漫 其他) | title, release_date, end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, ch *(p)*, vol *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | book | yes | serializationStatus (BOOK_SERIALIZATION_STATUSES order) · readingStatus *(p)* · type (BOOK_TYPES order: 小說 輕小說 網路小說 短篇集 指南/設定集 其他) · region (BOOK_REGIONS order: 歐美 日本 中國 韓國 台灣) | title, release_date (jp→tw), end_date, my_rating *(p)*, mal_rating, anilist_rating, anilist_popularity_rank | franchise, title_cn, title_en, status, progress (`getBookProgress`) *(p)*, my *(p)*, mal, read *(p)*, read_next *(p)*, to_reread *(p)* |
 | comic | yes | comicType: set-dynamic · readingStatus *(p)* (Era and Event are advanced filters, below) | title (EN-first), release_date, my_rating *(p)* | franchise, title_en, title_cn, volume_label, comic_type, era, progress (`issue_fin / issue_total ISS`) *(p)*, my *(p)*, read *(p)*, to_reread *(p)* |
-| game | yes | gameType (`GAME_TYPES` order: Base Game, DLC, Expansion, Bundle) and releaseStatus (`GAME_RELEASE_STATUSES` order: Unreleased, Early Access, Released, Ongoing, Discontinued, Cancelled) on one line · playingStatus: set-grouped (Might Play / Planned / Playing / Completed / Dropped via `PLAYING_STATUS_GROUP`, a hint per chip and the circled ?) *(p)* · gameMode and combatMode (`game_mode`, `combat_mode`) on one line · gamePlatform (`game_platform`) | title (EN-first, `getSortName`), release_date, my_rating *(p)*, metacritic_score ("Metacritic"), metacritic_user_score ("Metacritic User"), hours_played ("Playtime"), price_original_us ("US Price") - each number highest first, a missing one last | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
+| game | yes | gameType (`GAME_TYPES` order: Base Game, DLC, Expansion, Bundle) and releaseStatus (`GAME_RELEASE_STATUSES` order: Unreleased, Early Access, Released, Ongoing, Discontinued, Cancelled) on one line · playingStatus: set-grouped (Might Play / Planned / Playing / Stopped / Completed / Dropped via `PLAYING_STATUS_GROUP`, a hint per chip and the circled ?) *(p)* · gameMode and combatMode (`game_mode`, `combat_mode`) on one line · gamePlatform (`game_platform`; the main platforms first in their fixed order PC, PlayStation, Xbox, Nintendo, Mobile, Browser, then the specific ones by how many games carry each - `mainPlatformsFirst`) | title (EN-first, `getSortName`), release_date, my_rating *(p)*, metacritic_score ("Metacritic"), metacritic_user_score ("Metacritic User"), hours_played ("Playtime"), price_original_us ("US Price") - each number highest first, a missing one last | franchise, title_cn, title_en, game_type, hours_played (`32.5 h`), my *(p)*, play (`playButtonColumn`) *(p)*, to_replay *(p)* |
 
 Every library's filters end in an **advanced section** — tag filters, drawn
 by `FilterPanel` behind a collapsed **Advanced filters** toggle (see
@@ -769,7 +769,7 @@ Not Yet Aired, Airing, Finished Airing, Canceled.
 **Watch Status is one def on all six watch libraries** — anime, anime
 movie, movie, TV show, cartoon and hentai — `watchStatusFilter(type)` in
 `lib/libraryFilterDefs.js`. Its chips run Might Watch, Planned, Watching,
-Completed, Dropped, each a group of stored statuses through
+Stopped, Completed, Dropped, each a group of stored statuses through
 `WATCHING_STATUS_GROUP`, and each chip's hover title (`optionHint`) lists the
 statuses it includes in that type's vocabulary (`watchingStatusesFor`). The
 circled **?** after the **Watch Status** label shows the whole table below
@@ -779,17 +779,20 @@ on hover or focus:
 |---|---|
 | Might Watch | Might Watch, and a row with no status |
 | Planned | Plan to Watch, Watch When Airs (airing types) or Watch When Released (movie, anime movie) |
-| Watching | Active Watching, Passive Watching, Paused |
+| Watching | Active Watching, Passive Watching |
+| Stopped | Paused, Temp Dropped |
 | Completed | Completed, Completed (解說) |
-| Dropped | Temp Dropped, Dropped, Won't Watch |
+| Dropped | Dropped, Won't Watch |
 
 **Read Status on manga and book is the same kind of def**, `readStatusFilter()`:
-chips Might Read, Planned, Reading, Completed, Dropped through
+chips Might Read, Planned, Reading, Stopped, Completed, Dropped through
 `READING_STATUS_GROUP`, each with its included statuses as a hint and the
 circled **?** after the label listing them all - Might Read is Might Read and
 a row with no status; Planned, Plan to Read; Reading, Active Reading, Passive
-Reading and Paused; Completed, Completed and Completed (解說); Dropped, Temp
-Dropped, Dropped and Won't Read.
+Reading; Stopped, Paused and Temp Dropped; Completed, Completed and
+Completed (解說); Dropped, Dropped and Won't Read. Comic, h-comic and h-game
+group their status filters through the same maps, so Paused and Temp
+Dropped are Stopped there too.
 
 **A vocabulary column's chips follow the vocabulary** on manga and book -
 Serialization Status, Region and Type, through `vocabularyFilter(key, label,
@@ -955,8 +958,11 @@ joined), **Entry types** (`lg`, a chip per `media_types` entry), **Credits**,
 The **Filters** button (`FilterToggleButton`, with the active-chip count)
 toggles a `FilterPanel` over `studioFilterDefs(auth)` from
 `lib/entityFilters.js`, open when the page loads. Every entity library's
-filters open with **Entry type** and close their ordinary ones with **My
-Rating**:
+filters open with **Entry type**, and every one draws **My Rating** in its
+advanced section (behind **Advanced filters**): last there on the studio,
+publisher and person libraries, right after Identities on the character
+one. The studio library's ordinary filters are Entry type and Country; its
+advanced ones are Content rating, Relation and My Rating:
 
 - **Entry type** — anime, anime movie, game, **No entries**, then a
   **Restricted** parent chip over hentai and h-game, matched against
@@ -968,13 +974,21 @@ Rating**:
   chip of its own, and **Not set**, for one naming none, each only when a
   studio needs it. A studio matches every chip one of its countries falls
   under, so one from Japan and Poland is found under Japan and under Others.
-- **Relation** — Has relation / No relation, off `has_relations`, which
-  counts only related companies the viewer may see. The publisher library has
-  the same filter.
-- **My Rating** — `MY_RATINGS` plus Unrated (null), the viewer's own
-  rating (`myRatingFilter()` in `lib/libraryFilterDefs.js`, the media
-  libraries' def drawn in the ordinary section); only for a holder of
-  `self.list` (`studioFilterDefs(auth, { ownData })`).
+- **Content rating** (advanced) — the content ratings the active access
+  mode can be served (`contentRatingsVisibleIn(auth.mode.key)` in
+  `config/fieldOptions.js`): Normal and Borderline (15+) in the borderline
+  mode, those and Unrestricted (18+) in unrestricted. The server withholds
+  every record rated above the active mode, so a wider chip could match
+  nothing; in safe and normal only Normal is left, and the group is not
+  drawn. A row with no `content_rating` counts as Normal. The person and
+  publisher libraries have the same filter.
+- **Relation** (advanced) — Has relation / No relation, off
+  `has_relations`, which counts only related companies the viewer may see.
+  The publisher library has the same filter.
+- **My Rating** (advanced) — `MY_RATINGS` plus Unrated (null), the viewer's
+  own rating (`myRatingFilter({ advanced: true })` in
+  `lib/libraryFilterDefs.js`, the media libraries' def); only for a holder
+  of `self.list` (`studioFilterDefs(auth, { ownData })`).
 
 Every entity library opens with nothing ticked. An empty Entry type group is
 not "no filter": its `idle` rule keeps every row except one whose entries are
@@ -1013,7 +1027,8 @@ library.
 
 The filter panel is the studio library's, over `publisherFilterDefs(auth)`,
 open on the same default, with the same Clear all and Reset, in the order
-Entry type, Kind, Country, Relation, My Rating. **Kind** — 遊戲發行商 (game), 台灣出版社 (manga, book),
+Entry type, Kind, Country, then in the advanced section Content rating,
+Relation, My Rating. **Kind** — 遊戲發行商 (game), 台灣出版社 (manga, book),
 台灣代理商 (anime, anime movie) and 其他 (every other type; comic, today).
 It reads the same `media_types` **or** `scopes` as Entry type, a publisher
 covering several kinds matches each of them, and it starts empty. The kinds
@@ -1023,8 +1038,8 @@ offers the six publisher types — anime, anime movie, manga, book, comic,
 game — and No entries, with no Restricted parent (no publisher type is
 gated), and matches `media_types` **or** `scopes`: a publisher offered on
 manga but not yet credited on one is still found under Manga. No entries
-still means no visible credits, whatever the scopes. **My Rating** is the
-studio library's. **Country** is simpler than the studio one, because a
+still means no visible credits, whatever the scopes. **Content rating**,
+**Relation** and **My Rating** are the studio library's. **Country** is simpler than the studio one, because a
 publisher names one country: every country on record, the one the most
 publishers name first (`valuesByCount`, ties by name), plus Not set last
 when a publisher has none.
@@ -1040,8 +1055,8 @@ File `pages/library/PersonLibrary.jsx`. Same shape and the same reasoning as
 outside `LIBRARY_CONFIGS` with its route declared before `/library/:type`.
 
 Raw `fetch` of `/api/person/` alone: the response carries `display_name`,
-`credit_count`, `display_photo_file`, `media_types`, `my_rating`, `gender`
-and the `roles` each person holds, which is what lets every filter run
+`credit_count`, `display_photo_file`, `media_types`, `my_rating`, `gender`,
+`content_rating` and the `roles` each person holds, which is what lets every filter run
 client-side — one request serves every filter, where a per-filter request
 would refetch on each click. Search runs over all four name columns
 (`PERSON_NAME_FIELDS`), not just the displayed one. Sort
@@ -1070,8 +1085,10 @@ AND across groups:
   the Club chip only for a session that can see h-comic. The admin sub-tabs
   keep their English labels.
 - **Gender** — `PERSON_GENDERS` (男, 女) plus Not set (null).
-- **My Rating** — `MY_RATINGS` plus Unrated (null); only for a holder of
-  `self.list`, as on the studio library.
+- **Content rating** (advanced) — the studio library's: the ratings the
+  active access mode can be served, not drawn in safe and normal.
+- **My Rating** (advanced) — `MY_RATINGS` plus Unrated (null); only for a
+  holder of `self.list`, as on the studio library.
 
 Each `PersonCard` (`components/cards/StaffCard.jsx`, shared with `/search`)
 shows `display_photo_file` — the photo, or the server-resolved fallback
@@ -1126,10 +1143,11 @@ anime movie, manga, book, game, No entries, then a **Restricted** parent chip
 over h-comic and hentai (not h-game: nobody is cast on an h-game) — then
 **Role** — Main, Core, Important Supporting, Supporting, Other, plus Not set
 for null, matched against the character's own `role` field and never against
-the roles its castings carry — then **Gender** and **My Rating**; and in the
-advanced section **Card** (Characters, Identities: tick one to show only that
-kind; empty shows both), **Identities** (Has identities, No identities: an
-identity card always counts as having them), **Appearance** and **Trait** —
+the roles its castings carry — then **Gender**; and in the advanced section
+**Card** (Characters, Identities: tick one to show only that kind; empty
+shows both), **Identities** (Has identities, No identities: an identity card
+always counts as having them), **My Rating** (only for a holder of
+`self.list`), **Appearance** and **Trait** —
 the last two `set-dynamic` groups over the values the loaded characters
 hold, the one the most characters carry first (`valuesByCount`, ties by
 name), plus Not set last when a character's list is empty; a character
@@ -1216,7 +1234,9 @@ The **Profile** card leads with the person's names, one per line — each of
 the four that is set (`namingRows`, the same list the Naming card draws
 elsewhere) — then gender and the types they are offered under, by their
 Chinese labels (`personTypeLabel`: 導演, 作曲, …, as the person library's
-Type filter names them), then **Affiliation**, the studios they belong to as
+Type filter names them) and the **Content rating** (`contentRatingLabel`:
+Normal, Borderline (15+), Unrestricted (18+); drawn always, Normal when the
+record carries none), then **Affiliation**, the studios they belong to as
 links.
 
 A person may hold several roles, so `/entries` groups by **(media type,
@@ -1371,8 +1391,9 @@ block and the credits, drawn as on the studio page.
 
 Two differences from the studio page. The **Profile** card is one row, in
 the order **Country**, **Types** (the media types the publisher is offered
-on, `scopes`, by their media-type labels) and **Active** (`founded –
-defunct`, as on the studio page). And the Links card carries the **Website**
+on, `scopes`, by their media-type labels), **Active** (`founded –
+defunct`, as on the studio page) and **Content rating**, labelled as on the
+person page. And the Links card carries the **Website**
 alone: `PublisherResponse` has no `mal_id` / `mal_link` / `anilist_link`,
 because MAL has no record of a games publisher or a TW distributor.
 
@@ -1409,7 +1430,8 @@ Layout:
 4. **Right column** — the heading and its credited-entry count, a "Profile"
    `InfoCard` (countries, comma-joined in order; **Active**: `founded –
    defunct`, or `Since founded` while the studio is still working, and no
-   invented span when both are empty), the **Notes** block, the **People**
+   invented span when both are empty; **Content rating**, labelled as on the
+   person page), the **Notes** block, the **People**
    slip (`AffiliatedPeople`, the people affiliated with the studio; none drawn
    when there are none), then the credits.
 
@@ -1603,7 +1625,8 @@ Top to bottom:
 2. **Admin actions** (`isAdmin`), the dashed strip
    `components/layout/AdminActions.jsx` draws, with no caption. It has two
    groups: at the left end the editing actions, **Edit** then **Autofill &
-   update**; at the right end the status steps, the release button then
+   update**, both the plain default `Button` - Autofill is not a primary
+   action; at the right end the status steps, the release button then
    **Mark completed**, which is always last. On a narrow screen the right
    group wraps to a line of its own and stays right-aligned. Every page
    passes its own buttons and handlers; the strip owns only the layout.
@@ -2047,12 +2070,17 @@ Overall loads `/api/seasonal/current-season`, `/api/seasonal/`,
 season. Tabs **Current Season** (sections Completed / Watching / Planned /
 Might Watch / Dropped with a `RatingDistributionBlock`), **Next Season**
 (Watch When Airs / Plan to Watch / Might Watch / Other) and **All Seasons**
-(year × WIN/SPR/SUM/FAL table linking `/seasonal/{id}`). Detail loads
+(year × WIN/SPR/SUM/FAL table linking `/seasonal/{id}`). The page header is
+the **Seasonal** title alone, with no eyebrow above it and no current-season
+line below it - the Current Season tab names the season. Detail loads
 `/api/seasonal/{id}`, `/api/anime/?airing_season={id}`, `/api/franchise/`,
 with prev/next season arrows, a `RatingDistributionBlock`, and sections
 Completed / Watching / Watch When Airs / Plan to Watch / Might Watch /
 Dropped. The hero's **Planned** figure is `entry_planned`, which still counts
-both of the two planned statuses together. Both render `DashboardCard`s with the same
+both of the two planned statuses together. Both render `DashboardCard`s with
+`showTypeSpine={false}` and `showMalScore` - every card is an anime, so the
+type spine beside the cover is dropped and the chip row carries **MAL
+{mal_rating}** (titled "MAL score", absent when the anime has none) - and the same
 optimistic `PUT /api/me/list/{id} { ep_fin }` (`putMyListRow`). **The
 viewer's own** (`useViewScope().ownData`): a "Seasonal Rating" select →
 `PATCH /api/seasonal/{id} { my_rating }`, the account's own season row, and
@@ -2083,14 +2111,15 @@ toast reports how many succeeded and names each failure with the server's
 
 Files `pages/public/Statistics.jsx`, `pages/statistics/useStatisticsData.js`,
 `StatsFavoriteGrids.jsx`, `StatsFranchiseSummary.jsx`, `StatsCompletions.jsx`,
-`StatsCatalogue.jsx`, `pages/public/Completions.jsx`,
+`StatsCatalogue.jsx`, `StatsGameSpend.jsx`, `sections.js`,
+`pages/public/Completions.jsx`,
 `components/charts/BarChart.jsx`.
 
 **The catalogue sections** (`StatsCatalogue.jsx`, over the pure functions
 in `catalogueStats.js`) come from one `GET /api/statistics/catalogue`, over
 what the viewer's role and mode show. A shared account sees them as the
 whole page; a viewer with a list sees them at the end, after Game Spend,
-with sidebar entries of their own (`StatsCatalogueSections`). Three blocks:
+with contents rows of their own (`StatsCatalogueSections`). Three blocks:
 
 - **Entries by type** - Type, Franchises and Entries, in the registry's
   order. Franchises is the distinct franchises holding at least one visible
@@ -2100,10 +2129,14 @@ with sidebar entries of their own (`StatsCatalogueSections`). Three blocks:
   which lays every season out as season/count pairs in CSS columns - two on
   a phone, up to six on a wide screen, reading down each. Escape, the close
   button or a press on the backdrop closes it.
-- **Rating distribution** (eyebrow Catalogue, sidebar label "Catalogue
+- **Rating distribution** (eyebrow Catalogue, contents label "Catalogue
   ratings", so it is not confused with the personal Rating distribution) -
-  two `RatingDistributionCard`s, MAL rating in ten one-point buckets and
-  AniList score in ten ten-point buckets, highest first. Each pools every
+  four `RatingDistributionCard`s, two to a row: MAL rating and IMDb rating
+  (`imdb_rating` on movie, TV show and cartoon) in ten one-point buckets,
+  AniList score and Metacritic score (the critic `metacritic_score` on game)
+  in ten ten-point buckets, highest first, read from the payload's
+  `scores.mal`, `scores.anilist`, `scores.imdb` and `scores.metacritic`; a
+  score the payload does not carry draws an empty chart. Each pools every
   media type carrying the score and has its own type selector, defaulting to
   All types; every bucket is drawn, at zero if empty, so the chart keeps its
   shape whatever is selected.
@@ -2111,8 +2144,8 @@ with sidebar entries of their own (`StatsCatalogueSections`). Three blocks:
 The two tables are each as wide as their content, side by side when the
 screen has room and stacked when it does not.
 
-**Without a list** the personal sections, and the sidebar that indexes
-them, are absent rather than empty, and `useStatisticsData` never runs.
+**Without a list** the personal sections, and the table of contents that
+indexes them, are absent rather than empty, and `useStatisticsData` never runs.
 Everything else in this section is the version with a list.
 
 `useStatisticsData` runs `useMediaList` for franchise, series and every
@@ -2120,19 +2153,24 @@ entry type the session may see (`h-comic`, `h-game` and `hentai` each only
 when visible, and handed on as `null` otherwise) plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
 `useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`.
 
-`StatsSidebar.jsx` is a sticky in-page table of contents down the left, built
-from `pages/statistics/sections.js` — one entry per block and one per
-favourite grid (a gated grid's entry only for a session that can see its
-type), with an IntersectionObserver highlighting whichever section is
-nearest the top. It is `lg:`-only: on a narrow screen the page is already one
-column. A section's id is both the sidebar's anchor and the block's `id`,
-because `sections.js` is the only place either is written down.
+The table of contents is the shared `TableOfContents` on the right, `xl:`
+only, and below `xl` the same rows as a `ContentsBar` pinned under the nav -
+the Plan page's frame (see [components.md](components.md)). Its rows are
+`statsTocItems` in `pages/statistics/sections.js`: one per block, and one
+level-2 row per favourite grid under its section (a gated grid's row only
+for a session that can see its type), highlighted by `useScrollSpy`. A
+section's id is both the contents' anchor and the block's `id`, because
+`sections.js` is the only place either is written down.
 
-Every block is headed by `StatsSectionHeader.jsx` — an eyebrow and an `<h2>`
-at one size — so the page has exactly one `<h1>`, its own.
+The page has no header of its own: it opens on **Favourite Media**. Every
+block is headed by `StatsSectionHeader.jsx` — an optional eyebrow and an
+`<h2>` at one size. Favourite Media, Rating distribution and Anime seasonal
+overview carry no eyebrow; Total spend carries Games, and the catalogue
+blocks Catalogue. The page without a list keeps its own header - Archive,
+Statistics, and how many entries the catalogue holds.
 
-Statistics renders the favourite 3×3 grids (nine, and eleven for a session
-that can see h-game), then the twelve
+Statistics renders the favourite 3×3 grids under **Favourite Media** (nine,
+and eleven for a session that can see h-game), then the twelve
 "Rating distribution" bar-chart cards in one wrapping grid: my rating per
 AniManga franchise (an `Anime` or `Manga` franchise, counted once however many
 of the two it carries); MAL rating and **AniList score** over all anime; seasonal
@@ -2157,9 +2195,9 @@ hold franchises (AniManga, Book, Movie, TV, Cartoon, Game, H-Game), one holds
 series (Comic), three hold entries (Movie, Game, H-Game) — and every tier stores a slot the
 same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. A
 franchise grid holds the franchises whose type list names its key, or one of
-its `franchiseTypes` when it names them: the **Favourite AniManga franchises**
+its `franchiseTypes` when it names them: the **AniManga franchises**
 grid holds `Anime` and `Manga` franchises together, under the stored key
-`ACG`, and the **Favourite book franchises** grid holds `Book` franchises
+`ACG`, and the **Book franchises** grid holds `Book` franchises
 under the stored key `Novel` - a stored key keeps its spelling when the type
 it was named after does not. The
 `favorite*` helpers in `utils/statsUtils.js` (`favoriteName`, `favoriteCover`,
@@ -2167,8 +2205,28 @@ it was named after does not. The
 between tiers (`favoriteCover`, like `getCoverForSlot` and
 `getSeriesCoverForSlot`, returns `{ url, focus }`, so a group's slot crops its
 borrowed cover at the focal point of the entry it came from), so both consumers are tier-blind and a new grid is a config
-entry. A block is sized to its nine covers rather than stretched across a
-column, and the blocks wrap.
+entry. A grid's title names what it holds without the word "Favourite" -
+"AniManga franchises", "Movies", "Comic series" - since its section is
+already called Favourite Media. The blocks sit two to a row (one on a
+phone), each as wide as its column. A favourites section is drawn by
+`StatsFavoriteSection` from a `sections.js` entry carrying its own list of
+grids.
+
+**Favourite Entity** is the second such section, under Favourite Media: ten
+grids of studios and people (`FAVORITE_ENTITY_GRIDS`) - Anime studios, Game
+studios, Non-anime directors, Anime directors, Music / Composers, Manga
+authors, Book authors, Illustrators, Female seiyuu and Male seiyuu. Their
+tiers are `studio` and `person`, and each stores its slot in the row's own
+`type_slots` as the media tiers do. A studio grid holds the studios credited
+on its `mediaTypes` (anime and anime movie; game); a person grid holds the
+people with a matching role row (`roles`: director scoped to anime or anime
+movie, or to movie, TV show, cartoon or game; composer and illustrator in any
+scope; author scoped to manga, or to book; seiyuu), and a seiyuu grid
+narrows on `gender` (女 / 男). A grid draws the studio's logo or the person's
+photo, the server's `display_*` fallback first. The section, its contents
+rows and the `/api/studio/` and `/api/person/` fetches behind it exist only
+for a viewer holding both `view.studio` and `view.person`; the two lists do
+not hold the page's spinner, so the grids fill in when they land.
 
 **The game spend block** (`StatsGameSpend.jsx` over the pure functions in
 `gameSpend.js`) totals the `game_copy` rows the game list already carries.
@@ -2186,6 +2244,11 @@ two subtract to what waiting for a sale was worth; only a bought copy whose
 game has no list price in any region is counted under the column rather than
 priced at zero. The System page's Bought Copies Without a List Price lists
 those copies, so they can be found and filled in.
+
+Only the converted TWD figure is highlighted (semibold, `text-text`): in
+each column of the totals, in every By Year and By Storefront row, and in
+the Value card as TWD per hour. The per-currency actuals and the USD
+conversion are drawn muted beside it.
 
 The **Value** card is cost per hour, and a title counts only when it has
 logged hours, a convertible price and a list price of its own. The last of
@@ -2295,111 +2358,105 @@ Files `pages/public/RandomPicker.jsx`, `lib/randomPicker.js`,
 it can only offer what the viewer may already see.
 
 **Two versions.** With a list (`self.list`), everything below. A **shared
-account** — `view.random_picker` without `self.list`, the same pair the
-dashboard's Recently added reads — gets **one picker, over all media
-entries**: no mode strip, every `/random/<type>` and `/random/franchise`
-redirects to `/random`, and the page waits for the session before it decides
-(it renders nothing while `/api/auth/me` loads), so no mode is fetched first.
-It has **exactly two filters**, media type and release decade
-(`sharedFilterDefs`, through `filterDefsForMode(mode, types, { personal,
-shared })`; `usePickerData(mode, typesKey, { shared })`). The release decade
-is the one the full picker uses: each entry's primary release date by
-`RELEASE_PRIORITY` (`lib/releaseDate.js`, mirroring `app/utils/release_date.py`)
-— `release_date` on every type except anime and anime movie (`release_date_jp`,
-then `release_date_tw`) and movie (`release_date_tw`, then `release_date_usa`) —
-offered as the decades the pool holds, newest first, with Unknown for an
-undated entry. The draw is uniform, the Weights tab and the **Weighted**
-checkbox are not drawn (a `?tab=weights` link opens the picker), a saved
-default naming any other filter is ignored, and `/api/plan-next/` is never
-asked. Picker Defaults never sets `shared`, so the admin's editor is the full
-set.
+account** — `view.random_picker` without `self.list` — gets the **same
+modes and filters with every personal def dropped**: the catalogue half
+only (`filterDefsForMode(mode, { personal })`, `personal` being
+`useViewScope`'s `ownData`). The draw is uniform, the Weights tab and the
+**Weighted** checkbox are not drawn (a `?tab=weights` link opens the
+picker), a saved default naming a personal filter is ignored, and
+`/api/plan-next/` is never asked. The page waits for the session before it
+decides (it renders nothing while `/api/auth/me` loads). Without
+`view.random_picker` the page is unreachable (`<ProtectedRoute>`).
 
-Without `view.random_picker` the page is unreachable (`<ProtectedRoute>`).
-Inside it, a session holding neither key is treated as the list-less full
-picker: every def flagged `personal: true` is dropped (`filterDefsForMode`'s
-`personal`), leaving media type, the type's catalogue filters, release
-decade, genre and the external score.
+The page is headed by its title alone. A strip of mode links runs across
+the top: **Franchise**, then one per media type the session may see
+(`visibleMediaTypes`), in `PICKER_TYPES` order — Anime, Anime Movie, Movie,
+TV Show, Cartoon, Manga, Book, Comic, Game, then Hentai, H-Comic and H-Game.
+There is no mode over every type: `/random` is the Franchise mode, and an
+unknown `/random/<type>` goes back to it. Each mode has its own filters,
+rendered by the library's `FilterPanel` with **no advanced section** — every
+def is drawn in layout order, consecutive defs sharing a `row` side by side.
+Each mode opens on its **default filters**, saved on the admin Picker
+Defaults page ([admin-pages.md](admin-pages.md#random-defaults-pickerdefaultsjsx))
+and read from `/api/random-picker-defaults/<mode>` by every viewer the page
+opens for; a mode with none saved, or whose defaults cannot be read, opens
+with every filter empty. Switching mode starts over from that mode's
+defaults, with no pick.
 
-**Genre** (`genre`) is a catalogue filter of the full picker: its chips are
-the genres the pool holds, and an entry matches when any of its genres is
-on. It reads each type's own field, a ", "-joined string on every list
-response (`GENRE_FIELD`): `genre_main` on the eight mainstream types and
-`game_genre` on game and h-game. The adult genre fields are left out, so
-h-comic and hentai have no genre chips. The franchise mode does not offer it: a franchise has no genre
-of its own, and "any entry's genre" would make most franchises match most
-chips.
-
-**External score** (`externalScore`) is a catalogue filter of the full picker:
-chips `9+`, `8+`, `7+`, `6+` and `No score`, which OR like every chip, read
-from `mal_rating` for anime, anime movies, manga and books and from
-`imdb_rating` for movies, TV shows and cartoons; a null or `N/A` score, or a
-type with no score field, is `No score`. It is named "MAL Score" or "IMDb
-Score" when the mode's types share a source and "External Score" otherwise,
-and it is not offered where no type has a score (game, comic, the gated
-types, the franchise mode).
-
-A strip of mode links runs across the top: **All**, then one per media type
-the session may see (`visibleMediaTypes`), then **Franchise**. Each mode has its own filters,
-rendered by the library's `FilterPanel`. Each mode opens on its **default
-filters**, saved on the admin Picker Defaults page
-([admin-pages.md](admin-pages.md#random-defaults-pickerdefaultsjsx)) and read
-from `/api/random-picker-defaults/<mode>` by every viewer the page opens for; a mode with none saved,
-or whose defaults cannot be read, opens with every filter empty. Switching
-mode starts over from that mode's defaults, with no pick.
-
-- **All** (`/random`) fetches every visible type and filters on what all
-  types share: media type, status (the watch, read and play groups renamed
-  onto one set - Planned, In Progress, Completed, Dropped, Might; an unset
-  status is Might, as the library counts it), my rating (`S`…`F`, or
-  Unrated), and release decade (from each type's primary release column,
-  newest first, Unknown last). A gated type the session may see is in the
-  pool like any other; untick it with the media-type chips.
-- **One type** (`/random/<type>`) fetches only that type and offers its
-  library page's own `filterDefs` without the advanced section (the
-  picker's own Genre covers the genre), then my rating and release decade.
-  A stored default naming a filter the library no longer has (the retired
-  `bahaOnly` 動畫瘋 toggle) is dropped on read by `resolveDefaultFilters`.
-- **Franchise** (`/random/franchise`) draws a franchise, not an entry. It
-  fetches every franchise and every visible type's list; the lists give each
-  franchise its cover (the franchise library's `getFranchiseCover`) and say
-  what it holds. It filters on franchise type (each type of a multi-type
-  franchise counts), the media types it holds an entry of, the status groups
-  of the entries it holds (the All mode's groups; a franchise matches when any
-  entry does), expectation, and my rating — the status groups, expectation
-  and rating the viewer's own, flagged `personal`. It always draws evenly - the
-  weights are an entry's own status, rating, plan marks and release, which a
+- **One type** (`/random/<type>`) fetches only that type. Its filters are
+  `PICKER_LAYOUTS[type]` in `lib/randomPicker.js`, each key naming the
+  type's library def, a picker override, or one of the picker's own defs; a
+  layout naming a key nothing defines throws. The order is the same on every
+  type, each type keeping what it has: exclusive source, type, region,
+  airing type, airing status (or release or serialization status), release
+  decade, the external scores (IMDb, then MAL, then AniList), my rating, the
+  viewer's other list values (a gated type's Usefulness), status, **Do
+  Next** and **Redo** side by side, then the genres — Genre Main, Genre Sub
+  and Label on the eight mainstream types; Genre, Theme and Label on game;
+  the three adult genre groups on hentai and h-comic, after Genre and Theme
+  on h-game. Type-specific descriptors sit beside the nearest of those: a
+  film's release type with the type, a game's Mode, Combat Mode and Platform
+  before its genres. On a TV show, Region sits to the right of Airing Type
+  and offers the edit form's vocabulary (`TV_REGIONS`). On a game, Exclusive
+  Source reads `exclusive_platform`, Release Status offers the whole
+  `GAME_RELEASE_STATUSES` vocabulary, and Ownership sits beside Play Status.
+  A stored default naming a filter the layout no longer has (the retired
+  `bahaOnly` 動畫瘋 toggle, the old `genre` and `externalScore` keys) is
+  dropped on read by `resolveDefaultFilters`.
+- **Franchise** (`/random/franchise`, and `/random`) draws a franchise, not
+  an entry. It fetches every franchise and every visible type's list; the
+  lists give each franchise its cover (the franchise library's
+  `getFranchiseCover`). It filters on franchise type (each type of a
+  multi-type franchise counts, its chips in the strip's order —
+  `FRANCHISE_TYPE_ORDER`), my rating and expectation, the last two the
+  viewer's own and flagged `personal`. It always draws evenly - the weights
+  are an entry's own status, rating, plan marks and release, which a
   franchise does not have - so it shows no **Weighted** checkbox. The pick is
   a `FranchiseCard`.
+
+**External scores** are catalogue filters: IMDb Score on movie, TV show and
+cartoon (`imdb_rating`, a season's own on a TV show or cartoon), MAL Score
+and AniList Score on anime, anime movie, manga and book (`mal_rating`, and
+`anilist_rating` read out of 10), and Metacritic and Metacritic User on game
+(`metacritic_score`, and `metacritic_user_score` read out of 100). Each
+offers five minimums and the band below them — `9+` … `5+` and `<5`, or
+`90+` … `50+` and `<50` on the two Metacritic filters — and **No score** for
+a null or `N/A` score. Minimums OR like every chip, so two on together keep
+the lower one.
+
+**Do Next** (`Do next` / `Not do next`) and **Redo** (`To redo` / `Not to
+redo`) read the viewer's plan marks — the `next` and `rewatch` kinds — on the
+entry itself or through its series or franchise (`hasPlanMark`). The page
+reads them once into each entry (`withPlanMarks`) from the same
+`/api/plan-next/` rows the weights use, so both are personal.
 
 Within one filter the chosen chips OR; across filters they AND, exactly as
 on the library page. **Pick** draws from the pool, weighted or evenly as the
 **Weighted** checkbox beside the pool count says (see below), and the pick
 shows the chance it had ("1 in 37 (2.7%) chance"); **Pick again** never
 repeats the entry on screen while the pool holds another, and its chance is
-out of the pool without it. **Clear all**, beside it, turns every filter off
-and drops the pick, and **Defaults** (shown only when the mode saved filters,
-or saved weighting off) puts the saved filters and weighting back and drops
-the pick; the panel has no clear
-link of its own here (`FilterPanel` draws one only when handed
-`clearFilters`). The pick is
-a `MediaCard` (with its type named above it in All mode) whose `onUpdated`
-patches the `["media-list", type]` cache, and the page reads the pick back
-from that cache by key, so a status change made on the card shows at once.
-The lists share the library pages' cache keys (`mediaListQueryKey(type,
-LIST_OPTIONS.params)`), so visiting either one warms the other. Nothing is
-persisted.
+out of the pool without it. The filter panel's header holds **Clear all**,
+which turns every filter off and drops the pick, and **Reset to Default**
+(shown only when the mode saved filters, or saved weighting off), which puts
+the saved filters and weighting back and drops the pick. The pick is a
+`MediaCard` whose `onUpdated` patches the `["media-list", type]` cache, and
+the page reads the pick back from that cache by key, so a status change made
+on the card shows at once. The lists share the library pages' cache keys
+(`mediaListQueryKey(type, LIST_OPTIONS.params)`), so visiting either one
+warms the other. Nothing is persisted.
 
 **The weighted draw** (`lib/pickerWeights.js`, on unless the mode saved it
 off) has two stages. First a status group is chosen among the groups the
 filtered pool holds, in fixed proportions (In Progress, Planned, Might,
-Completed, Dropped, heaviest first), so a group's share of the draw does not
-grow with its size. The weighting groups statuses as the Status filter does,
-except that Temp Dropped counts as In Progress and Watch When Airs, Watch
-When Released and Play When Released as Might. Then one entry of that group is chosen by the product
+Completed, Stopped, Dropped, heaviest first; Stopped 0.3, Dropped 0.1), so a
+group's share of the draw does not grow with its size. The weighting groups
+statuses as the Status filter does - Paused and Temp Dropped are Stopped -
+except that Watch When Airs, Watch When Released and Play When Released
+count as Might. Then one entry of that group is chosen by the product
 of its entry factors: my rating and a summary completion (Completed only),
 the larger of its plan marks (next over rewatch, whether marked on the entry,
 its series or its franchise), release decade (2000s and later over earlier or
-undated), and, in the manga, book and h-comic modes only, serialization
+undated), and, on manga, book and h-comic, serialization
 status. Because every entry factor applies inside the group already chosen,
 none can move an entry into another group's share. A status, rating or
 serialization value the tables do not name weighs 1. Status group, rating

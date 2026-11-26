@@ -11,22 +11,29 @@ import { CSS } from "@dnd-kit/utilities";
 import { useDragSensors } from "../../components/ui/Sortable";
 import LazyImage from "../../components/ui/LazyImage";
 import { MEDIA_CONFIG } from "../../utils/media";
+import { endpoints } from "../../api/endpoints";
 import { FALLBACK_SVG, NO_COVER, focusStyle } from "../../lib/covers";
 import {
   favoriteCover,
   favoriteName,
   favoriteOptions,
   favoriteSearchNames,
+  isEntityGrid,
   slotIn,
 } from "../../utils/statsUtils";
-import { visibleFavoriteGrids } from "../../config/favoriteGrids";
+import {
+  FAVORITE_ENTITY_GRIDS,
+  FAVORITE_GRIDS,
+  visibleFavoriteGrids,
+} from "../../config/favoriteGrids";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../hooks/useToast";
 
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 // Which entry list a grid's rows live in, and so which endpoint saves one.
-// A franchise and a series name their own list; an entry grid names its type.
+// A franchise, a series, a studio and a person name their own list; an entry
+// grid names its type.
 function listTypeFor(grid) {
   return grid.tier === "entry" ? grid.entryType : grid.tier;
 }
@@ -193,49 +200,86 @@ function RowPickerModal({
   );
 }
 
-function SlotCard({ slot, name, cover, onOpen }) {
+// A small "×" that empties a slot. It sits beside, never inside, the control
+// it belongs to: on a card that is the picker button, on a ranked row it is
+// the drag handle, so it stops the pointer-down and key events that would
+// otherwise open the picker or pick the row up.
+function RemoveSlotButton({ slot, name, onRemove, className = "" }) {
+  const stop = (e) => e.stopPropagation();
   return (
     <button
       type="button"
-      onClick={() => onOpen(slot)}
-      className="group flex flex-col w-full text-left focus:outline-none"
+      aria-label={`Remove ${name} from slot ${slot}`}
+      title="Remove from this slot"
+      onPointerDown={stop}
+      onMouseDown={stop}
+      onKeyDown={stop}
+      onClick={(e) => {
+        e.stopPropagation();
+        onRemove(slot);
+      }}
+      className={`w-5 h-5 rounded-md flex items-center justify-center bg-black/60 text-white hover:bg-danger transition-colors ${className}`}
     >
-      <div className="relative rounded-xl overflow-hidden border border-border shadow-sm bg-surface-2 group-hover:border-brand transition-colors">
-        <div className="aspect-[3/4] overflow-hidden">
-          <LazyImage
-            src={cover.url}
-            alt={name || ""}
-            className="w-full h-full object-cover"
-            style={focusStyle(cover.focus)}
-            onError={(e) => {
-              e.target.src = FALLBACK_SVG;
-            }}
-          />
-        </div>
-        {/* Hover edit overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
-          <i className="fas fa-edit text-white text-base opacity-0 group-hover:opacity-100 transition-opacity"></i>
-        </div>
-        {/* Slot badge */}
-        <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-black/60 rounded-md flex items-center justify-center">
-          <span className="text-white text-[10px] font-black">{slot}</span>
-        </div>
-        {name ? (
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-1.5 pt-4 pb-1.5">
-            <p className="text-white text-[10px] font-bold leading-tight truncate">
-              {name}
-            </p>
-          </div>
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-black text-text-faint/60">{slot}</span>
-            <span className="text-[10px] text-text-faint/60 font-medium mt-1">
-              Empty
-            </span>
-          </div>
-        )}
-      </div>
+      <i className="fas fa-times text-[10px]"></i>
     </button>
+  );
+}
+
+function SlotCard({ slot, name, cover, onOpen, onRemove }) {
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => onOpen(slot)}
+        className="group flex flex-col w-full text-left focus:outline-none"
+      >
+        <div className="relative rounded-xl overflow-hidden border border-border shadow-sm bg-surface-2 group-hover:border-brand transition-colors">
+          <div className="aspect-[3/4] overflow-hidden">
+            <LazyImage
+              src={cover.url}
+              alt={name || ""}
+              className="w-full h-full object-cover"
+              style={focusStyle(cover.focus)}
+              onError={(e) => {
+                e.target.src = FALLBACK_SVG;
+              }}
+            />
+          </div>
+          {/* Hover edit overlay */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+            <i className="fas fa-edit text-white text-base opacity-0 group-hover:opacity-100 transition-opacity"></i>
+          </div>
+          {/* Slot badge */}
+          <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-black/60 rounded-md flex items-center justify-center">
+            <span className="text-white text-[10px] font-black">{slot}</span>
+          </div>
+          {name ? (
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-1.5 pt-4 pb-1.5">
+              <p className="text-white text-[10px] font-bold leading-tight truncate">
+                {name}
+              </p>
+            </div>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-black text-text-faint/60">
+                {slot}
+              </span>
+              <span className="text-[10px] text-text-faint/60 font-medium mt-1">
+                Empty
+              </span>
+            </div>
+          )}
+        </div>
+      </button>
+      {name && (
+        <RemoveSlotButton
+          slot={slot}
+          name={name}
+          onRemove={onRemove}
+          className="absolute top-1.5 right-1.5"
+        />
+      )}
+    </div>
   );
 }
 
@@ -246,7 +290,7 @@ function SlotCard({ slot, name, cover, onOpen }) {
 // the mouse wheel on Windows; this way the page keeps scrolling while a row is
 // held. ArrowUp / ArrowDown on a focused row swaps it with its neighbour,
 // which is the keyboard path.
-function RankListItem({ slot, name, cover, onKeySwap, registerRow }) {
+function RankListItem({ slot, name, cover, onKeySwap, onRemove, registerRow }) {
   const drag = useDraggable({ id: slot });
   const drop = useDroppable({ id: slot });
   const { attributes, listeners, transform, isDragging } = drag;
@@ -281,7 +325,9 @@ function RankListItem({ slot, name, cover, onKeySwap, registerRow }) {
           : "border-border bg-surface hover:border-border-strong"
       }`}
     >
-      <span className="text-text-faint/60 text-sm leading-none shrink-0">⠿</span>
+      <span className="text-text-faint/60 text-sm leading-none shrink-0">
+        ⠿
+      </span>
       <span className="text-[11px] font-black text-text-faint w-4 shrink-0">
         {slot}
       </span>
@@ -298,9 +344,15 @@ function RankListItem({ slot, name, cover, onKeySwap, registerRow }) {
               }}
             />
           </div>
-          <span className="text-xs font-bold text-text-muted truncate min-w-0">
+          <span className="text-xs font-bold text-text-muted truncate min-w-0 flex-1">
             {name}
           </span>
+          <RemoveSlotButton
+            slot={slot}
+            name={name}
+            onRemove={onRemove}
+            className="shrink-0"
+          />
         </>
       ) : (
         <span className="text-xs text-text-faint/60 font-medium italic">
@@ -360,6 +412,8 @@ function GridEditor({
     onSwap(grid, active.id, over.id);
   };
 
+  const removeSlot = (slot) => onSlotChange(grid, slot, null);
+
   const rowById = useMemo(() => {
     const byId = {};
     options.forEach((row) => {
@@ -397,8 +451,9 @@ function GridEditor({
       </div>
 
       <div className="flex flex-col lg:flex-row gap-5">
-        {/* Left: 3×3 visual grid */}
-        <div className="grid grid-cols-3 gap-2 max-w-xs shrink-0">
+        {/* Left: 3×3 visual grid. A fixed width, so nine empty slots still
+            render full-size: the cards have no intrinsic width of their own. */}
+        <div className="grid grid-cols-3 gap-2 w-80 max-w-full shrink-0 self-start">
           {SLOTS.map((slot) => {
             const row = slotRow(slot);
             return (
@@ -408,6 +463,7 @@ function GridEditor({
                 name={row ? favoriteName(row, grid) : null}
                 cover={row ? coverFor(row) : NO_COVER}
                 onOpen={(s) => setPickerSlot(s)}
+                onRemove={removeSlot}
               />
             );
           })}
@@ -433,6 +489,7 @@ function GridEditor({
                     name={row ? favoriteName(row, grid) : null}
                     cover={row ? coverFor(row) : NO_COVER}
                     onKeySwap={swapByKey}
+                    onRemove={removeSlot}
                     registerRow={registerRow}
                   />
                 );
@@ -471,7 +528,10 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
   // The two h-game grids only for a session that can see the gated type.
   const visibleGatedTypes = useAuth()?.visibleGatedTypes;
   const grids = useMemo(
-    () => visibleFavoriteGrids({ visibleGatedTypes }),
+    () => [
+      ...visibleFavoriteGrids({ visibleGatedTypes }, FAVORITE_GRIDS),
+      ...FAVORITE_ENTITY_GRIDS,
+    ],
     [visibleGatedTypes],
   );
 
@@ -515,6 +575,8 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
             series: lists.series,
             bySeries,
             entries: lists[grid.entryType],
+            studios: lists.studio,
+            people: lists.person,
           }),
         ]),
       ),
@@ -591,7 +653,12 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
 
     setSavingByGrid((prev) => ({ ...prev, [grid.id]: true }));
     try {
-      const endpoint = MEDIA_CONFIG[listType].apiEndpoint;
+      // Studios and people are not media and have no MEDIA_CONFIG entry;
+      // their PATCH lives at the same path as their detail read.
+      const rowUrl = (id) =>
+        MEDIA_CONFIG[listType]
+          ? `${MEDIA_CONFIG[listType].apiEndpoint}/${id}`
+          : endpoints[listType].detail(id);
       const results = await Promise.all(
         changed.map((row) => {
           const slot = newSlotByRow[row.system_id];
@@ -600,7 +667,7 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
           const typeSlots = { ...(row.type_slots || {}) };
           if (slot) typeSlots[grid.key] = slot;
           else delete typeSlots[grid.key];
-          return fetch(`${endpoint}/${row.system_id}`, {
+          return fetch(rowUrl(row.system_id), {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -629,19 +696,31 @@ export default function Fav3x3ModifyTab({ lists, setList }) {
 
   return (
     <div className="space-y-6">
-      {grids.map((grid) => (
-        <GridEditor
-          key={grid.id}
-          grid={grid}
-          draft={drafts[grid.id] || {}}
-          options={optionsByGrid[grid.id]}
-          coverFor={(row) => favoriteCover(row, grid, { byFranchise, bySeries })}
-          isDirty={isDirtyByGrid[grid.id]}
-          onSlotChange={handleSlotChange}
-          onSwap={handleSwap}
-          onSave={() => handleSave(grid)}
-          saving={!!savingByGrid[grid.id]}
-        />
+      {grids.map((grid, index) => (
+        // The statistics page's two sections, as headings here too: the
+        // media grids, then the studio and people ones.
+        <div key={grid.id} className="space-y-6">
+          {(index === 0 ||
+            isEntityGrid(grid) !== isEntityGrid(grids[index - 1])) && (
+            <h2 className="font-display text-2xl font-semibold text-text">
+              {isEntityGrid(grid) ? "Favourite Entity" : "Favourite Media"}
+            </h2>
+          )}
+          <GridEditor
+            key={grid.id}
+            grid={grid}
+            draft={drafts[grid.id] || {}}
+            options={optionsByGrid[grid.id]}
+            coverFor={(row) =>
+              favoriteCover(row, grid, { byFranchise, bySeries })
+            }
+            isDirty={isDirtyByGrid[grid.id]}
+            onSlotChange={handleSlotChange}
+            onSwap={handleSwap}
+            onSave={() => handleSave(grid)}
+            saving={!!savingByGrid[grid.id]}
+          />
+        </div>
       ))}
     </div>
   );

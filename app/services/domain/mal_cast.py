@@ -41,7 +41,10 @@ from app.services.domain.credits import (
 from app.services.domain.person_roles import grant_role
 from app.services.integrations.image_manager import cover_key, download_cover_image
 from app.services.integrations.tenrai import fetch_tenrai_cast
-from app.services.rbac.shared_visibility import apply_shared_visibility
+from app.services.rbac.shared_visibility import (
+    apply_shared_visibility,
+    hidden_ratings,
+)
 from app.utils.name_normalize import normalize_name, split_names
 from app.utils.tenrai_utils import map_tenrai_cast
 from app.utils.utils import extract_mal_id_anime, extract_mal_id_manga_book
@@ -267,6 +270,15 @@ def mal_cast_rows(
         db, viewer, rows, portraits, held_ids or [], warnings
     )
     people, created_people = _seiyuu_for(db, media_type, rows, warnings)
+    # A seiyuu rated above the viewer's mode is matched like any other - a
+    # second row for the same human would split their work - but is not put
+    # in the viewer's form, as a hidden character is not.
+    unseen = hidden_ratings(viewer)
+    people = {
+        mal_id: person
+        for mal_id, person in people.items()
+        if person.content_rating not in unseen
+    }
 
     cast = []
     seen: set = set()

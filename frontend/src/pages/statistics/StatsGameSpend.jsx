@@ -9,6 +9,14 @@ import computeGameSpend, {
 import { Eyebrow, Slip } from "../../components/ui/primitives";
 import StatsSectionHeader from "./StatsSectionHeader";
 
+// The one figure each block highlights: the converted TWD amount (and, in
+// Value, TWD per hour). The actuals per currency and the USD conversion are
+// drawn muted beside it, so the eye lands on the one comparable number.
+export const HIGHLIGHT_CODE = "TWD";
+
+const figureCls = (code) =>
+  code === HIGHLIGHT_CODE ? "font-semibold text-text" : "text-text-muted";
+
 function SpendColumn({ column }) {
   const { label, currencies, copies, converted, unpriced, emptyLabel } = column;
 
@@ -41,7 +49,7 @@ function SpendColumn({ column }) {
               >
                 {code}
               </dt>
-              <dd className="flex-1 text-right font-mono text-sm tabular-nums text-text">
+              <dd className="flex-1 text-right font-mono text-sm tabular-nums text-text-muted">
                 {formatMoney(NO_CURRENCY, cents)}
               </dd>
               <dd className="w-10 text-right font-mono text-[11px] text-text-faint tabular-nums">
@@ -72,7 +80,10 @@ function SpendColumn({ column }) {
               <dt className="w-12 shrink-0 font-mono text-[11px] text-text-muted">
                 ≈ {code}
               </dt>
-              <dd className="flex-1 text-right font-mono text-sm font-semibold tabular-nums text-text">
+              <dd
+                className={`flex-1 text-right font-mono text-sm tabular-nums ${figureCls(code)}`}
+                data-highlight={code === HIGHLIGHT_CODE || undefined}
+              >
                 {formatMoney(NO_CURRENCY, cents)}
               </dd>
               <dd className="w-10 text-right">
@@ -113,7 +124,7 @@ function BreakdownRow({ bucket }) {
 
       <span className="flex flex-wrap gap-x-3 gap-y-0.5 flex-1 min-w-[8rem] justify-end">
         {currencies.map(({ code, cents }) => (
-          <span key={code} className="font-mono text-sm tabular-nums text-text">
+          <span key={code} className="font-mono text-[11px] tabular-nums text-text-muted">
             {formatMoney(code, cents)}
           </span>
         ))}
@@ -124,7 +135,10 @@ function BreakdownRow({ bucket }) {
           {converted.map(({ code, cents, missing }) => (
             <span
               key={code}
-              className="font-mono text-[11px] tabular-nums text-text-muted"
+              className={`font-mono tabular-nums ${
+                code === HIGHLIGHT_CODE ? "text-sm" : "text-[11px]"
+              } ${figureCls(code)}`}
+              data-highlight={code === HIGHLIGHT_CODE || undefined}
               title={
                 missing.length > 0
                   ? `No rate for ${missing.join(", ")}; excluded from this figure.`
@@ -163,7 +177,11 @@ function PerHour({ perHour, className = "" }) {
   return (
     <span className={`flex gap-3 ${className}`}>
       {Object.entries(perHour).map(([code, cents]) => (
-        <span key={code} className="font-mono tabular-nums text-text">
+        <span
+          key={code}
+          className={`font-mono tabular-nums ${figureCls(code)}`}
+          data-highlight={code === HIGHLIGHT_CODE || undefined}
+        >
           ≈ {formatMoney(code, cents)}
           <span className="text-text-faint"> /h</span>
         </span>

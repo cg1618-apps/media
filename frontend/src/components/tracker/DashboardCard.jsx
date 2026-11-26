@@ -3,6 +3,10 @@
 // One watched or read entry on the dashboard. An episode or chapter type gets
 // a progress stepper; a film (Anime Movie, Movie) has no counter, so its card
 // says where playback was paused and how long the film runs instead.
+//
+// The seasonal pages show only anime, so they hide the type spine beside the
+// cover (`showTypeSpine={false}`) and show the MAL score on the chip row
+// (`showMalScore`); the dashboard mixes types and keeps the spine.
 import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, getDisplayName } from "../../utils/media";
@@ -29,6 +33,8 @@ export default function DashboardCard({
   canTrack,
   onEpChange,
   view = "card",
+  showTypeSpine = true,
+  showMalScore = false,
 }) {
   const { showToast } = useToast();
 
@@ -153,14 +159,16 @@ export default function DashboardCard({
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">
-          <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
-            <span
-              className="font-mono text-[9px] whitespace-nowrap"
-              style={{ writingMode: "vertical-rl" }}
-            >
-              {spineLabel}
-            </span>
-          </div>
+          {showTypeSpine && (
+            <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
+              <span
+                className="font-mono text-[9px] whitespace-nowrap"
+                style={{ writingMode: "vertical-rl" }}
+              >
+                {spineLabel}
+              </span>
+            </div>
+          )}
           <div className="relative w-20 h-full bg-surface-2 overflow-hidden">
             <RatingStamp
               rating={anime.my_rating}
@@ -205,6 +213,14 @@ export default function DashboardCard({
             <Chip tone="ink">{statusText}</Chip>
             {!isTV && !isCartoon && !isReading && !isFilm && (
               <Chip tone="ink">{anime.airing_type || "TV"}</Chip>
+            )}
+            {showMalScore && anime.mal_rating != null && anime.mal_rating !== "" && (
+              <span
+                className="font-mono text-[10px] text-text-muted tabular-nums"
+                title="MAL score"
+              >
+                MAL {anime.mal_rating}
+              </span>
             )}
             <PlatformIcons sources={anime.sources} />
           </div>

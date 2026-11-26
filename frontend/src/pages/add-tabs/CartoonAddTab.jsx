@@ -7,7 +7,6 @@
 // render one definition of the cartoon form and differ only in the wrapper.
 import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
@@ -37,8 +36,8 @@ const row3 = "grid grid-cols-1 md:grid-cols-3 gap-4";
  * Every field below the franchise/series pickers, shared verbatim by the
  * Modify tab. `ownerId` is the cartoon's id on Modify and absent on Add - the
  * only difference between the two pages inside the body (cover attachment
- * and TagReplace's "this entry"). Cartoon has no to_rewatch column, so its
- * flags row is Watch Next alone.
+ * and TagReplace's "this entry"). Its flags are drawn by the page's marks
+ * section (config/entryFlags.js), not here.
  */
 export function CartoonFormBody({ f, u, sources, ownerId }) {
   const choice = (key, label, options) => (
@@ -81,7 +80,7 @@ export function CartoonFormBody({ f, u, sources, ownerId }) {
       <div className={row2}>
         {/* This season's rating, and the whole show's beside it. Fill
             computes the first from the season's episodes. */}
-        <Field label="IMDb Rating" hint="this season">
+        <Field label="IMDb Rating" hint="this season's avg ep score">
           <input
             className={inputCls}
             type="number"
@@ -94,7 +93,7 @@ export function CartoonFormBody({ f, u, sources, ownerId }) {
             placeholder="9.2"
           />
         </Field>
-        <Field label="IMDb Show Rating" hint="the whole show">
+        <Field label="IMDb Show Rating" hint="all seasons">
           <input
             className={inputCls}
             type="number"
@@ -137,14 +136,6 @@ export function CartoonFormBody({ f, u, sources, ownerId }) {
           />
         </Field>
       </div>
-      <EntryFlags
-        f={f}
-        u={u}
-        flags={[
-          ["is_pinged", "Pinged", "Pin to the dashboard"],
-          ["watch_next", "Watch Next", "Add to Watch Next list"],
-        ]}
-      />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
       <div className={row2}>

@@ -75,6 +75,7 @@ from app.services.rbac.shared_visibility import (
     require_visible_shared,
     without_hidden_scopes,
 )
+from app.utils.content_rating import check_content_rating, without_unset_rating
 from app.utils.credit_roles import (
     COMBINED_CREDIT_GROUPS,
     PERSON_ROLES,
@@ -151,6 +152,8 @@ def _to_response(
         twitter_link=person.twitter_link,
         ig_link=person.ig_link,
         pixiv_link=person.pixiv_link,
+        type_slots=person.type_slots,
+        content_rating=person.content_rating,
         roles=[
             schemas.PersonRoleIn(role=r.role, scope=r.scope)
             for r in without_hidden_scopes(person.roles, hidden, "scope")
@@ -722,7 +725,7 @@ def create_person(
             status_code=422,
             detail="photo_fallback_entry_id must name an entry this person is linked to.",
         )
-    data = payload.model_dump(exclude={"roles", "name", "studio_ids"})
+    data = without_unset_rating(payload.model_dump(exclude={"roles", "name", "studio_ids"}))
     # name_alt is a comma-separated list, so its first name is looked up,
     # never the whole value.
     lookup = payload.name or next(
@@ -790,7 +793,7 @@ def update_person(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Person, system_id, NOT_FOUND)
 
-    data = payload.model_dump(exclude={"roles", "studio_ids"})
+    data = without_unset_rating(payload.model_dump(exclude={"roles", "studio_ids"}))
     data["photo_fallback_entry_id"] = resolve_fallback(
         db, admin, models.Person, person, data["photo_fallback_entry_id"], "person"
     )
@@ -891,7 +894,12 @@ def patch_person(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     require_visible_shared(db, admin, models.Person, system_id, NOT_FOUND)
 
-    data = prepare_patch(person, payload, "person", {"gender": check_person_gender})
+    data = prepare_patch(
+        person,
+        payload,
+        "person",
+        {"gender": check_person_gender, "content_rating": check_content_rating},
+    )
     if "photo_fallback_entry_id" in data:
         data["photo_fallback_entry_id"] = resolve_fallback(
             db, admin, models.Person, person, data["photo_fallback_entry_id"], "person"

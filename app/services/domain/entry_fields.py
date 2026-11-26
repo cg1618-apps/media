@@ -36,7 +36,7 @@ def attach_entry_list_fields(db: Session, media_type: str, entries: list, viewer
         planned = planned_entry_ids(db, media_type, kind, user_id=plan_user_id)
         for entry in entries:
             setattr(entry, field, entry.system_id in planned)
-    attach_link_fields(db, media_type, entries)
+    attach_link_fields(db, media_type, entries, viewer)
     attach_sources(db, media_type, entries, viewer)
     attach_content_labels(db, entries)
     attach_list_fields(db, media_type, entries, user_id)

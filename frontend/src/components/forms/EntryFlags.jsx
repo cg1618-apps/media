@@ -1,28 +1,28 @@
-// Frontend: the plan flags row of an entry form - Watch Next, To Rewatch,
-// Read Next, To Reread, Play Next, To Replay - the last row of the My
-// Tracker section on every type's Add and Modify body.
+// Frontend: the mark checkboxes of an entry form - Pin to dashboard, Plan
+// Next, Redo - the first row of the marks section (FormMarksSection) at the
+// top of the Add and Modify pages.
 //
-// `flags` is `[[key, label, caption], ...]`: the form key, the field label
-// above the box, and the caption beside it, which is also the checkbox's
-// accessible name. A type passes only the flags its schema has (cartoon has
-// no to_rewatch).
-import { Field } from "./FormField";
+// `type` picks the flags from config/entryFlags.js; `f` is that type's form
+// state and `u` its updater, so the flags save with the form like any other
+// field. Each checkbox carries one label, which is also its accessible name.
+// A type with no flags draws nothing.
+import { entryFlagsFor } from "../../config/entryFlags";
 
-export default function EntryFlags({ f, u, flags }) {
+export default function EntryFlags({ type, f, u }) {
+  const flags = entryFlagsFor(type);
+  if (!flags.length || !f) return null;
   return (
-    <div className="flex flex-wrap gap-6 mt-2">
-      {flags.map(([key, label, caption]) => (
-        <Field key={key} label={label}>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={!!f[key]}
-              onChange={(e) => u(key, e.target.checked)}
-              className="w-4 h-4 rounded accent-brand"
-            />
-            <span className="text-sm font-medium text-text-muted">{caption}</span>
-          </label>
-        </Field>
+    <div data-testid="entry-flags" className="flex flex-wrap gap-6">
+      {flags.map(([key, label]) => (
+        <label key={key} className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!!f[key]}
+            onChange={(e) => u(key, e.target.checked)}
+            className="w-4 h-4 rounded accent-brand"
+          />
+          <span className="text-sm font-bold text-text">{label}</span>
+        </label>
       ))}
     </div>
   );

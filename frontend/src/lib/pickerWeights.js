@@ -6,8 +6,8 @@
 //   1. a status group, chosen by GROUP_WEIGHTS among the groups the pool
 //      actually holds - so a group's share does not grow with its size
 //   2. one entry inside that group, chosen by the product of its entry
-//      factors: rating (Completed only), plan mark, release decade, and in a
-//      one-type mode that type's serialization status
+//      factors: rating (Completed only), plan mark, release decade, and the
+//      type's serialization status
 //
 // The status group, the rating and the plan mark read the viewer's own list,
 // so WEIGHT_INPUTS flags them `personal: true`. A context with `personal:
@@ -15,7 +15,7 @@
 // group, and each personal factor is 1. The picker page goes further for such
 // a viewer and draws unweighted (see drawChances' `weighted`).
 import { MEDIA_CONFIG } from "../config/mediaRegistry";
-import { UNRATED, decadeOf, entryKey, statusGroupOf } from "./randomPicker";
+import { UNRATED, decadeOf, entryKey, hasPlanMark, statusGroupOf } from "./randomPicker";
 
 // Every input the weighted draw reads: stage 1's group, then the stage-2
 // factors entryFactors names.
@@ -34,14 +34,13 @@ export const GROUP_WEIGHTS = [
   { group: "Planned", weight: 1.3 },
   { group: "Might", weight: 1.1 },
   { group: "Completed", weight: 1.0 },
-  { group: "Dropped", weight: 0.3 },
+  { group: "Stopped", weight: 0.3 },
+  { group: "Dropped", weight: 0.1 },
 ];
 
 // Where the weighting groups a status differently from the Status filter: a
-// temporary drop is a pause, and a plan that waits on a release is no more
-// drawable than a "might".
+// plan that waits on a release is no more drawable than a "might".
 export const GROUP_OVERRIDES = {
-  "Temp Dropped": "In Progress",
   "Watch When Airs": "Might",
   "Watch When Released": "Might",
   "Play When Released": "Might",
@@ -74,7 +73,7 @@ export const DECADE_WEIGHTS = [
   { decades: "Earlier, or no release date", weight: 1.0 },
 ];
 
-// Stage 2, one-type modes only: serialization status. A status not listed,
+// Stage 2: serialization status, on the types listed. A status not listed,
 // or none, weighs 1.
 const MANGA_SERIALIZATION = { 完結: 1.5, 連載中: 1.3, 停更: 1.0, 腰斬: 0.3 };
 export const SERIALIZATION_WEIGHTS = {
@@ -120,30 +119,17 @@ export function groupPlanMarks(rows) {
   );
 }
 
-function hasMark(entry, kind, planMarks) {
-  const { type, item } = entry;
-  const onEntry =
-    kind === "next"
-      ? item.watch_next || item.read_next || item.play_next
-      : item.to_rewatch || item.to_reread || item.to_replay;
-  if (onEntry) return true;
-  return [item.series_id, item.franchise_id].some(
-    (id) => id && planMarks?.has(`${kind}:${type}:${id}`)
-  );
-}
-
 /**
- * Each stage-2 factor of one entry, by name. `mode` is "all" or the type;
- * `planMarks` is groupPlanMarks' Set, or empty for a guest; `personal` false
+ * Each stage-2 factor of one entry, by name. `planMarks` is groupPlanMarks' Set, or empty for a guest; `personal` false
  * makes every WEIGHT_INPUTS factor flagged personal 1.
  */
-export function entryFactors(entry, { mode = "all", planMarks, personal = true } = {}) {
+export function entryFactors(entry, { planMarks, personal = true } = {}) {
   const { type, item } = entry;
   const completed = weightGroupOf(type, item) === "Completed";
   const year = parseInt(decadeOf(type, item), 10);
-  const plan = hasMark(entry, "next", planMarks)
+  const plan = hasPlanMark(entry, "next", planMarks)
     ? NEXT_WEIGHT
-    : hasMark(entry, "rewatch", planMarks)
+    : hasPlanMark(entry, "rewatch", planMarks)
       ? REWATCH_WEIGHT
       : 1;
   const factors = {
@@ -153,8 +139,7 @@ export function entryFactors(entry, { mode = "all", planMarks, personal = true }
       : 1,
     plan,
     decade: year >= DECADE_FROM ? DECADE_WEIGHTS[0].weight : DECADE_WEIGHTS[1].weight,
-    serialization:
-      mode === "all" ? 1 : (SERIALIZATION_WEIGHTS[type]?.[item.serialization_status] ?? 1),
+    serialization: SERIALIZATION_WEIGHTS[type]?.[item.serialization_status] ?? 1,
   };
   if (personal) return factors;
   return Object.fromEntries(

@@ -91,7 +91,7 @@ describe("Add page — 待補充 Needs Work", () => {
     mount();
     await openCollectionTab(user);
     await user.type(inputUnder("Collection Name EN"), "Marvel");
-    await user.click(screen.getByRole("checkbox", { name: /Needs Work/ }));
+    await user.click(screen.getByRole("checkbox", { name: "待補充" }));
     // The common note is a one-click pick.
     await user.click(await screen.findByRole("button", { name: "續集未補" }));
     await user.click(screen.getByRole("button", { name: /append entry/i }));
@@ -102,7 +102,7 @@ describe("Add page — 待補充 Needs Work", () => {
       body: { note: "續集未補" },
     });
     // The field resets, so the next record does not inherit the mark.
-    expect(screen.getByRole("checkbox", { name: /Needs Work/ })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "待補充" })).not.toBeChecked();
   });
 
   it("sends no mark when the box was left unticked", async () => {

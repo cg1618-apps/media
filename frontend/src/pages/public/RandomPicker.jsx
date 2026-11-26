@@ -1,6 +1,6 @@
-// Frontend: the random picker. /random draws from every visible media type
-// with the filters all types share; /random/<type> draws from one type with
-// that type's own library filters; /random/franchise draws a franchise. Each mode opens with the default filters
+// Frontend: the random picker. /random/<type> draws from one type with that
+// type's filters (lib/randomPicker.js PICKER_LAYOUTS); /random/franchise, and
+// /random itself, draw a franchise. Each mode opens with the default filters
 // saved on the Picker Defaults page. The filters are lib/randomPicker.js, the
 // weighted draw lib/pickerWeights.js, the data hooks/usePickerData.js; this
 // file holds the pick and renders. A Weights tab (?tab=weights) lists every
@@ -8,13 +8,11 @@
 //
 // The page has two versions. With a list (self.list, useViewScope's ownData)
 // it is all of the above. A shared account - view.random_picker without
-// self.list - gets only the "all media entries" picker: no mode strip, no
-// per-type or franchise mode (their URLs land on /random), and two filters,
-// media type and release decade (lib/randomPicker.js sharedFilterDefs). It
-// draws unweighted, with no Weights tab, Weighted toggle or plan-mark request:
-// a plan is self.list's, and so is most of what the weights read. A session
-// with neither key, which the app's route never lets in, keeps every mode with
-// the personal defs dropped.
+// self.list - gets the same modes and filters with every personal def
+// dropped (a status, my rating, an expectation, a plan mark...): the
+// catalogue half only. It draws unweighted, with no Weights tab, Weighted
+// toggle or plan-mark request: a plan is self.list's, and so is most of what
+// the weights read.
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useParams, useSearchParams } from "react-router-dom";
@@ -40,7 +38,7 @@ import {
   PICKER_TYPES,
   entryKey,
   isWeightedMode,
-  pickerTypeLabel,
+  withPlanMarks,
 } from "../../lib/randomPicker";
 
 const ALL_TYPES = PICKER_TYPES.map((t) => t.type);
@@ -67,24 +65,14 @@ export default function RandomPicker({ type: typeProp }) {
   if (type && type !== FRANCHISE_MODE && !ALL_TYPES.includes(type)) {
     return <Navigate to="/random" replace />;
   }
-  // A shared account - view.random_picker without self.list, as the
-  // dashboard's Recently added reads it - has the one picker over every entry.
-  const shared = Boolean(auth?.has?.("view.random_picker")) && !ownData;
-  if (shared && type) {
-    return <Navigate to="/random" replace />;
-  }
 
-  const mode = type ?? "all";
+  const mode = type ?? FRANCHISE_MODE;
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <header>
-        <Eyebrow className="mb-2">Track</Eyebrow>
-        <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none mb-2">
+        <h1 className="font-display text-4xl sm:text-5xl font-semibold text-text leading-none">
           Random Picker
         </h1>
-        <p className="text-sm text-text-muted">
-          Narrow the pool with filters, then let chance choose what comes next
-        </p>
       </header>
 
       {ownData && (
@@ -99,13 +87,7 @@ export default function RandomPicker({ type: typeProp }) {
         <PickerWeights />
       ) : (
         <>
-          {!shared && (
-            <ModeStrip
-              current={mode}
-              types={visibleTypes}
-              linkTo={(m) => (m === "all" ? "/random" : `/random/${m}`)}
-            />
-          )}
+          <ModeStrip current={mode} types={visibleTypes} linkTo={(m) => `/random/${m}`} />
 
           {/* Keyed on the mode: each mode has its own defs and defaults, so
               switching starts from that mode's defaults with no pick. */}
@@ -114,9 +96,8 @@ export default function RandomPicker({ type: typeProp }) {
             mode={mode}
             // The franchise mode reads every visible type's list: they say
             // what each franchise holds and give it a cover.
-            typesKey={type && type !== FRANCHISE_MODE ? type : visibleTypes.join(",")}
+            typesKey={mode === FRANCHISE_MODE ? visibleTypes.join(",") : mode}
             ownsList={ownData}
-            shared={shared}
           />
         </>
       )}
@@ -124,9 +105,9 @@ export default function RandomPicker({ type: typeProp }) {
   );
 }
 
-function PickerBody({ mode, typesKey, ownsList, shared }) {
+function PickerBody({ mode, typesKey, ownsList }) {
   const { entries, filterDefs, defaultFilters, defaultWeighted, isLoading, error } =
-    usePickerData(mode, typesKey, { shared });
+    usePickerData(mode, typesKey);
 
   // Series and franchise plan marks, for the plan weight; entry marks ride on
   // the entries. A plan is one account's own (self.list), so a viewer without
@@ -139,6 +120,8 @@ function PickerBody({ mode, typesKey, ownsList, shared }) {
     enabled: ownsList,
   });
   const planMarks = useMemo(() => groupPlanMarks(planNextQuery.data), [planNextQuery.data]);
+  // Each entry's Do Next and Redo marks, read once for their filters.
+  const markedEntries = useMemo(() => withPlanMarks(entries, planMarks), [entries, planMarks]);
 
   if (isLoading || error) {
     return (
@@ -155,7 +138,7 @@ function PickerBody({ mode, typesKey, ownsList, shared }) {
   return (
     <PickerPool
       mode={mode}
-      entries={entries}
+      entries={markedEntries}
       filterDefs={filterDefs}
       defaultFilters={defaultFilters}
       defaultWeighted={defaultWeighted}
@@ -242,6 +225,8 @@ function PickerPool({
         filterDefs={filterDefs}
         filters={filters}
         toggleFilter={toggleFilter}
+        clearFilters={clearAll}
+        resetFilters={hasDefaults ? restoreDefaults : undefined}
         activeFilterCount={activeFilterCount}
         dynamicFilterOptions={dynamicFilterOptions}
       />
@@ -252,14 +237,6 @@ function PickerPool({
             <i className="fas fa-dice" aria-hidden="true" />
             {picked ? "Pick again" : "Pick"}
           </Button>
-          <Button onClick={clearAll} disabled={activeFilterCount === 0 && !picked}>
-            Clear all
-          </Button>
-          {hasDefaults && (
-            <Button kind="ghost" onClick={restoreDefaults}>
-              Defaults
-            </Button>
-          )}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <p className="font-mono text-[11px] text-text-faint">
@@ -287,9 +264,6 @@ function PickerPool({
           </div>
         ) : picked ? (
           <div className="max-w-[16rem]">
-            {mode === "all" && (
-              <Eyebrow className="mb-1.5">{pickerTypeLabel(picked.type)}</Eyebrow>
-            )}
             {picked.type === FRANCHISE_MODE ? (
               <FranchiseCard franchise={picked.item} cover={picked.cover} />
             ) : (

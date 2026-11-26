@@ -22,9 +22,11 @@ function chancesById(pool, context, weighted) {
 }
 
 describe("weightGroupOf", () => {
-  it("weighs a temporary drop as a pause, and a wait on release as a might", () => {
-    expect(weightGroupOf("anime", { watching_status: "Temp Dropped" })).toBe("In Progress");
-    expect(weightGroupOf("anime", { watching_status: "Paused" })).toBe("In Progress");
+  it("weighs a pause and a temporary drop as Stopped, and a wait on release as a might", () => {
+    expect(weightGroupOf("anime", { watching_status: "Temp Dropped" })).toBe("Stopped");
+    expect(weightGroupOf("anime", { watching_status: "Paused" })).toBe("Stopped");
+    expect(weightGroupOf("manga", { reading_status: "Paused" })).toBe("Stopped");
+    expect(weightGroupOf("game", { playing_status: "Temp Dropped" })).toBe("Stopped");
     expect(weightGroupOf("anime", { watching_status: "Watch When Airs" })).toBe("Might");
     expect(weightGroupOf("movie", { watching_status: "Watch When Released" })).toBe("Might");
     expect(weightGroupOf("game", { playing_status: "Play When Released" })).toBe("Might");
@@ -38,6 +40,18 @@ describe("weightGroupOf", () => {
 });
 
 describe("drawChances", () => {
+  it("draws Stopped at 0.3 and Dropped at 0.1 against Completed at 1", () => {
+    const pool = [
+      anime("c", { watching_status: "Completed" }),
+      anime("s", { watching_status: "Paused" }),
+      anime("d", { watching_status: "Dropped" }),
+    ];
+    const chances = chancesById(pool, {}, true);
+    expect(chances.c).toBeCloseTo(1 / 1.4);
+    expect(chances.s).toBeCloseTo(0.3 / 1.4);
+    expect(chances.d).toBeCloseTo(0.1 / 1.4);
+  });
+
   it("shares the draw between groups by group weight, not by group size", () => {
     // One entry in progress against three completed: the group, not the
     // head count, decides - 1.5 : 1.0.
@@ -124,10 +138,13 @@ describe("entryFactors", () => {
     expect(entryFactors(anime("a")).decade).toBe(1);
   });
 
-  it("weighs serialization only within one type's mode", () => {
+  it("weighs serialization on the types that have weights for it", () => {
     const done = manga("m", { serialization_status: "完結" });
     expect(entryFactors(done, { mode: "manga" }).serialization).toBe(1.5);
-    expect(entryFactors(done, { mode: "all" }).serialization).toBe(1);
+    expect(
+      entryFactors({ type: "anime", item: { serialization_status: "完結" } }, { mode: "anime" })
+        .serialization
+    ).toBe(1);
     expect(
       entryFactors({ type: "h-comic", item: { serialization_status: "完結" } }, { mode: "h-comic" })
         .serialization

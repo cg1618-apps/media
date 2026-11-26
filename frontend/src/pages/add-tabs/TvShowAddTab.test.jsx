@@ -141,10 +141,11 @@ describe("TvShowAddTab", () => {
     expect(screen.getByRole("textbox", { name: "Paused at" })).toBeInTheDocument();
   });
 
-  it("offers both watch flags", () => {
+  it("leaves the watch flags to the marks section", () => {
     renderTab();
-    expect(screen.getByRole("checkbox", { name: "Add to Watch Next list" })).toBeInTheDocument();
-    expect(screen.getByRole("checkbox", { name: "Mark for rewatch" })).toBeInTheDocument();
+    for (const name of ["Pin to dashboard", "Plan Next", "Redo"]) {
+      expect(screen.queryByRole("checkbox", { name })).toBeNull();
+    }
   });
 
   it("shows the autofill and TMDB boxes", () => {

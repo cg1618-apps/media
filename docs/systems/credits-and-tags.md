@@ -1,6 +1,6 @@
 # Credits and tags (people, studios, vocabulary links)
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 ## What this is for
 
@@ -170,7 +170,8 @@ tags. See `app/services/domain/label_tags.py` and authorization.md.
 
 **A Game Platform console brings its family.** `game_platform` holds families
 (`Nintendo`) and consoles (`Switch`), and every write stores a console's
-family beside it; a family stays while any of its consoles does. See
+family with it and every family ahead of every console, in the fixed
+main-platform order; a family stays while any of its consoles does. See
 [options.md](../options.md#game-platform-families-and-consoles).
 
 The three H genre vocabularies are admin-managed and shared by the gated
@@ -265,7 +266,7 @@ Sheets restore — so a Tenrai name and a hand-typed name land on the same row.
 | `resolve_publisher(db, name, *, scope=None)` | Find-or-create, under `name_en` when new, and — when a scope is given — make sure the publisher holds a `publisher_scope` row for that media type. Additive, never subtractive, exactly like `resolve_person`: crediting a publisher on a manga can only widen where it is offered. Safe precisely because zero scope rows means "offered nowhere". `replace_credits` dispatches to it by name rather than through `_RESOLVERS`, since it takes a scope and `resolve_studio` does not. |
 | `resolve_option(db, category, value, scope=None)` | Find-or-create the `system_option`; adds a scope row only when `scope` is passed explicitly (backfill seeding, admin edits) — never derived from the caller's media type. |
 | `replace_credits(db, media_type, entry_id, role, names)` | Whole-set replace for one role, preserving order in `position`. The person role is scoped to the entry's own media type. Dispatches on `spec.target` through `_RESOLVERS` / `_TARGET_COLUMNS` — three explicit entries, no `else` meaning person. |
-| `replace_tags(...)` | Whole-set replace for one field. Deliberately does **not** auto-scope the option to the media type: doing so once silently narrowed an unscoped "Disney+" to TV-only after one TV use. On `game_platform` alone it first adds each console's family (`with_platform_families`), so `Switch` is stored with `Nintendo` - see [options.md](../options.md#game-platform-families-and-consoles). |
+| `replace_tags(...)` | Whole-set replace for one field. Deliberately does **not** auto-scope the option to the media type: doing so once silently narrowed an unscoped "Disney+" to TV-only after one TV use. On `game_platform` alone it first adds each console's family and moves the families ahead of the consoles (`with_platform_families`), so `Switch` is stored as `Nintendo, Switch` - see [options.md](../options.md#game-platform-families-and-consoles). |
 | `delete_links_for` | Removes all credit + tag rows of a deleted entry; returns the count. |
 | `credit_names` / `tag_values` | One entry, one role/field, stored order. |
 | `credits_to_sheet_value` / `tags_to_sheet_value` | `", ".join(...)` of the above. |
@@ -297,7 +298,7 @@ All.
 | `GET /api/person/?role=&scope=` | `view.person` | Sorted by resolved `display_name`; both filters are exact, and a query without `scope` means "holds this role in any media type". `credit_count`, `display_photo_file`, `media_types` and `restricted` are resolved from only the entries the viewer may see (`filter_visible_pairs`), for the whole list in one pass - see [Photo fallback](#photo-fallback). Each row carries every `(role, scope)` the person holds, so the admin form can load the whole set in one request. |
 | `GET /api/person/role-counts` | `view.person` | `{person_role: distinct people}` incl. zeros; declared before `/{system_id}`. System Options reads the same tally, with the studio count, from `GET /api/options/record-counts` (`manage.options`). |
 | `GET /api/person/role-scopes` | `view.person` | `{role: [legal media types]}`, derived from the same `CreditRole.media_types` that validates writes, so the admin form and the validator cannot drift. Declared before `/{system_id}`. |
-| `GET /api/person/{id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)` with the derived label, filtered through the same `filter_visible_pairs` as `credit_count`. 404 when the person is hidden — every connection hidden, see [authorization.md](../authorization.md#shared-records); a visible person's credits on label-hidden entries are omitted, group and all. |
+| `GET /api/person/{id}/entries` | `view.person` | The entries this person is credited on, grouped by `(media_type, role)` with the derived label, filtered through the same `filter_visible_pairs` as `credit_count`. 404 when the person is hidden — every connection hidden, or rated above the viewer's access mode, see [authorization.md](../authorization.md#shared-records); a visible person's credits on label-hidden entries are omitted, group and all. |
 | `GET /api/person/{id}` | `view.person` | 404 if absent or hidden. |
 | `POST /api/person/` | admin | **Find-or-create** on normalized name (matches `resolve_person`), then adds any missing roles; metadata of an existing person is untouched. Find-or-create because `ensureSourceValues.js` POSTs whenever a typed name is absent from a *role-filtered* list. The body carries either the four labelled name columns (the admin form) or one unslotted `name` (every other writer), which the endpoint places through `name_slot_for` — a caller holding one typed string cannot know its column, and copying the rule into the frontend would give one name two homes. |
 | `PUT /api/person/{id}` | admin | Full metadata update; replaces the role set. `photo_fallback_entry_id` must name an entry the person is linked to and the editor can see (422); a null keeps a stored choice the editor cannot see. `mal_id` and `imdb_id` are derived from their links, and the person - whatever role they hold - is then filled from MAL, then from TMDB, empty columns only (as `POST /` does on its create branch), each source only while one of its columns is blank (`has_missing_values_person`, `has_missing_values_person_tmdb`) - see [external-apis.md](../external-apis.md#mapping-for-person-mal--map_tenrai_to_person_data). |

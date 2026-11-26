@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1017,7 +1017,7 @@ number among them is `vol_fin_page`, a page. See
 | `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE |
 | `status` | String | **no** | per type | The one status column for all twelve types. Translated to and from `watching_status` / `reading_status` / `playing_status` by `STATUS_FIELD`; the default comes from `DEFAULT_STATUS`. |
 | `my_rating` | String | yes | | MY_RATINGS - a letter grade, never a number |
-| `completed_at` | DateTime | yes | | Stamped when the status becomes a completed one (`apply_list_completion_timestamp`) |
+| `completed_at` | DateTime | yes | | The latest finish: stamped when the status moves into a completed one (`apply_list_completion_timestamp`) |
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
 | `ep_fin` | Float | yes | | anime, tv_shows, cartoons, hentai |
 | `time_fin` | String | yes | | **Paused at**: where playback stopped - `1:10:00` into a movie, `14:35` into the episode after `ep_fin`. The six watching types (anime, anime_movies, movies, tv_shows, cartoons, hentai). Free text, never parsed; stored stripped, a blank as NULL (`clean_time_fin`). Which episode it belongs to is `ep_fin`'s job, not this column's. Cleared when `ep_fin` goes up or the row becomes Completed - see [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress) |
@@ -1183,12 +1183,13 @@ One human credited on a media entry (Tier 3 entity - see
 | `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Person (MAL) Fill, or typed directly. Any person holding one is filled from MAL, whatever their role |
 | `mal_link` | String | yes | | `myanimelist.net/people/<id>/<slug>` |
 | `anilist_link` | String | yes | | `anilist.co/staff/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
-| `anilist_link` | String | yes | | `anilist.co/staff/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
 | `imdb_id` | String | yes | | IMDb name id, `nm<digits>`. Derived from `imdb_link` by `extract_imdb_id_person` on every write and on the Person (TMDB) Fill. Any person holding one is filled from TMDB's person record (through `/find`), after MAL |
 | `imdb_link` | String | yes | | `imdb.com/name/nm<digits>/` |
 | `twitter_link` | String | yes | | The person's own Twitter (X) page. Stored as typed; no id is derived from it and no Fill reads it |
 | `ig_link` | String | yes | | Their Instagram page, as `twitter_link` |
 | `pixiv_link` | String | yes | | Their pixiv page, as `twitter_link` |
+| `type_slots` | JSONB | yes | | Which favourite-entity 3×3 grid slot this person holds, as `{gridKey: 1..9}`. Eight grids are keyed here: Anime Director, Non-Anime Director, Composer, Manga Author, Book Author, Illustrator, Female Seiyuu, Male Seiyuu. Written only by the Fav 3x3 editor's PATCH; no form or PUT carries it |
+| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_person_content_rating`, `app/utils/content_rating.py`). Hides the person from an access mode below the rating, on top of the connection rule - see [authorization.md](authorization.md#shared-records). Restored by Pull, a blank or unknown cell as `normal` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,
@@ -1351,7 +1352,8 @@ every type it applies to is not wrong in the way a distributor list offering
 | `mal_id` | Integer | yes | | MAL producer id. Derived from `mal_link` by `extract_mal_id_producer` on write and on Fill, or typed directly. Setting it is what makes a studio fillable |
 | `mal_link` | String | yes | | |
 | `anilist_link` | String | yes | | `anilist.co/studio/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
-| `anilist_link` | String | yes | | `anilist.co/studio/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
+| `type_slots` | JSONB | yes | | Which favourite-entity 3×3 grid slot this studio holds, as `{gridKey: 1..9}`. Two grids are keyed here: Anime Studio and Game Studio. Written only by the Fav 3x3 editor's PATCH; no form or PUT carries it |
+| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_studio_content_rating`, `app/utils/content_rating.py`). Hides the studio from an access mode below the rating, on top of the connection rule - see [authorization.md](authorization.md#shared-records). Restored by Pull, a blank or unknown cell as `normal` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 All four name columns are nullable and **at least one** must be set: a studio
@@ -1407,6 +1409,7 @@ mean something vaguer than it does.
 | `founded_date` / `defunct_date` | String | yes | | Truncated ISO-8601, the format owned by `app/utils/release_date.py` |
 | `country` | String | yes | | One free-text country, suggested from the `Country` common options, never added to them |
 | `website_url` | String | yes | | |
+| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_publisher_content_rating`, `app/utils/content_rating.py`). Hides the publisher from an access mode below the rating, on top of the connection rule - see [authorization.md](authorization.md#shared-records). Restored by Pull, a blank or unknown cell as `normal` |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 **No `mal_id` / `mal_link` columns**, unlike `studio`. MAL knows nothing about
@@ -2045,6 +2048,7 @@ string, not a migration. Model: `ImageAttachment`.
 | `role` | String | no | `"cover"` | What the image is for: `cover` for every media/entity owner, `quote`/`quote-image`-shaped roles for quote and meme (see `app/routers/images.py`'s `NON_COVER_ROLE_OWNERS`), and `work` for a picture in a person's gallery of works (below) |
 | `position` | Integer | no | `0` | Order within one owner's role. 0 for every single-image role; a `work` gallery numbers its pictures 0, 1, 2 … with no gaps |
 | `caption` | String | yes | | What a gallery picture shows. NULL for every single-image role, and for an uncaptioned picture |
+| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_image_attachment_content_rating`). Read only on a `work` gallery picture, which an access mode below the rating does not list; every other role keeps the default. Not in the sheet: attachments do not travel by Backup / Pull |
 
 Unique on `(owner_type, owner_id, role, position)` - re-attaching an owner's
 existing role replaces the row rather than creating a second one, so "change

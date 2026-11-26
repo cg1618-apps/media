@@ -25,6 +25,8 @@ import {
 
 const SEES_ALL = { visibleGatedTypes: ["h-comic", "h-game", "hentai"] };
 const SEES_NONE = { visibleGatedTypes: [] };
+// The widest access mode: every content rating can reach it.
+const UNRESTRICTED = { ...SEES_ALL, mode: { key: "unrestricted" } };
 
 function def(defs, key) {
   return defs.find((fd) => fd.key === key);
@@ -266,37 +268,57 @@ describe("the entity libraries' filter order", () => {
   const advanced = (defs) => defs.filter((fd) => fd.advanced).map((fd) => fd.key);
   const ordinary = (defs) => defs.filter((fd) => !fd.advanced).map((fd) => fd.key);
 
-  it("puts Entry type first and My Rating last on every entity library", () => {
+  it("puts Entry type first on every entity library and My Rating in its advanced section", () => {
     for (const defs of [
-      characterFilterDefs(SEES_ALL),
-      personFilterDefs(SEES_ALL),
-      studioFilterDefs(SEES_ALL),
-      publisherFilterDefs(SEES_ALL),
+      characterFilterDefs(UNRESTRICTED),
+      personFilterDefs(UNRESTRICTED),
+      studioFilterDefs(UNRESTRICTED),
+      publisherFilterDefs(UNRESTRICTED),
     ]) {
       expect(keys(defs)[0]).toBe("mediaType");
-      expect(ordinary(defs).at(-1)).toBe("myRating");
+      expect(advanced(defs)).toContain("myRating");
+      expect(ordinary(defs)).not.toContain("myRating");
     }
   });
 
   it("orders each library's ordinary filters", () => {
-    expect(ordinary(characterFilterDefs(SEES_ALL))).toEqual([
-      "mediaType", "role", "gender", "myRating",
+    expect(ordinary(characterFilterDefs(UNRESTRICTED))).toEqual([
+      "mediaType", "role", "gender",
     ]);
-    expect(ordinary(personFilterDefs(SEES_ALL))).toEqual([
-      "mediaType", "role", "gender", "myRating",
+    expect(ordinary(personFilterDefs(UNRESTRICTED))).toEqual([
+      "mediaType", "role", "gender",
     ]);
-    expect(ordinary(studioFilterDefs(SEES_ALL))).toEqual([
-      "mediaType", "country", "relation", "myRating",
+    expect(ordinary(studioFilterDefs(UNRESTRICTED))).toEqual([
+      "mediaType", "country",
     ]);
-    expect(ordinary(publisherFilterDefs(SEES_ALL))).toEqual([
-      "mediaType", "kind", "country", "relation", "myRating",
+    expect(ordinary(publisherFilterDefs(UNRESTRICTED))).toEqual([
+      "mediaType", "kind", "country",
     ]);
   });
 
-  it("puts a character's Card and Identities groups in the advanced section", () => {
-    expect(advanced(characterFilterDefs(SEES_ALL))).toEqual([
-      "cardKind", "hasIdentities", "appearance", "trait",
+  it("orders each library's advanced filters", () => {
+    expect(advanced(characterFilterDefs(UNRESTRICTED))).toEqual([
+      "cardKind", "hasIdentities", "myRating", "appearance", "trait",
     ]);
+    expect(advanced(personFilterDefs(UNRESTRICTED))).toEqual(["contentRating", "myRating"]);
+    expect(advanced(studioFilterDefs(UNRESTRICTED))).toEqual([
+      "contentRating", "relation", "myRating",
+    ]);
+    expect(advanced(publisherFilterDefs(UNRESTRICTED))).toEqual([
+      "contentRating", "relation", "myRating",
+    ]);
+  });
+
+  it("draws every advanced filter after every ordinary one", () => {
+    for (const defs of [
+      characterFilterDefs(UNRESTRICTED),
+      personFilterDefs(UNRESTRICTED),
+      studioFilterDefs(UNRESTRICTED),
+      publisherFilterDefs(UNRESTRICTED),
+    ]) {
+      const first = defs.findIndex((fd) => fd.advanced);
+      expect(defs.slice(first).every((fd) => fd.advanced)).toBe(true);
+    }
   });
 
   it("leaves My Rating out for a viewer without a list, keeping the rest in order", () => {
@@ -483,14 +505,52 @@ describe("the My Rating group and ownData", () => {
   }
 });
 
-// Card, Identities, Appearance and Trait are advanced filters, after every
-// ordinary one.
-it("puts the character library's Card, Identities, Appearance and Trait in the advanced section", () => {
-  const defs = characterFilterDefs({ has: () => true, visibleGatedTypes: [] });
-  const advanced = defs.filter((fd) => fd.advanced).map((fd) => fd.key);
-  expect(advanced).toEqual(["cardKind", "hasIdentities", "appearance", "trait"]);
-  const firstAdvanced = defs.findIndex((fd) => fd.advanced);
-  expect(defs.slice(firstAdvanced).every((fd) => fd.advanced)).toBe(true);
+// The Content rating group follows the active mode: it offers only the
+// ratings the server can serve in it, and is absent where that is one.
+describe("the Content rating group", () => {
+  const builders = {
+    person: (auth) => personFilterDefs(auth),
+    studio: (auth) => studioFilterDefs(auth),
+    publisher: (auth) => publisherFilterDefs(auth),
+  };
+  const inMode = (key) => ({ ...SEES_ALL, mode: { key } });
+
+  for (const [name, build] of Object.entries(builders)) {
+    it(`${name}: absent in safe and normal, and without a mode`, () => {
+      // The same builder produces the group in borderline, so its absence
+      // below is the mode's doing.
+      expect(def(build(inMode("borderline")), "contentRating")).toBeDefined();
+      for (const auth of [inMode("safe"), inMode("normal"), SEES_ALL, null]) {
+        expect(def(build(auth), "contentRating")).toBeUndefined();
+      }
+    });
+
+    it(`${name}: normal and borderline in borderline, all three in unrestricted`, () => {
+      expect(def(build(inMode("borderline")), "contentRating").options).toEqual([
+        "normal", "borderline",
+      ]);
+      expect(def(build(inMode("unrestricted")), "contentRating").options).toEqual([
+        "normal", "borderline", "unrestricted",
+      ]);
+    });
+  }
+
+  it("labels the ratings and matches a row with none as normal", () => {
+    const defs = personFilterDefs(UNRESTRICTED);
+    const group = def(defs, "contentRating");
+    expect(group.label).toBe("Content rating");
+    expect(group.options.map(group.optionLabel)).toEqual([
+      "Normal", "Borderline (15+)", "Unrestricted (18+)",
+    ]);
+    const rows = [
+      { id: 1, media_types: [], content_rating: "normal" },
+      { id: 2, media_types: [], content_rating: "borderline" },
+      { id: 3, media_types: [], content_rating: "unrestricted" },
+      { id: 4, media_types: [] },
+    ];
+    expect(filtered(defs, rows, { contentRating: ["normal"] })).toEqual([1, 4]);
+    expect(filtered(defs, rows, { contentRating: ["borderline", "unrestricted"] })).toEqual([2, 3]);
+  });
 });
 
 describe("publisherKindLabels", () => {

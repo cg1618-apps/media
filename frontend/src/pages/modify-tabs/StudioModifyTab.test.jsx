@@ -256,3 +256,19 @@ it("keeps a studio's several countries through a save", async () => {
   await waitFor(() => expect(put()).toBeDefined());
   expect(JSON.parse(put()[1].body).countries).toEqual(["Japan", "China"]);
 });
+
+// Content rating loads as stored, reads Normal when unset, and the PUT sends
+// the edited value.
+it("loads the content rating and sends the edited one on save", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "s1" });
+  const select = await screen.findByLabelText("Content rating");
+  expect(select).toHaveValue("normal");
+
+  await user.selectOptions(select, "borderline");
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  const put = () => fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  await waitFor(() => expect(put()).toBeDefined());
+  expect(JSON.parse(put()[1].body).content_rating).toBe("borderline");
+});

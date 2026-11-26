@@ -438,3 +438,26 @@ it("titles the tab with a pencil and the person's saved name", async () => {
   await waitFor(() => expect(document.title).toBe("Modify Entry"));
 });
 
+
+// Content rating loads as stored and the PUT sends the edited value.
+it("loads the content rating and sends the edited one on save", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const user = userEvent.setup();
+  mount({ initialId: "p1" });
+  const select = await screen.findByLabelText("Content rating");
+  expect(select).toHaveValue("normal");
+  expect([...select.options].map((o) => o.textContent)).toEqual([
+    "Normal", "Borderline (15+)", "Unrestricted (18+)",
+  ]);
+
+  await user.selectOptions(select, "borderline");
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/person/p1",
+      expect.objectContaining({ method: "PUT" }),
+    ),
+  );
+  const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
+  expect(JSON.parse(init.body)).toMatchObject({ content_rating: "borderline" });
+});

@@ -85,8 +85,11 @@ def test_games_seed_no_access_platforms(db_session):
     )
 
 
-def test_game_platform_offers_each_family_then_its_consoles(db_session):
-    """IGDB names every model; the picker offers the families and the consoles."""
+def test_game_platform_offers_the_main_platforms_then_the_specific_ones(db_session):
+    """
+    IGDB names every model; the picker offers the six main platforms first,
+    then every console grouped by family in the same order - no heading.
+    """
     values = [
         o.value
         for o in db_session.query(models.SystemOption)
@@ -94,12 +97,9 @@ def test_game_platform_offers_each_family_then_its_consoles(db_session):
         .order_by(models.SystemOption.sort_order)
         .all()
     ]
-    families = ["PlayStation", "Nintendo", "Xbox", "PC", "Mobile", "Browser"]
-    assert [v for v in values if v in families] == families
-    assert values[: values.index("Nintendo")] == [
-        "PlayStation", "PS1", "PS2", "PS3", "PS4", "PS5", "PSP", "Vita",
-        "PS VR", "PS VR2",
-    ]
+    assert values[:6] == ["PC", "PlayStation", "Xbox", "Nintendo", "Mobile", "Browser"]
+    assert values[6:15] == ["Windows", "Mac", "Linux", "DOS", "PS1", "PS2", "PS3", "PS4", "PS5"]
+    assert values.index("Original Xbox") < values.index("Switch") < values.index("iOS")
     assert {"Switch", "Switch 2", "Original Xbox", "Windows", "iOS"} <= set(values)
 
     playstation = (

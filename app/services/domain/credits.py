@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session, selectinload
 from app import models
 from app.schemas.link_fields import PersonRef, PublisherRef, StudioRef
 from app.services.domain.person_roles import grant_role
+from app.utils.content_rating import CONTENT_RATINGS
 from app.utils.credit_roles import (
     CREDIT_ROLES,
     TAG_FIELDS,
@@ -385,7 +386,12 @@ _TARGET_COLUMNS = {
 
 
 def replace_credits(
-    db: Session, media_type: str, media_id: UUID, role: str, names: list[str]
+    db: Session,
+    media_type: str,
+    media_id: UUID,
+    role: str,
+    names: list[str],
+    keep_ratings: frozenset[str] = frozenset(),
 ) -> None:
     """
     Make the entry's credits for one role exactly `names`, in that order.
@@ -393,6 +399,10 @@ def replace_credits(
     media_type is still a parameter after the move to media_id, and is not
     redundant: it is the SCOPE a resolved person or publisher is registered
     under. The row itself is keyed only by media_id.
+
+    `keep_ratings` is the writer's shared_visibility.hidden_ratings: credits
+    naming an entity rated one of them were never shown to the writer, so
+    their absence from `names` is not a removal (replace_credit_targets).
     """
     spec = CREDIT_ROLES[role]
 
@@ -408,19 +418,43 @@ def replace_credits(
             targets.append(resolve_publisher(db, name, scope=media_type))
         else:
             targets.append(_RESOLVERS[spec.target](db, name))
-    replace_credit_targets(db, media_id, role, targets)
+    replace_credit_targets(db, media_id, role, targets, keep_ratings)
+
+
+def _with_kept(db: Session, media_id: UUID, role: str, targets: list, keep_ratings) -> list:
+    """
+    `targets` with the stored credits rated one of `keep_ratings` put back at
+    their stored positions, in stored order - so a writer saving the list it
+    was shown leaves the ones it was not shown where they were. A kept entity
+    the writer named itself is not repeated.
+    """
+    named = {target.system_id for target in targets}
+    out = list(targets)
+    for position, entity in enumerate(_credited_entities(db, media_id, role)):
+        if entity.content_rating in keep_ratings and entity.system_id not in named:
+            out.insert(min(position, len(out)), entity)
+    return out
 
 
 def replace_credit_targets(
-    db: Session, media_id: UUID, role: str, targets: Sequence
+    db: Session,
+    media_id: UUID,
+    role: str,
+    targets: Sequence,
+    keep_ratings: frozenset[str] = frozenset(),
 ) -> None:
     """
     Make the entry's credits for one role exactly `targets`, in that order -
     rows already resolved to their entity (a Person, Studio or Publisher, as
     the role's target says). replace_credits resolves names and lands here;
     the MAL autofills resolve by MAL id first and land here too.
+
+    Credits naming an entity rated one of `keep_ratings` are kept in place
+    (_with_kept); empty, the default, keeps nothing.
     """
     column = _TARGET_COLUMNS[CREDIT_ROLES[role].target]
+    if keep_ratings:
+        targets = _with_kept(db, media_id, role, list(targets), keep_ratings)
 
     db.query(models.MediaCredit).filter_by(
         media_id=media_id, role=role
@@ -492,7 +526,12 @@ def match_existing_credits(db: Session, role: str, names: list[str]) -> CreditMa
 
 
 def credit_existing(
-    db: Session, media_type: str, media_id: UUID, role: str, match: CreditMatch
+    db: Session,
+    media_type: str,
+    media_id: UUID,
+    role: str,
+    match: CreditMatch,
+    keep_ratings: frozenset[str] = frozenset(),
 ) -> None:
     """
     Make the entry's credits for one role exactly the rows `match` found.
@@ -504,7 +543,7 @@ def credit_existing(
     if CREDIT_ROLES[role].target == "publisher":
         for publisher in match.found:
             _ensure_publisher_scope(db, publisher, media_type)
-    replace_credit_targets(db, media_id, role, match.found)
+    replace_credit_targets(db, media_id, role, match.found, keep_ratings)
 
 
 def _credited_entities(db: Session, media_id: UUID, role: str) -> list:
@@ -624,12 +663,22 @@ def replace_tags(
     db.flush()
 
 
-def credit_names(db: Session, media_id: UUID, role: str) -> list[str]:
-    """The entry's credited names for one role, in stored order."""
+def credit_names(
+    db: Session, media_id: UUID, role: str, hidden: frozenset[str] = frozenset()
+) -> list[str]:
+    """
+    The entry's credited names for one role, in stored order, leaving out an
+    entity rated one of `hidden` (a viewer's shared_visibility.hidden_ratings;
+    empty for the internal readers).
+    """
     # People and studios both choose their own shown name. This value reaches
     # the anime payload, the admin form and the Sheets column - all three
     # read the same string.
-    return [entity.display_name for entity in _credited_entities(db, media_id, role)]
+    return [
+        entity.display_name
+        for entity in _credited_entities(db, media_id, role)
+        if entity.content_rating not in hidden
+    ]
 
 
 def tag_values(db: Session, media_id: UUID, field: str) -> list[str]:
@@ -1210,7 +1259,12 @@ def legacy_link_fields(media_type: str) -> tuple[tuple[str, str, str], ...]:
     return tuple(out)
 
 
-def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
+def _link_rows_and_lookups(
+    db: Session,
+    media_type: str,
+    entry_ids: list[UUID],
+    hidden: frozenset[str] = frozenset(),
+):
     """
     One query each for the credit rows, tag rows, and the entities they
     reference (people, studios, publishers, options) for a batch of entries.
@@ -1218,7 +1272,11 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
     Shared by `link_values_for_entries` and `attach_link_fields`'s
     `studio_refs` build, so having both read from the same batch costs no
     extra queries - five total regardless of how many entries are passed.
+
+    A person, studio or publisher rated one of `hidden` is not loaded, so
+    every reader of the lookups drops its credits as it drops a missing row.
     """
+    rating_ok = sorted(set(CONTENT_RATINGS) - set(hidden))
     if not entry_ids:
         return [], [], {}, {}, {}, {}
 
@@ -1252,7 +1310,10 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
             for p in db.query(models.Person)
             # display_name reads the roles: a seiyuu's default differs.
             .options(selectinload(models.Person.roles))
-            .filter(models.Person.system_id.in_(person_ids))
+            .filter(
+                models.Person.system_id.in_(person_ids),
+                models.Person.content_rating.in_(rating_ok),
+            )
             .all()
         }
         if person_ids
@@ -1262,7 +1323,10 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
         {
             s.system_id: s
             for s in db.query(models.Studio)
-            .filter(models.Studio.system_id.in_(studio_ids))
+            .filter(
+                models.Studio.system_id.in_(studio_ids),
+                models.Studio.content_rating.in_(rating_ok),
+            )
             .all()
         }
         if studio_ids
@@ -1272,7 +1336,10 @@ def _link_rows_and_lookups(db: Session, media_type: str, entry_ids: list[UUID]):
         {
             p.system_id: p
             for p in db.query(models.Publisher)
-            .filter(models.Publisher.system_id.in_(publisher_ids))
+            .filter(
+                models.Publisher.system_id.in_(publisher_ids),
+                models.Publisher.content_rating.in_(rating_ok),
+            )
             .all()
         }
         if publisher_ids
@@ -1346,7 +1413,7 @@ def link_values_for_entries(
     )
 
 
-def attach_link_fields(db: Session, media_type: str, entries) -> None:
+def attach_link_fields(db: Session, media_type: str, entries, viewer=None) -> None:
     """
     Set the legacy-named, comma-joined link attributes on ORM entries in place.
 
@@ -1364,7 +1431,16 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
     Both are built from the same batched `_link_rows_and_lookups` fetch as the
     rest of this function, so adding them costs no extra query - still five
     total, regardless of how many entries are passed.
+
+    A person, studio or publisher rated above `viewer`'s access mode is left
+    out of every one of these, names and refs alike: the entry stays visible
+    and simply does not name them (shared_visibility.hidden_ratings). None,
+    an internal caller, leaves nobody out.
     """
+    # Imported here: shared_visibility reaches enforcement, which imports
+    # this module.
+    from app.services.rbac.shared_visibility import hidden_ratings
+
     if entries is None:
         return
     rows = list(entries) if isinstance(entries, (list, tuple)) else [entries]
@@ -1383,7 +1459,7 @@ def attach_link_fields(db: Session, media_type: str, entries) -> None:
         studios,
         publishers,
         options,
-    ) = _link_rows_and_lookups(db, media_type, entry_ids)
+    ) = _link_rows_and_lookups(db, media_type, entry_ids, hidden_ratings(viewer))
     values = _values_from_rows(
         entry_ids, credit_rows, tag_rows, people, studios, publishers, options
     )
@@ -1580,11 +1656,13 @@ def credit_usage(db: Session, viewer) -> dict[str, dict]:
     a content label is not counted, and a media type the viewer lacks the
     permission for is left out. Both are applied in SQL, so the answer is two
     GROUP BY queries - one over media_credit, one over media_tag - however
-    many values there are.
+    many values there are. A person, studio or publisher rated above the
+    viewer's access mode is absent, as it is from every suggestion list.
     """
     # Imported here for the cycle credit_summaries avoids.
     from app.services.rbac.enforcement import _hidden_by_label, hidden_label_ids
     from app.services.rbac.permissions import media_type_perm
+    from app.services.rbac.shared_visibility import hidden_ratings
     from app.utils.media_resolver import MEDIA_TABLES
 
     allowed = [
@@ -1644,7 +1722,20 @@ def credit_usage(db: Session, viewer) -> dict[str, dict]:
             media_type, {"studio": {}, "publisher": {}, "person": {}, "option": {}}
         )
 
+    unseen = sorted(hidden_ratings(viewer))
+    rated_out: set = set()
+    if unseen:
+        for model in (models.Person, models.Studio, models.Publisher):
+            rated_out |= {
+                system_id
+                for (system_id,) in db.query(model.system_id).filter(
+                    model.content_rating.in_(unseen)
+                )
+            }
+
     for media_type, role, person_id, studio_id, publisher_id, count in credit_rows:
+        if {person_id, studio_id, publisher_id} & rated_out:
+            continue
         if person_id is not None:
             bucket(media_type)["person"].setdefault(role, {})[str(person_id)] = count
         elif studio_id is not None:

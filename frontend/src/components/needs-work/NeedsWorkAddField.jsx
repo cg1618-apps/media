@@ -30,10 +30,7 @@ export default function NeedsWorkAddField({ value, onChange }) {
             onChange(e.target.checked ? { ...value, flagged: true } : EMPTY_NEEDS_WORK)
           }
         />
-        待補充 Needs Work
-        <span className="text-xs font-normal text-text-faint">
-          the data is not complete yet - marked when the record is saved
-        </span>
+        待補充
       </label>
       {value.flagged && (
         <NeedsWorkNoteInput

@@ -43,9 +43,23 @@ def test_tagging_a_console_through_the_api_tags_its_family(
     _put_platforms(owner_client, game, ["Switch", "PS5"])
     db_session.expire_all()
     assert tag_values(db_session, game.system_id, "game_platform") == [
+        "PlayStation",
         "Nintendo",
         "Switch",
+        "PS5",
+    ]
+
+
+def test_the_api_stores_main_platforms_ahead_of_specific_ones(
+    owner_client, db_session, game
+):
+    """The families go in the fixed order, whatever order they were handed in."""
+    _put_platforms(owner_client, game, ["Windows", "PS5", "PC"])
+    db_session.expire_all()
+    assert tag_values(db_session, game.system_id, "game_platform") == [
+        "PC",
         "PlayStation",
+        "Windows",
         "PS5",
     ]
 

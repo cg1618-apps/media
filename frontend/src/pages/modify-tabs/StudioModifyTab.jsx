@@ -10,6 +10,7 @@
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=studio, the
 // detail page's Edit button): that studio's editor opens on mount.
 import RelatedRecords from "../../components/info/RelatedRecords";
+import { CONTENT_RATING_NORMAL } from "../../config/fieldOptions";
 import {
   applyMyRating,
   useFormRatingSaver,
@@ -53,6 +54,7 @@ function studioToForm(s) {
     mal_id: s.mal_id ?? "",
     mal_link: s.mal_link || "",
     anilist_link: s.anilist_link || "",
+    content_rating: s.content_rating || CONTENT_RATING_NORMAL,
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: s.my_rating || "",
   };
@@ -154,6 +156,7 @@ export default function StudioModifyTab({ initialId = null } = {}) {
           mal_id: studioForm.mal_id ? parseInt(studioForm.mal_id, 10) : null,
           mal_link: studioForm.mal_link || null,
           anilist_link: studioForm.anilist_link?.trim() || null,
+          content_rating: studioForm.content_rating || CONTENT_RATING_NORMAL,
         }),
       });
       await queryClient.invalidateQueries({ queryKey: ["studios-admin"] });

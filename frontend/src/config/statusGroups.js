@@ -8,6 +8,8 @@ export const COMPLETED_STATUSES = ["Completed", "Completed (解說)"];
 
 /**
  * Maps raw watching_status values to display groups used by library filters.
+ * "Stopped" is set aside to come back to - Paused and Temp Dropped - and sits
+ * between the in-progress group and Completed.
  */
 export const WATCHING_STATUS_GROUP = {
   "Plan to Watch":    "Planned",
@@ -15,10 +17,10 @@ export const WATCHING_STATUS_GROUP = {
   "Watch When Released": "Planned",
   "Active Watching":  "Watching",
   "Passive Watching": "Watching",
-  Paused:             "Watching",
+  Paused:             "Stopped",
   Completed:          "Completed",
   "Completed (解說)":  "Completed",
-  "Temp Dropped":     "Dropped",
+  "Temp Dropped":     "Stopped",
   Dropped:            "Dropped",
   "Won't Watch":      "Dropped",
   "Might Watch":      "Might Watch",
@@ -31,10 +33,10 @@ export const READING_STATUS_GROUP = {
   "Plan to Read":    "Planned",
   "Active Reading":  "Reading",
   "Passive Reading": "Reading",
-  Paused:            "Reading",
+  Paused:            "Stopped",
   Completed:         "Completed",
   "Completed (解說)": "Completed",
-  "Temp Dropped":    "Dropped",
+  "Temp Dropped":    "Stopped",
   Dropped:           "Dropped",
   "Won't Read":      "Dropped",
   "Might Read":      "Might Read",
@@ -49,9 +51,9 @@ export const PLAYING_STATUS_GROUP = {
   "Active Playing":     "Playing",
   "Passive Playing":    "Playing",
   "Play Anytime":       "Playing",
-  Paused:               "Playing",
+  Paused:               "Stopped",
   Completed:            "Completed",
-  "Temp Dropped":       "Dropped",
+  "Temp Dropped":       "Stopped",
   Dropped:              "Dropped",
   "Won't Play":         "Dropped",
   "Might Play":         "Might Play",

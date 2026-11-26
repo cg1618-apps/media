@@ -17,6 +17,11 @@ there can still be captioned, reordered and removed.
 Unlike a cover, a gallery picture is the person's own rather than library
 stock: removing it from the gallery deletes the image and its file, unless
 something else still uses the same bytes (`image_library.drop_if_unused`).
+
+Each picture carries a content rating (app/utils/content_rating.py). One rated
+above the viewer's access mode is left out of the gallery as if absent - not
+listed, not captioned, not removed - and a reorder by an editor who was not
+shown it leaves it in the slot it holds (`reorder_visible`).
 """
 
 from typing import Iterable, Optional
@@ -48,9 +53,14 @@ def _query(db: Session, person_id: UUID):
     )
 
 
-def gallery(db: Session, person_id: UUID) -> list[tuple[models.ImageAttachment, models.Image]]:
-    """The person's pictures with their images, in display order."""
-    return (
+def gallery(
+    db: Session, person_id: UUID, hidden: frozenset[str] = frozenset()
+) -> list[tuple[models.ImageAttachment, models.Image]]:
+    """
+    The person's pictures with their images, in display order, leaving out
+    those rated one of `hidden` (the viewer's shared_visibility.hidden_ratings).
+    """
+    query = (
         db.query(models.ImageAttachment, models.Image)
         .join(models.Image, models.ImageAttachment.image_id == models.Image.system_id)
         .filter(
@@ -58,17 +68,42 @@ def gallery(db: Session, person_id: UUID) -> list[tuple[models.ImageAttachment, 
             models.ImageAttachment.owner_id == person_id,
             models.ImageAttachment.role == WORK_ROLE,
         )
-        .order_by(models.ImageAttachment.position)
-        .all()
     )
+    if hidden:
+        query = query.filter(models.ImageAttachment.content_rating.notin_(sorted(hidden)))
+    return query.order_by(models.ImageAttachment.position).all()
 
 
-def find(db: Session, person_id: UUID, attachment_id: UUID) -> Optional[models.ImageAttachment]:
+def find(
+    db: Session, person_id: UUID, attachment_id: UUID, hidden: frozenset[str] = frozenset()
+) -> Optional[models.ImageAttachment]:
     """One of this person's pictures, or None - an attachment of another
-    owner, or of another role, is not found here."""
-    return _query(db, person_id).filter(
+    owner, or of another role, or one rated one of `hidden`, is not found
+    here."""
+    attachment = _query(db, person_id).filter(
         models.ImageAttachment.system_id == attachment_id
     ).first()
+    if attachment is None or attachment.content_rating in hidden:
+        return None
+    return attachment
+
+
+def reorder_visible(
+    db: Session, person_id: UUID, ordered_ids: list[UUID], hidden: frozenset[str]
+) -> None:
+    """
+    Put the pictures not rated one of `hidden` in `ordered_ids`' order, each
+    hidden picture keeping the slot it holds. So an editor narrowed below a
+    picture's rating reorders what it sees without moving, or losing, what it
+    does not.
+    """
+    rows = _query(db, person_id).order_by(models.ImageAttachment.position).all()
+    by_id = {row.system_id: row for row in rows}
+    visible = iter(by_id[attachment_id] for attachment_id in ordered_ids)
+    renumber(
+        db,
+        [row if row.content_rating in hidden else next(visible) for row in rows],
+    )
 
 
 def renumber(db: Session, attachments: list[models.ImageAttachment]) -> None:

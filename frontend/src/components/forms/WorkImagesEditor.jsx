@@ -3,7 +3,8 @@
 //
 // Every action saves at once, as the Photo picker's does, rather than with
 // the form: upload (several files at a time) appends through POST, a caption
-// PATCHes on blur, a drag or arrow key PUTs the whole order, and Remove
+// PATCHes on blur and a content rating on change, a drag or arrow key PUTs
+// the whole order, and Remove
 // DELETEs the picture - which deletes its file too unless another owner uses
 // the same image. The server answers each with the gallery (or the one
 // picture), and that answer becomes the list. A move shows the new order at
@@ -23,7 +24,12 @@ import { workImageUrls } from "../../lib/workImages";
 import { Button } from "../ui/primitives";
 import LazyImage from "../ui/LazyImage";
 import { DragHandle, SortableItem, SortableList, arrayMove } from "../ui/Sortable";
-import { inputCls } from "./FormField";
+import { inputCls, selectCls } from "./FormField";
+import {
+  CONTENT_RATINGS,
+  CONTENT_RATING_NORMAL,
+  contentRatingLabel,
+} from "../../config/fieldOptions";
 
 // Keyed on the saved caption by its caller, so a new answer from the server
 // starts it afresh.
@@ -40,6 +46,30 @@ function CaptionInput({ picture, onSave }) {
         if (value.trim() !== (picture.caption ?? "")) onSave(value);
       }}
     />
+  );
+}
+
+// A picture's content rating: the lowest access mode it is shown in, like the
+// person's own. The server withholds a picture rated above the viewer's mode
+// from the gallery on the person's page.
+function ContentRatingSelect({ picture, disabled, onSave }) {
+  const value = picture.content_rating || CONTENT_RATING_NORMAL;
+  return (
+    <select
+      className={selectCls}
+      value={value}
+      disabled={disabled}
+      aria-label={`Content rating for picture ${picture.position + 1}`}
+      onChange={(e) => {
+        if (e.target.value !== value) onSave(e.target.value);
+      }}
+    >
+      {CONTENT_RATINGS.map((rating) => (
+        <option key={rating} value={rating}>
+          {contentRatingLabel(rating)}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -105,11 +135,12 @@ export default function WorkImagesEditor({ personId }) {
     }).then((ok) => !ok && setPictures(before));
   }
 
-  function saveCaption(picture, caption) {
+  // PATCHes one picture with `changes` ({caption} or {content_rating}).
+  function savePicture(picture, changes) {
     run(async () => {
       const saved = await fetchJson(endpoints.person.workImage(personId, picture.system_id), {
         method: "PATCH",
-        ...jsonBody({ caption }),
+        ...jsonBody(changes),
       });
       setPictures((rows) => rows.map((p) => (p.system_id === saved.system_id ? saved : p)));
     });
@@ -161,7 +192,14 @@ export default function WorkImagesEditor({ personId }) {
                 <div className="flex-1 min-w-0">
                   <CaptionInput
                     key={picture.caption ?? ""}
-                    picture={picture} onSave={(c) => saveCaption(picture, c)} />
+                    picture={picture} onSave={(caption) => savePicture(picture, { caption })} />
+                </div>
+                <div className="w-44 shrink-0">
+                  <ContentRatingSelect
+                    picture={picture}
+                    disabled={busy}
+                    onSave={(rating) => savePicture(picture, { content_rating: rating })}
+                  />
                 </div>
                 <button
                   type="button"

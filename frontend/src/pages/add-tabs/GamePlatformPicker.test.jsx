@@ -1,5 +1,6 @@
 // Frontend: the Game form's Platform picker adds a console's family as the
-// console is picked, as the server does on every write.
+// console is picked, and keeps the main platforms first, as the server does on
+// every write.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -84,7 +85,15 @@ describe("the Platform picker", () => {
     const user = userEvent.setup();
     renderPicker("Nintendo, Switch, PlayStation");
     await user.click(removeTag("Nintendo"));
-    expect(platformTags()).toEqual(["Nintendo", "Switch", "PlayStation"]);
+    // Back, and ahead of the console: main platforms come first.
+    expect(platformTags()).toEqual(["PlayStation", "Nintendo", "Switch"]);
+  });
+
+  it("keeps the main platforms ahead of every console", async () => {
+    const user = userEvent.setup();
+    renderPicker("Nintendo, Switch");
+    await user.type(within(platformBox()).getByRole("combobox"), "PS5{Enter}");
+    expect(platformTags()).toEqual(["PlayStation", "Nintendo", "Switch", "PS5"]);
   });
 
   it("lets a family go once no console holds it", async () => {

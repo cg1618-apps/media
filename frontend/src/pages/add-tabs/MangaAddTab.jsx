@@ -8,7 +8,6 @@
 import CastEditor from "../../components/forms/CastEditor";
 import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
@@ -124,28 +123,17 @@ export function MangaFormBody({ f, u, sources, ownerId }) {
         {count("vol_total", "Vol Total")}
         {count("vol_fin_page", "Vol Fin Page")}
       </div>
-      <EntryFlags
-        f={f}
-        u={u}
-        flags={[
-          ["is_pinged", "Pinged", "Pin to the dashboard"],
-          ["read_next", "Read Next", "Add to Read Next list"],
-          ["to_reread", "To Reread", "Mark for reread"],
-        ]}
-      />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
-      <div className={ROW2}>
-        {select("region", "Region", MANGA_REGIONS)}
-        {select("is_main", "Is Main", IS_MAIN)}
-      </div>
-      <div className={ROW2}>
+      <div className={ROW3}>
         {select(
           "serialization_status",
           "Serialization Status",
           // Manga shares book's serialization statuses.
           BOOK_SERIALIZATION_STATUSES,
         )}
+        {select("region", "Region", MANGA_REGIONS)}
+        {select("is_main", "Is Main", IS_MAIN)}
       </div>
       <div className={ROW2}>
         <ReleaseDateInput

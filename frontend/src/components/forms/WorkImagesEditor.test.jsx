@@ -34,8 +34,7 @@ beforeEach(() => {
         return ok(gallery);
       }
       if (method === "PATCH") {
-        const { caption } = JSON.parse(init.body);
-        return ok({ ...gallery[1], caption });
+        return ok({ ...gallery[1], ...JSON.parse(init.body) });
       }
       if (method === "DELETE") return Promise.resolve({ ok: true, status: 204, json: () => null });
       if (method === "POST") return ok([...gallery, picture("c", 2)], 201);
@@ -104,6 +103,31 @@ describe("WorkImagesEditor", () => {
     fireEvent.blur(screen.getByLabelText("Caption for picture 1"));
 
     expect(calls.some((c) => c.method === "PATCH")).toBe(false);
+  });
+
+  it("shows each picture's content rating, Normal when it carries none", async () => {
+    gallery = [{ ...picture("a", 0, "First"), content_rating: "borderline" }, picture("b", 1)];
+    await renderEditor();
+    expect(screen.getByLabelText("Content rating for picture 1")).toHaveValue("borderline");
+    expect(screen.getByLabelText("Content rating for picture 2")).toHaveValue("normal");
+    expect(
+      [...screen.getByLabelText("Content rating for picture 2").options].map((o) => o.textContent),
+    ).toEqual(["Normal", "Borderline (15+)", "Unrestricted (18+)"]);
+  });
+
+  it("PATCHes a picture's content rating as soon as it changes", async () => {
+    await renderEditor();
+    const select = screen.getByLabelText("Content rating for picture 2");
+
+    fireEvent.change(select, { target: { value: "unrestricted" } });
+
+    await waitFor(() => expect(calls.some((c) => c.method === "PATCH")).toBe(true));
+    const patch = calls.find((c) => c.method === "PATCH");
+    expect(patch.url).toBe("/api/person/p-1/work-images/b");
+    expect(JSON.parse(patch.body)).toEqual({ content_rating: "unrestricted" });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Content rating for picture 2")).toHaveValue("unrestricted"),
+    );
   });
 
   it("reorders by the grip's arrow keys and saves the whole order", async () => {

@@ -1,6 +1,6 @@
 # Design system — "the archive"
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 The UI is styled as a physical media archive: paper, ink, index slips,
 spine labels and a rating stamp. It replaced the generic dashboard look
@@ -209,7 +209,8 @@ counts). `h1` is display by default.
     reads and the same title and icon on every type (`SectionHeader`). Names
     put CN top-left, then EN; the romanised name is labelled **Romaji**; each
     progress count sits beside its total; a lone field keeps the left half of
-    its row; the plan flags close My Tracker. A new field goes where the
+    its row; the flags are not in the body but in the marks section the
+    page draws above it. A new field goes where the
     detail page shows it, in the body, so both pages gain it. The section list
     is in [Admin Pages](admin-pages.md#entry-form-layout), and
     `pages/add-tabs/FormLayout.test.jsx` guards it.

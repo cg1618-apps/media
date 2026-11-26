@@ -14,8 +14,10 @@ import {
   playStatusFilter,
   rangeFilter,
   tagFilter,
+  valuesByAppearance,
   vocabularyFilter,
 } from "../../../lib/libraryFilterDefs";
+import { mainPlatformsFirst } from "../../../lib/gamePlatforms";
 import { GAME_IS_MAIN, GAME_RELEASE_STATUSES, GAME_TYPES } from "../../../config/fieldOptions";
 
 // CN leads, as everywhere but comic.
@@ -103,7 +105,13 @@ const GAME_LIBRARY_CONFIG = {
     // fields, so tagFilter splits them; they stay in the ordinary section.
     { ...tagFilter("gameMode", "Mode", "game_mode"), advanced: false, row: "mode" },
     { ...tagFilter("combatMode", "Combat Mode", "combat_mode"), advanced: false, row: "mode" },
-    { ...tagFilter("gamePlatform", "Platform", "game_platform"), advanced: false },
+    // The main platforms first in their fixed order, then the specific ones
+    // by appearance.
+    {
+      ...tagFilter("gamePlatform", "Platform", "game_platform"),
+      advanced: false,
+      deriveOptions: (data) => mainPlatformsFirst(valuesByAppearance(data, "game_platform")),
+    },
     // Advanced section (FilterPanel draws it collapsed).
     { ...vocabularyFilter("isMain", "Main / Remake", "is_main", GAME_IS_MAIN), advanced: true },
     {

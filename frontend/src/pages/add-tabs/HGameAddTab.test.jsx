@@ -237,17 +237,12 @@ describe("HGameAddTab layout", () => {
     ]);
   });
 
-  it("ends My Tracker with the plan flags", () => {
+  it("leaves the plan flags out of My Tracker", () => {
     const { container } = renderTab();
     const tracker = labelsBySection(container)["My Tracker"];
     expect(tracker.slice(0, 3)).toEqual(["Playing Status", "My Rating", "Usefulness"]);
-    expect(tracker.slice(-4)).toEqual([
-      "Play Next",
-      "Add to Play Next list",
-      "To Replay",
-      "Mark for replay",
-    ]);
-    // A gated type has no is_pinged: its API refuses the key with a 422.
-    expect(tracker).not.toContain("Pinged");
+    // The flags are in the page's marks section (EntryFlags).
+    expect(tracker).not.toContain("Plan Next");
+    expect(tracker).not.toContain("Redo");
   });
 });

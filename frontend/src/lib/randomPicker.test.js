@@ -2,32 +2,56 @@ import { applyFilterDefs, initialFilters } from "./libraryFilters";
 import {
   FRANCHISE_MODE,
   NO_SCORE,
+  PICKER_LAYOUTS,
   PICKER_MODES,
   PICKER_TYPES,
-  filterDefsForMode,
-  franchiseFilterDefs,
-  isWeightedMode,
-  toFranchiseEntries,
   UNKNOWN_DECADE,
   decadeOf,
   entryKey,
-  generalFilterDefs,
-  genresOf,
+  filterDefsForMode,
+  franchiseFilterDefs,
+  hasPlanMark,
+  isWeightedMode,
   resolveDefaultFilters,
   statusGroupOf,
   toEntries,
+  toFranchiseEntries,
   toStoredFilters,
   typeFilterDefs,
+  withPlanMarks,
 } from "./randomPicker";
 import { LIBRARY_CONFIGS } from "../pages/library/configs";
+import { TV_REGIONS, GAME_RELEASE_STATUSES } from "../config/fieldOptions";
 
 // A filter state with `values` switched on for the def `key`.
 function withActive(defs, key, values) {
   return { ...initialFilters(defs), [key]: new Set(values) };
 }
 
+const keys = (type) => typeFilterDefs(type).map((fd) => fd.key);
+const byKey = (type, key) => typeFilterDefs(type).find((fd) => fd.key === key);
+
 it("offers every type that has a library, and nothing else", () => {
   expect(PICKER_TYPES.map((t) => t.type).sort()).toEqual(Object.keys(LIBRARY_CONFIGS).sort());
+});
+
+it("orders its modes franchise first, then the mainstream types, then the gated ones", () => {
+  expect(PICKER_MODES).toEqual([
+    FRANCHISE_MODE,
+    "anime",
+    "anime-movie",
+    "movie",
+    "tv-show",
+    "cartoon",
+    "manga",
+    "book",
+    "comic",
+    "game",
+    "hentai",
+    "h-comic",
+    "h-game",
+  ]);
+  expect(PICKER_MODES).not.toContain("all");
 });
 
 it("puts the watch, read and play vocabularies into one set of status groups", () => {
@@ -36,6 +60,10 @@ it("puts the watch, read and play vocabularies into one set of status groups", (
   expect(statusGroupOf("game", { playing_status: "Play Anytime" })).toBe("In Progress");
   expect(statusGroupOf("game", { playing_status: "Play When Released" })).toBe("Planned");
   expect(statusGroupOf("book", { reading_status: "Won't Read" })).toBe("Dropped");
+  // Paused and Temp Dropped are Stopped, apart from Dropped.
+  expect(statusGroupOf("anime", { watching_status: "Paused" })).toBe("Stopped");
+  expect(statusGroupOf("manga", { reading_status: "Temp Dropped" })).toBe("Stopped");
+  expect(statusGroupOf("game", { playing_status: "Temp Dropped" })).toBe("Stopped");
   // Unset counts as "Might", as the library filters count it.
   expect(statusGroupOf("anime", {})).toBe("Might");
 });
@@ -47,72 +75,208 @@ it("reads the decade from each type's primary release column", () => {
   expect(decadeOf("manga", {})).toBe(UNKNOWN_DECADE);
 });
 
-describe("general mode", () => {
-  // Both types populated, so a media-type or status filter has something to
-  // refuse as well as something to keep.
-  const entries = [
-    ...toEntries("anime", [
-      { system_id: "a1", watching_status: "Plan to Watch", my_rating: "A", release_date_jp: "2014" },
-      { system_id: "a2", watching_status: "Completed", release_date_jp: "2003" },
-    ]),
-    ...toEntries("manga", [{ system_id: "m1", reading_status: "Plan to Read", my_rating: "S" }]),
-  ];
-  const defs = generalFilterDefs(["anime", "manga"]);
-  const keys = (pool) => pool.map(entryKey);
+describe("one-type layouts", () => {
+  it("builds every type's layout from defs that exist", () => {
+    for (const { type } of PICKER_TYPES) {
+      expect(() => typeFilterDefs(type)).not.toThrow();
+      expect(keys(type)).toEqual(PICKER_LAYOUTS[type].map(([key]) => key));
+    }
+  });
 
-  it("narrows by media type", () => {
-    expect(keys(applyFilterDefs(entries, defs, withActive(defs, "mediaType", ["manga"])))).toEqual([
-      "manga:m1",
+  it("has no advanced section", () => {
+    for (const { type } of PICKER_TYPES) {
+      expect(typeFilterDefs(type).filter((fd) => fd.advanced)).toEqual([]);
+    }
+  });
+
+  it("orders anime source, type, status, decade, scores, rating, status, plan, genres", () => {
+    expect(keys("anime")).toEqual([
+      "exclusiveSource",
+      "airingType",
+      "airingStatus",
+      "decade",
+      "malScore",
+      "anilistScore",
+      "myRating",
+      "watchingStatus",
+      "doNext",
+      "redo",
+      "genreMain",
+      "genreSub",
+      "label",
     ]);
   });
 
-  it("narrows by status group across types", () => {
-    expect(keys(applyFilterDefs(entries, defs, withActive(defs, "statusGroup", ["Planned"])))).toEqual([
-      "anime:a1",
-      "manga:m1",
+  it("puts a TV show's Region to the right of Airing Type, with the form's vocabulary", () => {
+    const defs = typeFilterDefs("tv-show");
+    expect(defs.slice(0, 2).map((fd) => [fd.key, fd.row])).toEqual([
+      ["airingType", "kind"],
+      ["region", "kind"],
+    ]);
+    expect(defs[1].options).toEqual(TV_REGIONS);
+  });
+
+  it("gives a game its Exclusive Source, every release status, and Ownership beside Play Status", () => {
+    expect(keys("game")).toEqual([
+      "exclusiveSource",
+      "gameType",
+      "releaseStatus",
+      "decade",
+      "metacriticScore",
+      "metacriticUserScore",
+      "myRating",
+      "playingStatus",
+      "ownership",
+      "doNext",
+      "redo",
+      "gameMode",
+      "combatMode",
+      "gamePlatform",
+      "gameGenre",
+      "gameTheme",
+      "label",
+    ]);
+    expect(byKey("game", "releaseStatus").options).toEqual(GAME_RELEASE_STATUSES);
+    expect(byKey("game", "playingStatus").row).toBe(byKey("game", "ownership").row);
+    const entries = toEntries("game", [
+      { system_id: "g1", exclusive_platform: "Nintendo" },
+      { system_id: "g2", exclusive_platform: null },
+    ]);
+    const defs = typeFilterDefs("game");
+    expect(
+      applyFilterDefs(entries, defs, withActive(defs, "exclusiveSource", ["Nintendo"])).map(
+        (e) => e.item.system_id,
+      ),
+    ).toEqual(["g1"]);
+  });
+
+  it("ends the gated types on their own adult genres", () => {
+    expect(keys("hentai").slice(-3)).toEqual(["hGenrePlot", "hGenreAppearance", "hGenreRelation"]);
+    expect(keys("h-comic").slice(-3)).toEqual(["hGenrePlot", "hGenreAppearance", "hGenreRelation"]);
+    expect(keys("h-game").slice(-5)).toEqual([
+      "gameGenre",
+      "gameTheme",
+      "hGenrePlot",
+      "hGenreAppearance",
+      "hGenreRelation",
     ]);
   });
 
-  it("counts an entry with no rating as Unrated", () => {
-    expect(keys(applyFilterDefs(entries, defs, withActive(defs, "myRating", ["Unrated"])))).toEqual([
-      "anime:a2",
+  it("runs a library filter against the entry's item", () => {
+    const entries = toEntries("anime", [
+      { system_id: "a1", airing_type: "TV" },
+      { system_id: "a2", airing_type: "Movie" },
     ]);
+    const defs = typeFilterDefs("anime");
+    expect(
+      applyFilterDefs(entries, defs, withActive(defs, "airingType", ["TV"])).map(
+        (e) => e.item.system_id,
+      ),
+    ).toEqual(["a1"]);
   });
 
-  it("derives decades newest first, unknown last", () => {
-    const decade = defs.find((d) => d.key === "decade");
-    expect(decade.deriveOptions(entries)).toEqual(["2010s", "2000s", UNKNOWN_DECADE]);
+  it("narrows by the Stopped status group", () => {
+    const entries = toEntries("anime", [
+      { system_id: "p", watching_status: "Paused" },
+      { system_id: "t", watching_status: "Temp Dropped" },
+      { system_id: "d", watching_status: "Dropped" },
+    ]);
+    const defs = typeFilterDefs("anime");
+    expect(
+      applyFilterDefs(entries, defs, withActive(defs, "watchingStatus", ["Stopped"])).map(
+        (e) => e.item.system_id,
+      ),
+    ).toEqual(["p", "t"]);
   });
 });
 
-describe("one-type mode", () => {
-  it("runs the type's own library filters against the entry's item", () => {
-    const defs = typeFilterDefs("anime");
-    expect(defs.map((d) => d.key)).toEqual([
-      ...LIBRARY_CONFIGS.anime.filterDefs.filter((d) => !d.advanced).map((d) => d.key),
-      "myRating",
-      "decade",
-      "genre",
-      "externalScore",
-    ]);
-    const entries = toEntries("anime", [
-      { system_id: "tv", airing_type: "TV" },
-      { system_id: "ova", airing_type: "OVA" },
-    ]);
-    const pool = applyFilterDefs(entries, defs, withActive(defs, "airingType", ["OVA"]));
-    expect(pool.map(entryKey)).toEqual(["anime:ova"]);
+describe("external scores", () => {
+  const ids = (type, key, values, items) => {
+    const defs = typeFilterDefs(type);
+    return applyFilterDefs(toEntries(type, items), defs, withActive(defs, key, values)).map(
+      (e) => e.item.system_id,
+    );
+  };
+
+  it("offers 9+ to 5+, <5 and No score out of 10", () => {
+    expect(byKey("anime", "malScore").options).toEqual(["9+", "8+", "7+", "6+", "5+", "<5", NO_SCORE]);
+    expect(byKey("movie", "imdbScore").options).toEqual(["9+", "8+", "7+", "6+", "5+", "<5", NO_SCORE]);
   });
 
-  it("leaves the library's advanced section out", () => {
-    // The library has advanced defs, so leaving them out is something done.
-    expect(LIBRARY_CONFIGS.anime.filterDefs.some((d) => d.advanced)).toBe(true);
-    expect(typeFilterDefs("anime").some((d) => d.advanced)).toBe(false);
+  it("gives anime, anime movie, manga and book an AniList score, read out of 10", () => {
+    for (const type of ["anime", "anime-movie", "manga", "book"]) {
+      expect(keys(type)).toContain("anilistScore");
+    }
+    const items = [
+      { system_id: "hi", anilist_rating: 85 },
+      { system_id: "lo", anilist_rating: 42 },
+      { system_id: "none", anilist_rating: null },
+    ];
+    expect(ids("anime", "anilistScore", ["8+"], items)).toEqual(["hi"]);
+    expect(ids("anime", "anilistScore", ["<5"], items)).toEqual(["lo"]);
+    expect(ids("anime", "anilistScore", [NO_SCORE], items)).toEqual(["none"]);
   });
 
-  it("derives a dynamic library filter's options from the items", () => {
-    const gameType = typeFilterDefs("game").find((d) => d.key === "gameType");
-    const entries = toEntries("game", [{ game_type: "RPG" }, { game_type: "ACT" }, {}]);
-    expect(gameType.deriveOptions(entries)).toEqual(["ACT", "RPG"]);
+  it("reads IMDb's N/A as No score and keeps the lower of two minimums", () => {
+    const items = [
+      { system_id: "a", imdb_rating: "8.4" },
+      { system_id: "b", imdb_rating: "6.2" },
+      { system_id: "c", imdb_rating: "N/A" },
+    ];
+    expect(ids("movie", "imdbScore", ["8+", "6+"], items)).toEqual(["a", "b"]);
+    expect(ids("movie", "imdbScore", [NO_SCORE], items)).toEqual(["c"]);
+  });
+
+  it("reads both Metacritic scores out of 100", () => {
+    const options = ["90+", "80+", "70+", "60+", "50+", "<50", NO_SCORE];
+    expect(byKey("game", "metacriticScore").options).toEqual(options);
+    expect(byKey("game", "metacriticUserScore").options).toEqual(options);
+    const items = [
+      { system_id: "a", metacritic_score: 92, metacritic_user_score: 8.1 },
+      { system_id: "b", metacritic_score: 45, metacritic_user_score: 4.2 },
+    ];
+    expect(ids("game", "metacriticScore", ["90+"], items)).toEqual(["a"]);
+    expect(ids("game", "metacriticUserScore", ["80+"], items)).toEqual(["a"]);
+    expect(ids("game", "metacriticUserScore", ["<50"], items)).toEqual(["b"]);
+  });
+
+  it("are catalogue filters, offered without a list", () => {
+    const defs = filterDefsForMode("game", { personal: false }).map((fd) => fd.key);
+    expect(defs).toEqual(expect.arrayContaining(["metacriticScore", "metacriticUserScore"]));
+  });
+});
+
+describe("Do Next and Redo", () => {
+  const marks = new Set(["next:anime:s1", "rewatch:anime:f1"]);
+  const entries = withPlanMarks(
+    toEntries("anime", [
+      { system_id: "a", watch_next: true },
+      { system_id: "b", series_id: "s1" },
+      { system_id: "c", franchise_id: "f1" },
+      { system_id: "d" },
+    ]),
+    marks,
+  );
+  const defs = typeFilterDefs("anime");
+  const ids = (key, values) =>
+    applyFilterDefs(entries, defs, withActive(defs, key, values)).map((e) => e.item.system_id);
+
+  it("reads a mark on the entry, its series or its franchise", () => {
+    expect(hasPlanMark(entries[1], "next", marks)).toBe(true);
+    expect(hasPlanMark(entries[3], "next", marks)).toBe(false);
+  });
+
+  it("narrows to what is, or is not, marked", () => {
+    expect(ids("doNext", ["Do next"])).toEqual(["a", "b"]);
+    expect(ids("doNext", ["Not do next"])).toEqual(["c", "d"]);
+    expect(ids("redo", ["To redo"])).toEqual(["c"]);
+    expect(ids("redo", ["Not to redo"])).toEqual(["a", "b", "d"]);
+  });
+
+  it("sit side by side, and are personal", () => {
+    expect(byKey("anime", "doNext").row).toBe(byKey("anime", "redo").row);
+    expect(byKey("anime", "doNext").personal).toBe(true);
+    expect(byKey("anime", "redo").personal).toBe(true);
   });
 });
 
@@ -133,7 +297,7 @@ describe("stored defaults", () => {
   });
 
   it("seeds an empty state from nothing stored", () => {
-    const defs = generalFilterDefs(["anime"]);
+    const defs = typeFilterDefs("anime");
     expect(resolveDefaultFilters(defs, undefined)).toEqual(initialFilters(defs));
   });
 
@@ -149,237 +313,73 @@ describe("franchise mode", () => {
   const franchises = [
     { system_id: "f1", franchise_type: "Anime", franchise_expectation: "High", my_rating: "A" },
     { system_id: "f2", franchise_type: "Movie, TV", franchise_expectation: "Low" },
-    { system_id: "f3", franchise_type: "Book" },
+    { system_id: "f3", franchise_type: "Book, Game, Anime Movie" },
   ];
   const lists = {
-    anime: [
-      { system_id: "a1", franchise_id: "f1", watching_status: "Completed" },
-      { system_id: "a2", franchise_id: "f1", watching_status: "Plan to Watch" },
-      { system_id: "a3", franchise_id: null },
-    ],
+    anime: [{ system_id: "a1", franchise_id: "f1" }],
     movie: [{ system_id: "m1", franchise_id: "f2" }],
   };
   const entries = toFranchiseEntries(franchises, lists);
-  const defs = franchiseFilterDefs(["anime", "movie"]);
+  const defs = franchiseFilterDefs();
   const ids = (filters) => applyFilterDefs(entries, defs, filters).map((e) => e.item.system_id);
 
-  it("is a mode of its own, after every type, and draws unweighted", () => {
-    expect(PICKER_MODES.at(-1)).toBe(FRANCHISE_MODE);
-    expect(filterDefsForMode(FRANCHISE_MODE, ["anime"]).map((d) => d.key)).toEqual(
-      defs.map((d) => d.key),
-    );
+  it("leads the modes and draws unweighted", () => {
+    expect(PICKER_MODES[0]).toBe(FRANCHISE_MODE);
     expect(isWeightedMode(FRANCHISE_MODE)).toBe(false);
     expect(isWeightedMode("anime")).toBe(true);
   });
 
+  it("filters on franchise type, my rating and expectation, in that order", () => {
+    expect(defs.map((fd) => fd.key)).toEqual(["franchiseType", "myRating", "expectation"]);
+  });
+
   it("wraps every franchise as an entry keyed apart from media entries", () => {
-    expect(entries.map(entryKey)).toEqual(["franchise:f1", "franchise:f2", "franchise:f3"]);
+    expect(entryKey(entries[0])).toBe("franchise:f1");
+  });
+
+  it("orders franchise types as the mode strip orders the types", () => {
+    const typeDef = defs[0];
+    expect(typeDef.deriveOptions(entries)).toEqual([
+      "Anime",
+      "Anime Movie",
+      "Movie",
+      "TV",
+      "Book",
+      "Game",
+    ]);
   });
 
   it("filters on the franchise type, each of a multi-type franchise counting", () => {
     expect(ids(withActive(defs, "franchiseType", ["TV"]))).toEqual(["f2"]);
-    const typeDef = defs.find((d) => d.key === "franchiseType");
-    expect(typeDef.deriveOptions(entries)).toEqual(["Anime", "TV", "Movie", "Book"]);
   });
 
   it("filters on expectation and on my rating", () => {
-    expect(ids(withActive(defs, "expectation", ["Low"]))).toEqual(["f2"]);
-    expect(ids(withActive(defs, "myRating", ["Unrated"]))).toEqual(["f2", "f3"]);
-  });
-
-  it("filters on the media types a franchise holds", () => {
-    expect(ids(withActive(defs, "heldType", ["anime"]))).toEqual(["f1"]);
-  });
-
-  it("filters on the status of any entry it holds", () => {
-    expect(ids(withActive(defs, "entryStatus", ["Planned"]))).toEqual(["f1"]);
-    expect(ids(withActive(defs, "entryStatus", ["Completed"]))).toEqual(["f1"]);
-    // An entry with no status is "Might"; a franchise with no entries has none.
-    expect(ids(withActive(defs, "entryStatus", ["Might"]))).toEqual(["f2"]);
+    expect(ids(withActive(defs, "expectation", ["High"]))).toEqual(["f1"]);
+    expect(ids(withActive(defs, "myRating", ["A"]))).toEqual(["f1"]);
   });
 });
 
 describe("personal filters", () => {
-  const ALL_TYPES = PICKER_TYPES.map((t) => t.type);
-  const personalKeys = (mode) =>
-    keysOf(filterDefsForMode(mode, ALL_TYPES).filter((fd) => fd.personal));
-
-  it("flags every def that reads the viewer's own list", () => {
-    expect(personalKeys("all")).toEqual(["statusGroup", "myRating"]);
-    expect(personalKeys("anime")).toEqual(["watchingStatus", "myRating"]);
-    expect(personalKeys("manga")).toEqual(["readingStatus", "myRating"]);
-    expect(personalKeys("game")).toEqual(["playingStatus", "ownership", "myRating"]);
-    expect(personalKeys("h-game")).toEqual([
-      "playingStatus",
-      "ownership",
-      "usefulness",
-      "myRating",
-    ]);
-    expect(personalKeys(FRANCHISE_MODE)).toEqual(["entryStatus", "expectation", "myRating"]);
-  });
-
-  // Same call both ways; only `personal` differs, so the missing defs are
-  // the flag's doing. Every mode has a flagged def to drop.
   it("drops exactly the flagged defs without a list, in every mode", () => {
     for (const mode of PICKER_MODES) {
-      const full = filterDefsForMode(mode, ALL_TYPES);
-      const catalogue = filterDefsForMode(mode, ALL_TYPES, { personal: false });
-      expect(full.some((fd) => fd.personal)).toBe(true);
-      expect(keysOf(catalogue)).toEqual(keysOf(full.filter((fd) => !fd.personal)));
+      const all = filterDefsForMode(mode);
+      const without = filterDefsForMode(mode, { personal: false });
+      expect(without.map((fd) => fd.key)).toEqual(
+        all.filter((fd) => !fd.personal).map((fd) => fd.key),
+      );
     }
   });
 
-  it("keeps every def, flagged or not, with a list", () => {
-    const keys = keysOf(filterDefsForMode("all", ALL_TYPES, { personal: true }));
-    expect(keys).toEqual(["mediaType", "statusGroup", "myRating", "decade", "genre", "externalScore"]);
-    expect(keysOf(franchiseFilterDefs(["anime"]))).toEqual([
-      "franchiseType",
-      "heldType",
-      "entryStatus",
-      "expectation",
-      "myRating",
-    ]);
-  });
-});
-
-describe("external score", () => {
-  // Scored above, below and not at all, across a MAL type, an IMDb type and
-  // a type with no external score, so every chip has something to refuse.
-  const entries = [
-    ...toEntries("anime", [
-      { system_id: "a9", mal_rating: 9.1 },
-      { system_id: "a6", mal_rating: 6.4 },
-      { system_id: "a0", mal_rating: null },
-    ]),
-    ...toEntries("movie", [
-      { system_id: "m7", imdb_rating: "7.8" },
-      { system_id: "mn", imdb_rating: "N/A" },
-    ]),
-    ...toEntries("game", [{ system_id: "g1" }]),
-  ];
-  const defs = generalFilterDefs(["anime", "movie", "game"]);
-  const ids = (values) =>
-    applyFilterDefs(entries, defs, withActive(defs, "externalScore", values)).map(
-      (e) => e.item.system_id,
-    );
-
-  it("narrows to a minimum, reading MAL or IMDb by type", () => {
-    expect(ids(["7+"])).toEqual(["a9", "m7"]);
-    expect(ids(["9+"])).toEqual(["a9"]);
-    // Chips OR: the lower minimum wins.
-    expect(ids(["9+", "6+"])).toEqual(["a9", "a6", "m7"]);
-  });
-
-  it("counts an unscored entry, or a type with no score, as No score", () => {
-    expect(ids([NO_SCORE])).toEqual(["a0", "mn", "g1"]);
-  });
-
-  it("is a catalogue filter, named by its source in a one-type mode", () => {
-    const anime = typeFilterDefs("anime").find((fd) => fd.key === "externalScore");
-    const movie = typeFilterDefs("movie").find((fd) => fd.key === "externalScore");
-    expect(anime.label).toBe("MAL Score");
-    expect(movie.label).toBe("IMDb Score");
-    expect(anime.personal).toBeFalsy();
-    expect(defs.find((fd) => fd.key === "externalScore").label).toBe("External Score");
+  it("flags every def that reads the viewer's own list", () => {
+    const personal = filterDefsForMode("game")
+      .filter((fd) => fd.personal)
+      .map((fd) => fd.key);
+    expect(personal).toEqual(["myRating", "playingStatus", "ownership", "doNext", "redo"]);
     expect(
-      keysOf(filterDefsForMode("anime", ["anime"], { personal: false })),
-    ).toContain("externalScore");
-  });
-
-  it("is not offered where no type has a score", () => {
-    expect(typeFilterDefs("game").some((fd) => fd.key === "externalScore")).toBe(false);
-    expect(generalFilterDefs(["game"]).some((fd) => fd.key === "externalScore")).toBe(false);
-    expect(franchiseFilterDefs(["anime"]).some((fd) => fd.key === "externalScore")).toBe(false);
-  });
-});
-
-describe("genre", () => {
-  // Several genres on one entry, a game's own vocabulary, an untagged entry
-  // and a type with no mainstream genre, so every chip has something to
-  // refuse.
-  const entries = [
-    ...toEntries("anime", [
-      { system_id: "a1", genre_main: "奇幻, 冒險" },
-      { system_id: "a2", genre_main: "戀愛" },
-      { system_id: "a0", genre_main: null },
-    ]),
-    ...toEntries("game", [{ system_id: "g1", game_genre: "RPG" }]),
-    ...toEntries("h-comic", [{ system_id: "h1", h_genre_plot: "純愛" }]),
-  ];
-  const defs = generalFilterDefs(["anime", "game", "h-comic"]);
-  const genre = defs.find((fd) => fd.key === "genre");
-  const ids = (values) =>
-    applyFilterDefs(entries, defs, withActive(defs, "genre", values)).map(
-      (e) => e.item.system_id,
-    );
-
-  it("splits a joined field into trimmed genres, reading the type's own field", () => {
-    expect(genresOf("anime", { genre_main: "奇幻, 冒險" })).toEqual(["奇幻", "冒險"]);
-    expect(genresOf("game", { game_genre: "RPG" })).toEqual(["RPG"]);
-    expect(genresOf("h-game", { game_genre: "ADV", h_genre_plot: "純愛" })).toEqual(["ADV"]);
-    expect(genresOf("anime", { genre_main: null })).toEqual([]);
-  });
-
-  it("offers the genres the pool holds, and never an adult genre", () => {
-    expect(genre.deriveOptions(entries)).toEqual(["RPG", "冒險", "奇幻", "戀愛"].sort((a, b) => a.localeCompare(b)));
-    expect(genre.deriveOptions(entries)).not.toContain("純愛");
-  });
-
-  it("keeps an entry when any of its genres is on", () => {
-    expect(ids(["冒險"])).toEqual(["a1"]);
-    expect(ids(["戀愛", "RPG"])).toEqual(["a2", "g1"]);
-    // The untagged anime and the h-comic, whose genres are adult ones,
-    // match no chip.
-    expect(ids(["奇幻", "冒險", "戀愛", "RPG"])).toEqual(["a1", "a2", "g1"]);
-  });
-
-  it("is a catalogue filter, offered with and without a list", () => {
-    expect(genre.personal).toBeFalsy();
-    expect(keysOf(filterDefsForMode("anime", ["anime"], { personal: false }))).toContain("genre");
-    expect(keysOf(filterDefsForMode("anime", ["anime"], { personal: true }))).toContain("genre");
-  });
-
-  it("is not offered where no type has a mainstream genre, nor to the franchise mode", () => {
-    expect(typeFilterDefs("h-comic").some((fd) => fd.key === "genre")).toBe(false);
-    expect(typeFilterDefs("hentai").some((fd) => fd.key === "genre")).toBe(false);
-    expect(typeFilterDefs("h-game").some((fd) => fd.key === "genre")).toBe(true);
-    expect(franchiseFilterDefs(["anime"]).some((fd) => fd.key === "genre")).toBe(false);
-  });
-});
-
-function keysOf(defs) {
-  return defs.map((fd) => fd.key);
-}
-
-describe("the shared account's picker", () => {
-  const types = ["anime", "manga", "movie"];
-
-  it("has exactly media type and release decade in the general mode", () => {
-    const keys = (defs) => defs.map((fd) => fd.key);
-    expect(keys(filterDefsForMode("all", types, { personal: false, shared: true }))).toEqual([
-      "mediaType",
-      "decade",
-    ]);
-    // The mirror: a member's general mode keeps the rest.
-    expect(keys(filterDefsForMode("all", types))).toEqual(
-      expect.arrayContaining(["mediaType", "decade", "statusGroup", "myRating", "genre", "externalScore"]),
-    );
-  });
-
-  it("has no other mode", () => {
-    expect(filterDefsForMode("anime", types, { personal: false, shared: true })).toEqual([]);
-    expect(filterDefsForMode("franchise", types, { personal: false, shared: true })).toEqual([]);
-  });
-
-  it("dates each type by its own release field", () => {
-    const decade = filterDefsForMode("all", types, { personal: false, shared: true })[1];
-    const entries = [
-      { type: "anime", item: { release_date_jp: "2014-04-01" } },
-      { type: "movie", item: { release_date_tw: "1999-12-24", release_date_usa: "2001-01-01" } },
-      { type: "movie", item: { release_date_usa: "2021-05-05" } },
-      { type: "manga", item: {} },
-    ];
-    expect(decade.deriveOptions(entries)).toEqual(["2020s", "2010s", "1990s", "Unknown"]);
+      franchiseFilterDefs()
+        .filter((fd) => fd.personal)
+        .map((fd) => fd.key),
+    ).toEqual(["myRating", "expectation"]);
   });
 });
 

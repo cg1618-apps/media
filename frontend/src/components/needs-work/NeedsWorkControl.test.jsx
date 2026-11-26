@@ -85,7 +85,7 @@ describe("NeedsWorkControl", () => {
   it("marks, saves a suggested note, and clears", async () => {
     const user = userEvent.setup();
     renderControl();
-    const box = await screen.findByRole("checkbox", { name: /Needs Work/ });
+    const box = await screen.findByRole("checkbox", { name: "待補充" });
     await waitFor(() => expect(box).toBeEnabled());
     expect(box).not.toBeChecked();
 
@@ -112,7 +112,7 @@ describe("NeedsWorkControl", () => {
   it("offers the common notes as one-click picks", async () => {
     const user = userEvent.setup();
     renderControl();
-    const box = await screen.findByRole("checkbox", { name: /Needs Work/ });
+    const box = await screen.findByRole("checkbox", { name: "待補充" });
     await waitFor(() => expect(box).toBeEnabled());
     await user.click(box);
 
@@ -127,7 +127,7 @@ describe("NeedsWorkControl", () => {
   it("suggests the common notes only, never the notes marks already carry", async () => {
     const user = userEvent.setup();
     renderControl();
-    const box = await screen.findByRole("checkbox", { name: /Needs Work/ });
+    const box = await screen.findByRole("checkbox", { name: "待補充" });
     await waitFor(() => expect(box).toBeEnabled());
     await user.click(box);
 

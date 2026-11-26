@@ -81,7 +81,7 @@ export default function PickerWeights() {
         {Object.entries(SERIALIZATION_WEIGHTS).map(([type, weights]) => (
           <WeightTable
             key={type}
-            title={`Serialization · ${pickerTypeLabel(type)} mode only`}
+            title={`Serialization · ${pickerTypeLabel(type)}`}
             note="A status not listed here, or none, weighs 1."
             rows={Object.entries(weights).sort((a, b) => b[1] - a[1])}
           />

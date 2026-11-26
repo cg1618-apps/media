@@ -14,6 +14,7 @@ import {
   useFormRatingSaver,
 } from "../../api/mutations/useMyRatingMutations";
 import { usePageTitle } from "../../contexts/PageTitleContext";
+import { CONTENT_RATING_NORMAL } from "../../config/fieldOptions";
 import { editorTitle } from "../../lib/pageTitle";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -48,6 +49,7 @@ function personToForm(p) {
     ig_link: p.ig_link || "",
     pixiv_link: p.pixiv_link || "",
     affiliations: p.affiliations || [],
+    content_rating: p.content_rating || CONTENT_RATING_NORMAL,
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: p.my_rating || "",
     photo_fallback_entry_id: p.photo_fallback_entry_id || null,
@@ -183,6 +185,7 @@ export default function PersonModifyTab({ initialId = null } = {}) {
           ig_link: personForm.ig_link?.trim() || null,
           pixiv_link: personForm.pixiv_link?.trim() || null,
           photo_fallback_entry_id: personForm.photo_fallback_entry_id || null,
+          content_rating: personForm.content_rating || CONTENT_RATING_NORMAL,
           // PUT replaces the whole role set, so this must be every type the
           // person holds, not just the sub-tab's one.
           roles,

@@ -1,6 +1,6 @@
 """
 A game's Exclusive Source: the one platform family it is exclusive to,
-from its own five-value vocabulary - Nintendo, PlayStation, Xbox, PC, Mobile -
+from its own five-value vocabulary - PC, PlayStation, Xbox, Nintendo, Mobile -
 seeded scoped to game alone, so no other type's picker offers it.
 
 tests/api/conftest.py builds the schema with create_all and never runs Alembic,
@@ -27,8 +27,8 @@ def test_the_five_platforms_are_seeded_in_order_and_scoped_to_game(db_session):
         .order_by(models.SystemOption.sort_order)
         .all()
     )
-    assert [o.value for o in options] == ["Nintendo", "PlayStation", "Xbox", "PC", "Mobile"]
-    assert EXCLUSIVE_PLATFORMS == ("Nintendo", "PlayStation", "Xbox", "PC", "Mobile")
+    assert [o.value for o in options] == ["PC", "PlayStation", "Xbox", "Nintendo", "Mobile"]
+    assert EXCLUSIVE_PLATFORMS == ("PC", "PlayStation", "Xbox", "Nintendo", "Mobile")
     for option in options:
         assert {s.scope for s in option.scopes} == {"game"}
 
@@ -60,7 +60,8 @@ def test_no_other_type_carries_it(owner_client, db_session):
 
 
 # The revision freezes its own copy of the values (a revision may not import
-# the application); it must seed exactly what the helper does.
+# the application); it must seed the same values the helper does. Their order
+# is g1m2ainplat3's, which re-orders them after it.
 def test_the_revision_seeds_the_same_values_scoped_to_game(db_session):
     import importlib.util
     from pathlib import Path
@@ -70,7 +71,7 @@ def test_the_revision_seeds_the_same_values_scoped_to_game(db_session):
     revision = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(revision)
 
-    assert revision.VALUES == EXCLUSIVE_PLATFORMS
+    assert set(revision.VALUES) == set(EXCLUSIVE_PLATFORMS)
     assert revision.CATEGORY == EXCLUSIVE_PLATFORM_CATEGORY
     revision.seed(db_session.connection())
     revision.seed(db_session.connection())
@@ -81,6 +82,6 @@ def test_the_revision_seeds_the_same_values_scoped_to_game(db_session):
         .order_by(models.SystemOption.sort_order)
         .all()
     )
-    assert [o.value for o in options] == list(EXCLUSIVE_PLATFORMS)
+    assert {o.value for o in options} == set(EXCLUSIVE_PLATFORMS)
     for option in options:
         assert [s.scope for s in option.scopes] == ["game"]

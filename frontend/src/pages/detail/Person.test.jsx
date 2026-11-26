@@ -145,6 +145,20 @@ describe("Person detail page", () => {
     ).toBeTruthy();
   });
 
+  it("shows the content rating in the profile", async () => {
+    mockFetch({ ...PERSON, content_rating: "borderline" });
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(within(profile).getByText("Content rating")).toBeInTheDocument();
+    expect(within(profile).getByText("Borderline (15+)")).toBeInTheDocument();
+  });
+
+  it("reads an unset content rating as Normal", async () => {
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(within(profile).getByText("Normal")).toBeInTheDocument();
+  });
+
   const IMDB = "https://www.imdb.com/name/nm0594503/";
   const MAL = "https://myanimelist.net/people/1870/Hayao_Miyazaki";
 

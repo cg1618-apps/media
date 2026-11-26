@@ -5,14 +5,21 @@
 //
 // CharacterFields and PersonFields both render these, so the two forms offer
 // the same closed vocabularies and the same fallback picker rather than two
-// copies of each.
+// copies of each. ContentRatingField is the person, studio and publisher
+// forms' one shared select.
 import { useQuery } from "@tanstack/react-query";
 
 import { Field, selectCls } from "./FormField";
 import QuickPicks from "./QuickPicks";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson } from "../../api/client";
-import { GENDERS, PERSON_GENDERS } from "../../config/fieldOptions";
+import {
+  CONTENT_RATINGS,
+  CONTENT_RATING_NORMAL,
+  GENDERS,
+  PERSON_GENDERS,
+  contentRatingLabel,
+} from "../../config/fieldOptions";
 import { releaseYear } from "../../lib/releaseDate";
 
 // The genders offered as one-click chips beside the Gender select - the two
@@ -58,6 +65,32 @@ export function GenderField({ form, update, kind = "character" }) {
         </div>
       </Field>
     </div>
+  );
+}
+
+/**
+ * Content rating: the lowest access mode a person, studio or publisher is
+ * shown in. Never blank - an unset form reads as Normal, the default.
+ */
+export function ContentRatingField({ form, update }) {
+  return (
+    <Field
+      label="Content rating"
+      hint="Normal shows in every mode, safe included; Borderline from the borderline mode up; Unrestricted only in unrestricted."
+    >
+      <select
+        aria-label="Content rating"
+        className={selectCls}
+        value={form.content_rating || CONTENT_RATING_NORMAL}
+        onChange={(e) => update("content_rating", e.target.value)}
+      >
+        {CONTENT_RATINGS.map((value) => (
+          <option key={value} value={value}>
+            {contentRatingLabel(value)}
+          </option>
+        ))}
+      </select>
+    </Field>
   );
 }
 

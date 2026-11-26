@@ -4,7 +4,7 @@
 // way GameAddTab's is: this file exports the field body and the lineage
 // pickers, and HComicModifyTab renders them, so the two cannot drift.
 //
-// Region comes first. Which fields the rest of the form shows depends on it
+// Region comes first, beside the serialization status. Which fields the rest of the form shows depends on it
 // (lib/hComicRegion.js) - pages and the JP catalogue fields on JP, chapters,
 // an author and an official source on KR - so until a region is chosen only
 // the fields both regions share are offered.
@@ -18,7 +18,6 @@ import {
   selectCls,
 } from "../../components/forms/FormField";
 import CoverFields from "../../components/forms/CoverFields";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import MultiSelect from "../../components/forms/MultiSelect";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
@@ -61,11 +60,23 @@ function Options({ values }) {
   );
 }
 
-/** The region select, in the left half of its own row. Rendered first by
- *  both tabs. */
-export function HComicRegionField({ f, u }) {
+/** The serialization status and the region select, in their own row,
+ *  rendered first by both tabs. `u` writes the status; `onRegion` (default
+ *  `u`) writes the region, so Add can re-suggest restricted sources on a
+ *  region change alone. */
+export function HComicRegionField({ f, u, onRegion = u }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Field label="Serialization Status">
+        <select
+          className={selectCls}
+          aria-label="Serialization Status"
+          value={f.serialization_status ?? ""}
+          onChange={(e) => u("serialization_status", e.target.value)}
+        >
+          <Options values={MANGA_SERIALIZATION_STATUSES} />
+        </select>
+      </Field>
       <Field
         label="Region"
         required
@@ -75,7 +86,7 @@ export function HComicRegionField({ f, u }) {
           className={selectCls}
           aria-label="Region"
           value={f.region ?? ""}
-          onChange={(e) => u("region", e.target.value)}
+          onChange={(e) => onRegion("region", e.target.value)}
         >
           <option value="">Choose a region…</option>
           {H_COMIC_REGIONS.map((r) => (
@@ -171,19 +182,8 @@ export function HComicFormBody({ f, u, sources, ownerId }) {
           {shows("ch_total") && num("ch_total", "Chapter Total")}
         </div>
       )}
-      <EntryFlags
-        f={f}
-        u={u}
-        flags={[
-          ["read_next", "Read Next", "Add to Read Next list"],
-          ["to_reread", "To Reread", "Mark for reread"],
-        ]}
-      />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {select("serialization_status", "Serialization Status", MANGA_SERIALIZATION_STATUSES)}
-      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ReleaseDateInput
           label="Release Date"
@@ -422,7 +422,7 @@ export default function HComicAddTab({
         loading={hComicsLoading}
       />
       <SectionHeader icon="fa-tag" title="Titles & Naming" />
-      <HComicRegionField f={hcf} u={setRegion} />
+      <HComicRegionField f={hcf} u={uhc} onRegion={setRegion} />
       <HComicLineageFields
         f={hcf}
         u={uhc}

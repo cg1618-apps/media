@@ -1,8 +1,10 @@
 // Frontend: the FilterDefs of the entity libraries - character, person,
 // studio and publisher (which adds a Kind group, see PUBLISHER_KINDS).
 //
-// Every library opens its filters with Entry type and closes its ordinary
-// ones with My Rating; what sits between is the entity's own.
+// Every library opens its filters with Entry type; what follows is the
+// entity's own. My Rating sits in the advanced section: last there on the
+// person, studio and publisher libraries, after Content rating (and the
+// company Relation group), and right after Identities on the character one.
 //
 // Every entity library filters one list the API already returned,
 // client-side, with the same FilterDef machinery the media libraries use
@@ -18,7 +20,14 @@
 // but one whose entries are all of restricted types. So an entity only ever
 // credited on a gated type is hidden until Restricted (or one of its types)
 // is ticked, while one nobody has credited yet (a new seiyuu) is still listed.
-import { CHARACTER_ROLES, GENDERS, PERSON_GENDERS } from "../config/fieldOptions";
+import {
+  CHARACTER_ROLES,
+  CONTENT_RATING_NORMAL,
+  GENDERS,
+  PERSON_GENDERS,
+  contentRatingLabel,
+  contentRatingsVisibleIn,
+} from "../config/fieldOptions";
 import { mediaTypeLabel } from "../config/mediaRegistry";
 import { PERSON_SUB_TABS, personTypeLabel } from "../components/forms/PersonSubTabBar";
 import { PUBLISHER_SCOPES } from "../components/forms/PublisherScopePills";
@@ -122,12 +131,36 @@ function mediaTypeDef(auth, types, restricted, typesOf = (item) => item.media_ty
   };
 }
 
-// The viewer's own rating (self.list), the last of every library's ordinary
-// filters. Every *FilterDefs takes `{ ownData }` and leaves the group out when
-// it is false: a viewer without self.list has no rating of its own, so the
-// group would offer only chips nothing can match.
+// The viewer's own rating (self.list), drawn in every entity library's
+// advanced section. Every *FilterDefs takes `{ ownData }` and leaves the group
+// out when it is false: a viewer without self.list has no rating of its own,
+// so the group would offer only chips nothing can match.
 function ratingDefs(ownData) {
-  return ownData ? [myRatingFilter()] : [];
+  return ownData ? [myRatingFilter({ advanced: true })] : [];
+}
+
+/**
+ * The Content rating group of the person, studio and publisher libraries, in
+ * the advanced section. It offers only the ratings the active access mode can
+ * be served (contentRatingsVisibleIn): the server withholds every row rated
+ * above the mode, so a wider chip could match nothing. In safe and normal that
+ * is `normal` alone, and a group with one chip is no choice, so it is left
+ * out. A row with no rating counts as normal.
+ */
+function contentRatingDefs(auth) {
+  const options = contentRatingsVisibleIn(auth?.mode?.key);
+  if (options.length < 2) return [];
+  return [
+    {
+      key: "contentRating",
+      label: "Content rating",
+      type: "set",
+      advanced: true,
+      options,
+      optionLabel: contentRatingLabel,
+      match: (item, active) => active.has(item.content_rating || CONTENT_RATING_NORMAL),
+    },
+  ];
 }
 
 /**
@@ -216,18 +249,18 @@ const hasIdentitiesDef = {
 };
 
 /**
- * The character library's defs: entry type, role, gender, rating; then, in the
+ * The character library's defs: entry type, role, gender; then, in the
  * advanced section, the card kind and identities groups over its character
- * and identity cards, and appearance and trait.
+ * and identity cards, rating, and appearance and trait.
  */
 export function characterFilterDefs(auth, { ownData = true } = {}) {
   return [
     mediaTypeDef(auth, CHARACTER_MEDIA_TYPES, CHARACTER_RESTRICTED_TYPES),
     characterRoleDef(),
     genderDef(),
-    ...ratingDefs(ownData),
     cardKindDef,
     hasIdentitiesDef,
+    ...ratingDefs(ownData),
     tagListDef("appearance", "Appearance"),
     tagListDef("trait", "Trait"),
   ];
@@ -237,7 +270,8 @@ export function characterFilterDefs(auth, { ownData = true } = {}) {
  * The person library's defs: entry type, then the person types (director,
  * author, ...) the admin sub-tabs split people by - matched against the
  * `roles` each person holds and named in Chinese (personTypeLabel) - then
- * gender and rating. A seiyuu is found under the Type group's 聲優.
+ * gender; in the advanced section, content rating and rating. A seiyuu is
+ * found under the Type group's 聲優.
  */
 export function personFilterDefs(auth, { ownData = true } = {}) {
   const roleTabs = visibleByType(auth, PERSON_SUB_TABS, (t) => t.gatedType);
@@ -252,6 +286,7 @@ export function personFilterDefs(auth, { ownData = true } = {}) {
       match: (item, active) => (item.roles || []).some((r) => active.has(r.role)),
     },
     genderDef(PERSON_GENDERS),
+    ...contentRatingDefs(auth),
     ...ratingDefs(ownData),
   ];
 }
@@ -274,11 +309,13 @@ export const NO_RELATIONS = "No relation";
 
 // Read off the list's has_relations, which counts only related companies -
 // studios and publishers - the viewer may see, so a relation to a hidden one
-// filters as no relation. Shared by the studio and publisher libraries.
+// filters as no relation. Shared by the studio and publisher libraries, in the
+// advanced section between Content rating and My Rating.
 const companyRelationDef = {
   key: "relation",
   label: "Relation",
   type: "set",
+  advanced: true,
   options: [HAS_RELATIONS, NO_RELATIONS],
   match: (item, active) => active.has(item.has_relations ? HAS_RELATIONS : NO_RELATIONS),
 };
@@ -334,7 +371,8 @@ function studioCountryDef(rows) {
 }
 
 /**
- * The studio library's defs: entry type, country, relation, rating. `studios`
+ * The studio library's defs: entry type, country; in the advanced section,
+ * content rating, relation and rating. `studios`
  * is the list the library filters: which countries get a chip of their own is
  * decided over it.
  */
@@ -342,6 +380,7 @@ export function studioFilterDefs(auth, { ownData = true, studios = [] } = {}) {
   return [
     mediaTypeDef(auth, STUDIO_MEDIA_TYPES, STUDIO_RESTRICTED_TYPES),
     studioCountryDef(studios),
+    ...contentRatingDefs(auth),
     companyRelationDef,
     ...ratingDefs(ownData),
   ];
@@ -377,7 +416,8 @@ function publisherKindDef() {
 }
 
 /**
- * The publisher library's defs: entry type, kind, country, relation, rating.
+ * The publisher library's defs: entry type, kind, country; in the advanced
+ * section, content rating, relation and rating.
  * Kind and entry type both match the types a publisher is credited on OR
  * offered on.
  */
@@ -386,6 +426,7 @@ export function publisherFilterDefs(auth, { ownData = true } = {}) {
     mediaTypeDef(auth, PUBLISHER_MEDIA_TYPES, [], publisherTypes),
     publisherKindDef(),
     countryDef,
+    ...contentRatingDefs(auth),
     companyRelationDef,
     ...ratingDefs(ownData),
   ];

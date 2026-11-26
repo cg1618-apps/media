@@ -203,7 +203,7 @@ describe("HentaiAddTab layout", () => {
     ]);
   });
 
-  it("pairs finished before total in My Tracker and ends it with the flags", () => {
+  it("pairs finished before total in My Tracker, with no flags in it", () => {
     const { container } = renderTab();
     const tracker = labelsBySection(container)["My Tracker"];
     expect(tracker.slice(0, 6)).toEqual([
@@ -214,12 +214,8 @@ describe("HentaiAddTab layout", () => {
       "Total Episodes",
       "Paused at",
     ]);
-    expect(tracker.slice(-4)).toEqual([
-      "Watch Next",
-      "Add to Watch Next list",
-      "To Rewatch",
-      "Mark for rewatch",
-    ]);
+    // The flags are in the page's marks section (EntryFlags).
+    expect(tracker).toHaveLength(6);
   });
 
   it("puts the airing status, release date and classification under Information", () => {

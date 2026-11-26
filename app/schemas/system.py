@@ -556,6 +556,8 @@ class ScoreBucketCount(BaseModel):
 class ScoreDistributions(BaseModel):
     mal: List[ScoreBucketCount]
     anilist: List[ScoreBucketCount]
+    imdb: List[ScoreBucketCount]
+    metacritic: List[ScoreBucketCount]
 
 
 class CatalogueStatistics(BaseModel):

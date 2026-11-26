@@ -8,6 +8,7 @@ import { afterEach, expect, it, vi } from "vitest";
 
 import ContentLabelPicker, {
   entryHiddenFromSession,
+  GROUP_SCOPE_NOTES,
   labelsAdded,
   saveCollectionLabels,
   saveFranchiseLabels,
@@ -241,4 +242,27 @@ it("reports an admin's tick through onEdit and a load through onChange", async (
   fireEvent.click(await screen.findByLabelText("輕微色情"));
   expect(onEdit).toHaveBeenCalledWith(["ecchi", "nsfw"]);
   expect(onChange).not.toHaveBeenCalledWith(["ecchi", "nsfw"]);
+});
+
+// --- Footnote ---------------------------------------------------------------
+
+// An entry's picker carries no footnote; a grouping tier's says what its
+// label cascades to (GROUP_SCOPE_NOTES).
+it("draws no footnote unless a scope note is passed", async () => {
+  stubFetch(() => [200, VOCABULARY]);
+  const { container, rerender } = render(
+    <ContentLabelPicker value={[]} onChange={() => {}} />,
+  );
+  await screen.findByLabelText("NSFW");
+  expect(container.querySelector("p")).toBeNull();
+  expect(container.textContent).not.toMatch(/hidden from anyone/);
+
+  rerender(
+    <ContentLabelPicker
+      value={[]}
+      onChange={() => {}}
+      scopeNote={GROUP_SCOPE_NOTES.series}
+    />,
+  );
+  expect(container.querySelector("p")).toHaveTextContent(GROUP_SCOPE_NOTES.series);
 });

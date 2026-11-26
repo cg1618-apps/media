@@ -19,6 +19,7 @@ import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import WorkImagesEditor from "../../components/forms/WorkImagesEditor";
 import StudioAffiliationField from "../../components/forms/StudioAffiliationField";
 import {
+  ContentRatingField,
   GenderField,
   PhotoFallbackField,
 } from "../../components/forms/EntityProfileFields";
@@ -223,6 +224,9 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
 
       <SectionHeader icon="fa-id-card" title="Profile" />
       <GenderField kind="person" form={personForm} update={upf} />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ContentRatingField form={personForm} update={upf} />
+      </div>
       <Field
         label="Affiliation"
         hint="The studios this person belongs to - a seiyuu's agency, a director's studio. Saved with the person."

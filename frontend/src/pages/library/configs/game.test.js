@@ -96,9 +96,16 @@ describe("game library filters and sorts", () => {
     expect(byKey("releaseStatus").row).toBe(byKey("gameType").row);
   });
 
-  it("groups Play Status might, planned, playing, completed, dropped, with a hint per chip", () => {
+  it("groups Play Status might, planned, playing, stopped, completed, dropped, with a hint per chip", () => {
     const play = byKey("playingStatus");
-    expect(play.groupOptions).toEqual(["Might Play", "Planned", "Playing", "Completed", "Dropped"]);
+    expect(play.groupOptions).toEqual([
+      "Might Play",
+      "Planned",
+      "Playing",
+      "Stopped",
+      "Completed",
+      "Dropped",
+    ]);
     expect(play.optionHint("Planned")).toBe("Includes: Plan to Play, Play When Released");
     expect(play.optionHint("Might Play")).toMatch(/no status/);
   });
@@ -113,6 +120,27 @@ describe("game library filters and sorts", () => {
     expect(platform.advanced).toBeFalsy();
     const games = [{ game_platform: "PC, PS5" }, { game_platform: "PC" }];
     expect(platform.deriveOptions(games)).toEqual(["PC", "PS5"]);
+  });
+
+  it("offers the main platforms first in the fixed order, then the specific ones by appearance", () => {
+    const platform = GAME_LIBRARY_CONFIG.filterDefs.find((f) => f.key === "gamePlatform");
+    const games = [
+      { game_platform: "PlayStation, PS5" },
+      { game_platform: "PlayStation, PS5, Windows" },
+      { game_platform: "PlayStation, PS4, PC, Windows" },
+      { game_platform: "PC" },
+      { game_platform: "PS5, Browser" },
+    ];
+    // PlayStation is carried by more games than PC and still follows it; PS5
+    // is carried by more games than PC and still follows every main one.
+    expect(platform.deriveOptions(games)).toEqual([
+      "PC",
+      "PlayStation",
+      "Browser",
+      "PS5",
+      "Windows",
+      "PS4",
+    ]);
   });
 
   it("keeps Main/Remake, Ownership and HLTB in the advanced section, ahead of the genres", () => {

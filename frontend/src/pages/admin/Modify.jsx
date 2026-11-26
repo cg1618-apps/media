@@ -69,6 +69,8 @@ import AnimeModifyTab from "../modify-tabs/AnimeModifyTab";
 import Fav3x3ModifyTab from "../modify-tabs/Fav3x3ModifyTab";
 import NeedsWorkControl from "../../components/needs-work/NeedsWorkControl";
 import { NEEDS_WORK_OWNER_TYPES } from "../../lib/needsWork";
+import EntryFlags from "../../components/forms/EntryFlags";
+import FormMarksSection from "../../components/forms/FormMarksSection";
 import QuoteManageTab from "../modify-tabs/QuoteManageTab";
 import MemeManageTab from "../modify-tabs/MemeManageTab";
 import PersonModifyTab from "../modify-tabs/PersonModifyTab";
@@ -228,7 +230,6 @@ function franchiseToForm(f, allCollections = []) {
     franchise_type: f.franchise_type || "",
     cover_entry_id: f.cover_entry_id ?? null,
     type_covers: f.type_covers ?? null,
-    type_slots: f.type_slots ?? null,
     size_group_derived: f.size_group_derived ?? null,
     size_group_manual: f.size_group_manual ?? null,
     my_rating: f.my_rating || "",
@@ -1504,7 +1505,6 @@ export default function Modify() {
         collection_id: ff.collection_id || null,
         cover_entry_id: ff.cover_entry_id || null,
         type_covers: ff.type_covers || null,
-        type_slots: ff.type_slots || null,
         size_group_manual: ff.size_group_manual || null,
       }),
       credentials: "include",
@@ -2784,6 +2784,23 @@ export default function Modify() {
       </div>
     );
 
+  // The form state and updater of the entry whose flags the marks section
+  // draws - the twelve media types (config/entryFlags.js).
+  const flagForm = {
+    anime: [af, ua],
+    "anime-movie": [amf, uam],
+    movie: [mmf, umm],
+    "tv-show": [tvmf, utv],
+    cartoon: [cmf, uc],
+    manga: [cmgf, umg],
+    book: [cnvf, unv],
+    comic: [ccmf, ucm],
+    game: [cgmf, ugm],
+    "h-comic": [chcf, uhc],
+    "h-game": [chgf, uhg],
+    hentai: [chtf, uht],
+  }[editingType];
+
   return (
     <RestrictedPrefillProvider config={formDefaultsRef.current}>
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -3066,6 +3083,48 @@ export default function Modify() {
             </span>
           </div>
 
+          {/* The marks section, above the franchise ribbon: the entry's
+              flags (fields of the form, saved with it), its 待補充 mark
+              (its own row, saved on its own - every owner type the editor
+              opens on but the options tab's) and its content labels (read
+              for whatever is being edited - an entry, or a collection,
+              franchise or series - and written on Save; only a franchise
+              has required labels). */}
+          <FormMarksSection>
+            {flagForm && <EntryFlags type={editingType} f={flagForm[0]} u={flagForm[1]} />}
+            {NEEDS_WORK_OWNER_TYPES.has(editingType) && (
+              <NeedsWorkControl
+                ownerType={editingType}
+                ownerId={editingItem.system_id}
+              />
+            )}
+            {LABELLABLE_TABS.includes(editingType) && editingItem?.system_id && (
+              <ContentLabelPicker
+                owner={
+                  LABELLABLE_GROUPS.includes(editingType)
+                    ? { kind: editingType, id: editingItem.system_id }
+                    : {
+                        kind: "entry",
+                        mediaType: editingType,
+                        id: editingItem.system_id,
+                      }
+                }
+                value={contentLabels}
+                onChange={setContentLabels}
+                onEdit={editLabels}
+                onLoaded={(keys) => {
+                  loadedLabels.current = keys;
+                }}
+                required={
+                  editingType === "franchise"
+                    ? requiredLabelsForFranchiseType(ff.franchise_type)
+                    : requiredLabelsForType(editingType)
+                }
+                scopeNote={GROUP_SCOPE_NOTES[editingType]}
+              />
+            )}
+          </FormMarksSection>
+
           {ribbonProps && (
             <FranchiseRibbon
               {...ribbonProps}
@@ -3083,16 +3142,6 @@ export default function Modify() {
             <p className="text-xs text-brand font-bold">
               {ownerTypeLabel(editingType)}
             </p>
-
-            {/* The mark is its own row, saved on its own: every owner type
-                the editor opens on - twelve media types and three tiers -
-                is a Needs Work owner. Not the options tab's. */}
-            {NEEDS_WORK_OWNER_TYPES.has(editingType) && (
-              <NeedsWorkControl
-                ownerType={editingType}
-                ownerId={editingItem.system_id}
-              />
-            )}
 
             {/* ── ANIME EDITOR ── */}
             {editingType === "anime" && (
@@ -3313,37 +3362,6 @@ export default function Modify() {
               />
             )}
           </div>
-
-            {/* Content labels - the picker reads the current set for whatever
-                is being edited: an entry, or a collection, franchise or
-                series. Only a franchise has required labels. */}
-            {LABELLABLE_TABS.includes(editingType) && editingItem?.system_id && (
-              <div className="mt-6">
-                <ContentLabelPicker
-                  owner={
-                    LABELLABLE_GROUPS.includes(editingType)
-                      ? { kind: editingType, id: editingItem.system_id }
-                      : {
-                          kind: "entry",
-                          mediaType: editingType,
-                          id: editingItem.system_id,
-                        }
-                  }
-                  value={contentLabels}
-                  onChange={setContentLabels}
-                  onEdit={editLabels}
-                  onLoaded={(keys) => {
-                    loadedLabels.current = keys;
-                  }}
-                  required={
-                    editingType === "franchise"
-                      ? requiredLabelsForFranchiseType(ff.franchise_type)
-                      : requiredLabelsForType(editingType)
-                  }
-                  scopeNote={GROUP_SCOPE_NOTES[editingType]}
-                />
-              </div>
-            )}
 
           <div className="mt-6 flex justify-end gap-3">
             {REPLACE_ON_SAVE.includes(editingType) && (

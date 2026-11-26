@@ -73,6 +73,8 @@ function mockFetch({ ratingOk = true } = {}) {
       return json({ system_id: "p-new", display_name: "Kana Hanazawa" });
     if (u === "/api/studio/" && method === "POST")
       return json({ system_id: "st-new", display_name: "Sunrise" });
+    if (u === "/api/publisher/" && method === "POST")
+      return json({ system_id: "pb-new", display_name: "Muse" });
     if (u.startsWith("/api/franchise/") && method === "GET") return json([FRANCHISE]);
     return json([]);
   });
@@ -308,5 +310,39 @@ describe("Add page — a viewer who keeps a list rates the entity it creates", (
     await openEntityTab(user, "Person");
     expect(screen.getAllByRole("textbox").length).toBeGreaterThan(0);
     expect(screen.queryByLabelText("My Rating")).not.toBeInTheDocument();
+  });
+});
+
+// The catalogue POST of every entity with a content rating carries it: Normal
+// unless the admin picks another.
+describe("Add page — the entity tabs send a content rating", () => {
+  async function openEntityTab(user, name) {
+    await waitFor(() => expect(screen.queryByText(/loading/i)).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Entity" }));
+    await user.click(screen.getByRole("button", { name: new RegExp(`^${name}$`) }));
+  }
+
+  async function typeName(user, typed) {
+    const nameInput = screen
+      .getAllByRole("textbox")
+      .find((el) => !/search/i.test(el.getAttribute("aria-label") || ""));
+    await user.type(nameInput, typed);
+  }
+
+  it.each([
+    ["Person", "/api/person/", "Kana Hanazawa"],
+    ["Studio", "/api/studio/", "Sunrise"],
+    ["Publisher", "/api/publisher/", "Muse"],
+  ])("the %s tab sends Normal by default and the picked rating otherwise", async (name, create, typed) => {
+    const user = userEvent.setup();
+    mount();
+    await openEntityTab(user, name);
+    await typeName(user, typed);
+    expect(screen.getByLabelText("Content rating")).toHaveValue("normal");
+    await user.selectOptions(screen.getByLabelText("Content rating"), "borderline");
+    await user.click(screen.getByRole("button", { name: /append entry/i }));
+
+    await waitFor(() => expect(createCall(create)).toBeDefined());
+    expect(JSON.parse(createCall(create)[1].body).content_rating).toBe("borderline");
   });
 });
