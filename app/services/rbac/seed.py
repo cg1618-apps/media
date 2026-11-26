@@ -184,28 +184,21 @@ def ensure_rbac_seed(db: Session) -> None:
         db,
         GUEST_ROLE,
         label="Guest",
-        description="Anyone who is not logged in.",
+        description=None,
         sort_order=0,
     )
     _ensure_role(
         db,
         ADMIN_ROLE,
         label="Admin",
-        description=(
-            "Runs the installation: accounts, roles, access modes, pipelines, "
-            "the request inbox, announcements, options, images and resources. "
-            "Reads and writes no catalogue, and keeps no list or notes."
-        ),
+        description="Management only without data like entry page",
         sort_order=100,
     )
     user = _ensure_role(
         db,
         USER_ROLE,
         label="User",
-        description=(
-            "A signed-in member. Reads the whole site, and writes their "
-            "own list and their own personal notes."
-        ),
+        description=None,
         sort_order=50,
     )
     shared = _ensure_role(
@@ -213,9 +206,8 @@ def ensure_rbac_seed(db: Session) -> None:
         SHARED_ROLE,
         label="Shared",
         description=(
-            "An account several people sign in to. Reads what a guest reads "
-            "and files requests; its mode and its role are fixed, and only "
-            "the admin sets its password."
+            "Advanced Guest: Read only with fixed access mode ceiling "
+            "(normal or borderline)"
         ),
         sort_order=25,
     )
@@ -223,13 +215,7 @@ def ensure_rbac_seed(db: Session) -> None:
         db,
         SUPER_ROLE,
         label="Super",
-        description=(
-            "Manages the catalogue and runs the pipelines. Cannot itself "
-            "change roles, accounts or content labels - but running a "
-            "pipeline (Pull All) can rewrite all three from the sheet, "
-            "since it restores the Users and Content Label tabs and role "
-            "assignments along with everything else."
-        ),
+        description=None,
         sort_order=75,
     )
 

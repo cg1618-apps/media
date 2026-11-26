@@ -169,6 +169,8 @@ describe("the access mode in the Edit dialog", () => {
   it("lists the denials the ceiling shows, and follows it", async () => {
     await openPanel();
     expect(screen.getByLabelText("nsfw")).not.toBeChecked();
+    // The boxes stand on their own, with no instruction line above them.
+    expect(screen.queryByText(/Untick to withhold/)).toBeNull();
     expect(screen.queryByLabelText("h-comic")).toBeNull();
 
     await userEvent.selectOptions(ceilingSelect(), "unrestricted");
@@ -422,13 +424,20 @@ describe("account lifecycle on /users", () => {
     expect(within(dialog).getByRole("button", { name: "Copy link" })).toBeTruthy();
   });
 
-  it("says on the password field that setting one signs the account out", async () => {
+  it("carries no explanatory line under the page heading", async () => {
+    render(<Users />);
+    await screen.findByText("bob");
+    expect(screen.queryByText(/browses as Guest/)).toBeNull();
+  });
+
+  it("carries no hint on the password field", async () => {
     render(<Users />);
     await screen.findByText("bob");
     const dialog = await openEdit("bob");
     expect(
       within(dialog).getByPlaceholderText("New password (optional)"),
-    ).toHaveAccessibleDescription(/signs this account out everywhere/);
+    ).not.toHaveAccessibleDescription();
+    expect(within(dialog).queryByText(/signs this account out/)).toBeNull();
   });
 });
 
