@@ -324,14 +324,17 @@ export default function PersonAddTab({
   roles,
   setRoles,
   applyMalPick,
+  applyImdbPick,
 }) {
   const legalScopes = useRoleScopes();
 
   return (
     <>
-      {/* The tab's only search box: a person has no "copy an existing
-          record" search. The server fills on save from MAL, then TMDB,
-          for whichever link the person has, as the two Person Fills do. */}
+      {/* The tab's search boxes, MAL then IMDb: a person has no "copy an
+          existing record" search. The server fills on save from MAL, then
+          TMDB, for whichever link the person has, as the two Person Fills
+          do. IMDb has no public search, so the IMDb box searches TMDB's
+          people and the pick is resolved to its IMDb page. */}
       <ExternalSearchBox
         source="MAL"
         searchUrl={endpoints.person.searchMal}
@@ -339,6 +342,15 @@ export default function PersonAddTab({
         placeholder="Search MAL — type a name to link this person..."
         hint="Links the MAL page. Names and photo are filled from MAL on save."
       />
+      {applyImdbPick && (
+        <ExternalSearchBox
+          source="IMDb"
+          searchUrl={endpoints.person.searchImdb}
+          onPick={applyImdbPick}
+          placeholder="Search IMDb — type a name to link this person..."
+          hint="Searched through TMDB. Links the IMDb page; TMDB fills what MAL leaves blank on save."
+        />
+      )}
       <PersonFields
         personForm={personForm}
         upf={upf}

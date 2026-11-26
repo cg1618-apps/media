@@ -267,6 +267,11 @@ export const endpoints = {
     // The Add tab's MyAnimeList picker (ExternalSearchResult rows).
     searchMal: (q, limit = 10) =>
       `/api/person/search-mal?q=${encodeURIComponent(q)}&limit=${limit}`,
+    // The Add tab's IMDb picker: TMDB people (IMDb has no public search),
+    // and the IMDb name id + link of the one picked.
+    searchImdb: (q, limit = 10) =>
+      `/api/person/search-imdb?q=${encodeURIComponent(q)}&limit=${limit}`,
+    tmdbImdbId: (ref) => `/api/person/tmdb-imdb-id?ref=${encodeURIComponent(ref)}`,
   },
 
   credits: {

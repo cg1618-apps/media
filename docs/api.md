@@ -1356,6 +1356,7 @@ search is a `GET ?q=&limit=` on the type's own prefix, needs
 | `/api/anime/search-mal`, `/api/anime-movie/search-mal`, `/api/manga/search-mal`, `/api/book/search-mal`, `/api/person/search-mal`, `/api/character/search-mal` | MyAnimeList, through Tenrai |
 | `/api/book/search-openlibrary` | Open Library |
 | `/api/movies/search-tmdb`, `/api/tv-shows/search-tmdb`, `/api/cartoon/search-tmdb` | TMDB |
+| `/api/person/search-imdb` | TMDB people (IMDb has no public search) |
 | `/api/comic/search-comicvine` | Comic Vine |
 | `/api/game/search-igdb`, `/api/h-game/search-igdb` | IGDB |
 
@@ -1363,7 +1364,10 @@ Movie, TV show and cartoon rows are keyed by IMDb id, which a TMDB search
 result does not carry. So the SPA resolves only the result the admin picks,
 with `GET /api/<type>/tmdb-imdb-id?ref=<external_id>` →
 `{imdb_id, imdb_link}`: 422 on a malformed ref, 404 when TMDB knows no IMDb
-id for the title, 502 when TMDB fails.
+id for the title, 502 when TMDB fails. A person picked in the IMDb search is
+resolved the same way through `GET /api/person/tmdb-imdb-id?ref=person/<id>`,
+which answers the IMDb **name** id (`nm…`) and its
+`https://www.imdb.com/name/<nm>/` link.
 
 ### MAL prefill
 
@@ -1714,6 +1718,8 @@ derived from `(role, media_type)`, never stored.
 | -------- | ----------------- | ------ | --------------------------------------------------------------------------------------- |
 | `GET`    | `/`                | `view.person` | List people, sorted by resolved `display_name`. `?role=` filters to those holding a `person_role`; `?scope=` narrows it to one hyphenated media-type key. Both filters are exact: a query without `scope` means "holds this role", in any media type or in none, and a query with one never matches a role held unscoped — which is what keeps an unscoped person out of every dropdown. |
 | `GET`    | `/search-mal`      | `manage.catalog` | `?q=`, `limit`. Searches MAL people. Declared before `/{system_id}`, which is a string here and would otherwise take the literal path. Returns `ExternalSearchResult[]` (see [Add-tab picker searches](#add-tab-picker-searches)); 502 with a `detail` when the source fails. |
+| `GET`    | `/search-imdb`     | `manage.catalog` | `?q=`, `limit`. The Add tab's IMDb picker: IMDb has no public API, so it searches TMDB's people (`search_tmdb_people`). Each row's `external_id` is a TMDB ref (`person/6384`), `detail` the person's `known_for_department`, `cover_url` their TMDB profile picture. Declared before `/{system_id}`. Returns `ExternalSearchResult[]`; 502 with a `detail` when TMDB fails. |
+| `GET`    | `/tmdb-imdb-id`    | `manage.catalog` | `?ref=person/<id>` (required). The IMDb name id TMDB holds for the picked person: `{imdb_id, imdb_link}`, the link `https://www.imdb.com/name/<nm>/`. 422 on a ref that is not `person/<digits>`, 404 when TMDB holds no `nm` id, 502 when TMDB fails. Declared before `/{system_id}`. |
 | `GET`    | `/role-counts`     | `view.person` | How many distinct people hold each `person_role`, zeros included. Declared before `/{system_id}` so the UUID route does not 422 on the literal path. Counts people, not `person_role` rows — a director scoped both ways is one person. Heads the person list; the `/options` admin page reads the same tally through `/api/options/record-counts`. |
 | `GET`    | `/role-scopes`     | `view.person` | `{role: [legal media types]}` — `legal_scopes(role)`, the role's credited `media_types` then its `extra_scopes`, the same list that validates writes, so the admin form cannot offer a pair the API rejects. A role held with no scope is not in the list; on a write it is `{role, scope: null}`. Declared before `/{system_id}` for the same reason `role-counts` is. |
 | `GET`    | `/{system_id}`     | `view.person` | Get one person by UUID. 404 if absent or hidden.                                     |

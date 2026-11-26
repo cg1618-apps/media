@@ -625,7 +625,7 @@ job, or the create path's.
 
 **TMDB picks resolve before they write.** Movie, TV show and cartoon rows are
 keyed by IMDb, and a TMDB result's `external_id` is a TMDB ref (`movie/603`,
-`tv/1399`). `makeTmdbPick` first calls
+`tv/1399`; a person's is `person/6384`). `makeTmdbPick` first calls
 `GET /api/<prefix>/tmdb-imdb-id?ref=<ref>` (`endpoints.<type>.tmdbImdbId`)
 and only on `{imdb_id, imdb_link}` writes the two fields. A 404 (TMDB holds no
 IMDb id) or a 502 writes nothing and shows an error toast telling the admin to
@@ -871,8 +871,14 @@ not `<input type="date">`, because it carries the same partial precision
 `release_date` does (invalid values are flagged with a danger border). The
 entry's Ownership is derived from these rows, not typed.
 
-**Person tab (Entity).** `PersonAddTab.jsx`. Its only search box is the MAL
-`ExternalSearchBox` (see "External search box" above), over the form. No
+**Person tab (Entity).** `PersonAddTab.jsx`. Two `ExternalSearchBox`es sit
+over the form (see "External search box" above): **MAL**, which links
+`mal_link` and fills a blank Japanese name, then **IMDb**, which searches
+TMDB's people (`/api/person/search-imdb`; IMDb has no public search) and
+resolves the pick through `makeTmdbPick` with `idField: null` - only
+`imdb_link` is written, the server reading the `nm` id from it - plus a blank
+English name. The Modify editor has neither: external search is an Add-tab
+tool. No
 `PersonSubTabBar` here — the
 bar filters a list, and Add has no list; the role × scope matrix inside the
 form already says which types a new person holds. `PersonFields` holds the four name fields (`EntityNameFields`, the layout every entity form - studio, publisher, person, character, identity, Add and Modify - shares: Chinese beside English, then Japanese beside Alternative; `STUDIO_NAME_FIELDS` keeps its en, cn, jp, alt order, the display-name fallback) with a
