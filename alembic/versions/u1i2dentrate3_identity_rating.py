@@ -10,7 +10,7 @@ Reversible: the downgrade deletes every identity rating (there is nowhere
 else to keep one), then restores the constraints and drops the column.
 
 Revision ID: u1i2dentrate3
-Revises: g1m2ainplat3
+Revises: f1r2filterrm3
 Create Date: 2026-11-26 00:00:00.000000
 
 """
@@ -22,7 +22,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "u1i2dentrate3"
-down_revision: Union[str, Sequence[str], None] = "g1m2ainplat3"
+down_revision: Union[str, Sequence[str], None] = "f1r2filterrm3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
