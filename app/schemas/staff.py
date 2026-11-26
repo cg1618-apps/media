@@ -187,6 +187,8 @@ class PersonResponse(PersonBase):
     my_rating: Optional[str] = None
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
+    # The favourite-entity grids' slots; written by PATCH alone.
+    type_slots: Optional[dict] = None
     public_id: int
     display_name: str = ""
     # Every (role, scope) the person holds. The admin form edits the whole set
@@ -267,6 +269,8 @@ class StudioResponse(StudioBase):
     my_rating: Optional[str] = None
     # The id the SPA puts in the URL. Never gated: a viewer allowed to see the
     # entry must be able to link to it.
+    # The favourite-entity grids' slots; written by PATCH alone.
+    type_slots: Optional[dict] = None
     public_id: int
     display_name: str = ""
     credit_count: int = 0

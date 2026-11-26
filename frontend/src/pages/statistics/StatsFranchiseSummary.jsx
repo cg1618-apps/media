@@ -199,7 +199,7 @@ export default function StatsFranchiseSummary({
     <>
       {/* Block 2 — Rating Distribution */}
       <section id="rating-distribution" className="scroll-mt-24">
-        <StatsSectionHeader eyebrow="Statistics" title="Rating distribution" />
+        <StatsSectionHeader title="Rating distribution" />
         {/* One wrapping grid rather than three rows of three: the cards are
             peers and the count changes, so a fixed row is a row that ends up
             with a hole in it. */}
@@ -305,7 +305,7 @@ export default function StatsFranchiseSummary({
 
       {/* Block 2.5 — Anime Seasonal Overview */}
       <section id="anime-seasonal" className="scroll-mt-24">
-        <StatsSectionHeader eyebrow="Statistics" title="Anime seasonal overview" />
+        <StatsSectionHeader title="Anime seasonal overview" />
         {seasonals.length === 0 ? (
           <div className="border border-dashed border-border-strong px-4 py-10 text-center">
             <p className="text-sm text-text-muted">No seasonal data yet.</p>

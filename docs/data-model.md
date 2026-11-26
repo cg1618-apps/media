@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -1017,7 +1017,7 @@ number among them is `vol_fin_page`, a page. See
 | `media_id` | UUID | **no** | | FK `media.system_id` ON DELETE CASCADE |
 | `status` | String | **no** | per type | The one status column for all twelve types. Translated to and from `watching_status` / `reading_status` / `playing_status` by `STATUS_FIELD`; the default comes from `DEFAULT_STATUS`. |
 | `my_rating` | String | yes | | MY_RATINGS - a letter grade, never a number |
-| `completed_at` | DateTime | yes | | Stamped when the status becomes a completed one (`apply_list_completion_timestamp`) |
+| `completed_at` | DateTime | yes | | The latest finish: stamped when the status moves into a completed one (`apply_list_completion_timestamp`) |
 | `my_watch_day` | String | yes | | WEEKDAYS. Anime only. |
 | `ep_fin` | Float | yes | | anime, tv_shows, cartoons, hentai |
 | `time_fin` | String | yes | | **Paused at**: where playback stopped - `1:10:00` into a movie, `14:35` into the episode after `ep_fin`. The six watching types (anime, anime_movies, movies, tv_shows, cartoons, hentai). Free text, never parsed; stored stripped, a blank as NULL (`clean_time_fin`). Which episode it belongs to is `ep_fin`'s job, not this column's. Cleared when `ep_fin` goes up or the row becomes Completed - see [business-rules.md](business-rules.md#a-paused-position-is-cleared-by-progress) |
@@ -1183,12 +1183,12 @@ One human credited on a media entry (Tier 3 entity - see
 | `mal_id` | Integer | yes | | MAL people id. Derived from `mal_link` by `extract_mal_id_person` on every write and on the Person (MAL) Fill, or typed directly. Any person holding one is filled from MAL, whatever their role |
 | `mal_link` | String | yes | | `myanimelist.net/people/<id>/<slug>` |
 | `anilist_link` | String | yes | | `anilist.co/staff/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
-| `anilist_link` | String | yes | | `anilist.co/staff/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
 | `imdb_id` | String | yes | | IMDb name id, `nm<digits>`. Derived from `imdb_link` by `extract_imdb_id_person` on every write and on the Person (TMDB) Fill. Any person holding one is filled from TMDB's person record (through `/find`), after MAL |
 | `imdb_link` | String | yes | | `imdb.com/name/nm<digits>/` |
 | `twitter_link` | String | yes | | The person's own Twitter (X) page. Stored as typed; no id is derived from it and no Fill reads it |
 | `ig_link` | String | yes | | Their Instagram page, as `twitter_link` |
 | `pixiv_link` | String | yes | | Their pixiv page, as `twitter_link` |
+| `type_slots` | JSONB | yes | | Which favourite-entity 3×3 grid slot this person holds, as `{gridKey: 1..9}`. Eight grids are keyed here: Anime Director, Non-Anime Director, Composer, Manga Author, Book Author, Illustrator, Female Seiyuu, Male Seiyuu. Written only by the Fav 3x3 editor's PATCH; no form or PUT carries it |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,
@@ -1351,7 +1351,7 @@ every type it applies to is not wrong in the way a distributor list offering
 | `mal_id` | Integer | yes | | MAL producer id. Derived from `mal_link` by `extract_mal_id_producer` on write and on Fill, or typed directly. Setting it is what makes a studio fillable |
 | `mal_link` | String | yes | | |
 | `anilist_link` | String | yes | | `anilist.co/studio/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
-| `anilist_link` | String | yes | | `anilist.co/studio/<id>/<slug>`, entered by hand beside `mal_link`. Stored as typed: no id is derived from it, no Fill or autofill reads it, and nothing calls AniList for it |
+| `type_slots` | JSONB | yes | | Which favourite-entity 3×3 grid slot this studio holds, as `{gridKey: 1..9}`. Two grids are keyed here: Anime Studio and Game Studio. Written only by the Fav 3x3 editor's PATCH; no form or PUT carries it |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 All four name columns are nullable and **at least one** must be set: a studio

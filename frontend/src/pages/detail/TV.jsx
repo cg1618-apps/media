@@ -204,7 +204,7 @@ export default function TV() {
               <Button onClick={() => navigate(`/modify?id=${system_id}&type=tv-show`)}>
                 Edit
               </Button>
-              <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+              <Button onClick={handleAutofill} disabled={autofilling}>
                 {autofilling ? "Autofilling…" : "Autofill & update"}
               </Button>
             </>

@@ -319,7 +319,7 @@ export default function HGame() {
                 <Button onClick={() => navigate(`/modify?id=${system_id}&type=h-game`)}>
                   Edit
                 </Button>
-                <Button kind="primary" onClick={handleAutofill} disabled={autofilling}>
+                <Button onClick={handleAutofill} disabled={autofilling}>
                   {autofilling ? "Autofilling…" : "Autofill & update"}
                 </Button>
               </>

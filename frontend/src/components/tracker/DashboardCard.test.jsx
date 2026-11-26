@@ -81,3 +81,35 @@ describe("DashboardCard on a film", () => {
     expect(screen.queryByTestId("film-paused-at")).toBeNull();
   });
 });
+
+// The seasonal pages' variant: no type spine, the MAL score on the chip row.
+// The default render is the mirror case for both, so a pass proves the props
+// did the hiding and the showing.
+describe("DashboardCard on the seasonal pages", () => {
+  const ANIME = {
+    system_id: "a2",
+    public_id: "ghi",
+    anime_name_en: "Dandadan",
+    _ui_type: "Anime",
+    ep_fin: 1,
+    ep_total: 12,
+    mal_rating: 8.62,
+  };
+
+  it("hides the type spine and shows the MAL score", () => {
+    renderCard(ANIME, { showTypeSpine: false, showMalScore: true });
+    expect(screen.queryByText("Anime")).toBeNull();
+    expect(screen.getByTitle("MAL score")).toHaveTextContent("MAL 8.62");
+  });
+
+  it("keeps the spine and no score by default", () => {
+    renderCard(ANIME);
+    expect(screen.getByText("Anime")).toBeInTheDocument();
+    expect(screen.queryByTitle("MAL score")).toBeNull();
+  });
+
+  it("shows no score when the anime has none", () => {
+    renderCard({ ...ANIME, mal_rating: null }, { showTypeSpine: false, showMalScore: true });
+    expect(screen.queryByTitle("MAL score")).toBeNull();
+  });
+});

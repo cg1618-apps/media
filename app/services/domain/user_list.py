@@ -461,12 +461,13 @@ def clear_stale_time_fin(
 def finish_list_row(row, entry, spec) -> None:
     """
     The personal half of finishing an entry: the type's mark_completed_list,
-    and completed_at the first time. The catalogue half (spec.mark_completed)
+    and the completed_at stamp when the row was not completed before
+    (apply_list_completion_timestamp). The catalogue half (spec.mark_completed)
     is the caller's to run, and only a catalogue write runs it.
     """
+    status_before = row.status
     spec.mark_completed_list(row, entry)
-    if row.completed_at is None:
-        row.completed_at = get_taipei_now()
+    apply_list_completion_timestamp(row, row.status, status_before)
     row.updated_at = get_taipei_now()
 
 
@@ -491,8 +492,9 @@ def write_list_payload(row, entry, personal: dict, spec, *, complete_on_total: b
     status_field = STATUS_FIELD[media_type]
     counter = spec.progress_counter if complete_on_total else None
     fin_before = counter(row, entry)[0] if counter else None
+    status_before = row.status
     apply_list_payload(row, personal, media_type)
-    apply_list_completion_timestamp(row, personal.get(status_field))
+    apply_list_completion_timestamp(row, personal.get(status_field), status_before)
     if spec.progress_hook_list is not None:
         spec.progress_hook_list(row, entry)
     if counter and status_field not in personal:

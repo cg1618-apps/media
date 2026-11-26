@@ -5,6 +5,7 @@ Requires PostgreSQL (the run's own database). See tests/api/conftest.py.
 """
 
 import uuid
+from datetime import datetime
 
 import pytest
 
@@ -392,3 +393,74 @@ class TestProgressReachingTotalCompletes:
         list_row(entry, status="Reading", issue_fin=11)
         response = owner_client.patch(f"/api/comic/{entry.system_id}", json={"issue_fin": 12})
         assert response.json()["reading_status"] == "Completed"
+
+
+# ---------------------------------------------------------------------------
+# completed_at is the latest finish
+# ---------------------------------------------------------------------------
+
+STALE = datetime(2020, 1, 1)
+
+
+@pytest.fixture
+def recompleted_movie(db_session, sample_franchise, list_row):
+    """A movie finished once, then moved back to an unfinished status: its row
+    still carries the old stamp. That stale stamp is what makes the tests
+    below bite - with completed_at None, "keep the first stamp" and "stamp
+    the latest finish" would both write today's date."""
+    entry = models.Movies(
+        system_id=uuid.uuid4(),
+        franchise_id=sample_franchise.system_id,
+        movie_name_en="Rewatched Movie",
+        release_status="Released",
+    )
+    db_session.add(entry)
+    db_session.flush()
+    list_row(entry, status="Passive Watching", completed_at=STALE)
+    return entry
+
+
+def _row(db_session, owner_user, entry):
+    db_session.expire_all()
+    return (
+        db_session.query(models.UserMediaList)
+        .filter_by(user_id=owner_user.id, media_id=entry.system_id)
+        .one()
+    )
+
+
+class TestCompletedAtIsTheLatestFinish:
+    def test_mark_completed_restamps_a_row_finished_before(
+        self, owner_client, db_session, owner_user, recompleted_movie
+    ):
+        response = owner_client.post(f"/api/movies/{recompleted_movie.system_id}/complete")
+        assert response.status_code == 200
+        assert _row(db_session, owner_user, recompleted_movie).completed_at > STALE
+
+    def test_a_status_write_into_completed_restamps(
+        self, owner_client, db_session, owner_user, recompleted_movie
+    ):
+        response = owner_client.put(
+            f"/api/me/list/{recompleted_movie.system_id}",
+            json={"watching_status": "Completed"},
+        )
+        assert response.status_code == 200
+        assert _row(db_session, owner_user, recompleted_movie).completed_at > STALE
+
+    def test_a_row_already_completed_keeps_its_stamp(
+        self, owner_client, db_session, owner_user, sample_franchise, list_row
+    ):
+        # The mirror case: same stale stamp, but the row never left Completed,
+        # so pressing Complete again is not a new finish.
+        entry = models.Movies(
+            system_id=uuid.uuid4(),
+            franchise_id=sample_franchise.system_id,
+            movie_name_en="Finished Movie",
+            release_status="Released",
+        )
+        db_session.add(entry)
+        db_session.flush()
+        list_row(entry, status="Completed", completed_at=STALE)
+        owner_client.post(f"/api/movies/{entry.system_id}/complete")
+        owner_client.put(f"/api/me/list/{entry.system_id}", json={"watching_status": "Completed"})
+        assert _row(db_session, owner_user, entry).completed_at == STALE

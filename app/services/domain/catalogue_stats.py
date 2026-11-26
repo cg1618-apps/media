@@ -16,7 +16,7 @@ its entries out of every total.
 
 from typing import Optional
 
-from sqlalchemy import func
+from sqlalchemy import Float, String, case, cast, func
 from sqlalchemy.orm import Session
 
 from app import models
@@ -93,14 +93,30 @@ def type_counts(db: Session, viewer: Optional[Viewer]) -> list[dict]:
     ]
 
 
-# The two published scores: (column, bucket width, top bucket's lower bound).
-# MAL's is 0-10 in one-point buckets; AniList's averageScore is 0-100 in
-# ten-point buckets. A perfect score is folded into the top bucket rather than
-# given one of its own, so 10 counts with 9.x and 100 with 90-99.
+# The published scores: (column, bucket width, top bucket's lower bound).
+# MAL's and IMDb's are 0-10 in one-point buckets; AniList's averageScore and
+# Metacritic's critic score are 0-100 in ten-point buckets. A perfect score is
+# folded into the top bucket rather than given one of its own, so 10 counts
+# with 9.x and 100 with 90-99.
 SCORE_SCALES: dict[str, tuple[str, int, int]] = {
     "mal": ("mal_rating", 1, 9),
     "anilist": ("anilist_rating", 10, 90),
+    "imdb": ("imdb_rating", 1, 9),
+    "metacritic": ("metacritic_score", 10, 90),
 }
+
+# A plain decimal number, the only string a String score column is read as.
+_NUMERIC = r"^[0-9]+(\.[0-9]+)?$"
+
+
+def _numeric_score(column):
+    """The score as a number. imdb_rating is a String column holding whatever
+    the source printed, so anything but a plain number ("N/A") reads as NULL
+    - unscored - instead of failing the cast for the whole query."""
+    if not isinstance(column.type, String):
+        return column
+    return case((column.op("~")(_NUMERIC), cast(column, Float)), else_=None)
+
 
 # The media types carrying each score, read off the models rather than listed:
 # a type that gains the column is counted without touching this file.
@@ -131,7 +147,7 @@ def score_distributions(
         rows: list[dict] = []
         for media_type in SCORED_TYPES[key]:
             model = MEDIA_TABLES[media_type].model
-            score = getattr(model, column)
+            score = _numeric_score(getattr(model, column))
             bucket = func.least(func.floor(score / width) * width, top)
             query = db.query(bucket, func.count(model.system_id)).filter(
                 score.isnot(None)

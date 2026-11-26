@@ -1,6 +1,6 @@
 # Business Rules
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 **What this is for.** This is the catalogue of every rule the backend applies to
 data on its own — values it derives, checks it runs, and normalisations it
@@ -322,8 +322,11 @@ purpose:
 `POST /{id}/complete` runs both halves: the catalogue one on the entry, the
 personal one on the acting user's list row, creating that row if it does not
 exist yet. `apply_list_completion_timestamp` stamps `completed_at` on the list
-row the first time a write moves it into a completed status, and never
-overwrites an existing stamp.
+row whenever a write moves it **into** a completed status from one that is not,
+so `completed_at` is the latest finish: an entry finished, moved back to
+Watching and finished again is dated today on the Completions page, not on
+the first finish. A write that leaves an already-completed row completed keeps
+its stamp.
 
 ### Reaching the total completes
 

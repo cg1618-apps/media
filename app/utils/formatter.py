@@ -1831,6 +1831,7 @@ def parse_person_from_sheet(raw: dict) -> dict:
         "twitter_link": parse_from_sheet(raw.get("twitter_link"), str),
         "ig_link": parse_from_sheet(raw.get("ig_link"), str),
         "pixiv_link": parse_from_sheet(raw.get("pixiv_link"), str),
+        "type_slots": _safe_json(raw.get("type_slots")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }
@@ -2004,6 +2005,7 @@ def parse_studio_from_sheet(raw: dict) -> dict:
         "mal_id": parse_from_sheet(raw.get("mal_id"), int),
         "mal_link": parse_from_sheet(raw.get("mal_link"), str),
         **_anilist_link_from_sheet(raw),
+        "type_slots": _safe_json(raw.get("type_slots")),
         "created_at": parse_from_sheet(raw.get("created_at"), datetime),
         "updated_at": parse_from_sheet(raw.get("updated_at"), datetime),
     }

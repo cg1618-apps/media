@@ -1,4 +1,9 @@
 // Frontend: statistics page file for StatsFavoriteGrids.
+//
+// A favourites section of the statistics page: its heading, then one 3x3
+// block per grid it is given, two to a row (one on a phone), each block as
+// wide as its column. Generic over the grids, so every favourites section -
+// a list of grids from config/favoriteGrids.js - is drawn by this one file.
 import { Link } from "react-router-dom";
 import { FALLBACK_SVG, focusStyle, thumbUrl } from "../../lib/covers";
 import {
@@ -8,10 +13,11 @@ import {
   favoritePath,
   slotIn,
 } from "../../utils/statsUtils";
-import { visibleFavoriteGrids } from "../../config/favoriteGrids";
+import { FAVORITE_GRIDS, visibleFavoriteGrids } from "../../config/favoriteGrids";
 import { useAuth } from "../../contexts/AuthContext";
 import { RatingStamp, Slip } from "../../components/ui/primitives";
 import LazyImage from "../../components/ui/LazyImage";
+import StatsSectionHeader from "./StatsSectionHeader";
 
 const SLOTS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
@@ -23,14 +29,9 @@ function FavoriteGrid({ grid, rows, covers }) {
   });
 
   return (
-    // The block is sized to its nine covers rather than stretched across the
-    // column: a 3x3 of portrait covers has a natural width, and a wider card
-    // only adds whitespace beside it.
-    <Slip
-      id={grid.id}
-      title={grid.title}
-      className="w-full sm:w-[19rem] shrink-0 scroll-mt-24"
-    >
+    // Two blocks to a row, each filling its column: three to a row left the
+    // covers too small to read.
+    <Slip id={grid.id} title={grid.title} className="w-full min-w-0 scroll-mt-24">
       <div className="grid grid-cols-3 gap-3">
         {SLOTS.map((slot) => {
           const row = slotMap[slot];
@@ -92,9 +93,12 @@ function FavoriteGrid({ grid, rows, covers }) {
 }
 
 export default function StatsFavoriteGrids({
+  grids: allGrids = FAVORITE_GRIDS,
   franchises,
   series,
-  entriesByType,
+  entriesByType = {},
+  studios,
+  people,
   allEntriesByFranchise,
   allEntriesBySeries,
 }) {
@@ -103,9 +107,9 @@ export default function StatsFavoriteGrids({
     bySeries: allEntriesBySeries,
   };
   // A gated grid (the two h-game ones) only for a session that can see it.
-  const grids = visibleFavoriteGrids(useAuth());
+  const grids = visibleFavoriteGrids(useAuth(), allGrids);
   return (
-    <div className="flex flex-wrap gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
       {grids.map((grid) => (
         <FavoriteGrid
           key={grid.id}
@@ -115,10 +119,26 @@ export default function StatsFavoriteGrids({
             series,
             bySeries: allEntriesBySeries,
             entries: entriesByType[grid.entryType],
+            studios,
+            people,
           })}
           covers={covers}
         />
       ))}
     </div>
+  );
+}
+
+/**
+ * One favourites section: `section` is an entry of STATS_SECTIONS made by
+ * favoriteSection (sections.js) - its id, its label as the heading, and its
+ * grids. The rest of the props are the rows the grids draw from.
+ */
+export function StatsFavoriteSection({ section, ...data }) {
+  return (
+    <section id={section.id} className="scroll-mt-24">
+      <StatsSectionHeader title={section.label} />
+      <StatsFavoriteGrids grids={section.grids} {...data} />
+    </section>
   );
 }

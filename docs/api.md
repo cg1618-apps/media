@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1317,7 +1317,7 @@ catalogue, not an account, and sit on a separate router
 
 | Method | Path | Auth | Description |
 | ------ | ---- | ---- | ----------- |
-| `GET`  | `/catalogue` | `view.statistics` | `CatalogueStatistics` — `by_type` (`{media_type, entry_count, franchise_count}[]`, a type with no visible entry absent; `franchise_count` is the distinct franchises holding at least one visible entry of the type, through `media.franchise_id`), `by_season` (as `/api/seasonal/catalogue`), and `scores` — `mal` and `anilist`, each `{media_type, bucket, entry_count}[]` over every type carrying that column (anime, anime movie, manga, book). `bucket` is the lower bound: MAL in one-point buckets 0-9, AniList in ten-point buckets 0-90, a perfect score folded into the top one; an unscored entry is in none. Every count is narrowed to the media types the role holds and the labels its mode shows (`services/domain/catalogue_stats.py`). **401** for a guest or the admin. |
+| `GET`  | `/catalogue` | `view.statistics` | `CatalogueStatistics` — `by_type` (`{media_type, entry_count, franchise_count}[]`, a type with no visible entry absent; `franchise_count` is the distinct franchises holding at least one visible entry of the type, through `media.franchise_id`), `by_season` (as `/api/seasonal/catalogue`), and `scores` — `mal`, `anilist`, `imdb` and `metacritic`, each `{media_type, bucket, entry_count}[]` over every type carrying that column (MAL and AniList: anime, anime movie, manga, book; IMDb: movie, TV show, cartoon; Metacritic: game, its critic score). `bucket` is the lower bound: MAL and IMDb in one-point buckets 0-9, AniList and Metacritic in ten-point buckets 0-90, a perfect score folded into the top one; an unscored entry is in none, and an `imdb_rating` that is not a plain number (`N/A`) counts as unscored. Every count is narrowed to the media types the role holds and the labels its mode shows (`services/domain/catalogue_stats.py`). **401** for a guest or the admin. |
 `/api/search` stays public, but its `seasonal` bucket holds the caller's own
 rows and is empty for an anonymous searcher.
 

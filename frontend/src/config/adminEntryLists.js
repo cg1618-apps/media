@@ -11,7 +11,7 @@
 //
 // A tab missing from a map reads none of the media lists - the entity tabs
 // (person, studio, publisher, character, quote, meme, alias, options) all do.
-import { MEDIA_LIST_TYPES } from "../hooks/useEntryLists";
+import { ENTITY_LIST_TYPES, MEDIA_LIST_TYPES } from "../hooks/useEntryLists";
 
 // The grouping-tier editors show a ribbon of everything hanging off the tier,
 // one section per media type. Games and the gated types are absent from both
@@ -36,12 +36,16 @@ export const ADD_TAB_LISTS = Object.fromEntries(
 // (the favourite game franchises and the favourite games themselves), and two
 // hold h-game rows - the server answers [] for a session that cannot see the
 // type, whose editor draws neither grid. No grid holds an h-comic or a
-// hentai, so neither list is fetched for it.
+// hentai, so neither list is fetched for it. The favourite-entity grids hold
+// studios and people, so those two lists come with it.
 export const MODIFY_TAB_LISTS = {
   ...ADD_TAB_LISTS,
   franchise: RIBBON_TYPES,
   series: SERIES_RIBBON_TYPES,
-  fav3x3: MEDIA_LIST_TYPES.filter((type) => type !== "h-comic" && type !== "hentai"),
+  fav3x3: [
+    ...MEDIA_LIST_TYPES.filter((type) => type !== "h-comic" && type !== "hentai"),
+    ...ENTITY_LIST_TYPES,
+  ],
 };
 
 export function listsForTab(map, tab) {

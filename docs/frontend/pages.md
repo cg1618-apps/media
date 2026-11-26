@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-25
+Last verified: 2026-11-26
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -1603,7 +1603,8 @@ Top to bottom:
 2. **Admin actions** (`isAdmin`), the dashed strip
    `components/layout/AdminActions.jsx` draws, with no caption. It has two
    groups: at the left end the editing actions, **Edit** then **Autofill &
-   update**; at the right end the status steps, the release button then
+   update**, both the plain default `Button` - Autofill is not a primary
+   action; at the right end the status steps, the release button then
    **Mark completed**, which is always last. On a narrow screen the right
    group wraps to a line of its own and stays right-aligned. Every page
    passes its own buttons and handlers; the strip owns only the layout.
@@ -2047,12 +2048,17 @@ Overall loads `/api/seasonal/current-season`, `/api/seasonal/`,
 season. Tabs **Current Season** (sections Completed / Watching / Planned /
 Might Watch / Dropped with a `RatingDistributionBlock`), **Next Season**
 (Watch When Airs / Plan to Watch / Might Watch / Other) and **All Seasons**
-(year × WIN/SPR/SUM/FAL table linking `/seasonal/{id}`). Detail loads
+(year × WIN/SPR/SUM/FAL table linking `/seasonal/{id}`). The page header is
+the **Seasonal** title alone, with no eyebrow above it and no current-season
+line below it - the Current Season tab names the season. Detail loads
 `/api/seasonal/{id}`, `/api/anime/?airing_season={id}`, `/api/franchise/`,
 with prev/next season arrows, a `RatingDistributionBlock`, and sections
 Completed / Watching / Watch When Airs / Plan to Watch / Might Watch /
 Dropped. The hero's **Planned** figure is `entry_planned`, which still counts
-both of the two planned statuses together. Both render `DashboardCard`s with the same
+both of the two planned statuses together. Both render `DashboardCard`s with
+`showTypeSpine={false}` and `showMalScore` - every card is an anime, so the
+type spine beside the cover is dropped and the chip row carries **MAL
+{mal_rating}** (titled "MAL score", absent when the anime has none) - and the same
 optimistic `PUT /api/me/list/{id} { ep_fin }` (`putMyListRow`). **The
 viewer's own** (`useViewScope().ownData`): a "Seasonal Rating" select →
 `PATCH /api/seasonal/{id} { my_rating }`, the account's own season row, and
@@ -2083,14 +2089,15 @@ toast reports how many succeeded and names each failure with the server's
 
 Files `pages/public/Statistics.jsx`, `pages/statistics/useStatisticsData.js`,
 `StatsFavoriteGrids.jsx`, `StatsFranchiseSummary.jsx`, `StatsCompletions.jsx`,
-`StatsCatalogue.jsx`, `pages/public/Completions.jsx`,
+`StatsCatalogue.jsx`, `StatsGameSpend.jsx`, `sections.js`,
+`pages/public/Completions.jsx`,
 `components/charts/BarChart.jsx`.
 
 **The catalogue sections** (`StatsCatalogue.jsx`, over the pure functions
 in `catalogueStats.js`) come from one `GET /api/statistics/catalogue`, over
 what the viewer's role and mode show. A shared account sees them as the
 whole page; a viewer with a list sees them at the end, after Game Spend,
-with sidebar entries of their own (`StatsCatalogueSections`). Three blocks:
+with contents rows of their own (`StatsCatalogueSections`). Three blocks:
 
 - **Entries by type** - Type, Franchises and Entries, in the registry's
   order. Franchises is the distinct franchises holding at least one visible
@@ -2100,10 +2107,14 @@ with sidebar entries of their own (`StatsCatalogueSections`). Three blocks:
   which lays every season out as season/count pairs in CSS columns - two on
   a phone, up to six on a wide screen, reading down each. Escape, the close
   button or a press on the backdrop closes it.
-- **Rating distribution** (eyebrow Catalogue, sidebar label "Catalogue
+- **Rating distribution** (eyebrow Catalogue, contents label "Catalogue
   ratings", so it is not confused with the personal Rating distribution) -
-  two `RatingDistributionCard`s, MAL rating in ten one-point buckets and
-  AniList score in ten ten-point buckets, highest first. Each pools every
+  four `RatingDistributionCard`s, two to a row: MAL rating and IMDb rating
+  (`imdb_rating` on movie, TV show and cartoon) in ten one-point buckets,
+  AniList score and Metacritic score (the critic `metacritic_score` on game)
+  in ten ten-point buckets, highest first, read from the payload's
+  `scores.mal`, `scores.anilist`, `scores.imdb` and `scores.metacritic`; a
+  score the payload does not carry draws an empty chart. Each pools every
   media type carrying the score and has its own type selector, defaulting to
   All types; every bucket is drawn, at zero if empty, so the chart keeps its
   shape whatever is selected.
@@ -2111,8 +2122,8 @@ with sidebar entries of their own (`StatsCatalogueSections`). Three blocks:
 The two tables are each as wide as their content, side by side when the
 screen has room and stacked when it does not.
 
-**Without a list** the personal sections, and the sidebar that indexes
-them, are absent rather than empty, and `useStatisticsData` never runs.
+**Without a list** the personal sections, and the table of contents that
+indexes them, are absent rather than empty, and `useStatisticsData` never runs.
 Everything else in this section is the version with a list.
 
 `useStatisticsData` runs `useMediaList` for franchise, series and every
@@ -2120,19 +2131,24 @@ entry type the session may see (`h-comic`, `h-game` and `hentai` each only
 when visible, and handed on as `null` otherwise) plus `useApiQuery(["api","seasonal"], "/api/seasonal/")` and
 `useApiQuery(["api","seasonal","current-season"], "/api/seasonal/current-season")`.
 
-`StatsSidebar.jsx` is a sticky in-page table of contents down the left, built
-from `pages/statistics/sections.js` — one entry per block and one per
-favourite grid (a gated grid's entry only for a session that can see its
-type), with an IntersectionObserver highlighting whichever section is
-nearest the top. It is `lg:`-only: on a narrow screen the page is already one
-column. A section's id is both the sidebar's anchor and the block's `id`,
-because `sections.js` is the only place either is written down.
+The table of contents is the shared `TableOfContents` on the right, `xl:`
+only, and below `xl` the same rows as a `ContentsBar` pinned under the nav -
+the Plan page's frame (see [components.md](components.md)). Its rows are
+`statsTocItems` in `pages/statistics/sections.js`: one per block, and one
+level-2 row per favourite grid under its section (a gated grid's row only
+for a session that can see its type), highlighted by `useScrollSpy`. A
+section's id is both the contents' anchor and the block's `id`, because
+`sections.js` is the only place either is written down.
 
-Every block is headed by `StatsSectionHeader.jsx` — an eyebrow and an `<h2>`
-at one size — so the page has exactly one `<h1>`, its own.
+The page has no header of its own: it opens on **Favourite Media**. Every
+block is headed by `StatsSectionHeader.jsx` — an optional eyebrow and an
+`<h2>` at one size. Favourite Media, Rating distribution and Anime seasonal
+overview carry no eyebrow; Total spend carries Games, and the catalogue
+blocks Catalogue. The page without a list keeps its own header - Archive,
+Statistics, and how many entries the catalogue holds.
 
-Statistics renders the favourite 3×3 grids (nine, and eleven for a session
-that can see h-game), then the twelve
+Statistics renders the favourite 3×3 grids under **Favourite Media** (nine,
+and eleven for a session that can see h-game), then the twelve
 "Rating distribution" bar-chart cards in one wrapping grid: my rating per
 AniManga franchise (an `Anime` or `Manga` franchise, counted once however many
 of the two it carries); MAL rating and **AniList score** over all anime; seasonal
@@ -2157,9 +2173,9 @@ hold franchises (AniManga, Book, Movie, TV, Cartoon, Game, H-Game), one holds
 series (Comic), three hold entries (Movie, Game, H-Game) — and every tier stores a slot the
 same way, a `type_slots` map of `{gridKey: 1..9}` on the row itself. A
 franchise grid holds the franchises whose type list names its key, or one of
-its `franchiseTypes` when it names them: the **Favourite AniManga franchises**
+its `franchiseTypes` when it names them: the **AniManga franchises**
 grid holds `Anime` and `Manga` franchises together, under the stored key
-`ACG`, and the **Favourite book franchises** grid holds `Book` franchises
+`ACG`, and the **Book franchises** grid holds `Book` franchises
 under the stored key `Novel` - a stored key keeps its spelling when the type
 it was named after does not. The
 `favorite*` helpers in `utils/statsUtils.js` (`favoriteName`, `favoriteCover`,
@@ -2167,8 +2183,28 @@ it was named after does not. The
 between tiers (`favoriteCover`, like `getCoverForSlot` and
 `getSeriesCoverForSlot`, returns `{ url, focus }`, so a group's slot crops its
 borrowed cover at the focal point of the entry it came from), so both consumers are tier-blind and a new grid is a config
-entry. A block is sized to its nine covers rather than stretched across a
-column, and the blocks wrap.
+entry. A grid's title names what it holds without the word "Favourite" -
+"AniManga franchises", "Movies", "Comic series" - since its section is
+already called Favourite Media. The blocks sit two to a row (one on a
+phone), each as wide as its column. A favourites section is drawn by
+`StatsFavoriteSection` from a `sections.js` entry carrying its own list of
+grids.
+
+**Favourite Entity** is the second such section, under Favourite Media: ten
+grids of studios and people (`FAVORITE_ENTITY_GRIDS`) - Anime studios, Game
+studios, Non-anime directors, Anime directors, Music / Composers, Manga
+authors, Book authors, Illustrators, Female seiyuu and Male seiyuu. Their
+tiers are `studio` and `person`, and each stores its slot in the row's own
+`type_slots` as the media tiers do. A studio grid holds the studios credited
+on its `mediaTypes` (anime and anime movie; game); a person grid holds the
+people with a matching role row (`roles`: director scoped to anime or anime
+movie, or to movie, TV show, cartoon or game; composer and illustrator in any
+scope; author scoped to manga, or to book; seiyuu), and a seiyuu grid
+narrows on `gender` (女 / 男). A grid draws the studio's logo or the person's
+photo, the server's `display_*` fallback first. The section, its contents
+rows and the `/api/studio/` and `/api/person/` fetches behind it exist only
+for a viewer holding both `view.studio` and `view.person`; the two lists do
+not hold the page's spinner, so the grids fill in when they land.
 
 **The game spend block** (`StatsGameSpend.jsx` over the pure functions in
 `gameSpend.js`) totals the `game_copy` rows the game list already carries.
@@ -2186,6 +2222,11 @@ two subtract to what waiting for a sale was worth; only a bought copy whose
 game has no list price in any region is counted under the column rather than
 priced at zero. The System page's Bought Copies Without a List Price lists
 those copies, so they can be found and filled in.
+
+Only the converted TWD figure is highlighted (semibold, `text-text`): in
+each column of the totals, in every By Year and By Storefront row, and in
+the Value card as TWD per hour. The per-currency actuals and the USD
+conversion are drawn muted beside it.
 
 The **Value** card is cost per hour, and a title counts only when it has
 logged hours, a convertible price and a list price of its own. The last of

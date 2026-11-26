@@ -360,6 +360,8 @@ function SeasonalDetailWithList() {
                     franchise={franchiseMap[anime.franchise_id]}
                     canTrack={canTrack}
                     onEpChange={handleEpChange}
+                    showTypeSpine={false}
+                    showMalScore
                   />
                 ))}
               </div>

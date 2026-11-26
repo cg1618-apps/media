@@ -104,6 +104,7 @@ def _to_response(
         mal_id=studio.mal_id,
         mal_link=studio.mal_link,
         anilist_link=studio.anilist_link,
+        type_slots=studio.type_slots,
         credit_count=summary.count,
         media_types=summary.media_types,
         restricted=summary.restricted,

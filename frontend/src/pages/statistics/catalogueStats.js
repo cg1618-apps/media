@@ -18,12 +18,17 @@ export function sortTypeRows(byType) {
 /** How many seasons the page shows before "Show all". */
 export const SEASONS_SHOWN = 12;
 
-// The two published scores. `top` is the top bucket's lower bound: a perfect
-// score is counted in it (the server folds 10 into 9 and 100 into 90), so its
-// label reaches the end of the scale.
+// The published scores, by the key GET /api/statistics/catalogue files them
+// under. `top` is the top bucket's lower bound: a perfect score is counted in
+// it (the server folds 10 into 9 and 100 into 90), so its label reaches the
+// end of the scale. MAL and IMDb are decimals out of 10, in one-point
+// buckets; AniList and Metacritic's critic metascore are integers out of 100,
+// in ten-point buckets.
 export const SCORE_SCALES = {
   mal: { width: 1, top: 9, max: 10 },
   anilist: { width: 10, top: 90, max: 100 },
+  imdb: { width: 1, top: 9, max: 10 },
+  metacritic: { width: 10, top: 90, max: 100 },
 };
 
 // One hue, stepped by opacity, high scores strongest - the ladder the
@@ -41,8 +46,8 @@ const BUCKET_COLORS = [
   "bg-border-strong",
 ];
 
-// MAL's are decimals, so a bucket reads up to the next whole point ("8–9");
-// AniList's are integers, so up to the last one in it ("80–89"). The top
+// A decimal score's bucket reads up to the next whole point ("8–9"); an
+// integer score's up to the last one in it ("80–89"). The top
 // bucket reaches the end of the scale either way.
 function bucketLabel(scale, lower) {
   if (lower === scale.top) return `${lower}–${scale.max}`;

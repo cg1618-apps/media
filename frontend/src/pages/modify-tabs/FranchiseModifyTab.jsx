@@ -318,43 +318,6 @@ export default function FranchiseModifyTab({
             saveFranchise in Modify.jsx. */}
         <MyRatingFields kind="franchise" form={ff} update={uf} />
       </div>
-      {franchiseTypes.length > 0 && (
-        <div className="space-y-3 mt-4">
-          {franchiseTypes.map((type) => {
-            const currentSlot = (ff.type_slots || {})[type] ?? "";
-            return (
-              <Field
-                key={type}
-                label={`Favorite Grid Slot — ${type}`}
-                hint="1–9 slot for the favorite franchise 3×3 grid"
-              >
-                <select
-                  className={selectCls}
-                  value={currentSlot}
-                  onChange={(ev) => {
-                    const val = ev.target.value
-                      ? parseInt(ev.target.value, 10)
-                      : undefined;
-                    const next = { ...(ff.type_slots || {}), [type]: val };
-                    if (val === undefined) delete next[type];
-                    uf(
-                      "type_slots",
-                      Object.keys(next).length > 0 ? next : null,
-                    );
-                  }}
-                >
-                  <option value="">—</option>
-                  {Array.from({ length: 9 }, (_, i) => i + 1).map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            );
-          })}
-        </div>
-      )}
       <SectionHeader icon="fa-image" title="Cover Images" />
       <Field
         label="Main Cover"
