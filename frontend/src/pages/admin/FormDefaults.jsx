@@ -9,10 +9,21 @@
 // saved, so the built-in factory values stay the baseline and a field reverts
 // simply by being removed. Configured defaults apply to NEW entries and as
 // fallbacks for NULL values; they never rewrite existing rows.
+//
+// The saved config is the form-defaults query (hooks/useFormDefaults.js),
+// the one Add and Modify read; saving and resetting write it, so neither of
+// them can open on stale defaults.
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../hooks/useToast";
 import { endpoints } from "../../api/endpoints";
+import { fetchJson } from "../../hooks/queryUtils";
+import {
+  NO_FORM_DEFAULTS,
+  formDefaultsQueryKey,
+  useFormDefaults,
+} from "../../hooks/useFormDefaults";
 import { FORM_TABS } from "../../config/adminTabs";
 import AdminTabBar from "../../components/layout/AdminTabBar";
 import { BUILTIN_AUTOFILL, getFieldRegistry } from "../../config/formFields";
@@ -51,63 +62,56 @@ function sameDraft(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/**
- * Reads a JSON response, falling back if the body isn't JSON at all.
- *
- * A backend that predates a route still answers 200 — the SPA catch-all in
- * app/main.py serves index.html — so an unparseable body is a realistic
- * failure, not a theoretical one. Treat it as "nothing configured" so the page
- * still renders the built-ins instead of dying.
- */
-async function readJson(res, fallback) {
-  if (!res.ok) return fallback;
-  try {
-    return await res.json();
-  } catch {
-    return fallback;
-  }
-}
+const EMPTY_SOURCES = { options: [], studios: [], publishers: {}, people: {} };
 
 export default function FormDefaults() {
   const { showToast } = useToast();
-
-  const [activeTab, setActiveTab] = useState("anime");
-  const [sources, setSources] = useState({ options: [], studios: [], people: {} });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  // `saved` mirrors the server; `drafts` holds unsaved edits for every tab, so
-  // switching tabs never discards work.
-  const [saved, setSaved] = useState({});
-  const [drafts, setDrafts] = useState({});
+  // The saved config and the suggestion lists load side by side.
+  const { data: config, isPending, isError } = useFormDefaults();
+  const [sources, setSources] = useState(null);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [fdRes, srcData] = await Promise.all([
-          fetch(endpoints.formDefaults.list(), { credentials: "include" }),
-          fetchAllSources(),
-        ]);
-        const config = await readJson(fdRes, {});
-
-        setSaved(seedDrafts(config));
-        setDrafts(seedDrafts(config));
-        setSources(srcData);
-
-        if (!fdRes.ok) {
-          showToast("error", "Could not load saved defaults — showing built-ins.");
-        }
-      } catch {
-        // Still seed from the built-ins so the page stays usable.
-        setSaved(seedDrafts({}));
-        setDrafts(seedDrafts({}));
-        showToast("error", "Failed to load form defaults.");
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    fetchAllSources()
+      .then(setSources)
+      .catch(() => {
+        setSources(EMPTY_SOURCES);
+        showToast("error", "Failed to load the suggestion lists.");
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A config that cannot be read is no config: the page shows the built-ins.
+  useEffect(() => {
+    if (isError) showToast("error", "Could not load saved defaults — showing built-ins.");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isError]);
+
+  if (isPending || !sources) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="text-center">
+          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
+          <p className="text-text-faint font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Mounted once the config is in, so the drafts start from it.
+  return <FormDefaultsEditor config={config ?? NO_FORM_DEFAULTS} sources={sources} />;
+}
+
+function FormDefaultsEditor({ config, sources }) {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+
+  const [activeTab, setActiveTab] = useState("anime");
+  const [saving, setSaving] = useState(false);
+
+  // `saved` mirrors the server through the query cache; `drafts` holds
+  // unsaved edits for every tab, so switching tabs never discards work.
+  const saved = useMemo(() => seedDrafts(config), [config]);
+  const [drafts, setDrafts] = useState(() => seedDrafts(config));
 
   const dirtyTabs = useMemo(
     () =>
@@ -184,28 +188,41 @@ export default function FormDefaults() {
     }));
   }
 
+  // Writes one type's stored config into the shared cache - or, with null,
+  // drops it - so Add and Modify open on it at once. A config that never
+  // loaded is not known for the other types, so it is read again instead.
+  function storeLocally(type, stored) {
+    const key = formDefaultsQueryKey();
+    if (queryClient.getQueryData(key) === undefined) {
+      queryClient.invalidateQueries({ queryKey: key });
+      return;
+    }
+    queryClient.setQueryData(key, (prev) => {
+      const next = { ...prev };
+      if (stored) next[type] = stored;
+      else delete next[type];
+      return next;
+    });
+  }
+
   async function handleSave() {
     setSaving(true);
     try {
-      const res = await fetch(endpoints.formDefaults.update(activeTab), {
+      const body = {
+        version: 1,
+        defaults: draft.defaults,
+        autofill: draft.autofill,
+        restricted_prefill: draft.restricted_prefill,
+      };
+      await fetchJson(endpoints.formDefaults.update(activeTab), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          version: 1,
-          defaults: draft.defaults,
-          autofill: draft.autofill,
-          restricted_prefill: draft.restricted_prefill,
-        }),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Save failed.");
-      }
-      setSaved((prev) => ({
-        ...prev,
-        [activeTab]: JSON.parse(JSON.stringify(draft)),
-      }));
+      storeLocally(activeTab, {
+        media_type: activeTab,
+        ...JSON.parse(JSON.stringify(body)),
+      });
       showToast("success", "Form defaults saved.");
     } catch (err) {
       showToast("error", err.message || "Save failed.");
@@ -224,13 +241,9 @@ export default function FormDefaults() {
 
     setSaving(true);
     try {
-      const res = await fetch(endpoints.formDefaults.reset(activeTab), {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Reset failed.");
+      await fetchJson(endpoints.formDefaults.reset(activeTab), { method: "DELETE" });
       const fresh = emptyDraft(activeTab);
-      setSaved((prev) => ({ ...prev, [activeTab]: fresh }));
+      storeLocally(activeTab, null);
       setDrafts((prev) => ({
         ...prev,
         [activeTab]: JSON.parse(JSON.stringify(fresh)),
@@ -241,17 +254,6 @@ export default function FormDefaults() {
     } finally {
       setSaving(false);
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="text-center">
-          <i className="fas fa-spinner fa-spin text-brand text-3xl mb-3"></i>
-          <p className="text-text-faint font-medium">Loading...</p>
-        </div>
-      </div>
-    );
   }
 
   const overrideCount =
