@@ -6,7 +6,9 @@
 //      inside loses its bottom edge and opens into the page below it
 //
 // Every link comes from `config/navigation.js`; the desktop strip and the
-// mobile drawer render the same tree, so there is one place to edit.
+// mobile drawer render the same tree, so there is one place to edit. A
+// section with a `to` of its own (Guide) is a plain link in both: a tab with
+// no panel, and a drawer row with nothing to unfold.
 //
 // Below lg the tab strip gives way to a drawer, and below sm the ink row keeps
 // only the mark, a search button and the menu button - everything else
@@ -459,6 +461,27 @@ export default function Nav() {
             {sections.map((section) => {
               const isCurrent = section.key === currentSection;
               const isOpen = section.key === openKey;
+              if (section.to) {
+                return (
+                  <Link
+                    key={section.key}
+                    to={section.to}
+                    aria-current={isCurrent ? "page" : undefined}
+                    className={`relative -mb-px flex h-10 items-center border px-4 font-mono text-[11px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-inset ${
+                      section.end ? "ml-auto" : ""
+                    } ${
+                      isCurrent
+                        ? "border-border border-b-canvas bg-canvas text-text"
+                        : "border-transparent text-text-muted hover:text-text"
+                    }`}
+                  >
+                    {isCurrent && (
+                      <span className="absolute inset-x-0 top-0 h-0.5 bg-brand"></span>
+                    )}
+                    {section.label}
+                  </Link>
+                );
+              }
               return (
                 <div key={section.key} className="relative">
                   <button
@@ -515,6 +538,22 @@ export default function Nav() {
             {sections.map((section) => {
               const isOpen = expanded.has(section.key);
               const isCurrent = section.key === currentSection;
+              if (section.to) {
+                return (
+                  <div key={section.key} className="border-b border-border">
+                    <Link
+                      to={section.to}
+                      onClick={() => setMobileOpen(false)}
+                      aria-current={isCurrent ? "page" : undefined}
+                      className={`flex w-full items-center px-2.5 py-3 font-mono text-[11px] transition ${
+                        isCurrent ? "text-brand" : "text-text-muted hover:text-text"
+                      }`}
+                    >
+                      {section.label}
+                    </Link>
+                  </div>
+                );
+              }
               return (
                 <div key={section.key} className="border-b border-border">
                   <button

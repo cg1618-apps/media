@@ -754,3 +754,66 @@ describe("Nav - the Resources link", () => {
     );
   });
 });
+
+describe("Nav - the Guide link", () => {
+  // Guide is a tab that is itself the link - no panel opens. It is drawn for
+  // guest, shared and user, and not for super or the admin. Each refusal
+  // holds a non-empty set with tabs of its own, so a missing Guide is the
+  // exclusion's doing; the guest and user cases are the mirror.
+  function guideLink(scope = screen) {
+    return scope.queryByRole("link", { name: /^guide$/i });
+  }
+
+  it("is a link to /guide at the right end of the tab strip, for a guest", () => {
+    auth.member = false;
+    renderNav("/");
+    const link = guideLink();
+    expect(link).toHaveAttribute("href", "/guide");
+    expect(link.className).toMatch(/\bml-auto\b/);
+    expect(link).not.toHaveAttribute("aria-current");
+    // It sits after every tab button in the strip.
+    const strip = link.parentElement;
+    expect(strip.lastElementChild).toBe(link);
+  });
+
+  it("is offered to a user", () => {
+    auth.held = [...USER_PERMISSIONS];
+    auth.username = "bob";
+    auth.role = "user";
+    renderNav("/");
+    expect(guideLink()).toBeInTheDocument();
+  });
+
+  it("is not offered to super", () => {
+    auth.isAdmin = true;
+    auth.held = [...USER_PERMISSIONS, "manage.catalog", "manage.pipelines"];
+    auth.username = "cg1618";
+    auth.role = "super";
+    renderNav("/");
+    expect(tab("^entry$")).toBeInTheDocument();
+    expect(guideLink()).toBeNull();
+  });
+
+  it("is not offered to the admin", () => {
+    auth.held = [...ADMIN_PERMISSIONS];
+    auth.username = "admin";
+    auth.role = "admin";
+    renderNav("/");
+    expect(tab("^admin$")).toBeInTheDocument();
+    expect(guideLink()).toBeNull();
+  });
+
+  it("marks itself current on /guide", () => {
+    renderNav("/guide");
+    expect(guideLink()).toHaveAttribute("aria-current", "page");
+  });
+
+  it("is a plain link in the phone drawer too", async () => {
+    const user = userEvent.setup();
+    renderNav("/");
+    await user.click(screen.getByRole("button", { name: /toggle navigation/i }));
+    const d = within(drawer());
+    expect(d.getByRole("link", { name: /^guide$/i })).toHaveAttribute("href", "/guide");
+    expect(d.queryByRole("button", { name: /^guide$/i })).toBeNull();
+  });
+});

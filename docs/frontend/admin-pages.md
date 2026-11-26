@@ -216,7 +216,7 @@ Data: `useRequestInbox(status)` from `api/mutations/useRequestMutations.js`
 待補充 Needs Work: every entry and group whose data is not complete yet - a
 sequel not added, names missing, an official name not released. The route
 asks `manage.requests`, the inbox's key - super and the admin - and so does
-its **待補充 Needs Work** row in the System tab. Server side:
+its **待補充** row in the System tab. Server side:
 [../api.md](../api.md#needs-work--apineeds-work).
 
 - **Data**: `useNeedsWorkList()` (`GET /api/needs-work`, key
