@@ -1,8 +1,8 @@
 """One account's rating, and for a grouping tier its expectation, of one
 catalogue row.
 
-The rating of a collection, franchise, series, character, person, studio or
-publisher, and the expectation of the three tiers, are opinions: two people
+The rating of a collection, franchise, series, character, character identity,
+person, studio or publisher, and the expectation of the three tiers, are opinions: two people
 can disagree about them and both be right, so each belongs to a user. They
 used to be columns on the shared rows (`my_rating`, `*_expectation`), which
 held exactly one person's view.
@@ -12,8 +12,8 @@ owner_id) pair, the shape `note` and `order_follow` already use: a real
 foreign key cascades, so deleting the franchise or the account takes the
 rating with it. Exactly one owner column is set (ck_user_rating_one_owner),
 an expectation only on a tier (ck_user_rating_expectation_on_tier), and one
-row per user per owner (uq_user_rating_owner, NULLS NOT DISTINCT because six
-of the seven owner columns are NULL on every row).
+row per user per owner (uq_user_rating_owner, NULLS NOT DISTINCT because
+seven of the eight owner columns are NULL on every row).
 
 A row holding neither value is not stored: app/services/domain/user_rating.py
 deletes it, as user_book_unit_rating does, so "never rated" and "rated, then
@@ -45,6 +45,7 @@ USER_RATING_OWNER_COLUMNS = (
     "person_id",
     "studio_id",
     "publisher_id",
+    "identity_id",
 )
 
 
@@ -93,6 +94,8 @@ class UserRating(Base):
     person_id = _owner_fk("person")
     studio_id = _owner_fk("studio")
     publisher_id = _owner_fk("publisher")
+    # A character's other identity, rated on its own.
+    identity_id = _owner_fk("character_identity")
 
     # One of constants.MY_RATINGS - a letter grade.
     my_rating = Column(String, nullable=True)

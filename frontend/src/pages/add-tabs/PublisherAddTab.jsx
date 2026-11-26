@@ -8,6 +8,7 @@
 // Two fields the studio form has are deliberately absent — MAL ID and MAL
 // Link. MAL has no record of a games publisher or a Taiwanese distributor,
 // so the publisher table carries no MAL columns at all.
+import EntityNameFields from "../../components/forms/EntityNameFields";
 import { useCommonOptionValues } from "../../api/mutations/useCommonOptions";
 import { COUNTRY_CATEGORY } from "../../components/forms/CountryInput";
 import MyRatingFields from "../../components/forms/MyRatingFields";
@@ -42,17 +43,7 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
   const { data: countries } = useCommonOptionValues(COUNTRY_CATEGORY);
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {STUDIO_NAME_FIELDS.map(({ key, label, field }) => (
-          <Field key={key} label={`Name (${label})`}>
-            <input
-              className={inputCls}
-              value={publisherForm[field] ?? ""}
-              onChange={(e) => upf(field, e.target.value)}
-            />
-          </Field>
-        ))}
-      </div>
+      <EntityNameFields form={publisherForm} update={upf} fields={STUDIO_NAME_FIELDS} />
       {!hasAnyName && (
         <p className="text-[10px] font-bold text-danger -mt-2">
           A publisher needs at least one name.
@@ -75,10 +66,15 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
           ))}
         </select>
       </Field>
-      <PublisherScopePills
-        scopes={publisherForm.scopes}
-        setScopes={(next) => upf("scopes", next)}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <PublisherScopePills
+          scopes={publisherForm.scopes}
+          setScopes={(next) => upf("scopes", next)}
+        />
+        {/* The viewer's own rating, saved through /api/me/ratings by the
+            page once the publisher itself has saved. */}
+        <MyRatingFields kind="publisher" form={publisherForm} update={upf} />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Logo">
           <ImagePicker
@@ -131,11 +127,6 @@ export function PublisherFields({ publisherForm, upf, ownerId }) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ContentRatingField form={publisherForm} update={upf} />
-      </div>
-      {/* The viewer's own rating, saved through /api/me/ratings by the
-          page once the publisher itself has saved. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <MyRatingFields kind="publisher" form={publisherForm} update={upf} />
       </div>
     </div>
   );

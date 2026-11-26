@@ -366,6 +366,7 @@ TMDB_POSTER_URL = "https://image.tmdb.org/t/p/w185"
 TMDB_SEARCH_KINDS = ("movie", "tv")
 TMDB_KIND_LABELS = {"movie": "Movie", "tv": "TV"}
 TMDB_REF_PATTERN = re.compile(r"(movie|tv)/(\d+)")
+TMDB_PERSON_REF_PATTERN = re.compile(r"person/(\d+)")
 
 
 def _search_get(path: str, params: Dict[str, Any], context: str) -> Dict[str, Any]:
@@ -486,3 +487,67 @@ def resolve_tmdb_imdb_id(ref: str) -> Optional[str]:
     if not match:
         raise ValueError(f"Not a TMDB reference: {ref!r}. Expected 'movie/<id>' or 'tv/<id>'.")
     return _fetch_tmdb_imdb_id(match.group(1), match.group(2))
+
+
+# --- The person tab's IMDb picker ------------------------------------------
+# The same arrangement for people: IMDb has no public search, so the person
+# Add tab searches TMDB's people and resolves only the one picked to the IMDb
+# name id ("nm…") its imdb_link is built from.
+
+
+def _map_person_result(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    tmdb_id = item.get("id")
+    name = item.get("name")
+    if tmdb_id is None or not name:
+        return None
+    original = item.get("original_name")
+    profile = item.get("profile_path")
+    return {
+        "external_id": f"person/{tmdb_id}",
+        "link": f"{TMDB_WEB_URL}/person/{tmdb_id}",
+        "title": name,
+        "title_alt": original if original and original != name else None,
+        "year": None,
+        # Acting, Directing, Writing, ... - what tells two namesakes apart.
+        "detail": item.get("known_for_department") or None,
+        "cover_url": f"{TMDB_POSTER_URL}{profile}" if profile else None,
+    }
+
+
+@cached_search
+def search_tmdb_people(q: str, limit: int) -> List[Dict[str, Any]]:
+    """Searches TMDB people by name for the person Add tab's IMDb picker, as
+    ExternalSearchResult dicts. One unretried request."""
+    params = {"query": q, "include_adult": "false", "page": 1}
+    data = _search_get("/search/person", params, context=f"person search for {q!r}")
+    rows: List[Dict[str, Any]] = []
+    for item in data.get("results") or []:
+        row = _map_person_result(item)
+        if row:
+            rows.append(row)
+        if len(rows) >= limit:
+            break
+    return rows
+
+
+@cached_search
+def _fetch_tmdb_person_imdb_id(tmdb_id: str) -> Optional[str]:
+    data = _search_get(
+        f"/person/{tmdb_id}/external_ids", {}, context=f"external ids of person/{tmdb_id}"
+    )
+    imdb_id = data.get("imdb_id")
+    return imdb_id if isinstance(imdb_id, str) and imdb_id.startswith("nm") else None
+
+
+def resolve_tmdb_person_imdb_id(ref: str) -> Optional[str]:
+    """
+    The IMDb name id ("nm…") TMDB holds for a picked person, or None.
+
+    ``ref`` is a person search result's external_id, "person/6384"; anything
+    else is a ValueError, raised before any request is made. One unretried
+    request; an upstream failure is an ExternalSearchError.
+    """
+    match = TMDB_PERSON_REF_PATTERN.fullmatch(ref or "")
+    if not match:
+        raise ValueError(f"Not a TMDB person reference: {ref!r}. Expected 'person/<id>'.")
+    return _fetch_tmdb_person_imdb_id(match.group(1))

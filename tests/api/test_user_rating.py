@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 from app import models
 from app.main import app
 from app.services.domain.gated_labels import ensure_label
-from app.services.rbac.permissions import PERM_SELF_LIST
+from app.services.rbac.permissions import PERM_SELF_LIST, view_perm
 from app.services.security import create_access_token, get_password_hash
 from app.utils.constants import FRANCHISE_EXPECTATIONS, MY_RATINGS
 from tests.api.conftest import (
@@ -36,6 +36,7 @@ OWNER_TYPES = (
     "person",
     "studio",
     "publisher",
+    "identity",
 )
 
 
@@ -121,7 +122,15 @@ def owners(db_session):
     publisher = models.Publisher(system_id=uuid.uuid4(), name_en="Ratable Publisher")
     db_session.add_all([series, character, person, studio, publisher])
     db_session.flush()
+    identity = models.CharacterIdentity(
+        system_id=uuid.uuid4(),
+        character_id=character.system_id,
+        name_en="Ratable Identity",
+    )
+    db_session.add(identity)
+    db_session.flush()
     return {
+        "identity": identity,
         "collection": collection,
         "franchise": franchise,
         "series": series,
@@ -177,7 +186,9 @@ def test_two_accounts_rate_one_franchise_and_each_reads_its_own(
         assert bucket[str(fid)]["franchise_expectation"] == expectation
 
 
-@pytest.mark.parametrize("owner_type", OWNER_TYPES)
+@pytest.mark.parametrize(
+    "owner_type", [t for t in OWNER_TYPES if t != "identity"]
+)
 def test_every_owner_type_reads_back_the_viewers_own_rating(
     db_session, user_client, kana_client, owner_type, owners
 ):
@@ -190,6 +201,76 @@ def test_every_owner_type_reads_back_the_viewers_own_rating(
     assert detail["my_rating"] == "A+"
     listed = {r["system_id"]: r for r in user_client.get(f"/api/{path}/").json()}
     assert listed[str(owner_id)]["my_rating"] == "A+"
+
+
+def test_an_identity_reads_back_the_viewers_own_rating(
+    db_session, super_client, user_client, owners
+):
+    """An identity's page reads the viewer's own rating, as a character's
+    does; the admin list the Modify form reads (manage.catalog) carries the
+    super account's own."""
+    identity = owners["identity"]
+    assert _put(user_client, "identity", identity.system_id, {"my_rating": "B"}).status_code == 200
+    assert _put(super_client, "identity", identity.system_id, {"my_rating": "S"}).status_code == 200
+
+    detail = user_client.get(f"/api/character-identity/{identity.public_id}").json()
+    assert detail["my_rating"] == "B"
+    listed = {
+        r["system_id"]: r for r in super_client.get("/api/character-identity/").json()
+    }
+    assert listed[str(identity.system_id)]["my_rating"] == "S"
+
+
+def test_an_identity_of_a_hidden_character_is_404_on_write(
+    db_session, client, user_client, owners
+):
+    """Writes follow reads: its character cast only on an erotica entry, the
+    identity is hidden from a viewer without that label and refuses its
+    rating in the identity's own words. The mirror - user_client, which sees
+    every label - rates the same identity."""
+    erotica = ensure_label(db_session, "erotica")
+    entry = models.Anime(
+        system_id=uuid.uuid4(),
+        franchise_id=owners["franchise"].system_id,
+        anime_name_en="Hidden identity rating anime",
+        airing_type="TV",
+    )
+    db_session.add(entry)
+    db_session.flush()
+    db_session.add_all([
+        models.MediaContentLabel(
+            system_id=uuid.uuid4(), media_id=entry.system_id, label_id=erotica.system_id
+        ),
+        models.CharacterCasting(
+            character_id=owners["character"].system_id,
+            media_type="anime",
+            entry_id=entry.system_id,
+        ),
+    ])
+    db_session.flush()
+    identity_id = owners["identity"].system_id
+    narrow = make_viewer(
+        db_session,
+        client,
+        "narrowidentityrater",
+        {PERM_SELF_LIST, view_perm("character")},
+        label_keys=[],
+    )
+
+    r = _put(narrow, "identity", identity_id, {"my_rating": "A"})
+
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Identity not found."
+    assert db_session.query(models.UserRating).count() == 0
+    assert _put(user_client, "identity", identity_id, {"my_rating": "A"}).status_code == 200
+
+
+def test_deleting_an_identity_deletes_its_ratings(db_session, user_client, owners):
+    identity = owners["identity"]
+    _put(user_client, "identity", identity.system_id, {"my_rating": "C"})
+    db_session.delete(db_session.get(models.CharacterIdentity, identity.system_id))
+    db_session.commit()
+    assert db_session.query(models.UserRating).filter_by(identity_id=identity.system_id).count() == 0
 
 
 def test_a_guest_reads_null(db_session, client, user_client, owners):
@@ -293,7 +374,9 @@ def test_every_rating_in_the_vocabulary_is_accepted(user_client, owners, owner_t
         assert r.status_code == 200, rating
 
 
-@pytest.mark.parametrize("owner_type", ("character", "person", "studio", "publisher"))
+@pytest.mark.parametrize(
+    "owner_type", ("character", "identity", "person", "studio", "publisher")
+)
 def test_an_expectation_on_an_entity_is_422(db_session, user_client, owners, owner_type):
     r = _put(user_client, owner_type, owners[owner_type].system_id,
              {"expectation": "High"})

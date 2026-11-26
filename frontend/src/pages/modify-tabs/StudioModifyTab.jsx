@@ -9,6 +9,7 @@
 //
 // `initialId` is a deep link's id (/modify?id=<system_id>&type=studio, the
 // detail page's Edit button): that studio's editor opens on mount.
+import EntityModifyNotes from "../../components/forms/EntityModifyNotes";
 import RelatedRecords from "../../components/info/RelatedRecords";
 import { CONTENT_RATING_NORMAL } from "../../config/fieldOptions";
 import {
@@ -272,6 +273,11 @@ export default function StudioModifyTab({ initialId = null } = {}) {
           its own button, never with Save Changes. */}
       {selectedId && studioForm && (
         <RelatedRecords type="studio" recordId={selectedId} isAdmin />
+      )}
+
+      {/* The record's notes. Outside the form: each row saves on its own. */}
+      {selectedId && studioForm && (
+        <EntityModifyNotes ownerType="studio" ownerId={selectedId} />
       )}
     </div>
   );

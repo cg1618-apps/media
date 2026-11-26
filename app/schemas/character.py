@@ -178,6 +178,8 @@ class IdentityDetailResponse(IdentityResponse):
 
     character_public_id: int
     character_display_name: str = ""
+    # The VIEWER'S own rating of this identity, as CharacterResponse's.
+    my_rating: Optional[str] = None
 
 
 class IdentityAdminResponse(IdentityResponse):
@@ -187,6 +189,9 @@ class IdentityAdminResponse(IdentityResponse):
     character_display_name: str = ""
     character_public_id: int
     casting_count: int = 0
+    # The VIEWER'S own rating of this identity, as CharacterResponse's; the
+    # Modify form reads it and writes it through PUT /api/me/ratings.
+    my_rating: Optional[str] = None
 
 
 class CharacterResponse(CharacterBase):

@@ -1,10 +1,10 @@
 // Frontend: add tab page file for FranchiseAddTab.
+import EntryNameFields from "../../components/forms/EntryNameFields";
 import MyRatingFields from "../../components/forms/MyRatingFields";
 import { parseTypes } from "../../utils/media";
 import {
   Field,
   SectionHeader,
-  inputCls,
 } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
 import { useAuth } from "../../contexts/AuthContext";
@@ -21,44 +21,7 @@ export default function FranchiseAddTab({ ff, uf, collectionItems }) {
   return (
     <div className="bg-surface rounded-2xl border border-border shadow-sm p-6 space-y-4">
       <SectionHeader icon="fa-sitemap" title="Titles & Naming" />
-      <Field label="Franchise Name EN">
-        <input
-          className={inputCls}
-          value={ff.franchise_name_en}
-          onChange={(e) => uf("franchise_name_en", e.target.value)}
-          placeholder="English franchise name"
-        />
-      </Field>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Franchise Name CN">
-          <input
-            className={inputCls}
-            value={ff.franchise_name_cn}
-            onChange={(e) => uf("franchise_name_cn", e.target.value)}
-          />
-        </Field>
-        <Field label="Franchise Name roman">
-          <input
-            className={inputCls}
-            value={ff.franchise_name_roman}
-            onChange={(e) => uf("franchise_name_roman", e.target.value)}
-          />
-        </Field>
-        <Field label="Franchise Name JP">
-          <input
-            className={inputCls}
-            value={ff.franchise_name_jp}
-            onChange={(e) => uf("franchise_name_jp", e.target.value)}
-          />
-        </Field>
-        <Field label="Franchise Name Alt">
-          <input
-            className={inputCls}
-            value={ff.franchise_name_alt}
-            onChange={(e) => uf("franchise_name_alt", e.target.value)}
-          />
-        </Field>
-      </div>
+      <EntryNameFields f={ff} u={uf} prefix="franchise" label="Franchise" placeholders={{ en: "English franchise name" }} />
 
       <SectionHeader icon="fa-info-circle" title="Other Information" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

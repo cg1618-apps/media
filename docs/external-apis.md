@@ -83,6 +83,7 @@ this section is how the searches call out.
 | book | Open Library | `search_openlibrary_works` | `GET /search.json?q=&fields=key,title,subtitle,first_publish_year,author_name,cover_i` | `openlibrary_id`, `openlibrary_link` |
 | person | Tenrai | `search_mal_people` | `GET /people?q=` | `mal_link` |
 | character | Tenrai | `search_mal_characters` | `GET /characters?q=` | `mal_link` |
+| person (IMDb picker) | TMDB | `search_tmdb_people(q, limit)` | `GET /search/person` | `imdb_link` (and a blank `name_en`), via `resolve_tmdb_person_imdb_id` |
 | movie, TV show, cartoon | TMDB | `search_tmdb(q, limit, kinds)` | `GET /search/movie`, `/search/tv`, or `/search/multi` for cartoon (movie and TV results only) | `imdb_id`, `imdb_link`, via `resolve_tmdb_imdb_id` |
 | comic | Comic Vine | `search_comicvine_volumes` | `GET /search/?resources=volume` | `comicvine_id`, `comicvine_link` |
 | game, h-game | IGDB | `search_igdb_games` | `POST /v4/games` with `search "…";` | `igdb_id`, `igdb_link` |
@@ -123,6 +124,13 @@ Per source:
   (`movie/603`, `tv/1399`) and only the picked result is resolved, by
   `resolve_tmdb_imdb_id` → `GET /{kind}/{id}/external_ids`. The ref is
   validated against `(movie|tv)/(\d+)` before any request, outside the cache.
+- **TMDB people** stand in for an IMDb search, which IMDb does not offer. A
+  row is `person/<id>` with the person's `name` as its title, a different
+  `original_name` as `title_alt`, `known_for_department` as its detail and
+  the `profile_path` thumbnail as its cover; only the picked one is resolved,
+  by `resolve_tmdb_person_imdb_id` → `GET /person/{id}/external_ids`, to an
+  IMDb name id (an `imdb_id` not starting `nm` counts as none). The ref is
+  validated against `person/(\d+)` first.
 - **Open Library**'s `link` is `https://openlibrary.org/works/OL…W`, which
   `extract_openlibrary_id` parses back into `openlibrary_id`.
 - **Comic Vine** allows 200 requests an hour, so the comic picker searches on

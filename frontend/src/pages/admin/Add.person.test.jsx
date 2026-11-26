@@ -72,12 +72,12 @@ function mount() {
   );
 }
 
-// The first name input. The tab's MAL search box is a textbox too, and sits
-// above the form.
+// The first name input. The tab's MAL and IMDb search boxes are textboxes
+// too, and sit above the form.
 function firstNameInput() {
   return screen
     .getAllByRole("textbox")
-    .find((el) => el.getAttribute("aria-label") !== "Search MAL");
+    .find((el) => !/^Search /.test(el.getAttribute("aria-label") || ""));
 }
 
 async function goToPersonTab(user) {
@@ -214,6 +214,51 @@ describe("Add page — Person tab image attach", () => {
     expect(JSON.parse(init.body)).toMatchObject({
       imdb_link: "https://www.imdb.com/name/nm2017929/",
     });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("links the IMDb page picked in the IMDb search, through TMDB", async () => {
+    const base = mockFetch({ system_id: "person-6", display_name: "Keanu Reeves" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url, options) => {
+        const u = String(url);
+        const json = (body) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+        if (u.startsWith("/api/person/search-imdb")) {
+          return json([
+            {
+              external_id: "person/6384",
+              link: "https://www.themoviedb.org/person/6384",
+              title: "Keanu Reeves",
+              detail: "Acting",
+            },
+          ]);
+        }
+        if (u.startsWith("/api/person/tmdb-imdb-id")) {
+          return json({ imdb_id: "nm0000206", imdb_link: "https://www.imdb.com/name/nm0000206/" });
+        }
+        return base(url, options);
+      }),
+    );
+    const user = userEvent.setup();
+
+    mount();
+    await goToPersonTab(user);
+    await user.type(screen.getByRole("textbox", { name: "Search IMDb" }), "keanu");
+    await user.click(await screen.findByRole("option", { name: /Keanu Reeves/ }));
+
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText("https://www.imdb.com/name/...")).toHaveValue(
+        "https://www.imdb.com/name/nm0000206/",
+      ),
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/person/tmdb-imdb-id?ref=person%2F6384",
+      expect.anything(),
+    );
+    // A blank English name takes the picked name.
+    expect(screen.getByRole("textbox", { name: "Name (English)" })).toHaveValue("Keanu Reeves");
 
     vi.unstubAllGlobals();
   });
