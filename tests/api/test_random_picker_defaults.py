@@ -35,17 +35,17 @@ def _row(db_session, mode):
 
 
 def test_a_reader_reads_an_unconfigured_mode_as_no_filters(guest_reader):
-    res = guest_reader.get(f"{ROUTE}/all")
+    res = guest_reader.get(f"{ROUTE}/franchise")
     assert res.status_code == 200
-    assert res.json() == {"mode": "all", "version": 1, "filters": {}, "weighted": True}
+    assert res.json() == {"mode": "franchise", "version": 1, "filters": {}, "weighted": True}
 
 
 def test_a_guest_cannot_save(client):
-    assert client.put(f"{ROUTE}/all", json={"filters": {}}).status_code == 401
+    assert client.put(f"{ROUTE}/franchise", json={"filters": {}}).status_code == 401
 
 
 def test_a_guest_cannot_reset(client):
-    assert client.delete(f"{ROUTE}/all").status_code == 401
+    assert client.delete(f"{ROUTE}/franchise").status_code == 401
 
 
 def test_a_member_without_manage_catalog_cannot_save(user_client):
@@ -70,9 +70,9 @@ def test_save_then_everyone_reads_it(owner_client, guest_reader, db_session):
 
 
 def test_save_replaces_wholesale(owner_client):
-    owner_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["S"], "decade": ["2010s"]}})
-    owner_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["A"]}})
-    assert owner_client.get(f"{ROUTE}/all").json()["filters"] == {"myRating": ["A"]}
+    owner_client.put(f"{ROUTE}/franchise", json={"filters": {"myRating": ["S"], "decade": ["2010s"]}})
+    owner_client.put(f"{ROUTE}/franchise", json={"filters": {"myRating": ["A"]}})
+    assert owner_client.get(f"{ROUTE}/franchise").json()["filters"] == {"myRating": ["A"]}
 
 
 def test_weighting_is_on_unless_saved_off(owner_client, guest_reader, db_session):
@@ -88,7 +88,7 @@ def test_weighting_is_on_unless_saved_off(owner_client, guest_reader, db_session
 
     owner_client.put(f"{ROUTE}/anime", json={"filters": {}, "weighted": False})
     assert guest_reader.get(f"{ROUTE}/anime").json()["weighted"] is False
-    assert guest_reader.get(f"{ROUTE}/all").json()["weighted"] is True
+    assert guest_reader.get(f"{ROUTE}/franchise").json()["weighted"] is True
 
 
 def test_reset_deletes_the_row_and_is_idempotent(owner_client, db_session):
@@ -101,7 +101,7 @@ def test_reset_deletes_the_row_and_is_idempotent(owner_client, db_session):
 
 def test_modes_are_stored_apart(owner_client):
     owner_client.put(f"{ROUTE}/anime", json={"filters": {"airingType": ["TV"]}})
-    assert owner_client.get(f"{ROUTE}/all").json()["filters"] == {}
+    assert owner_client.get(f"{ROUTE}/franchise").json()["filters"] == {}
 
 
 def test_the_franchise_mode_saves_like_any_other(owner_client, guest_reader):
@@ -118,6 +118,12 @@ def test_the_franchise_mode_saves_like_any_other(owner_client, guest_reader):
 def test_an_unknown_mode_is_400(owner_client):
     assert owner_client.get(f"{ROUTE}/hologram").status_code == 400
     assert owner_client.put(f"{ROUTE}/hologram", json={"filters": {}}).status_code == 400
+
+
+def test_there_is_no_all_mode(owner_client):
+    # The picker draws one type, or franchises; there is no mode over every type.
+    assert owner_client.get(f"{ROUTE}/all").status_code == 400
+    assert owner_client.put(f"{ROUTE}/all", json={"filters": {}}).status_code == 400
 
 
 @pytest.mark.parametrize(
@@ -145,7 +151,7 @@ def test_unreadable_stored_json_reads_as_no_filters(owner_client, db_session):
 def test_picker_defaults_do_not_leak_into_announcements(owner_client):
     """Both features share system_configs; their key namespaces must not mix."""
     owner_client.post("/api/announcements/", json={"title": "Notice", "body": "Hello"})
-    owner_client.put(f"{ROUTE}/all", json={"filters": {"myRating": ["S"]}})
+    owner_client.put(f"{ROUTE}/franchise", json={"filters": {"myRating": ["S"]}})
     announcements = owner_client.get("/api/announcements/").json()
     assert [a["title"] for a in announcements] == ["Notice"]
 

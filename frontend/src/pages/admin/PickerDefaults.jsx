@@ -1,5 +1,5 @@
 // Frontend: admin page for the random picker's default filters - what each
-// picker mode ("All", every type, and "Franchise") opens with, for every
+// picker mode ("Franchise" and every type) opens with, for every
 // viewer.
 //
 // The filters are the picker's own (usePickerData), drawn with the same
@@ -32,11 +32,11 @@ import {
 
 const ALL_TYPES = PICKER_TYPES.map((t) => t.type);
 
-const modeLabel = (mode) => (mode === "all" ? "All" : pickerTypeLabel(mode));
+const modeLabel = pickerTypeLabel;
 
 export default function PickerDefaults() {
   const visibleTypes = visibleMediaTypes(useAuth(), ALL_TYPES);
-  const [mode, setMode] = useState("all");
+  const [mode, setMode] = useState(FRANCHISE_MODE);
   const [dirty, setDirty] = useState(false);
 
   // One mode is edited at a time; leaving one with unsaved edits asks first.
@@ -53,11 +53,6 @@ export default function PickerDefaults() {
         <h1 className="text-2xl font-black text-text flex items-center gap-3">
           <i className="fas fa-dice text-brand"></i> Picker Defaults
         </h1>
-        <p className="text-sm text-text-faint mt-1">
-          Choose the filters each Random Picker mode opens with, and whether it
-          draws weighted. They apply to everyone who opens the picker; anyone
-          can still change them there.
-        </p>
       </div>
 
       <ModeStrip
@@ -70,7 +65,7 @@ export default function PickerDefaults() {
       <ModeEditor
         key={mode}
         mode={mode}
-        typesKey={mode === "all" || mode === FRANCHISE_MODE ? visibleTypes.join(",") : mode}
+        typesKey={mode === FRANCHISE_MODE ? visibleTypes.join(",") : mode}
         onDirtyChange={setDirty}
       />
     </div>

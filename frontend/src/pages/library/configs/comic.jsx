@@ -59,7 +59,7 @@ const COMIC_LIBRARY_CONFIG = {
       label: "Read Status",
       personal: true,
       type: "set-grouped",
-      groupOptions: ["Reading", "Planned", "Completed", "Dropped", "Might Read"],
+      groupOptions: ["Reading", "Stopped", "Planned", "Completed", "Dropped", "Might Read"],
       match: (item, active) =>
         active.has(READING_STATUS_GROUP[item.reading_status] ?? "Might Read"),
     },

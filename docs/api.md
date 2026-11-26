@@ -2487,7 +2487,7 @@ Defaults** page (`/random-defaults`) and read by the picker (`/random`). One
 `system_configs` row per mode, keyed `random_picker_defaults:<mode>`, JSON in
 `config_value`; `app/routers/random_picker_defaults.py`.
 
-`mode` is `all`, one of the twelve media slugs, or `franchise` (the mode that draws a franchise); anything else is 400. A gated
+`mode` is `franchise` (the mode that draws a franchise) or one of the twelve media slugs; anything else, `all` included, is 400 - there is no mode over every type. A gated
 type's mode (`h-comic`, `h-game`, `hentai`) answers **404** on every verb to a
 session that may not see the type, so the endpoint does not say it exists.
 

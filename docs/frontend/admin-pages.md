@@ -1537,7 +1537,7 @@ for them entirely.
 ## /random-defaults (`PickerDefaults.jsx`)
 
 What each Random Picker mode opens with. A mode strip (`components/picker/ModeStrip.jsx`,
-the picker's own, as buttons) offers All, every type the session may see, and Franchise;
+the picker's own, as buttons) offers Franchise, then every type the session may see, in the picker's order, and opens on Franchise;
 each mode loads through `usePickerData`, the same hook the picker uses, so the
 panel shows exactly the picker's filters - including the chips of a dynamic
 filter, derived from the current lists - opened on what is saved. The footer
