@@ -141,11 +141,13 @@ describe("CartoonAddTab", () => {
     expect(screen.getByRole("textbox", { name: "Paused at" })).toBeInTheDocument();
   });
 
-  // cartoon has no to_rewatch column, so the flags row is Watch Next alone.
-  it("offers Watch Next and no rewatch flag", () => {
+  // The flags are drawn by the page's marks section (EntryFlags), not the
+  // body; cartoon's list has no Redo (config/entryFlags.js).
+  it("leaves the flags to the marks section", () => {
     renderTab();
-    expect(screen.getByRole("checkbox", { name: "Add to Watch Next list" })).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "Mark for rewatch" })).toBeNull();
+    for (const name of ["Pin to dashboard", "Plan Next", "Redo"]) {
+      expect(screen.queryByRole("checkbox", { name })).toBeNull();
+    }
   });
 
   it("shows the autofill and TMDB boxes", () => {

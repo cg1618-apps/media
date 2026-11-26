@@ -390,14 +390,34 @@ server's `entry_count`, highest first (`busiestFirst`; ties keep A-Z). The
 same order reaches every franchise and series picker on Add, Modify and
 Delete.
 
-The pages differ only in their wrappers and in `ownerId`:
+**The marks section** opens both pages: one card (`FormMarksSection`,
+styled like the editor card) drawn by `Add.jsx` and `Modify.jsx` rather than
+by the bodies. It holds, in order, each piece only on the tabs that have it:
+
+- **the flags** (`EntryFlags`, the twelve media types) — one checkbox each,
+  labelled **Pin to dashboard** (`is_pinged`), **Plan Next** (`watch_next`,
+  `read_next`, `play_next`) and **Redo** (`to_rewatch`, `to_reread`,
+  `to_replay`). Which a type has is `ENTRY_FLAGS` in `config/entryFlags.js`:
+  cartoon has no Redo, and the gated types have no pin. They are fields of
+  the tab's form and save with it;
+- **待補充** (`NEEDS_WORK_OWNER_TYPES`: the twelve media types and the three
+  tiers) — see "待補充 Needs Work" under each page below;
+- **the content labels** (`LABELLABLE_TABS`; on Modify, once the open record
+  has an id).
+
+So a collection, franchise or series tab shows 待補充 and the labels only,
+and a tab with none of the three (options, the entity tabs) draws no
+section.
+
+The pages differ otherwise only in their wrappers and in `ownerId`:
 
 - **Add wrapper** — a card holding the auto-fill box (`EntryAutofillSearch`)
   and the type's external search box(es), then the **Titles & Naming** header,
-  the lineage fields and the body.
+  the lineage fields and the body. The marks section sits above this card.
 - **Modify wrapper** — the **Titles & Naming** header, the lineage fields, the
   body with `ownerId` (the open entry's `system_id`), then **Structured
-  Notes**. The franchise ribbon sits above the card, drawn by `Modify.jsx`.
+  Notes**. Above the card, drawn by `Modify.jsx`: the marks section under the
+  Back bar, then the franchise ribbon.
 - **`ownerId`** is the only thing a body does differently between the pages:
   it goes to `ImagePicker` (and decides whether an upload is held as
   `pending_image_id` until the entry exists), to `CastEditor`'s `entryId`, and
@@ -424,17 +444,20 @@ on every type.
 **Sections**, in the detail page's order, with the same title and icon on
 every type; a type leaves out what it lacks:
 
-1. **Titles & Naming** (`fa-tag`) — h-comic's region first; franchise | series
+1. **Titles & Naming** (`fa-tag`) — h-comic's serialization status and
+   region first; franchise | series
    (anime movie: franchise only); names, CN always top-left: `cn | en`, then
    `roman | jp` where the type has them (h-comic: its region's JP or KR name),
    then `alt` full width. The romanised name is labelled **Romaji** everywhere.
 2. **Scores** (`fa-star`) — MAL and AniList, IMDb, or Metacritic. A TV show or
-   cartoon has two IMDb fields: **IMDb Rating** (this season) and **IMDb Show
-   Rating** (the whole show).
+   cartoon has two IMDb fields: **IMDb Rating** (hint "this season's avg ep
+   score") and **IMDb Show Rating** (hint "all seasons"). MAL and AniList
+   (`MalAnilistScores`) are two rows: MAL Rating | MAL Rank, then AniList
+   Rating | AniList Rank | AniList Popularity Rank.
 3. **My Tracker** (`fa-chart-bar`) — status | my rating (| usefulness on the
    gated types), each progress count beside its total (`ep_fin | ep_total`,
-   `ch_fin | ch_total`, …), Paused at, the type's extras, and the flags row
-   last.
+   `ch_fin | ch_total`, …), Paused at and the type's extras. The flags are
+   not here: they are in the marks section.
 4. **Information** (`fa-info-circle`) — classification, status, release dates,
    lone totals and lengths.
 5. **Genres & Labels** (`fa-tags`; **Genres** on the gated types, which carry
@@ -675,9 +698,9 @@ the record is still created, and an error toast says "<Type> saved, but your
 rating did not save."
 
 **待補充 Needs Work.** The twelve media tabs and the three tier tabs
-(`NEEDS_WORK_OWNER_TYPES`) draw `NeedsWorkAddField` under the content labels,
-for a `manage.requests` holder only: a **待補充 Needs Work** checkbox and,
-once ticked, the note field (`NeedsWorkNoteInput`, common notes as chips).
+(`NEEDS_WORK_OWNER_TYPES`) draw `NeedsWorkAddField` in the marks section,
+between the flags and the content labels, for a `manage.requests` holder
+only: a checkbox labelled just **待補充** and, once ticked, the note field (`NeedsWorkNoteInput`, common notes as chips).
 Like the content labels it is held on the page (`needsWork`, `{flagged,
 note}`), not in a tab's form. Nothing is written while editing: once the
 create has returned the new id, `saveNeedsWork` sends `PUT
@@ -1144,15 +1167,17 @@ those tables' `type_slots`; the tab fetches the two lists with the rest
   counter), and the label picker clears the previous selection before
   fetching, so a slow or failed fetch can never save one entry's credits or
   labels onto another.
-- **待補充 Needs Work.** Under the editor card's heading, for the twelve
+- **待補充 Needs Work.** In the marks section, for the twelve
   media types and the three tiers (`NEEDS_WORK_OWNER_TYPES` in
   `lib/needsWork.js`) and a `manage.requests` holder only:
-  `components/needs-work/NeedsWorkControl.jsx`, a checkbox and, once
+  `components/needs-work/NeedsWorkControl.jsx`, a checkbox labelled just
+  **待補充** and, once
   ticked, the note field (`NeedsWorkNoteInput`: the common notes as chips
   and as its only suggestions) with **Save note**. It saves on its own - ticking PUTs, unticking DELETEs - and never
   through the editor's Save: the mark is its own row, not a column of the
   entry. See [/needs-work](#needs-work-needsworkjsx).
-- **Other entries in this franchise.** Above the editor card, a media entry
+- **Other entries in this franchise.** Between the marks section and the
+  editor card, a media entry
   in a franchise gets a ribbon of that franchise's other entries of the same
   type, grouped by series (a "No Series" group last), each a chip that opens
   its editor. Every media type draws it with `FranchiseRibbon`

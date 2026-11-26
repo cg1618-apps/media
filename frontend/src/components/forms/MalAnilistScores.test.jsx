@@ -20,14 +20,14 @@ describe("MalAnilistScores", () => {
     ).toEqual(["Scores"]);
   });
 
-  it("lays out the MAL pair and AniList rating, then the two AniList ranks", () => {
+  it("lays out the MAL pair, then the AniList rating and its two ranks", () => {
     const { container } = renderScores();
     const rows = [...container.querySelectorAll(".grid")].map((row) =>
       [...row.querySelectorAll("label")].map((l) => l.textContent),
     );
     expect(rows).toEqual([
-      ["MAL Rating", "MAL Rank", "AniList Rating"],
-      ["AniList Rank", "AniList Popularity Rank"],
+      ["MAL Rating", "MAL Rank"],
+      ["AniList Rating", "AniList Rank", "AniList Popularity Rank"],
     ]);
   });
 

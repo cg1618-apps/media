@@ -8,7 +8,6 @@
 import CastEditor from "../../components/forms/CastEditor";
 import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
@@ -134,8 +133,7 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
           />
         </Field>
       </div>
-      <div className={ROW4}>
-        {count("ep_previous", "EP Previous")}
+      <div className={ROW3}>
         {select("broadcast_day", "Broadcast Day", WEEKDAYS)}
         {select(
           "broadcast_time",
@@ -144,14 +142,6 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
         )}
         {select("my_watch_day", "My Watch Day", WEEKDAYS)}
       </div>
-      <EntryFlags
-        f={f}
-        u={u}
-        flags={[
-          ["is_pinged", "Pinged", "Pin to the dashboard"],
-          ["watch_next", "Watch Next", "Add to Watch Next list"],
-        ]}
-      />
 
       {/* Season and Part are form-only: the payload derives season_part
           from them. */}
@@ -177,6 +167,21 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
         {select("season_num", "Season", SEASON_NUMS, (n) => `Season ${n}`)}
         {select("part_num", "Part", PART_NUMS, (n) => `Part ${n}`)}
       </div>
+      <div className={ROW3}>
+        {/* Text: specials are numbered 17.5A, 17.5B. */}
+        <Field label="EP Special">
+          <input
+            className={inputCls}
+            type="text"
+            aria-label="EP Special"
+            value={f.ep_special ?? ""}
+            onChange={(e) => u("ep_special", e.target.value)}
+            placeholder="e.g. 17.5A"
+          />
+        </Field>
+        {count("ep_previous", "EP Previous")}
+        {count("runtime_min", "Runtime (min)", { placeholder: "e.g. 24" })}
+      </div>
       <div className={ROW2}>
         {select("airing_type", "Airing Type", ANIME_AIRING_TYPES)}
         {select("airing_status", "Airing Status", AIRING_STATUSES)}
@@ -194,20 +199,6 @@ export function AnimeFormBody({ f, u, sources, ownerId }) {
           value={f.release_date_tw}
           onChange={(v) => u("release_date_tw", v)}
         />
-      </div>
-      <div className={ROW2}>
-        {/* Text: specials are numbered 17.5A, 17.5B. */}
-        <Field label="EP Special">
-          <input
-            className={inputCls}
-            type="text"
-            aria-label="EP Special"
-            value={f.ep_special ?? ""}
-            onChange={(e) => u("ep_special", e.target.value)}
-            placeholder="e.g. 17.5A"
-          />
-        </Field>
-        {count("runtime_min", "Runtime (min)", { placeholder: "e.g. 24" })}
       </div>
 
       <GenreLabelFields

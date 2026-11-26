@@ -131,6 +131,8 @@ import NeedsWorkAddField, {
 } from "../../components/needs-work/NeedsWorkAddField";
 import { useSetNeedsWork } from "../../api/mutations/useNeedsWork";
 import { NEEDS_WORK_OWNER_TYPES } from "../../lib/needsWork";
+import EntryFlags from "../../components/forms/EntryFlags";
+import FormMarksSection from "../../components/forms/FormMarksSection";
 import { countriesPayload } from "../../lib/countries";
 
 export default function Add() {
@@ -2391,6 +2393,23 @@ export default function Add() {
     );
   }
 
+  // The form state and updater of the tab whose flags the marks section
+  // draws - the twelve media tabs (config/entryFlags.js).
+  const flagForm = {
+    anime: [af, ua],
+    "anime-movie": [amf, uam],
+    movie: [mf, umf],
+    "tv-show": [tvf, utf],
+    cartoon: [cf, uc],
+    manga: [mgf, umg],
+    book: [nvf, unv],
+    comic: [cmf, ucm],
+    game: [gmf, ugm],
+    "h-comic": [hcf, uhc],
+    "h-game": [hgf, uhg],
+    hentai: [htf, uht],
+  }[activeTab];
+
   return (
     <RestrictedPrefillProvider config={formDefaults}>
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -2438,6 +2457,34 @@ export default function Add() {
       />
 
       <form onSubmit={handleSubmit}>
+        {/* The marks section, above the tab's own card: the entry's flags
+            (Pin to dashboard, Plan Next, Redo - fields of the tab's form,
+            saved with it), its 待補充 mark (saved after the create) and its
+            content labels (PUT after the create). Content labels cover every
+            media tab and the collection, franchise and series tabs, whose
+            labels cascade to everything under them; only a franchise has
+            required labels (its gated franchise type's). Needs Work covers
+            the twelve media types and the three grouping tiers. */}
+        <FormMarksSection>
+          {flagForm && <EntryFlags type={activeTab} f={flagForm[0]} u={flagForm[1]} />}
+          {NEEDS_WORK_OWNER_TYPES.has(activeTab) && (
+            <NeedsWorkAddField value={needsWork} onChange={setNeedsWork} />
+          )}
+          {LABELLABLE_TABS.includes(activeTab) && (
+            <ContentLabelPicker
+              value={contentLabels}
+              onChange={setContentLabels}
+              onEdit={editLabels}
+              required={
+                activeTab === "franchise"
+                  ? requiredLabelsForFranchiseType(ff.franchise_type)
+                  : requiredLabelsForType(activeTab)
+              }
+              scopeNote={GROUP_SCOPE_NOTES[activeTab]}
+            />
+          )}
+        </FormMarksSection>
+
         {/* ═══ ANIME TAB ═══ */}
         {activeTab === "anime" && (
           <AnimeAddTab
@@ -2721,37 +2768,6 @@ export default function Add() {
 
         {/* ═══ IDENTITY TAB — self-contained, saves through its own button ═══ */}
         {activeTab === "identity" && <IdentityAddTab />}
-
-        {/* Content labels - one control for every media tab, and for the
-            collection, franchise and series tabs, whose labels cascade to
-            everything under them. Only a franchise has required labels (its
-            gated franchise type's); a collection or series has none.
-            "game" belongs here: submitGame writes labels like every other
-            type, and leaving the tab out of this list meant a game could
-            never be labelled on the way in. */}
-        {LABELLABLE_TABS.includes(activeTab) && (
-          <div className="mt-6">
-            <ContentLabelPicker
-              value={contentLabels}
-              onChange={setContentLabels}
-              onEdit={editLabels}
-              required={
-                activeTab === "franchise"
-                  ? requiredLabelsForFranchiseType(ff.franchise_type)
-                  : requiredLabelsForType(activeTab)
-              }
-              scopeNote={GROUP_SCOPE_NOTES[activeTab]}
-            />
-          </div>
-        )}
-
-        {/* 待補充 Needs Work - every tab whose record can carry a mark: the
-            twelve media types and the three grouping tiers. */}
-        {NEEDS_WORK_OWNER_TYPES.has(activeTab) && (
-          <div className="mt-6">
-            <NeedsWorkAddField value={needsWork} onChange={setNeedsWork} />
-          </div>
-        )}
 
         {/* Submit button. Hidden on the Identity tab, which saves through
             its own button, and on the Alias tab, which does the same: an alias is a PUT on an option that already exists, so

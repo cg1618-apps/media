@@ -58,12 +58,13 @@ function mount({ type, listPath, entries, franchises = [FRANCHISE] }) {
   );
 }
 
-// The editor card is the box holding the entry's own heading.
+// The editor card is the box holding the entry's own heading - the first
+// card in the form that is not the marks section.
 async function editorCard() {
   const save = await screen.findByRole("button", { name: /save changes|save & replace/i });
-  return save
-    .closest("form")
-    .querySelector(".bg-surface.rounded-2xl.border");
+  return [...save.closest("form").querySelectorAll(".bg-surface.rounded-2xl.border")].find(
+    (el) => el.dataset.testid !== "form-marks-section",
+  );
 }
 
 beforeEach(() => {
@@ -86,7 +87,7 @@ const CASES = [
 
 describe("Modify franchise ribbon", () => {
   it.each(CASES)(
-    "%s shows its siblings above the editor card",
+    "%s shows its siblings above the editor card, below the marks section",
     async (type, listPath, nameKey) => {
       mount({
         type,
@@ -104,6 +105,14 @@ describe("Modify franchise ribbon", () => {
       expect(
         ribbon.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
+      // The marks section - the entry's flags and the rest - sits above it.
+      const marks = screen.getByTestId("form-marks-section");
+      expect(marks.contains(ribbon)).toBe(false);
+      expect(
+        marks.compareDocumentPosition(ribbon) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(within(marks).getByRole("checkbox", { name: "Plan Next" })).toBeInTheDocument();
+      expect(card.contains(within(marks).getByRole("checkbox", { name: "Plan Next" }))).toBe(false);
       expect(
         within(ribbon).getByRole("button", { name: "兄弟作" }),
       ).toBeInTheDocument();

@@ -9,7 +9,6 @@
 import CastEditor from "../../components/forms/CastEditor";
 import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
@@ -40,6 +39,7 @@ import ExclusiveSourceHint from "../../components/forms/ExclusiveSourceHint";
 export { defaultAnimeMovie } from "../../config/formFactories";
 
 const ROW2 = "grid grid-cols-1 md:grid-cols-2 gap-4";
+const ROW3 = "grid grid-cols-1 md:grid-cols-3 gap-4";
 
 /**
  * Switches the form's release type. An ONA has one release date, held in
@@ -96,7 +96,7 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
       <MalAnilistScores f={f} u={u} />
 
       <SectionHeader icon="fa-chart-bar" title="My Tracker" />
-      <div className={ROW2}>
+      <div className={ROW3}>
         <Field label="Watching Status">
           <select
             className={selectCls}
@@ -108,8 +108,6 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
           </select>
         </Field>
         {select("my_rating", "My Rating", MY_RATINGS)}
-      </div>
-      <div className={ROW2}>
         <Field label="Paused at">
           <input
             className={inputCls}
@@ -121,18 +119,9 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
           />
         </Field>
       </div>
-      <EntryFlags
-        f={f}
-        u={u}
-        flags={[
-          ["is_pinged", "Pinged", "Pin to the dashboard"],
-          ["watch_next", "Watch Next", "Add to Watch Next list"],
-          ["to_rewatch", "To Rewatch", "Mark for rewatch"],
-        ]}
-      />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
-      <div className={ROW2}>
+      <div className={ROW3}>
         {select("release_status", "Release Status", FILM_RELEASE_STATUSES)}
         <Field label="Release Type">
           <select
@@ -147,6 +136,17 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Runtime (min)">
+          <input
+            className={inputCls}
+            type="number"
+            min="0"
+            aria-label="Runtime (min)"
+            value={f.length_min ?? ""}
+            onChange={(e) => u("length_min", e.target.value)}
+            placeholder="e.g. 120"
+          />
         </Field>
       </div>
       <div className={ROW2}>
@@ -174,19 +174,6 @@ export function AnimeMovieFormBody({ f, u, sources, ownerId }) {
             />
           </>
         )}
-      </div>
-      <div className={ROW2}>
-        <Field label="Runtime (min)">
-          <input
-            className={inputCls}
-            type="number"
-            min="0"
-            aria-label="Runtime (min)"
-            value={f.length_min ?? ""}
-            onChange={(e) => u("length_min", e.target.value)}
-            placeholder="e.g. 120"
-          />
-        </Field>
       </div>
 
       <GenreLabelFields

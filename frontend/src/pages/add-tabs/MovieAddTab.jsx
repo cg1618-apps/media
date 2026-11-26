@@ -7,7 +7,6 @@
 // one definition of the movie form and differ only in the wrapper.
 import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
@@ -103,35 +102,14 @@ export function MovieFormBody({ f, u, sources, ownerId }) {
           />
         </Field>
       </div>
-      <EntryFlags
-        f={f}
-        u={u}
-        flags={[
-          ["is_pinged", "Pinged", "Pin to the dashboard"],
-          ["watch_next", "Watch Next", "Add to Watch Next list"],
-          ["to_rewatch", "To Rewatch", "Mark for rewatch"],
-        ]}
-      />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
       <div className={row2}>
         {choice("is_main", "Main / Spinoff", IS_MAIN)}
         {choice("movie_type", "Movie Type", MOVIE_TYPES)}
       </div>
-      <div className={row2}>{choice("release_status", "Release Status", FILM_RELEASE_STATUSES)}</div>
       <div className={row2}>
-        <ReleaseDateInput
-          label="Release Date TW"
-          value={f.release_date_tw}
-          onChange={(v) => u("release_date_tw", v)}
-        />
-        <ReleaseDateInput
-          label="Release Date USA"
-          value={f.release_date_usa}
-          onChange={(v) => u("release_date_usa", v)}
-        />
-      </div>
-      <div className={row2}>
+        {choice("release_status", "Release Status", FILM_RELEASE_STATUSES)}
         <Field label="Runtime (min)">
           <input
             className={inputCls}
@@ -143,6 +121,18 @@ export function MovieFormBody({ f, u, sources, ownerId }) {
             placeholder="120"
           />
         </Field>
+      </div>
+      <div className={row2}>
+        <ReleaseDateInput
+          label="Release Date TW"
+          value={f.release_date_tw}
+          onChange={(v) => u("release_date_tw", v)}
+        />
+        <ReleaseDateInput
+          label="Release Date USA"
+          value={f.release_date_usa}
+          onChange={(v) => u("release_date_usa", v)}
+        />
       </div>
 
       <GenreLabelFields
