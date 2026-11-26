@@ -8,10 +8,11 @@
 //
 // IdentityFields is exported for IdentityModifyTab, which edits the same
 // inputs against an existing identity.
+import EntityNameFields from "../../components/forms/EntityNameFields";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
+import { Field, SectionHeader, selectCls } from "../../components/forms/FormField";
 import ComboBox from "../../components/forms/ComboBox";
 import ImagePicker, { attachUploadedImage } from "../../components/forms/ImagePicker";
 import CharacterFirstsFields from "../../components/forms/CharacterFirstsFields";
@@ -83,18 +84,7 @@ export function hasAnyIdentityName(form) {
 export function IdentityFields({ form, update, ownerId, characterGender }) {
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {IDENTITY_NAME_FIELDS.map(({ key, label, field }) => (
-          <Field key={key} label={`Name (${label})`}>
-            <input
-              aria-label={`Name (${label})`}
-              className={inputCls}
-              value={form[field] ?? ""}
-              onChange={(e) => update(field, e.target.value)}
-            />
-          </Field>
-        ))}
-      </div>
+      <EntityNameFields form={form} update={update} fields={IDENTITY_NAME_FIELDS} />
       {!hasAnyIdentityName(form) && (
         <p className="text-[10px] font-bold text-danger -mt-2">An identity needs at least one name.</p>
       )}

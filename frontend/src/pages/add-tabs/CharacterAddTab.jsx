@@ -11,6 +11,7 @@
 // Modify page's character editor renders the exact same inputs against an
 // existing character's form state instead of duplicating them - the same
 // arrangement StudioFields/PersonFields use.
+import EntityNameFields from "../../components/forms/EntityNameFields";
 import MyRatingFields from "../../components/forms/MyRatingFields";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import ImagePicker from "../../components/forms/ImagePicker";
@@ -49,17 +50,7 @@ export function CharacterFields({ characterForm, ucf, ownerId, sources }) {
   );
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {CHARACTER_NAME_FIELDS.map(({ key, label, field }) => (
-          <Field key={key} label={`Name (${label})`}>
-            <input
-              className={inputCls}
-              value={characterForm[field] ?? ""}
-              onChange={(e) => ucf(field, e.target.value)}
-            />
-          </Field>
-        ))}
-      </div>
+      <EntityNameFields form={characterForm} update={ucf} fields={CHARACTER_NAME_FIELDS} />
       {!hasAnyName && (
         <p className="text-[10px] font-bold text-danger -mt-2">
           A character needs at least one name.

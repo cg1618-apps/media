@@ -737,6 +737,11 @@ columns.
   untyped one, anime and anime movie accept every franchise. With neither,
   every franchise is offered. Series renders only when `seriesItems` is
   given, so anime movie has none; retyping the franchise drops the series),
+  `EntityNameFields` (`{ form, update, fields }`: the four name inputs of
+  every entity form, each labelled and named "Name (<label>)", as Chinese |
+  English then Japanese | Alternative - a fixed layout, so `fields`
+  (`STUDIO_NAME_FIELDS`) keeps the en, cn, jp, alt display-name fallback
+  order),
   `EntryNameFields` (`{ f, u, prefix, label, names, shows, placeholders }`:
   the name inputs of every entry form and of the collection, franchise and
   series forms (prefix `collection`, `franchise`, `series`), laid out CN | EN, Romaji | JP (or KR),

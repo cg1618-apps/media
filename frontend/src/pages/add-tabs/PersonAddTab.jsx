@@ -9,6 +9,7 @@
 // page's person editor renders the exact same inputs against an existing
 // person's form state instead of duplicating them - the same arrangement
 // StudioAddTab uses for StudioFields.
+import EntityNameFields from "../../components/forms/EntityNameFields";
 import MyRatingFields from "../../components/forms/MyRatingFields";
 import { useQuery } from "@tanstack/react-query";
 
@@ -178,17 +179,7 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
   );
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {PERSON_NAME_FIELDS.map(({ key, label, field }) => (
-          <Field key={key} label={`Name (${label})`}>
-            <input
-              className={inputCls}
-              value={personForm[field] ?? ""}
-              onChange={(e) => upf(field, e.target.value)}
-            />
-          </Field>
-        ))}
-      </div>
+      <EntityNameFields form={personForm} update={upf} fields={PERSON_NAME_FIELDS} />
       {!hasAnyName && (
         <p className="text-[10px] font-bold text-danger -mt-2">
           A person needs at least one name.

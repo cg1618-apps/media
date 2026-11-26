@@ -872,7 +872,7 @@ entry's Ownership is derived from these rows, not typed.
 `ExternalSearchBox` (see "External search box" above), over the form. No
 `PersonSubTabBar` here — the
 bar filters a list, and Add has no list; the role × scope matrix inside the
-form already says which types a new person holds. `PersonFields` holds the four name fields with a
+form already says which types a new person holds. `PersonFields` holds the four name fields (`EntityNameFields`, the layout every entity form - studio, publisher, person, character, identity, Add and Modify - shares: Chinese beside English, then Japanese beside Alternative; `STUDIO_NAME_FIELDS` keeps its en, cn, jp, alt order, the display-name fallback) with a
 "Display name" select, the **role × scope matrix**, then gender
 (`GenderField` from `components/forms/EntityProfileFields.jsx` with
 `kind="person"`, followed by **Affiliation** - the studios the person
