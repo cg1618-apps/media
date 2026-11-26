@@ -4,7 +4,7 @@
 // once and sends no PATCH of the entry; the editor's Save is not involved.
 // It is drawn only for a manage.requests holder: the refusal viewer holds
 // every other key, so the control's absence is that key's doing.
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -82,13 +82,27 @@ describe("Modify - the Needs Work mark", () => {
     expect(screen.queryByTestId("needs-work-control")).toBeNull();
   });
 
+  it("sits in the marks section above the editor card, with no flags on a tier", async () => {
+    vi.stubGlobal("fetch", mockFetch());
+    mount();
+
+    const control = await screen.findByTestId("needs-work-control");
+    const marks = screen.getByTestId("form-marks-section");
+    expect(marks.contains(control)).toBe(true);
+    expect(within(marks).queryByTestId("entry-flags")).toBeNull();
+    // Just the mark's name beside the box - no explanation.
+    expect(control.querySelector("label").textContent).toBe("待補充");
+    const heading = screen.getByRole("heading", { name: "Avengers" });
+    expect(marks.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("marks the owner on its own, with no PATCH of the entry", async () => {
     const fetchMock = mockFetch();
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
     mount();
 
-    const box = await screen.findByRole("checkbox", { name: /Needs Work/ });
+    const box = await screen.findByRole("checkbox", { name: "待補充" });
     await waitFor(() => expect(box).toBeEnabled());
     await user.click(box);
 

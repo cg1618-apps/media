@@ -275,11 +275,12 @@ describe("HComicAddTab layout", () => {
     ]);
   });
 
-  it("asks for the region first, then the lineage, then the names", () => {
+  it("asks for the serialization status and the region first, then the lineage, then the names", () => {
     const { container } = renderTab();
     const naming = labelsBySection(container)["Titles & Naming"];
-    expect(naming[0]).toMatch(/^Region/);
-    expect(naming.slice(1, 3)).toEqual(["Franchise", "Series"]);
+    expect(naming[0]).toBe("Serialization Status");
+    expect(naming[1]).toMatch(/^Region/);
+    expect(naming.slice(2, 4)).toEqual(["Franchise", "Series"]);
   });
 
   it("lists the names CN first, with the region's own native name", () => {
@@ -301,7 +302,7 @@ describe("HComicAddTab layout", () => {
     ).toEqual(["H-Comic Name CN", "H-Comic Name EN", "H-Comic Name KR", "H-Comic Name Alt"]);
   });
 
-  it("pairs pages read before the page total on JP and ends My Tracker with the flags", () => {
+  it("pairs pages read before the page total on JP, with no flags in My Tracker", () => {
     const { container } = renderTab({ initial: { region: "JP" } });
     const tracker = labelsBySection(container)["My Tracker"];
     expect(tracker.slice(0, 5)).toEqual([
@@ -311,12 +312,9 @@ describe("HComicAddTab layout", () => {
       "Pages Read",
       "Page Total",
     ]);
-    expect(tracker.slice(-4)).toEqual([
-      "Read Next",
-      "Add to Read Next list",
-      "To Reread",
-      "Mark for reread",
-    ]);
+    // The flags are in the page's marks section (EntryFlags), not the body.
+    expect(tracker).not.toContain("Plan Next");
+    expect(tracker).not.toContain("Redo");
   });
 
   it("pairs chapters read before the chapter total on KR, with chapters behind under Information", () => {
@@ -324,7 +322,6 @@ describe("HComicAddTab layout", () => {
     const sections = labelsBySection(container);
     expect(sections["My Tracker"].slice(3, 5)).toEqual(["Chapters Read", "Chapter Total"]);
     expect(sections["Information"]).toEqual([
-      "Serialization Status",
       "Release Date",
       "End Date",
       "Chapters Behind Official",
@@ -334,7 +331,6 @@ describe("HComicAddTab layout", () => {
   it("puts the JP classification under Information", () => {
     const { container } = renderTab({ initial: { region: "JP" } });
     expect(labelsBySection(container)["Information"]).toEqual([
-      "Serialization Status",
       "Release Date",
       "End Date",
       "Originality",

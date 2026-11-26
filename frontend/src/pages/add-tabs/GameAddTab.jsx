@@ -13,7 +13,6 @@ import CastEditor from "../../components/forms/CastEditor";
 import ComboBox from "../../components/forms/ComboBox";
 import CoverFields from "../../components/forms/CoverFields";
 import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
@@ -206,15 +205,6 @@ export function GameFormBody({ f, u, allGames, excludeGameId, sources, ownerId }
           "Every in-game collectible",
         )}
       </div>
-      <EntryFlags
-        f={f}
-        u={u}
-        flags={[
-          ["is_pinged", "Pinged", "Pin to the dashboard"],
-          ["play_next", "Play Next", "Add to Play Next list"],
-          ["to_replay", "To Replay", "Mark for replay"],
-        ]}
-      />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

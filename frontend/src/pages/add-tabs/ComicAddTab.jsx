@@ -9,7 +9,6 @@ import ComboBox from "../../components/forms/ComboBox";
 import MultiSelect from "../../components/forms/MultiSelect";
 import SourcesEditor from "../../components/forms/SourcesEditor";
 import CoverFields from "../../components/forms/CoverFields";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import {
@@ -41,12 +40,6 @@ const eventsToArray = (s) =>
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
-
-const FLAGS = [
-  ["is_pinged", "Pinged", "Pin to the dashboard"],
-  ["read_next", "Read Next", "Add to Read Next list"],
-  ["to_reread", "To Reread", "Mark for reread"],
-];
 
 // A comic sits in a Comic franchise, or an untyped one.
 const acceptsComicFranchise = (type) =>
@@ -162,7 +155,6 @@ export function ComicFormBody({ f, u, sources, ownerId }) {
           />
         </Field>
       </div>
-      <EntryFlags f={f} u={u} flags={FLAGS} />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -51,10 +51,10 @@ export default function ContentLabelPicker({
   onChange,
   disabled,
   owner,
-  // What the footnote says is hidden. A group's labels cascade to everything
-  // under it, so saying "this entry" there would understate it by a whole
-  // group (GROUP_SCOPE_NOTES).
-  scopeNote = "A labelled entry is hidden from anyone whose active mode does not carry that label.",
+  // The footnote under the boxes, saying what a label hides. Only the
+  // grouping tiers pass one (GROUP_SCOPE_NOTES), because their labels cascade
+  // to everything under them; an entry's picker draws no footnote.
+  scopeNote,
   // Labels the thing must carry whatever the admin picks - a gated type's
   // required label (lib/gatedTypes.js). Drawn checked and locked; the savers
   // below add them to the set, so they need not be in `value`.
@@ -159,7 +159,7 @@ export default function ContentLabelPicker({
           </label>
         ))}
       </div>
-      <p className="text-[11px] text-text-faint mt-2">{scopeNote}</p>
+      {scopeNote && <p className="text-[11px] text-text-faint mt-2">{scopeNote}</p>}
     </div>
   );
 }
@@ -190,9 +190,8 @@ export const LABELLABLE_TABS = [
 // owner kinds, and the Add/Modify tabs whose labels cascade.
 export const LABELLABLE_GROUPS = Object.freeze(Object.keys(GROUP_LABEL_URL));
 
-// What the picker says under each grouping tier's checkboxes, keyed by tab.
-// Kept beside the default so every reading of "what does this hide" sits
-// together. Each states the tier's cascade: a collection's label reaches
+// What the picker says under each grouping tier's checkboxes, keyed by tab;
+// an entry tab is not listed and draws no footnote. Each states the tier's cascade: a collection's label reaches
 // every franchise, series and entry in it; a series' reaches its entries.
 export const GROUP_SCOPE_NOTES = Object.freeze({
   collection:

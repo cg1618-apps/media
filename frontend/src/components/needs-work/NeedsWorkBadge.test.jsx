@@ -99,6 +99,6 @@ describe("NeedsWorkBadge", () => {
     const chip = await screen.findByText("+ 待補充");
     expect(screen.queryByText(/續集未補/)).toBeNull();
     await user.click(chip);
-    expect(await screen.findByRole("checkbox", { name: /Needs Work/ })).not.toBeChecked();
+    expect(await screen.findByRole("checkbox", { name: "待補充" })).not.toBeChecked();
   });
 });

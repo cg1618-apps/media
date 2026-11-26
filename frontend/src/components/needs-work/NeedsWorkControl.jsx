@@ -1,6 +1,6 @@
 // Frontend: mark a saved entry or group as 待補充 Needs Work.
 //
-// Drawn in the Modify page's editor header and in the detail page's badge
+// Drawn in the Modify page's marks section and in the detail page's badge
 // popover (NeedsWorkBadge), for all fifteen owner types - the twelve media
 // types and the three grouping tiers. It saves on its own rather than with
 // the editor's Save: the mark is its own row (needs_work), not a column of
@@ -65,10 +65,7 @@ export default function NeedsWorkControl({ ownerType, ownerId }) {
           disabled={busy || mark === undefined}
           onChange={toggle}
         />
-        待補充 Needs Work
-        <span className="text-xs font-normal text-text-faint">
-          the data is not complete yet
-        </span>
+        待補充
       </label>
       {flagged && (
         // Keyed by the stored note, so the field starts from it again

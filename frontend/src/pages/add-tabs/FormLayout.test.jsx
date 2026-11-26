@@ -273,3 +273,95 @@ describe.each(["JP", "KR"])("H-Comic form layout, region %s", (region) => {
     expect(layout(hcomic.modify(f)).labels).toEqual(addLabels);
   });
 });
+
+// Where single fields sit, row by row. Each row is one `.grid` of the body,
+// read as its field labels in order; the shared body makes these hold on
+// Modify too. A row is found by a field it holds, so the assertion pins the
+// row's whole content and its place against its neighbours.
+function rows(ui) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const { container } = render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
+  const result = [...container.querySelectorAll(".grid")]
+    .map((row) => [...row.querySelectorAll("label")].map((l) => l.textContent.trim()))
+    .filter((labels) => labels.length);
+  const hints = Object.fromEntries(
+    [...container.querySelectorAll("label")].map((l) => [
+      l.textContent.trim(),
+      l.parentElement.querySelector("p")?.textContent ?? null,
+    ]),
+  );
+  cleanup();
+  return { rows: result, hints, rowOf: (label) => result.find((r) => r.includes(label)) };
+}
+
+const typeNamed = (name) => TYPES.find((t) => t.name === name);
+
+describe("field placement", () => {
+  it("anime: broadcast row in My Tracker, EP Special / EP Previous / Runtime second in Information", () => {
+    const { rows: all, rowOf } = rows(typeNamed("Anime").add(defaultAnime()));
+    expect(rowOf("Broadcast Day")).toEqual(["Broadcast Day", "Broadcast Time", "My Watch Day"]);
+    expect(rowOf("EP Previous")).toEqual(["EP Special", "EP Previous", "Runtime (min)"]);
+    const at = (label) => all.indexOf(rowOf(label));
+    expect(at("EP Special")).toBe(at("Main / Spinoff") + 1);
+    expect(at("Airing Type")).toBe(at("EP Special") + 1);
+    expect(at("Release Season")).toBe(at("Airing Type") + 1);
+  });
+
+  it("the MAL pair first, then AniList rating, rank and popularity rank", () => {
+    const { rowOf } = rows(typeNamed("Anime").add(defaultAnime()));
+    expect(rowOf("MAL Rating")).toEqual(["MAL Rating", "MAL Rank"]);
+    expect(rowOf("AniList Rating")).toEqual(["AniList Rating", "AniList Rank", "AniList Popularity Rank"]);
+  });
+
+  it("anime movie: My Tracker on one row, Runtime beside Release Type", () => {
+    const { rowOf } = rows(typeNamed("Anime Movie").add(defaultAnimeMovie()));
+    expect(rowOf("Watching Status")).toEqual(["Watching Status", "My Rating", "Paused at"]);
+    expect(rowOf("Release Type")).toEqual(["Release Status", "Release Type", "Runtime (min)"]);
+  });
+
+  it("movie: Runtime beside Release Status", () => {
+    const { rowOf } = rows(typeNamed("Movie").add(defaultMovie()));
+    expect(rowOf("Release Status")).toEqual(["Release Status", "Runtime (min)"]);
+  });
+
+  it.each(["TV Show", "Cartoon"])("%s: the IMDb hints say what each rating averages", (name) => {
+    const t = typeNamed(name);
+    const { hints } = rows(t.add(t.factory()));
+    expect(hints["IMDb Rating"]).toBe("this season's avg ep score");
+    expect(hints["IMDb Show Rating"]).toBe("all seasons");
+  });
+
+  it("manga: Serialization Status left of Region", () => {
+    const { rowOf } = rows(typeNamed("Manga").add(defaultManga()));
+    expect(rowOf("Region")).toEqual(["Serialization Status", "Region", "Is Main"]);
+  });
+
+  it("h-comic: Serialization Status left of Region", () => {
+    const { rowOf } = rows(typeNamed("H-Comic").add(defaultHComic()));
+    expect(rowOf("Serialization Status")).toEqual(["Serialization Status", "Region*"]);
+  });
+
+  it("book: Progress Display closes the volume row, Serialization Status opens the dates", () => {
+    const { rowOf } = rows(typeNamed("Book").add(defaultBook()));
+    expect(rowOf("Vol Finished")).toEqual([
+      "Vol Finished",
+      "Total Volumes (JP/KR)",
+      "Vol Total (TW)",
+      "Progress Display",
+    ]);
+    expect(rowOf("Release Date JP")).toEqual([
+      "Serialization Status",
+      "Release Date JP",
+      "Release Date TW",
+      "End Date",
+    ]);
+  });
+
+  it("book: a 網路小說 has no volume row and keeps Progress Display in My Tracker", () => {
+    const { rowOf } = rows(typeNamed("Book").add({ ...defaultBook(), type: "網路小說" }));
+    expect(rowOf("Vol Finished")).toBeUndefined();
+    expect(rowOf("Progress Display")).toEqual(["Progress Display"]);
+  });
+});

@@ -3,7 +3,8 @@
 // so every figure the detail page shows can be edited on both pages.
 //
 // MAL Rank is free text because the column is a string ("#1234" as MAL prints
-// it); the AniList figures are integers.
+// it); the AniList figures are integers. The MAL pair is the first row and
+// the AniList three the second, both on three columns so they line up.
 import { Field, SectionHeader, inputCls } from "./FormField";
 
 function NumberField({ f, u, name, label, placeholder, ...attrs }) {
@@ -46,6 +47,8 @@ export default function MalAnilistScores({ f, u }) {
             placeholder="#1234"
           />
         </Field>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <NumberField
           f={f}
           u={u}
@@ -55,8 +58,6 @@ export default function MalAnilistScores({ f, u }) {
           min="0"
           max="100"
         />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <NumberField f={f} u={u} name="anilist_rank" label="AniList Rank" min="1" />
         <NumberField
           f={f}

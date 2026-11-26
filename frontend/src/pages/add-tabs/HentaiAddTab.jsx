@@ -13,7 +13,6 @@ import EntryAutofillSearch from "../../components/forms/EntryAutofillSearch";
 import FamilyLineageFields from "../../components/forms/FamilyLineageFields";
 import { Field, SectionHeader, inputCls, selectCls } from "../../components/forms/FormField";
 import CoverFields from "../../components/forms/CoverFields";
-import EntryFlags from "../../components/forms/EntryFlags";
 import EntryNameFields from "../../components/forms/EntryNameFields";
 import MultiSelect from "../../components/forms/MultiSelect";
 import ReleaseDateInput from "../../components/forms/ReleaseDateInput";
@@ -134,14 +133,6 @@ export function HentaiFormBody({ f, u, sources, ownerId }) {
         {num("ep_total", "Total Episodes", "2")}
         {text("time_fin", "Paused at", "14:35")}
       </div>
-      <EntryFlags
-        f={f}
-        u={u}
-        flags={[
-          ["watch_next", "Watch Next", "Add to Watch Next list"],
-          ["to_rewatch", "To Rewatch", "Mark for rewatch"],
-        ]}
-      />
 
       <SectionHeader icon="fa-info-circle" title="Information" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
