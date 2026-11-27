@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-26
+Last verified: 2026-11-27
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -469,6 +469,16 @@ headers and the filter bar already pin under the nav):
 | `#watching` | Watching (Anime · Anime Movie · Movie · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → Anime Movie → Movie → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A film's card has no stepper - there is no episode to count - and shows **Paused at** (`time_fin`, a dash when unset) and its **Runtime** (`length_min`, in hours and minutes - `2hr 50min` - through `formatLength`) instead; in list view its progress cell reads `at <time_fin>`, or the runtime. The two film lists are the ones Coming Next already fetches for a member, outside the combined loading state, so the films join the division when they arrive. Shown when no type is picked or the picked type is one of its five. |
 | `#reading` | Reading (Manga · Book · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Book → `BookDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
+
+**The dashboard cards' chips.** No card names its type beside or over the
+cover; the type is the first chip on the row under the title. `DashboardCard`
+leads with an anime's airing type (`TV` when unset; TV shows, cartoons, manga
+and films have none), then the status. `GameDashboardCard` leads with
+`game_type` (Base Game, DLC, …), then the ownership only when it is not
+**Owned** - Owned is the usual case - then the completion level.
+`BookDashboardCard` leads with the book's `type` (輕小說, 小說, …), then its
+serialization status; the region is not shown. `ComicDashboardCard` shows
+`comic_type` alone.
 
 **Coming Next** shows what the viewer is waiting on or has planned, in two
 separate blocks that never share an entry:
@@ -2108,8 +2118,7 @@ with prev/next season arrows, a `RatingDistributionBlock`, and sections
 Completed / Watching / Watch When Airs / Plan to Watch / Might Watch /
 Dropped. The hero's **Planned** figure is `entry_planned`, which still counts
 both of the two planned statuses together. Both render `DashboardCard`s with
-`showTypeSpine={false}` and `showMalScore` - every card is an anime, so the
-type spine beside the cover is dropped and the chip row carries **MAL
+`showMalScore`, so the chip row also carries **MAL
 {mal_rating}** (titled "MAL score", absent when the anime has none) - and the same
 optimistic `PUT /api/me/list/{id} { ep_fin }` (`putMyListRow`). **The
 viewer's own** (`useViewScope().ownData`): a "Seasonal Rating" select →

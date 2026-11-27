@@ -4,7 +4,6 @@ import {
   getCoverUrl,
   FALLBACK_SVG,
   getDisplayName,
-  parseTypes,
 } from "../../utils/media";
 import { Button, Chip, ProgressRule, RatingStamp, eyebrowCls } from "../ui/primitives";
 import { entityPath } from "../../lib/entityPath";
@@ -48,9 +47,6 @@ export default function ComicDashboardCard({
     ? Math.min(100, Math.round((fin / Math.max(total, 1)) * 100))
     : 0;
 
-  // events is a comma-joined multi-select sharing franchise_type's idiom.
-  const events = parseTypes(comic.events);
-
   function handleIssueChange(newVal) {
     const target = Math.max(0, newVal);
     if (hasTotal && target > total) {
@@ -90,25 +86,12 @@ export default function ComicDashboardCard({
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">
-          <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
-            <span
-              className="font-mono text-[9px] whitespace-nowrap"
-              style={{ writingMode: "vertical-rl" }}
-            >
-              Comic
-            </span>
-          </div>
           <div className="relative w-20 h-full bg-surface-2 overflow-hidden">
             <RatingStamp
               rating={comic.my_rating}
               size="sm"
               className="absolute top-1.5 right-1.5 z-10"
             />
-            {comic.comic_type && (
-              <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] z-10">
-                {comic.comic_type}
-              </div>
-            )}
             <LazyImage
               src={thumbUrl(imageUrl)}
               alt="Cover"
@@ -149,21 +132,9 @@ export default function ComicDashboardCard({
             {hasTotal ? ` · ${total} iss` : ""}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
-            {comic.era && (
-              <Chip tone="ink" className="truncate max-w-[110px]">
-                {comic.era}
-              </Chip>
-            )}
-            {events.length > 0 && (
-              <Chip
-                tone="ink"
-                className="truncate max-w-[130px]"
-                title={events.join(", ")}
-              >
-                {events[0]}
-                {events.length > 1 && (
-                  <span className="text-text-faint"> +{events.length - 1}</span>
-                )}
+            {comic.comic_type && (
+              <Chip tone="ink" className="truncate max-w-[130px]">
+                {comic.comic_type}
               </Chip>
             )}
           </div>

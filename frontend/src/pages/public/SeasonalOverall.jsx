@@ -262,7 +262,6 @@ function SeasonalBlock({
                       franchise={franchiseMap[anime.franchise_id]}
                       canTrack={canTrack}
                       onEpChange={onEpChange}
-                      showTypeSpine={false}
                       showMalScore
                     />
                   ))}
