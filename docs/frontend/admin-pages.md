@@ -1713,63 +1713,84 @@ link opens on that scope. Details in [../systems/relations.md](../systems/relati
 
 ## /options (`SystemOptions.jsx`)
 
-Read-only: Tier 1 enums from `/api/constants`, Tier 2 options grouped by
-category with their scopes, Tier 3 people and studios. Editing happens on
-Add/Modify under System → System Option — see [../options.md](../options.md).
-The route, like `/aliases` and `/external-apis`, asks `manage.options`, and
-so do the Tier 3 counts: they read `/api/options/record-counts`, which returns
-numbers only, rather than `/api/person/role-counts` and `/api/studio/`, which
-ask `view.person` and `view.studio` - keys the admin does not hold.
+Read-only, in four tiers. The page has no description under its title; each
+tier carries one note saying where its lists are edited.
+
+| Tier | Title | Holds | Edited |
+|---|---|---|---|
+| 1 | Internal Keys | every `/api/constants` list, the ungrouped ones under **Other** included, then an **Entities** table | in code; entity records on their own Add / Modify tabs |
+| 2 | System Options | the `system_option` categories of the Options sub-tab | System → System Option → Options on Add / Modify |
+| 3 | Tags | the categories in `TAG_CATEGORIES` | the Tags sub-tab |
+| 4 | Common Options | the categories in `COMMON_OPTION_CATEGORIES` | the Common Options sub-tab |
+
+Tiers 2-4 are one table split the way the Add / Modify sub-tabs split it
+(`groupOptionTiers`, over `categoriesForSubTab` in
+`lib/optionCategoryGroups.js`), so the page and the forms agree on where a
+category lives without either listing category names. The page's tiers are
+its own arrangement; [../options.md](../options.md) defines the three
+architectural ones (code, `system_option`, entity tables) that the first
+tier and the other three map onto.
+
+**Entities** has one row per record kind: Studio, Publisher, each person role
+(Director, Producer, Music / Composer, Author, Illustrator, Club, Seiyuu) and
+Character, with its table, the option categories it replaced and its count.
+The counts read `/api/options/record-counts`, which returns numbers only,
+because the route - like `/aliases` and `/external-apis` - asks
+`manage.options` and the admin holds none of the entity view keys. A person
+role the server does not count (Club, for a session that cannot see the type
+it belongs to) is not drawn; until the counts arrive, the served
+`person_role` list decides.
+
+No tier is one alphabetical wall: `lib/optionsPageGroups.js` sorts each into
+named groups, with everything unclaimed under a final **Other**. Tier 1
+(`TIER1_GROUPS`, keyed by enum name) puts the "what kind of work is this"
+lists together under Entry Type, files the game lists by the question they
+answer (`game_release_status` under Publication Status, `playing_status`
+under My Progress), keeps only the game_copy vocabularies in a **Game** group,
+and puts `media_type`, `person_role` and the three category lists under
+**Media Types & Categories**. Tiers 2-4 (`TIER2_GROUPS`, keyed by
+`system_option.category`) read as Tags, Game, **H Genre**, Comic, Source &
+Platform, **Character**, then the common options' **Note Suggestion**,
+**Music**, **Needs Work** and **Studio & Publisher** - each tier showing the
+groups whose categories it holds. Publishers and distributors are not among
+them: they are entities.
+
+A group the data leaves with a single member is demoted into Other rather
+than printed as a heading over one card; a group declared with one member is
+the exception, and stands whenever its category is present. The left-hand
+section index lists the tiers and their group headings, not every card and
+table; individual cards and tables keep their ids for saved links, but only
+the tiers and their groups carry `data-section-anchor`, since those are the
+entries the index can highlight. Grouping is presentation only - no business
+logic reads it. `TIER2_GROUPS` is not this page's alone: the Add / Modify /
+Delete category picker (`forms/OptionCategorySelect.jsx`) arranges its
+dropdown with the same `groupTier2Categories`.
 
 ## /aliases (`Aliases.jsx`)
 
 Read-only, and the inverse of `/options`: that page answers "what values does
-this category offer?", this one answers the question Fill actually asks —
+this category offer?", this one answers the question Fill actually asks -
 "IGDB just said *Role-playing (RPG)*; what does that become?". Both read the
 same `GET /api/options/?limit=5000`; `lib/aliasGroups.js` turns the rows inside
-out into source → category → `{external, value, scopes}`, sorted by the
-external string so an admin can scan for what the API sent.
+out into source -> category -> rows of `{external, value, family}`.
 
 A category appears under a source only if at least one of its values carries a
-row for it — otherwise every category would list under `igdb` with all its
-values unaliased, which says nothing (Combat Mode is not an IGDB field). Within
-a listed category, the values that carry **no** row are named underneath: those
-are the gap the page exists for, invisible from the options side, where a value
-with no aliases looks exactly like a value in a category no API touches.
+row for it - otherwise every category would list under `igdb` with all its
+values unconverted, which says nothing. Within a listed category **every value
+is a row**, in the vocabulary's own order (so Game Platform's main platforms
+come first): one row per alias, and a value with none reads **No conversion -
+set by hand**. Those are the gap the page exists for, invisible from the
+options side. There is no scopes column: IGDB's game fields are the only
+aliased categories.
 
-Neither Tier 1 nor Tier 2 is one alphabetical wall: `lib/optionsPageGroups.js`
-sorts each into named groups, with everything unclaimed under a final
-**Other**. Tier 1 (`TIER1_GROUPS`, keyed by enum name) puts the "what kind of
-work is this" lists together under Entry Type, files the game lists by the
-question they answer (`game_release_status` under Publication Status,
-`playing_status` under My Progress) and keeps only the game_copy vocabularies
-in a **Game** group. Tier 2 (`TIER2_GROUPS`, keyed by `system_option.category`)
-reads as Tags, Game, **H Genre** (`H Genre Plot`, `H Genre Appearance`, `H
-Genre Relation`), Comic, Source & Platform, **Character** (the
-`Character Appearance` and `Character Trait` vocabularies), then the common
-options: **Note Suggestion** (`Character Group`, `Collectible Type`, `Item
-Type`, `Weapon & Gear Type`, `Enemy Tier`, `Side Quest Type`, `Geography
-Group`, which the game note sections' free-text fields suggest from),
-**Music** (`Song Type`, `Song Source`) and **Needs Work** (`Needs Work
-Note`). Source &
-Platform holds the platform and reference vocabularies - `Platform`,
-`Serialization Platform`, `Exclusive Platform` and `Reference Source`.
-Publishers and distributors are **not** among them — they are entities, edited
-on the Entity → Publisher tab.
-
-A group the data leaves with a single member is demoted into Other rather
-than printed as a heading over one card; a group declared with one member -
-Needs Work - is the exception, and stands whenever its category is present. The left-hand section index lists one level per tier —
-the group headings, not the enums and categories inside them; listing every
-leaf ran to forty-odd links, taller than the viewport on its own. Individual
-cards and tables keep their ids for saved links, but only the tiers and their
-groups carry `data-section-anchor`, since those are the entries the index can
-highlight. Grouping is presentation only — no business logic reads it, and
-a category no group claims still appears, under Other. `TIER2_GROUPS` is not
-this page's alone: the Add / Modify / Delete category picker
-(`forms/OptionCategorySelect.jsx`) arranges its dropdown with the same
-`groupTier2Categories`, so a category sits in the same company wherever an
-admin meets it.
+**Game Platform stores two values.** A console arrives with its main platform,
+main platform first (`with_platform_families`, see
+[../options.md](../options.md#game-platform-families-and-consoles)), so IGDB's
+`Android` is stored as `Mobile, Android`. A short note above that table says
+so, and **What it becomes** (`storedValues`) lists the stored values minus the
+one that only repeats the API's name: `Android` reads `Mobile`, `PlayStation 4`
+reads `PlayStation, PS4`. A value left alone (a main platform) is shown even
+when it repeats the name.
 
 ## /external-apis (`ExternalApis.jsx`)
 
