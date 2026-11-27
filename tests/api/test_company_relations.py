@@ -261,3 +261,122 @@ def test_a_cross_kind_row_round_trips_through_the_tab(monkeypatch, db_session, s
         (studio.system_id, None, None, publisher.system_id): "label",
         (None, publisher.system_id, studio.system_id, None): None,
     }
+
+
+def _put_pairs(client, kind, record, relations):
+    """`relations` is (kind, record, also-related-to, not-related-to)."""
+    return client.put(
+        f"/api/{kind}/{record.system_id}/related",
+        json={
+            "relations": [
+                {
+                    "kind": other_kind,
+                    "id": str(other.system_id),
+                    "also_related_to": [{"kind": k, "id": str(r.system_id)} for k, r in also],
+                    "not_related_to": [{"kind": k, "id": str(r.system_id)} for k, r in unrelate],
+                }
+                for other_kind, other, also, unrelate in relations
+            ]
+        },
+    )
+
+
+def _related_to(client, kind, record):
+    """{display_name: {(kind, id), ...}}: which records on this list each one
+    is related to."""
+    body = client.get(f"/api/{kind}/{record.system_id}/related").json()
+    return {
+        r["display_name"]: {(t["kind"], t["id"]) for t in r["related_to"]} for r in body
+    }
+
+
+def test_the_list_says_which_of_its_records_are_related_to_each_other(
+    owner_client, db_session, studio, publisher
+):
+    """The editor's ticks start from this: the sister and the publisher are
+    related, the third record is related to neither."""
+    sister = _studio(db_session, "Zvornik Company Sister")
+    third = _studio(db_session, "Zvornik Company Third")
+    _put(owner_client, "publisher", publisher, [("studio", sister, None)])
+    _put(
+        owner_client,
+        "studio",
+        studio,
+        [("studio", sister, None), ("publisher", publisher, None), ("studio", third, None)],
+    )
+    pairs = _related_to(owner_client, "studio", studio)
+    assert pairs[sister.display_name] == {("publisher", str(publisher.system_id))}
+    assert pairs[publisher.display_name] == {("studio", str(sister.system_id))}
+    assert pairs[third.display_name] == set()
+
+
+def test_not_related_to_removes_a_pair_already_on_the_list(
+    owner_client, db_session, studio, publisher
+):
+    """Unticking an existing pair takes both sides away, and leaves each
+    record's relation to this one in place."""
+    sister = _studio(db_session, "Zvornik Company Sister")
+    _put(owner_client, "publisher", publisher, [("studio", sister, "kept until now")])
+    r = _put_pairs(
+        owner_client,
+        "studio",
+        studio,
+        [
+            ("studio", sister, [], []),
+            ("publisher", publisher, [], [("studio", sister)]),
+        ],
+    )
+    assert r.status_code == 200, r.text
+    assert _related(owner_client, "publisher", publisher) == [
+        ("studio", studio.display_name, None)
+    ]
+    assert _related(owner_client, "studio", sister) == [("studio", studio.display_name, None)]
+
+
+def test_a_pair_left_alone_stays_related(owner_client, db_session, studio, publisher):
+    """The mirror case: the same pair, not named, keeps both sides and its
+    remark."""
+    sister = _studio(db_session, "Zvornik Company Sister")
+    _put(owner_client, "publisher", publisher, [("studio", sister, "kept")])
+    r = _put_pairs(
+        owner_client,
+        "studio",
+        studio,
+        [("studio", sister, [], []), ("publisher", publisher, [], [])],
+    )
+    assert r.status_code == 200, r.text
+    assert ("studio", sister.display_name, "kept") in _related(
+        owner_client, "publisher", publisher
+    )
+
+
+def test_not_related_to_must_name_a_record_on_the_list(
+    owner_client, db_session, studio, publisher
+):
+    """A pair off this list is not this editor's to remove: 422, nothing changed."""
+    stranger = _studio(db_session, "Zvornik Company Stranger")
+    _put(owner_client, "publisher", publisher, [("studio", stranger, None)])
+    r = _put_pairs(
+        owner_client, "studio", studio, [("publisher", publisher, [], [("studio", stranger)])]
+    )
+    assert r.status_code == 422
+    assert ("studio", stranger.display_name, None) in _related(
+        owner_client, "publisher", publisher
+    )
+
+
+def test_a_pair_cannot_be_both_related_and_unrelated(
+    owner_client, db_session, studio, publisher
+):
+    sister = _studio(db_session, "Zvornik Company Sister")
+    r = _put_pairs(
+        owner_client,
+        "studio",
+        studio,
+        [
+            ("studio", sister, [], []),
+            ("publisher", publisher, [("studio", sister)], [("studio", sister)]),
+        ],
+    )
+    assert r.status_code == 422
+    assert _related(owner_client, "studio", studio) == []
