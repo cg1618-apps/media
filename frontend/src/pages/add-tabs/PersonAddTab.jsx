@@ -19,6 +19,7 @@ import ImagePicker from "../../components/forms/ImagePicker";
 import ExternalSearchBox from "../../components/forms/ExternalSearchBox";
 import WorkImagesEditor from "../../components/forms/WorkImagesEditor";
 import StudioAffiliationField from "../../components/forms/StudioAffiliationField";
+import ContentLabelPicker from "../../components/forms/ContentLabelPicker";
 import {
   ContentRatingField,
   GenderField,
@@ -222,6 +223,14 @@ export function PersonFields({ personForm, upf, roles, setRoles, legalScopes, ow
       <GenderField kind="person" form={personForm} update={upf} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ContentRatingField form={personForm} update={upf} />
+        {/* The person's content labels, beside the rating: both hide the
+            person from a mode below them. Held in the form and PUT once the
+            person has saved, so no owner is passed - the form already holds
+            the set the detail read returned. */}
+        <ContentLabelPicker
+          value={personForm.content_labels || []}
+          onChange={(keys) => upf("content_labels", keys)}
+        />
       </div>
       <Field
         label="Affiliation"

@@ -17,6 +17,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session, selectinload
 
 from app import models
+from app.services.rbac.own_hiding import OwnHiding
 from app.utils.character_roles import CHARACTER_ROLES
 
 # The media types character_casting.media_type may hold - a subset of
@@ -50,12 +51,12 @@ def fallback_photo(identity, character) -> tuple[Optional[str], Optional[str]]:
 
 
 def casting_rows(
-    db: Session, media_type: str, entry_id: UUID, hidden: frozenset[str] = frozenset()
+    db: Session, media_type: str, entry_id: UUID, hidden: OwnHiding = OwnHiding()
 ) -> list[dict]:
     """
     One entry's cast, ordered by position, each row with its voices in order.
-    A voice by a person rated one of `hidden` (the viewer's
-    shared_visibility.hidden_ratings) is left out; its casting stays.
+    A voice by a person `hidden` hides (the viewer's
+    shared_visibility.own_hiding) is left out; its casting stays.
 
     Bulk-loads the voices, characters and people in a fixed number of queries,
     regardless of cast size - not one per row - then resolves display_photo_file
@@ -117,11 +118,12 @@ def casting_rows(
         if person_ids
         else {}
     )
+    unseen = hidden.hidden_ids(db, people.values()) if hidden else set()
     voices_by_casting: dict[UUID, list[dict]] = {}
     for voice in voices:
-        person = people.get(voice.person_id)
-        if person is not None and person.content_rating in hidden:
+        if voice.person_id in unseen:
             continue
+        person = people.get(voice.person_id)
         voices_by_casting.setdefault(voice.casting_id, []).append(
             {
                 "person_id": str(voice.person_id),
@@ -275,11 +277,11 @@ def _validate_rows(db: Session, rows: list[dict]) -> None:
 
 
 def _with_kept_voices(
-    db: Session, media_type: str, entry_id: UUID, rows: list[dict], keep_ratings
+    db: Session, media_type: str, entry_id: UUID, rows: list[dict], keep: OwnHiding
 ) -> None:
     """
-    Put back into `rows`, in place, the stored voices by a person rated one
-    of `keep_ratings` - the voices the editor's GET left out - each on the row
+    Put back into `rows`, in place, the stored voices by a person `keep`
+    hides - the voices the editor's GET left out - each on the row
     for the same (character, identity) at its stored voice position. A
     casting the editor removed takes its voices with it, kept or not, as it
     always has.
@@ -294,7 +296,7 @@ def _with_kept_voices(
         .filter(
             models.CharacterCasting.media_type == media_type,
             models.CharacterCasting.entry_id == entry_id,
-            models.Person.content_rating.in_(sorted(keep_ratings)),
+            keep.condition(models.Person),
         )
         .order_by(models.CharacterCastingVoice.position)
         .all()
@@ -325,7 +327,7 @@ def replace_casting(
     media_type: str,
     entry_id: UUID,
     rows: list[dict],
-    keep_ratings: frozenset[str] = frozenset(),
+    keep: OwnHiding = OwnHiding(),
 ) -> None:
     """
     Deletes an entry's existing castings and inserts `rows` in order. Each
@@ -345,8 +347,8 @@ def replace_casting(
     A character in `rows` with no role of its own then takes one from its
     castings - see fill_character_roles.
 
-    A stored voice by a person rated one of `keep_ratings` (the editor's
-    shared_visibility.hidden_ratings) is kept on its casting: the editor was
+    A stored voice by a person `keep` hides (the editor's
+    shared_visibility.own_hiding) is kept on its casting: the editor was
     never shown it (_with_kept_voices).
     """
     if media_type not in CASTING_MEDIA_TYPES:
@@ -355,8 +357,8 @@ def replace_casting(
     for row in rows:
         _validate_row(media_type, row)
     _validate_rows(db, rows)
-    if keep_ratings:
-        _with_kept_voices(db, media_type, entry_id, rows, keep_ratings)
+    if keep:
+        _with_kept_voices(db, media_type, entry_id, rows, keep)
 
     db.query(models.CharacterCasting).filter(
         models.CharacterCasting.media_type == media_type,

@@ -35,7 +35,7 @@ from app.services.domain import casting_sync
 from app.services.domain import mal_cast as mal_cast_service
 from app.services.rbac.enforcement import entry_visible, filter_visible_pairs
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
-from app.services.rbac.shared_visibility import hidden_ratings
+from app.services.rbac.shared_visibility import own_hiding
 from app.utils.media_resolver import MEDIA_TABLES
 
 router = APIRouter(prefix="/api/casting", tags=["Casting"])
@@ -266,7 +266,7 @@ def get_cast_originals(
     return {
         "originals": casting_sync.cast_originals(
             db, payload.media_type, payload.entry_id, pairs, visible,
-            hidden_ratings(admin),
+            own_hiding(db, admin),
         )
     }
 
@@ -280,13 +280,14 @@ def get_casting(
 ):
     """
     The entry's cast, ordered by position. A voice by a person rated above
-    the viewer's access mode is left out (shared_visibility.hidden_ratings).
+    the viewer's access mode, or carrying a label it lacks, is left out
+    (shared_visibility.own_hiding).
     """
     _resolve_entry(db, media_type, entry_id, viewer)
 
     return {
         "cast": casting_service.casting_rows(
-            db, media_type, entry_id, hidden_ratings(viewer)
+            db, media_type, entry_id, own_hiding(db, viewer)
         )
     }
 
@@ -300,15 +301,16 @@ def replace_casting(
     admin: Viewer = Depends(require_manage_catalog),
 ):
     """
-    Replaces the whole cast in the order submitted. A voice by a person rated
-    above the editor's access mode stays on its casting: GET never showed it.
+    Replaces the whole cast in the order submitted. A voice by a person the
+    editor's mode hides (rated above it, or labelled) stays on its casting:
+    GET never showed it.
     """
     _resolve_entry(db, media_type, entry_id, admin)
 
     rows = [row.model_dump(exclude_none=True) for row in payload.cast]
     try:
         casting_service.replace_casting(
-            db, media_type, entry_id, rows, hidden_ratings(admin)
+            db, media_type, entry_id, rows, own_hiding(db, admin)
         )
     except casting_service.CastingValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

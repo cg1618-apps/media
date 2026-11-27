@@ -1,6 +1,6 @@
 # Authorization (RBAC)
 
-Last verified: 2026-11-26
+Last verified: 2026-11-27
 
 ## What this is for
 
@@ -246,7 +246,7 @@ content labels and field groups and nothing else, so there is nowhere
 - **The six labels are code.** `content_label` rows still exist, as the
   foreign-key target of `media_content_label`, the three group join tables
   (`collection_content_label`, `franchise_content_label`,
-  `series_content_label`) and the label denials, and `gated_labels.ensure_labels` keeps them a mirror of
+  `series_content_label`), `person_content_label` and the label denials, and `gated_labels.ensure_labels` keeps them a mirror of
   the code on every start: a missing label is inserted, and a row's name,
   description and `sort_order` are rewritten to the code's. It never deletes a
   row. A row the code does not name is the migration's to handle
@@ -327,7 +327,7 @@ The matrix above is the grants; this is what holding one means.
 | read the Note pages' inventories — System Options, Alias Conversion, External APIs (`manage.options`); an option itself is written under `manage.catalog` | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | manage the image library, `/images` (`manage.images`) | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
 | run a pipeline — Backup, Pull, Fill, Replace, Calculate | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **always** |
-| restore accounts, content labels and label assignments on a Pull | — | — | — | **no** — those six tabs are skipped | yes |
+| restore accounts, content labels and label assignments on a Pull | — | — | — | **no** — those seven tabs are skipped | yes |
 | change what a role holds | **409 if granted** | **409 if granted** | — | — | **always** |
 | create accounts, set a role, assign modes, disable or enable an account, issue a reset link | **409 if granted** | **409 if granted** | — | — | **always** |
 | label an entry, a collection, a franchise or a series | **409 if granted** | **409 if granted** | **409 if granted** | **always** | **never** |
@@ -385,11 +385,12 @@ restated here, or the two copies drift.
 |---|---|---|
 | `role` | one named bundle of permissions | `name` unique — exactly the five in `ROLE_NAMES`, each read by name, none renamed, created or deleted through the API — `label`, `description`, `sort_order`. No flag makes a role hold anything beyond its `role_permission` rows |
 | `role_permission` | one grant | `role_id` FK → role (`CASCADE`), `permission` string; unique `(role_id, permission)` |
-| `content_label` | the row for one code-defined label (`app/services/rbac/labels.py`), kept as the foreign-key target of the four tables below | `key` unique, `label`, `description`, `sort_order` — all four written from code by `gated_labels.ensure_labels` on every start |
+| `content_label` | the row for one code-defined label (`app/services/rbac/labels.py`), kept as the foreign-key target of the five tables below | `key` unique, `label`, `description`, `sort_order` — all four written from code by `gated_labels.ensure_labels` on every start |
 | `media_content_label` | one label on one entry | `media_id` FK → `media.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(media_id, label_id)`. A label on a deleted entry is cleaned up by the database |
 | `franchise_content_label` | one label on one franchise | `franchise_id` FK → `franchise.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(franchise_id, label_id)`. A second table rather than a nullable owner pair on the one above: a pair could name both owners or neither, and nothing in the database would say which was meant |
 | `collection_content_label` | one label on one collection | the same shape: `collection_id` FK → `collection.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(collection_id, label_id)` |
 | `series_content_label` | one label on one series | the same shape: `series_id` FK → `series.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(series_id, label_id)` |
+| `person_content_label` | one label on one person | the same shape: `person_id` FK → `person.system_id` (`CASCADE`), `label_id` FK → content_label (`CASCADE`), `position`; unique `(person_id, label_id)`. Does not cascade - see [Shared records](#shared-records) |
 | `access_mode` | one named ceiling on what a session may reach | `key` unique, `label`, `description`, `sort_order` (orders the API's list only — what a mode shows and the order enforcement uses follow `seed_modes.MODE_ORDER` in code), `is_system`. There is **no** column for the anonymous policy: a logged-out visitor resolves `safe` by key |
 | `users.mode_ceiling`, `users.mode_default` | the widest mode the account may use, and where a login lands | mode **keys**, nullable, default `normal` / `normal`. `ck_users_mode_keys` (each NULL or one of the four), `ck_users_mode_pair` (both NULL or both set), `ck_users_mode_default_within_ceiling` (the default ranks at or below the ceiling, by `array_position` over the order). Keys rather than `access_mode` ids: the order is defined on keys, and a key survives a Pull where a per-database uuid does not |
 | `user_access_mode_denial` | one item this account does NOT get, in any mode it uses | `user_id` → users (`CASCADE`), and exactly one of `label_id` / `field_group_key`, enforced by `ck_denial_names_one_thing`; unique `(user_id, label_id)` and `(user_id, field_group_key)`. **Subtraction only** — there is no grant counterpart and there must not be one: the ceiling is an upper bound, so an account's reach is always a subset of its active mode's |
@@ -397,7 +398,8 @@ restated here, or the two copies drift.
 
 Models: `app/models/system.py` (`Role`, `RolePermission`, `User`),
 `app/models/content_label.py` (`ContentLabel`, `MediaContentLabel`,
-`CollectionContentLabel`, `FranchiseContentLabel`, `SeriesContentLabel`),
+`CollectionContentLabel`, `FranchiseContentLabel`, `SeriesContentLabel`,
+`PersonContentLabel`),
 `app/models/access_mode.py` (`AccessMode`, `UserAccessModeDenial`).
 
 **No table records what a mode shows.** It is derived from the mode's key and
@@ -410,13 +412,13 @@ Labels are deliberately **not** rows in `media_tag`: that table is keyed to
 `system_option` and written by the Fill/backfill pipelines, so a pipeline run
 could silently change who sees an entry.
 
-All five tables travel between machines on the `Content Label`, `Media
-Content Label`, `Franchise Content Label`, `Collection Content Label` and
-`Series Content Label` sheet tabs. They are the only tables whose absence from
-the sheet fails **open** — a Pull All would restore every entry and group
-unlabelled, i.e. visible — so treat a Backup as part of labelling work, not an
-afterthought. The `Content Label` tab travels because its uuids are what the
-four assignment tabs cite; a row whose key the code does
+All six tables travel between machines on the `Content Label`, `Media
+Content Label`, `Franchise Content Label`, `Collection Content Label`,
+`Series Content Label` and `Person Content Label` sheet tabs. They are the
+only tables whose absence from the sheet fails **open** — a Pull All would
+restore every entry, group and person unlabelled, i.e. visible — so treat a
+Backup as part of labelling work, not an afterthought. The `Content Label`
+tab travels because its uuids are what the five assignment tabs cite; a row whose key the code does
 not name is skipped and reported, and a known label's name and description are
 the code's whatever the sheet says. `role` and
 `role_permission` have no tab: `ensure_rbac_seed` recreates the five roles
@@ -1029,8 +1031,9 @@ sees one error shape.
 ### Shared records
 
 People (in every role), characters, studios, publishers and vocabulary values
-(`system_option`) are **shared records**: entries point at them, and none
-carries a content label. They are hidden by what they are connected to, in
+(`system_option`) are **shared records**: entries point at them, and only a
+person carries content labels of their own (below). They are hidden by what
+they are connected to, in
 `app/services/rbac/shared_visibility.py`:
 
 > **A shared record is hidden when it has at least one connection and every
@@ -1043,6 +1046,23 @@ own (`content_rating`: `normal`, `borderline` or `unrestricted`,
 
 > **A person, studio or publisher is hidden when its content rating is above
 > the viewer's active access mode, or when the connection rule hides it.**
+
+A person also carries **content labels** of their own
+(`person_content_label`), the same six labels an entry carries, and they hide
+the person the way the rating does:
+
+> **A person is hidden when they carry a label the viewer's active mode does
+> not, or when the rating or the connection rule hides them.**
+
+A person's label does **not** cascade: the entries they are credited on stay
+visible, and simply do not name them. Every place the rating hides a person,
+below, the label hides them too - one value,
+`shared_visibility.own_hiding(db, viewer)` (`OwnHiding` in
+`app/services/rbac/own_hiding.py`), carries both to the readers and writers
+that name people on another record's page, and `_hidden_condition` adds the
+label to the rule lists, search, pickers and covers read. Merging two people
+gives the survivor both label sets - the union is the direction that cannot
+leak.
 
 | Rating | Shown as | Lowest mode that shows it |
 |---|---|---|
@@ -1061,7 +1081,8 @@ carry no rating.
 
 Because a person credited on a visible entry is no longer visible by
 construction, **every reader that names a person, studio or publisher on
-another record's page leaves out the rated-hidden ones**, while the page
+another record's page leaves out the rated-hidden ones** (and a person
+hidden by a label), while the page
 itself stays visible: an entry's credit names and `credit_refs` /
 `studio_refs` / `publisher_refs` (`credits.attach_link_fields`),
 `GET /api/credits/{type}/{id}`, `GET /api/casting/{type}/{id}`'s voices, a
@@ -1306,7 +1327,7 @@ type's nav row, routes, tabs and pickers out rather than render them empty.
 | requests and reports (`/api/requests`) | `routers/requests.py` — filing and the caller's own behind `self.requests`, the inbox behind `manage.requests`. **No object check**: a target must exist, not be visible - see [Accepted residuals](#accepted-residuals) |
 | 待補充 Needs Work marks (`/api/needs-work`) | `routers/needs_work.py` — every route behind `manage.requests` on the router. **No object check**, as on the inbox: an owner must exist, not be visible, and the page names every marked owner - see [Accepted residuals](#accepted-residuals) |
 | `data_control` / `system` GETs | behind `require_manage_pipelines` |
-| Pull's six authorization tabs (`Users`, `Content Label`, `Media Content Label`, `Franchise Content Label`, `Collection Content Label`, `Series Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
+| Pull's seven authorization tabs (`Users`, `Content Label`, `Media Content Label`, `Franchise Content Label`, `Collection Content Label`, `Series Content Label`, `Person Content Label`) | `routers/data_control.py` passes `may_restore_authz=viewer.has(PERM_ADMIN_AUTHZ)` into `pull.py`. Without it each returns `status: "skipped"` and is named in `unresolved_refs`, so the rest of the restore still lands and the gap is visible. Stops a `manage.pipelines` holder promoting themselves by typing `admin` into the sheet's Users tab. **Backup is not gated** - it writes local -> sheet and cannot change this database |
 
 ### Write binding
 
@@ -1831,6 +1852,7 @@ not found."**
 | `GET/PUT /api/content-labels/collection/{collection_id}` | the same for a collection, `nsfw` rule included; 404 a missing or hidden collection. No gated-type rule: a collection has no type |
 | `GET/PUT /api/content-labels/franchise/{franchise_id}` | the same for a franchise, `nsfw` rule included; 422 a set without the required label on a franchise whose type includes `H-Comic` / `H-Game` / `Hentai` |
 | `GET/PUT /api/content-labels/series/{series_id}` | the same for a series, `nsfw` rule included; 404 a missing or hidden series. No gated-type rule |
+| `GET/PUT /api/content-labels/person/{person_id}` | the same for a person, `nsfw` rule included; 404 a missing or hidden person (`require_visible_shared`). No gated-type rule |
 
 `ContentLabelResponse` carries no `permission` field: a label is not a
 permission. It decides which objects a mode shows, on the object axis; no role
@@ -2102,6 +2124,7 @@ matters is enforced server-side.
 | `tests/api/test_rbac_core.py` | seed idempotence, `/me` never raises, deleted-user / de-admined tokens rejected |
 | `tests/api/test_rbac_admin_api.py` | roles/users/labels routes, 409/422 guards |
 | `tests/api/test_group_content_labels.py` | labels on collections and series and the cascade: an unlabelled tree hides nothing; a collection's label hides the whole tree, a franchise's its series and entries but not its collection, a series' itself and its entries only (not its franchise or a sibling); moving a franchise out of a labelled collection reveals it; a labelled collection and series absent from lists and search; `tier_visible` and `filter_visible_pairs` on collection and series ids; per tier, assignment adding `nsfw`, refusing to drop it, 422 on an unknown key, 404 to a narrow editor and refused to a plain user; group responses carrying their own labels; the reference counting each tier; `add_missing_nsfw` on a group. Every refusal pairs with `owner_client`, and `nsfw_label` makes refusal possible |
+| `tests/api/test_person_content_labels.py` | labels on a person: a `normal`-rated person credited on a visible anime and labelled `erotica` is 404 and absent from the list, search and cover route in `safe` and `normal` and shown in `borderline` and `unrestricted`, the anime visible in every mode; the same person unlabelled shown in `safe`; credits, credit refs, the cast, a character's seiyuu and credit usage leave them out, and the credit and cast writers keep them; the assignment route's `nsfw` rule, 422, 401 and narrow-editor 404 with mirrors; merge unions the sets; the sheet tab translates both foreign uuids and needs `admin.authz` |
 | `tests/api/test_order_hidden_owner.py` | an order owned by a hidden collection, franchise or series (and a series under a hidden franchise) is absent from `/lists`, filtered and not, 404 on its detail, its follow and its candidates, and left out of `/follows`; a hidden relations scope is 404 on `/graph` at every tier and on the scope listing. Every refusal pairs with `user_client` (`unrestricted`), and the `nsfw` label on the owner makes refusal possible |
 | `tests/api/test_mode_ceiling.py` | `set_mode_ceiling`'s refusals and acceptances, denial pruning on a lowered ceiling, a switch above the ceiling 404 with the mirror at and below it, a live override above a just-lowered ceiling resolving nothing, `/me` listing exactly the modes up to the ceiling, a denial applying in every mode that shows it, a denial the ceiling does not show 422 with the mirror, a new account at `normal` / `normal`, and the three `ck_users_mode_*` constraints |
 | `tests/api/test_labels_in_code.py` | the six labels and their lowest modes, each mode showing everything the mode below shows, a session in each mode seeing exactly its labels (refusals paired with the mode above), restricted sources withheld in `safe`, the removed create/delete/regrant routes absent, a mode's name still adjustable, the reference read by admin and super and refused to a member, `ensure_labels` restoring a missing label and a rewritten name |

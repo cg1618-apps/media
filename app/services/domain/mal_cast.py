@@ -43,7 +43,7 @@ from app.services.integrations.image_manager import cover_key, download_cover_im
 from app.services.integrations.tenrai import fetch_tenrai_cast
 from app.services.rbac.shared_visibility import (
     apply_shared_visibility,
-    hidden_ratings,
+    own_hiding,
 )
 from app.utils.name_normalize import normalize_name, split_names
 from app.utils.tenrai_utils import map_tenrai_cast
@@ -270,14 +270,15 @@ def mal_cast_rows(
         db, viewer, rows, portraits, held_ids or [], warnings
     )
     people, created_people = _seiyuu_for(db, media_type, rows, warnings)
-    # A seiyuu rated above the viewer's mode is matched like any other - a
-    # second row for the same human would split their work - but is not put
-    # in the viewer's form, as a hidden character is not.
-    unseen = hidden_ratings(viewer)
+    # A seiyuu rated above the viewer's mode, or carrying a label it lacks,
+    # is matched like any other - a second row for the same human would split
+    # their work - but is not put in the viewer's form, as a hidden character
+    # is not.
+    unseen = own_hiding(db, viewer).hidden_ids(db, people.values())
     people = {
         mal_id: person
         for mal_id, person in people.items()
-        if person.content_rating not in unseen
+        if person.system_id not in unseen
     }
 
     cast = []

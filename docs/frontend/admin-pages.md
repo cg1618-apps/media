@@ -935,7 +935,14 @@ click picks, clicking the pressed chip clears, and the select follows either
 way; unset saves as null), and a **Content rating** select
 (`ContentRatingField`, the same file: Normal, Borderline (15+), Unrestricted
 (18+) over `CONTENT_RATINGS`, starting on Normal - the `defaultPerson()`
-value - and sent as `content_rating`), then the photo. Its links sit in a
+value - and sent as `content_rating`) with the person's **Content Labels**
+beside it (`ContentLabelPicker`, no owner: the set is held in the form as
+`content_labels`, loaded on Modify from the person's `content_labels`, and
+PUT through `savePersonLabels` to `/api/content-labels/person/{id}` after the
+person itself has saved, on Add and Modify alike; a failed label save toasts
+"Person saved, but its content labels failed to save."). A person is not in
+`LABELLABLE_TABS`, so the marks section above the tab draws no second
+picker. Then the photo. Its links sit in a
 **Links** section of their own after the profile, two to a row: a **MAL Link** (`mal_link`; the server reads the MAL id from
 its `myanimelist.net/people/<id>` path, so there is no id field), an
 **AniList Link** (`anilist_link`, placeholder `https://anilist.co/staff/...`;
@@ -1921,8 +1928,8 @@ prose twin is [../data-actions.md](../data-actions.md#6-calculate-all).
   Nothing on the page creates, deletes or regrants a mode.
 - **Content Labels** — the read-only label reference: each label's name, key
   and description, a chip for every mode that shows it, whether it also
-  carries NSFW, and how many entries, collections, franchises and series carry
-  it directly. Labels are
+  carries NSFW, and how many entries, collections, franchises, series and
+  people carry it directly. Labels are
   defined in code, so the page creates, renames and deletes nothing. It is
   read by `admin` and `super` (`admin.authz` **or** `manage.catalog`) and sits
   under Note in the nav; **assigning** a label is on Add/Modify, which is

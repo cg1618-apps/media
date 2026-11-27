@@ -1,6 +1,6 @@
 # API Reference
 
-Last verified: 2026-11-26
+Last verified: 2026-11-27
 
 **What this is for.** Every HTTP endpoint the app exposes, grouped by router, with its method, path, who may call it, the parameters and body it takes, and what it answers. Read it when wiring a frontend call, checking an error code, or verifying a route still exists. The tables were checked against the live route table (`venv/Scripts/python.exe -c "from app.main import app;[print(sorted(r.methods),r.path) for r in app.routes]"`); if a doc row and that dump disagree, the dump wins.
 
@@ -1741,7 +1741,7 @@ derived from `(role, media_type)`, never stored.
 | `PATCH`  | `/{system_id}`     | Admin  | Partially update a person's own columns — the detail page's inline edits. Body: any subset of the `PersonBase` columns as a JSON object; only the keys sent change, and `roles` is not a column (edit it through `PUT`). The viewer's rating is not a column either; it is written through `PUT /api/me/ratings/person/{id}`. The `PUT` rules are checked before anything is written: `gender` is `男` or `女` (`""` is null), `display_name_field` is `en`/`cn`/`jp`/`alt`, at least one name survives the patch, and `photo_fallback_entry_id` follows the `PUT` rule — each a 422. `system_id`, `public_id`, `created_at` and `updated_at` are a 422; a key that is not a column is ignored. A `mal_link` or `imdb_link` in the body re-derives its id; `PATCH` never calls MAL or TMDB. Returns the full `PersonResponse`. |
 | `POST`   | `/{system_id}/autofill` | Admin  | The detail page's **Autofill & update**: the MAL-then-TMDB fill `PUT` runs, without a save — `mal_id` and `imdb_id` are derived from their links, then the empty columns are filled from MAL's people record and then from TMDB's person record, each when its id is present; a column that holds a value is never overwritten. **422**, with nothing fetched, only when the person has neither a MAL link nor an IMDb link, whatever role they hold. A failed fetch is logged and swallowed, as on save, so the unchanged person comes back with 200. 404 if absent or hidden. Returns `PersonResponse`. |
 | `DELETE` | `/{system_id}?credits=N` | Admin  | Delete a person. Cascades their `media_credit`, `character_casting_voice` and `person_role` rows — no `deleted_record` entry is logged. Their gallery of works is emptied too, each picture's image and file deleted unless something else uses it. The castings they voiced stay, un-voiced by them (Decision H). `credits` is **required**: it is the count the confirmation dialog showed — `media_credit` rows plus voice rows — and a mismatch is a **409**, so the deletion that happens is the one the admin agreed to. |
-| `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows, moves every club membership onto the survivor and appends the loser's gallery of works after the survivor's own (a picture the survivor already shows is dropped), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark and Resources rows and every account's personal rows - move onto the survivor, after the survivor's own rows in each section. 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
+| `POST`   | `/{system_id}/merge` | Admin  | Merge `source_id` into this person: repoints every `media_credit` and every `character_casting_voice` row (a voice on a casting the survivor already voices is dropped), unions the `person_role` rows, moves every club membership onto the survivor, gives the survivor the loser's content labels as well as its own, and appends the loser's gallery of works after the survivor's own (a picture the survivor already shows is dropped), then deletes the loser. Every column the survivor leaves blank is then filled from the loser's, and one it holds is never overwritten; the picture (photo or logo) comes with its focus, a downloaded one renamed onto the survivor's own key (`app/services/domain/merge_fill.py`). The loser's notes - its Remark and Resources rows and every account's personal rows - move onto the survivor, after the survivor's own rows in each section. 409, with nothing changed, if the filled names would equal another record's. Body: `MergeRequest` (`{source_id}`). 400 if merging into self. Returns `credits_moved`, credits and voices together. |
 | `GET`    | `/{system_id}/clubs` | `view.person` | The clubs this person belongs to, as `List[MembershipRef]`, ordered by name. Hidden clubs are omitted; 404 if the person is absent or hidden. |
 | `PUT`    | `/{system_id}/clubs` | Admin  | Replace the clubs this person belongs to. Body: `ClubsReplace` (`{club_ids: [uuid, ...]}`). Each must be a person the writer may see (422 `Unknown club(s)` otherwise), hold the `club` role (422) and not be this person (422). A new membership joins the end of that club's member list; memberships of clubs the writer cannot see are kept. Returns the new `List[MembershipRef]`. |
 | `GET`    | `/{system_id}/members` | `view.person` | A club's members, as `List[MembershipRef]` in the club's order. Hidden members are omitted; `[]` for a person who is not a club; 404 if the club is absent or hidden. |
@@ -1792,7 +1792,7 @@ number of people; `/api/search` answers its `person` bucket the same way.
 **A hidden person is absent.** A person is a shared record
 ([authorization.md](authorization.md#shared-records)): one whose every credit
 and voice is on a label-hidden entry, and whose every role naming a gated
-type is one the viewer cannot see, or rated above the viewer's access mode ([content rating](#content-rating)), is left out of the list, `role-counts` and
+type is one the viewer cannot see, or rated above the viewer's access mode or carrying a content label it lacks ([content rating](#content-rating)), is left out of the list, `role-counts` and
 search, and answers 404 on `/{system_id}`, `/entries`, `PUT`, `DELETE` and
 `merge`. A person with no credits, voices or gated roles stays visible. A
 visible person's `roles` omit a role scoped to a gated type the viewer cannot
@@ -1809,6 +1809,15 @@ access mode is hidden exactly as a record whose every connection is hidden is
 - absent from lists, search and pickers, 404 on its own routes, its photo or
 logo not served - and the entries it is credited on stay visible but do not
 name it ([authorization.md](authorization.md#shared-records)).
+
+`PersonResponse` also carries `content_labels`, the person's own content
+labels as `[{key, label, description}]` (`ContentLabelRef`, the shape
+`FranchiseResponse` carries) in stored order, `[]` for none. A person
+carrying a label the viewer's active mode lacks is hidden exactly as one
+rated above it, and the label does not cascade to the entries they are
+credited on. The set is read-only here: no person write takes it, and it is
+written through `PUT /api/content-labels/person/{person_id}`
+([content labels](#apicontent-labels)).
 
 `POST`, `PUT` and `PATCH` take `content_rating`; any other value is a 422.
 `POST` without it creates a `normal` record, and a `POST` that finds an
@@ -3138,8 +3147,8 @@ already stored are not re-checked. Uniqueness ignores case.
 **Labels are defined in code** (`app/services/rbac/labels.py`), with the
 lowest mode that shows each, so there is no route that creates, renames or
 deletes one. What this router serves is the read-only label reference and the
-assignment of labels to entries and to the three grouping tiers —
-collections, franchises and series. The reference is readable with
+assignment of labels to entries, to the three grouping tiers —
+collections, franchises and series — and to people. The reference is readable with
 `admin.authz` **or** `manage.catalog` — the admin reads it to see what a mode
 restriction does, `super` because `super` is the one attaching labels, and the
 Add/Modify picker draws from it. Assignment is `manage.catalog`: putting a
@@ -3148,7 +3157,7 @@ along with the rest of the record.
 
 | Method | Path | Gate | Body / notes |
 |---|---|---|---|
-| GET | `/api/content-labels/` | either | The label reference: every label row as `ContentLabelResponse`, ordered by `sort_order` — `system_id`, `key`, `label`, `description`, `sort_order`; `lowest_mode`, the lowest mode that shows it; `modes`, the keys of every mode that shows it, narrowest first; `also_carries`, `["nsfw"]` for every label but `nsfw` and `[]` for `nsfw`; `entry_count`, `collection_count`, `franchise_count` and `series_count`, how many entries, collections, franchises and series carry it directly (a group's label is not counted again on what it cascades to). `modes` and `also_carries` are generated from the code, not stored. A row the code does not name has `lowest_mode: null` and `modes: ["unrestricted"]`. 401 for a session holding neither gate. |
+| GET | `/api/content-labels/` | either | The label reference: every label row as `ContentLabelResponse`, ordered by `sort_order` — `system_id`, `key`, `label`, `description`, `sort_order`; `lowest_mode`, the lowest mode that shows it; `modes`, the keys of every mode that shows it, narrowest first; `also_carries`, `["nsfw"]` for every label but `nsfw` and `[]` for `nsfw`; `entry_count`, `collection_count`, `franchise_count`, `series_count` and `person_count`, how many entries, collections, franchises, series and people carry it directly (a group's label is not counted again on what it cascades to). `modes` and `also_carries` are generated from the code, not stored. A row the code does not name has `lowest_mode: null` and `modes: ["unrestricted"]`. 401 for a session holding neither gate. |
 | GET | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | The label keys this entry carries. |
 | PUT | `/api/content-labels/entry/{media_type}/{entry_id}` | `manage.catalog` | `{"label_keys": [...]}` — replaces the set. 400 on an unknown media type, 404 on a missing **or hidden** entry, 422 on an unknown label, 422 on a gated entry whose new set lacks its required label - `h-comic` on an h-comic, `h-game` on an h-game (checked before anything is deleted). |
 | GET | `/api/content-labels/collection/{collection_id}` | `manage.catalog` | The label keys this collection carries — its own, sorted. 404 "Collection not found." on a missing or hidden collection. |
@@ -3157,13 +3166,15 @@ along with the rest of the record.
 | PUT | `/api/content-labels/franchise/{franchise_id}` | `manage.catalog` | Same body and same answers, one tier up. A franchise's labels hide the franchise, **its series and every entry in it** — not its collection. 422 on a franchise whose type includes a gated type (`H-Comic`, `Hentai`, `H-Game`) when the new set lacks that type's label. |
 | GET | `/api/content-labels/series/{series_id}` | `manage.catalog` | The label keys this series carries. 404 "Series not found." on a missing or hidden series. |
 | PUT | `/api/content-labels/series/{series_id}` | `manage.catalog` | Same body and same answers as the collection PUT. A series' labels hide the series **and every entry in it** — not its franchise or its sibling series. |
+| GET | `/api/content-labels/person/{person_id}` | `manage.catalog` | The label keys this person carries, sorted. 404 "Person not found." on a missing or hidden person. |
+| PUT | `/api/content-labels/person/{person_id}` | `manage.catalog` | Same body and same answers as the collection PUT. A person's labels hide the person where a content rating above the mode would — their page, lists, search and pickers, and every credit and voice naming them — and **do not cascade**: the entries they are credited on stay visible. |
 
 Every assignment surface binds to the read: a thing the caller's active mode
 cannot see answers 404, so a narrowed editor cannot clear the label that is
 hiding it.
 
-**Every label but `nsfw` is stored with `nsfw`.** A PUT of an entry's or a
-group's labels adds `nsfw` beside any other label, and answers **422**
+**Every label but `nsfw` is stored with `nsfw`.** A PUT of an entry's, a
+group's or a person's labels adds `nsfw` beside any other label, and answers **422**
 when it would drop `nsfw` while another label stays; dropping every label at
 once is allowed. `also_carries` on the reference states the same rule per
 label.

@@ -37,11 +37,12 @@ const GROUP_LABEL_URL = {
 };
 
 // { kind: "entry", mediaType, id } | { kind: "collection" | "franchise" |
-// "series", id } -> URL. Returns null when the owner has no id yet (the Add
-// page), which is the signal not to read or write anything.
+// "series" | "person", id } -> URL. Returns null when the owner has no id yet
+// (the Add page), which is the signal not to read or write anything.
 function ownerUrl(owner) {
   if (!owner?.id) return null;
   if (GROUP_LABEL_URL[owner.kind]) return GROUP_LABEL_URL[owner.kind](owner.id);
+  if (owner.kind === "person") return endpoints.contentLabels.forPerson(owner.id);
   if (!owner.mediaType) return null;
   return endpoints.contentLabels.forEntry(owner.mediaType, owner.id);
 }
@@ -246,6 +247,15 @@ export async function saveCollectionLabels(collectionId, labelKeys) {
 export async function saveSeriesLabels(seriesId, labelKeys) {
   return saveLabels(
     endpoints.contentLabels.forSeries(seriesId),
+    withNsfw(labelKeys),
+  );
+}
+
+// The same for a person. A person's labels hide the person - not the
+// entries they are credited on - and no type requires one.
+export async function savePersonLabels(personId, labelKeys) {
+  return saveLabels(
+    endpoints.contentLabels.forPerson(personId),
     withNsfw(labelKeys),
   );
 }

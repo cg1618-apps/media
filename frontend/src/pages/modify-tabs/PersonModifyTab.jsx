@@ -26,6 +26,7 @@ import { toggleIn } from "../../lib/entityScopes";
 import { PersonFields, useRoleScopes } from "../add-tabs/PersonAddTab";
 import { endpoints } from "../../api/endpoints";
 import { fetchJson, jsonBody } from "../../api/client";
+import { savePersonLabels, withNsfw } from "../../components/forms/ContentLabelPicker";
 import { useToast } from "../../hooks/useToast";
 import { PERSON_NAME_FIELDS } from "../../lib/naming";
 
@@ -51,6 +52,7 @@ function personToForm(p) {
     pixiv_link: p.pixiv_link || "",
     affiliations: p.affiliations || [],
     content_rating: p.content_rating || CONTENT_RATING_NORMAL,
+    content_labels: (p.content_labels || []).map((label) => label.key),
     // The viewer's own, not a column: PUT /api/me/ratings on save.
     my_rating: p.my_rating || "",
     photo_fallback_entry_id: p.photo_fallback_entry_id || null,
@@ -201,7 +203,16 @@ export default function PersonModifyTab({ initialId = null } = {}) {
         "person", selectedId, personForm, updated, "Person",
       );
       const rated = savedRating ? applyMyRating(updated, savedRating) : updated;
-      setPersonForm(personToForm(rated));
+      // The labels last: they are the one write that can hide the person
+      // from this session. The person saved either way, so a failure here
+      // says so rather than undoing the rest.
+      const labelKeys = withNsfw(personForm.content_labels || []);
+      try {
+        await savePersonLabels(selectedId, labelKeys);
+      } catch {
+        showToast("error", "Person saved, but its content labels failed to save.");
+      }
+      setPersonForm({ ...personToForm(rated), content_labels: labelKeys });
       setSavedName(rated.display_name);
       // Back to the top: the toast renders at the top of the page and
       // the form is long enough to have scrolled it out of sight.

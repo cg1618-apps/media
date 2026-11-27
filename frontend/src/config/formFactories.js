@@ -702,6 +702,9 @@ export const defaultPerson = () => ({
   // PersonRoleMatrix edits them and POST /api/person takes them.
   roles: [],
   my_rating: "",
+  // The person's content label keys, PUT to /api/content-labels/person/{id}
+  // once the person has saved.
+  content_labels: [],
 });
 
 // Identical in shape to a person today, but kept separate: the two are

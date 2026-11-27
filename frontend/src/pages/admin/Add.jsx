@@ -68,6 +68,7 @@ import ContentLabelPicker, {
   saveCollectionLabels,
   saveEntryLabels,
   saveFranchiseLabels,
+  savePersonLabels,
   saveSeriesLabels,
 } from "../../components/forms/ContentLabelPicker";
 import { fetchJson, jsonBody } from "../../api/client";
@@ -1167,6 +1168,13 @@ export default function Add() {
       );
       showToast("success", "Person appended successfully.");
       setLastAdded(created.display_name);
+      // Last: the labels are what could hide the new person from this
+      // session. The person saved either way, so say so, as a franchise does.
+      try {
+        await savePersonLabels(created.system_id, personForm.content_labels);
+      } catch {
+        showToast("error", "Person saved, but its content labels failed to save.");
+      }
       setPersonForm(freshForm("person"));
       setSources(await fetchAllSources());
     } else {

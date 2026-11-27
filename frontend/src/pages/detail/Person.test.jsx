@@ -145,6 +145,73 @@ describe("Person detail page", () => {
     ).toBeTruthy();
   });
 
+  // The Profile card's rows, each as the text of its fields' labels.
+  function profileRows(profile) {
+    const body = profile.querySelector("section > div");
+    // A lone field is its own row; an array row holds one InfoRow per field,
+    // each led by its label.
+    return [...body.children].map((row) =>
+      (row.matches(".min-w-0")
+        ? [row.firstElementChild]
+        : [...row.querySelectorAll(":scope > .min-w-0 > :first-child")]
+      ).map((label) => label.textContent),
+    );
+  }
+
+  it("sets the names two to a row: Chinese beside English, Japanese beside Alternative", async () => {
+    mockFetch({ ...PERSON, name_alt: "Miya-san" });
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(profileRows(profile).slice(0, 3)).toEqual([
+      ["Chinese", "English"],
+      ["Japanese", "Alternative"],
+      ["Gender", "Types", "Content rating"],
+    ]);
+  });
+
+  it("leaves out a name row whose names are both unset", async () => {
+    mockFetch({ ...PERSON, name_jp: null, name_alt: null });
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(profileRows(profile)).toEqual([
+      ["Chinese", "English"],
+      ["Gender", "Types", "Content rating"],
+    ]);
+  });
+
+  it("sets Affiliation beside the content labels, after the facts", async () => {
+    mockFetch({
+      ...PERSON,
+      affiliations: [{ system_id: "s1", public_id: 3, display_name: "Studio Ghibli" }],
+      content_labels: [
+        { key: "nsfw", label: "NSFW" },
+        { key: "erotica", label: "擦邊肉番" },
+      ],
+    });
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(profileRows(profile).at(-1)).toEqual(["Affiliation", "Label"]);
+    expect(within(profile).getByRole("link", { name: "Studio Ghibli" })).toBeInTheDocument();
+    expect(within(profile).getByText("NSFW")).toBeInTheDocument();
+    expect(within(profile).getByText("擦邊肉番")).toBeInTheDocument();
+  });
+
+  it("hides Affiliation when the person has none, and shows the labels alone", async () => {
+    mockFetch({ ...PERSON, affiliations: [], content_labels: [{ key: "nsfw", label: "NSFW" }] });
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(within(profile).queryByText("Affiliation")).toBeNull();
+    expect(profileRows(profile).at(-1)).toEqual(["Label"]);
+  });
+
+  it("draws neither Affiliation nor Label for a person with no studio and no label", async () => {
+    renderPage();
+    const profile = (await screen.findByText("Profile")).closest("section");
+    expect(within(profile).queryByText("Affiliation")).toBeNull();
+    expect(within(profile).queryByText("Label")).toBeNull();
+    expect(profileRows(profile).at(-1)).toEqual(["Gender", "Types", "Content rating"]);
+  });
+
   it("shows the content rating in the profile", async () => {
     mockFetch({ ...PERSON, content_rating: "borderline" });
     renderPage();

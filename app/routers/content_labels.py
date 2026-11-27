@@ -12,16 +12,20 @@ router serves:
               reads it to see what a restriction does, super because super is
               the one attaching labels, and the Add/Modify picker draws from
               it.
-  assignment  `manage.catalog`. Putting a label on an entry or a group
-              (collection, franchise, series) is a catalogue edit, submitted
-              by the Add and Modify forms along with the rest of the record.
+  assignment  `manage.catalog`. Putting a label on an entry, a group
+              (collection, franchise, series) or a person is a catalogue
+              edit, submitted by the Add and Modify forms along with the rest
+              of the record.
 
 Assignment replaces the whole set, structurally identical to
 credits.py::replace_credits, because that is how the Add/Modify forms submit.
 A group's set is the same call against a different join table - and it
 CASCADES down the tree at read time (a collection to its franchises, their
 series and entries; a franchise to its series and entries; a series to its
-entries), see services/rbac/enforcement.py.
+entries), see services/rbac/enforcement.py. A person's set does NOT
+cascade: it hides the person where a content rating would
+(services/rbac/shared_visibility.py), and the entries they are credited on
+stay visible.
 """
 
 import logging
@@ -38,6 +42,7 @@ from app.services.domain.content_labels import (
     GROUP_LABEL_TABLES,
     label_keys_for_entry,
     label_keys_for_group,
+    label_keys_for_person,
 )
 from app.services.domain.gated_labels import (
     refuse_label_removal_on_entry,
@@ -62,6 +67,7 @@ from app.services.rbac.resolver import (
     require_manage_catalog,
 )
 from app.services.rbac.seed_modes import MODE_UNRESTRICTED
+from app.services.rbac.shared_visibility import require_visible_shared
 from app.utils.media_resolver import MEDIA_TABLES
 
 logger = logging.getLogger(__name__)
@@ -96,15 +102,21 @@ def _to_response(
         collection_count=counts["collection"].get(row.system_id, 0),
         franchise_count=counts["franchise"].get(row.system_id, 0),
         series_count=counts["series"].get(row.system_id, 0),
+        person_count=counts["person"].get(row.system_id, 0),
     )
 
 
 def _counts(db: Session) -> dict[str, dict[UUID, int]]:
     """{owner kind: {label id: how many of that kind carry it}}, one query
     per join table."""
-    tables = {"entry": models.MediaContentLabel} | {
-        tier: join_model for tier, (join_model, _owner) in GROUP_LABEL_TABLES.items()
-    }
+    tables = (
+        {"entry": models.MediaContentLabel}
+        | {
+            tier: join_model
+            for tier, (join_model, _owner) in GROUP_LABEL_TABLES.items()
+        }
+        | {"person": models.PersonContentLabel}
+    )
     return {
         kind: dict(
             db.query(join_model.label_id, func.count())
@@ -421,3 +433,59 @@ def replace_series_labels(
     through media.series_id."""
     _resolve_group(db, "series", series_id, actor)
     return _replace_group_labels(db, "series", series_id, payload)
+
+
+# ==========================================
+# PERSON ASSIGNMENT
+# ==========================================
+
+
+def _resolve_person(db: Session, person_id: UUID, viewer) -> models.Person:
+    """The person half of _resolve_entry, gated the same way: a person this
+    session cannot see answers as a missing one."""
+    person = db.get(models.Person, person_id)
+    if person is None:
+        raise HTTPException(status_code=404, detail="Person not found.")
+    require_visible_shared(db, viewer, models.Person, person_id, "Person not found.")
+    return person
+
+
+@router.get(
+    "/person/{person_id}",
+    response_model=List[str],
+    summary="Get a Person's Labels",
+)
+def get_person_labels(
+    person_id: UUID,
+    db: Session = Depends(get_db),
+    actor: Viewer = Depends(require_manage_catalog),
+):
+    _resolve_person(db, person_id, actor)
+    return label_keys_for_person(db, person_id)
+
+
+@router.put(
+    "/person/{person_id}",
+    response_model=List[str],
+    summary="Replace a Person's Labels",
+)
+def replace_person_labels(
+    person_id: UUID,
+    payload: schemas.EntryLabels,
+    db: Session = Depends(get_db),
+    actor: Viewer = Depends(require_manage_catalog),
+):
+    """
+    A person's labels hide the person - their page, every list and picker,
+    and every credit and voice naming them on an entry - from a mode that
+    does not carry them. They do not cascade: the entries stay visible.
+    """
+    _resolve_person(db, person_id, actor)
+    return _replace_labels(
+        db,
+        models.PersonContentLabel,
+        models.PersonContentLabel.person_id,
+        {"person_id": person_id},
+        person_id,
+        payload,
+    )
