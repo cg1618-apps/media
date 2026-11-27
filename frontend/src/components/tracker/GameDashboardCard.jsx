@@ -63,25 +63,12 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">
-          <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
-            <span
-              className="font-mono text-[9px] whitespace-nowrap"
-              style={{ writingMode: "vertical-rl" }}
-            >
-              Game
-            </span>
-          </div>
           <div className="relative w-20 h-full bg-surface-2 overflow-hidden">
             <RatingStamp
               rating={game.my_rating}
               size="sm"
               className="absolute top-1.5 right-1.5 z-10"
             />
-            {game.game_type && (
-              <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] z-10">
-                {game.game_type}
-              </div>
-            )}
             <LazyImage
               src={thumbUrl(imageUrl)}
               alt="Cover"
@@ -112,10 +99,15 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
           </h3>
           <p className="font-mono text-[10px] text-text-faint truncate mt-1 mb-2">
             {subTitle}
-            {hasEstimate ? ` · ~${estimate} h` : ""}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
-            {game.ownership && (
+            {game.game_type && (
+              <Chip tone="ink" className="truncate max-w-[110px]">
+                {game.game_type}
+              </Chip>
+            )}
+            {/* Owned is the usual case, so only the exceptions say so. */}
+            {game.ownership && game.ownership !== "Owned" && (
               <Chip tone="ink" className="truncate max-w-[110px]">
                 {game.ownership}
               </Chip>

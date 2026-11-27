@@ -46,6 +46,7 @@ from app.services.domain.checking import (
     has_missing_values_person,
     has_missing_values_person_tmdb,
 )
+from app.services.domain.content_labels import labels_by_person, merge_person_labels
 from app.services.domain.credit_cards import credit_cards
 from app.services.domain.credit_counts import person_role_counts
 from app.services.domain.credits import find_person
@@ -111,6 +112,7 @@ def _to_response(
     hidden: Optional[frozenset[str]] = None,
     ratings: Optional[dict] = None,
     affiliations: Optional[dict] = None,
+    labels: Optional[dict] = None,
 ) -> schemas.PersonResponse:
     # Count credits on entries the viewer may see, from BOTH stores: a seiyuu
     # has no media_credit rows at all (see credit_roles.CreditRole.credited_via)
@@ -139,6 +141,10 @@ def _to_response(
     # Passed in by the list route for the whole page, read here otherwise.
     if affiliations is None:
         affiliations = affiliations_by_person(db, viewer, [person.system_id])
+    # The person's own content labels, likewise passed in by the list route.
+    # No gate: a viewer only reaches a person whose labels its mode carries.
+    if labels is None:
+        labels = labels_by_person(db, [person.system_id])
     return schemas.PersonResponse(
         system_id=person.system_id,
         public_id=person.public_id,
@@ -163,6 +169,7 @@ def _to_response(
         pixiv_link=person.pixiv_link,
         type_slots=person.type_slots,
         content_rating=person.content_rating,
+        content_labels=labels.get(person.system_id, []),
         roles=[
             schemas.PersonRoleIn(role=r.role, scope=r.scope)
             for r in without_hidden_scopes(person.roles, hidden, "scope")
@@ -263,9 +270,17 @@ def get_all_people(
     affiliations = affiliations_by_person(
         db, viewer, [person.system_id for person in people]
     )
+    labels = labels_by_person(db, [person.system_id for person in people])
     return [
         _to_response(
-            db, person, viewer, media[person.system_id], hidden, ratings, affiliations
+            db,
+            person,
+            viewer,
+            media[person.system_id],
+            hidden,
+            ratings,
+            affiliations,
+            labels,
         )
         for person in people
     ]
@@ -1075,6 +1090,8 @@ def merge_person(
     merge_memberships(db, system_id, payload.source_id)
     # And the studios they belong to.
     merge_affiliations(db, "person_id", system_id, payload.source_id)
+    # And their content labels, as a union (merge_person_labels).
+    merge_person_labels(db, system_id, payload.source_id)
 
     # And the gallery of works, after the survivor's own pictures.
     person_work_images.merge(db, system_id, payload.source_id)

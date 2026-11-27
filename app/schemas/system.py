@@ -157,10 +157,12 @@ class SystemOptionCreate(SystemOptionBase):
 
 
 class OptionRecordCounts(BaseModel):
-    """System Options' Tier 3: the records that replaced option categories."""
+    """The entity records System Options lists under Internal Keys."""
 
     person_roles: dict[str, int]
     studios: int
+    publishers: int
+    characters: int
 
 
 class SystemOptionResponse(SystemOptionBase):

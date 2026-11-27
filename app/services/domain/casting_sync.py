@@ -42,6 +42,7 @@ from app.services.domain.casting import (
     fill_character_roles,
 )
 from app.services.domain.entity_remarks import add_remark, has_remark
+from app.services.rbac.own_hiding import OwnHiding
 from app.utils.character_roles import CHARACTER_ROLES
 
 # (character_id, identity_id) - identity_id None is the main identity.
@@ -112,12 +113,12 @@ def cast_originals(
     entry_id: Optional[UUID],
     pairs: list[Pair],
     visible_pairs: Optional[set[tuple[str, UUID]]] = None,
-    hidden: frozenset[str] = frozenset(),
+    hidden: OwnHiding = OwnHiding(),
 ) -> list[dict]:
     """
     What each (character, identity) in `pairs` would be synced to on an entry
-    of `media_type`, in `pairs`' order. A seiyuu rated one of `hidden` (the
-    caller's shared_visibility.hidden_ratings) is left out of `voices`.
+    of `media_type`, in `pairs`' order. A seiyuu `hidden` hides (the caller's
+    shared_visibility.own_hiding) is left out of `voices`.
 
     The seiyuu are read from the pair's cast rows on OTHER entries - `entry_id`
     is left out, so the row being edited never votes for itself - and only on
@@ -160,7 +161,7 @@ def cast_originals(
         .options(selectinload(models.Person.roles))
         .filter(
             models.Person.system_id.in_(person_ids),
-            models.Person.content_rating.notin_(sorted(hidden)),
+            ~hidden.condition(models.Person),
         )
     } if person_ids else {}
 

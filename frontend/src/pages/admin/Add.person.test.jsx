@@ -295,4 +295,44 @@ describe("Add page — Person tab image attach", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("puts the ticked content labels on the person once it is created", async () => {
+    const labels = [
+      { system_id: "l1", key: "nsfw", label: "NSFW", description: "" },
+      { system_id: "l3", key: "erotica", label: "擦邊肉番", description: "" },
+    ];
+    const base = mockFetch({ system_id: "person-1", display_name: "New Person" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url, options = {}) =>
+        String(url) === "/api/content-labels/"
+          ? Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(labels) })
+          : base(url, options),
+      ),
+    );
+    const user = userEvent.setup();
+
+    mount();
+    await goToPersonTab(user);
+    await user.type(firstNameInput(), "Ada Lovelace");
+    // In the Profile section, beside the content rating.
+    const erotica = await screen.findByRole("checkbox", { name: "擦邊肉番" });
+    expect(screen.getByLabelText("Content rating").closest(".grid")).toContainElement(erotica);
+    await user.click(erotica);
+    await user.click(screen.getByRole("button", { name: /append entry/i }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/content-labels/person/person-1",
+        expect.objectContaining({ method: "PUT" }),
+      ),
+    );
+    const [, init] = fetch.mock.calls.find(
+      ([u]) => u === "/api/content-labels/person/person-1",
+    );
+    expect(JSON.parse(init.body).label_keys.sort()).toEqual(["erotica", "nsfw"]);
+    expect(showToast).not.toHaveBeenCalledWith("error", expect.anything());
+
+    vi.unstubAllGlobals();
+  });
 });

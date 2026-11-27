@@ -363,25 +363,12 @@ export default function BookDashboardCard({
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">
-          <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
-            <span
-              className="font-mono text-[9px] whitespace-nowrap"
-              style={{ writingMode: "vertical-rl" }}
-            >
-              Book
-            </span>
-          </div>
           <div className="relative w-20 h-full bg-surface-2 overflow-hidden">
             <RatingStamp
               rating={book.my_rating}
               size="sm"
               className="absolute top-1.5 right-1.5 z-10"
             />
-            {book.region && (
-              <div className="absolute bottom-0 right-0 bg-black/60 text-white px-1 py-0.5 font-mono text-[8px] z-10">
-                {book.region}
-              </div>
-            )}
             <LazyImage
               src={thumbUrl(imageUrl)}
               alt="Cover"
@@ -414,6 +401,11 @@ export default function BookDashboardCard({
             {subTitle}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
+            {book.type && (
+              <Chip tone="ink" className="truncate max-w-[110px]">
+                {book.type}
+              </Chip>
+            )}
             {book.serialization_status && (
               <Chip tone="ink" className="truncate max-w-[130px]">
                 {book.serialization_status}

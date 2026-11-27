@@ -4,9 +4,8 @@
 // a progress stepper; a film (Anime Movie, Movie) has no counter, so its card
 // says where playback was paused and how long the film runs instead.
 //
-// The seasonal pages show only anime, so they hide the type spine beside the
-// cover (`showTypeSpine={false}`) and show the MAL score on the chip row
-// (`showMalScore`); the dashboard mixes types and keeps the spine.
+// The type is a chip leading the chip row, not text beside the cover. The
+// seasonal pages also show the MAL score on that row (`showMalScore`).
 import { Link } from "react-router-dom";
 import { useToast } from "../../hooks/useToast";
 import { getCoverUrl, FALLBACK_SVG, formatLength, getDisplayName } from "../../utils/media";
@@ -33,7 +32,6 @@ export default function DashboardCard({
   canTrack,
   onEpChange,
   view = "card",
-  showTypeSpine = true,
   showMalScore = false,
 }) {
   const { showToast } = useToast();
@@ -64,7 +62,7 @@ export default function DashboardCard({
   const subTitle = franchise
     ? getDisplayName(franchise, "franchise") || "Independent"
     : "Independent Series";
-  const spineLabel = anime._ui_type || "Anime";
+  const typeLabel = anime._ui_type || "Anime";
 
   // titleType is already the route segment for every branch above.
   const navigatePath = entityPath(titleType, anime);
@@ -129,7 +127,7 @@ export default function DashboardCard({
         path={navigatePath}
         title={title}
         subTitle={subTitle}
-        type={spineLabel}
+        type={typeLabel}
         status={statusText}
         rating={anime.my_rating}
         progress={pausedAt ? `at ${pausedAt}` : runtime || ""}
@@ -143,7 +141,7 @@ export default function DashboardCard({
         path={navigatePath}
         title={title}
         subTitle={subTitle}
-        type={spineLabel}
+        type={typeLabel}
         status={statusText}
         rating={anime.my_rating}
         progress={`${formatProgress(localFin)}/${formatProgress(localTotal)} ${isReading ? "ch" : "ep"}`}
@@ -160,16 +158,6 @@ export default function DashboardCard({
     >
       <div className="flex p-3">
         <div className="flex shrink-0 h-28 border border-border">
-          {showTypeSpine && (
-            <div className="w-5 shrink-0 bg-ink text-ink-text flex items-center justify-center py-1">
-              <span
-                className="font-mono text-[9px] whitespace-nowrap"
-                style={{ writingMode: "vertical-rl" }}
-              >
-                {spineLabel}
-              </span>
-            </div>
-          )}
           <div className="relative w-20 h-full bg-surface-2 overflow-hidden">
             <RatingStamp
               rating={anime.my_rating}
@@ -211,10 +199,10 @@ export default function DashboardCard({
             {subTitle}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
-            <Chip tone="ink">{statusText}</Chip>
             {!isTV && !isCartoon && !isReading && !isFilm && (
               <Chip tone="ink">{anime.airing_type || "TV"}</Chip>
             )}
+            <Chip tone="ink">{statusText}</Chip>
             {showMalScore && anime.mal_rating != null && anime.mal_rating !== "" && (
               <span
                 className="font-mono text-[10px] text-text-muted tabular-nums"

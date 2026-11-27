@@ -1,24 +1,23 @@
-// Frontend: read-only inventory of every choice list in the app, grouped by
-// the three tiers docs/options.md defines.
+// Frontend: read-only inventory of every choice list in the app, in four
+// tiers:
 //
-// The tiers answer one question - "does code branch on the exact value?" -
-// and they have three different homes, which is exactly why an admin needs a
-// single place to see them side by side:
+//   Tier 1  Internal Keys   closed enums in code (served by /api/constants)
+//                           and the entity records that replaced option
+//                           categories (person, studio, publisher, character)
+//   Tier 2  System Options  system_option categories edited on the Options
+//                           sub-tab of Add / Modify
+//   Tier 3  Tags            the categories of the Tags sub-tab
+//   Tier 4  Common Options  the categories of the Common Options sub-tab
 //
-//   Tier 1  closed enums in app/utils/constants.py, served by /api/constants
-//   Tier 2  open vocabularies in system_option, served by /api/options
-//   Tier 3  entities in person / studio, credited via media_credit
+// Tiers 2-4 are one table, system_option, split the way the Add / Modify
+// sub-tabs split it (lib/optionCategoryGroups.js), so the page and the forms
+// agree on where a category lives without either listing category names.
 //
-// This page never writes. Tier 1 is not editable at all (renaming a value
-// there breaks business logic silently); Tier 2 is edited under System →
-// System Option on Add/Modify; Tier 3 records are managed on the
-// person/studio forms. Each section says so and links where the editing
-// actually happens.
+// This page never writes. Each tier says where its lists are edited.
 //
-// Tier 2 values may also carry system_option_alias rows - what an external API
-// calls them. Those are a lookup rather than a vocabulary, so they have their
-// own inverted view on /aliases (pages/admin/Aliases.jsx) instead of a fourth
-// column here.
+// A system_option value may also carry alias rows - what an external API
+// calls it. Those are a lookup, not a vocabulary, so they have their own view
+// on /aliases (pages/admin/Aliases.jsx).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -26,99 +25,120 @@ import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
 import { scopeChip, usageChip } from "../../config/scopeColors";
 import { useConstants } from "../../config/useConstants";
-import {
-  groupTier1Keys,
-  groupTier2Categories,
-} from "../../lib/optionsPageGroups";
+import { groupOptionTiers, groupTier1Keys } from "../../lib/optionsPageGroups";
 
-// Tier 3 is the one section with no endpoint that describes itself, because
-// the interesting fact is historical: which old system_options categories each
-// entity role replaced. Mirrors the "Became Entities" table in
+// The entity records under Internal Keys: what each stores, and which
+// system_option categories it replaced. The notes name no gated type: the club
+// row is drawn only when the server counts it, which it does only for a
+// session that may see the type it belongs to. Mirrors the Entities table in
 // docs/options.md - keep the two in step.
 //
-// A row is one LIVE role, not one old category, because the role collapse made
-// that mapping many-to-one: Manga Author, Novel Author and Comic Writer all
-// became `author`. The Records column reads /api/options/record-counts, which
-// tallies per role and knows nothing of scope, so a row per old category would
-// have printed the same author total three times and invited an admin to add
-// them up.
-const TIER3_ROWS = [
+// A row is one LIVE role, not one old category: Manga Author, Novel Author and
+// Comic Writer all became `author`, and /api/options/record-counts tallies per
+// role, so a row per old category would print one author total three times.
+export const ENTITY_ROWS = [
   {
-    oldCategories: ["Studio"],
+    record: "Studio",
     home: "studio",
-    roleKey: null,
-    detail: "credited via media_credit role studio",
+    countKey: "studios",
+    replaced: ["Studio"],
+    detail: "credited via media_credit role studio; a game's developer is its studio",
   },
   {
-    oldCategories: ["Director"],
+    record: "Publisher",
+    home: "publisher",
+    countKey: "publishers",
+    replaced: ["Publisher / Distributor TW", "Comic Publisher"],
+    detail:
+      "offered per media type through publisher_scope. Reads 台灣代理商 on anime, 台灣出版社 on manga and book, 出版商 on comic, 發行商 on game",
+  },
+  {
+    record: "Director",
     home: "person",
     roleKey: "director",
+    replaced: ["Director"],
     detail: "scoped by media type on person_role",
   },
   {
-    oldCategories: ["Producer"],
+    record: "Producer",
     home: "person",
     roleKey: "producer",
+    replaced: ["Producer"],
     detail: "scoped by media type on person_role",
   },
   {
-    oldCategories: ["Music / Composer"],
+    record: "Music / Composer",
     home: "person",
     roleKey: "composer",
+    replaced: ["Music / Composer"],
     detail: "scoped by media type on person_role",
   },
   {
-    oldCategories: ["Manga Author", "Novel Author", "Comic Writer"],
+    record: "Author",
     home: "person",
     roleKey: "author",
-    detail:
-      "one role, three labels: 原作 on manga, Author on a book, Writer on a comic",
+    replaced: ["Manga Author", "Novel Author", "Comic Writer"],
+    detail: "原作 on manga, Author on a book, Writer on a comic",
   },
   {
-    oldCategories: ["Manga Author", "Novel Illustrator", "Comic Artist"],
+    record: "Illustrator",
     home: "person",
     roleKey: "illustrator",
-    detail:
-      "作畫 on manga, Illustrator on a book, Artist on a comic. Manga Author covered this half too before the split",
+    replaced: ["Manga Author", "Novel Illustrator", "Comic Artist"],
+    detail: "作畫 on manga, Illustrator on a book, Artist on a comic",
+  },
+  {
+    record: "Club",
+    home: "person",
+    roleKey: "club",
+    replaced: [],
+    detail: "a circle; artists belong to it through person_membership",
+  },
+  {
+    record: "Seiyuu",
+    home: "person",
+    roleKey: "seiyuu",
+    replaced: [],
+    detail: "reaches an entry through the character voiced (character_casting), not media_credit",
+  },
+  {
+    record: "Character",
+    home: "character",
+    countKey: "characters",
+    replaced: [],
+    detail: "cast on entries through character_casting; an identity is a character_identity row",
   },
 ];
 
-// Two Tier 1 keys knowingly disagree with their Enum class in Python. The
-// page serves what /api/constants serves, so it flags the split rather than
-// letting it look like a bug. See "Value Discrepancies" in docs/options.md.
+// Two enums knowingly disagree with their Enum class in Python. The page
+// serves what /api/constants serves, so it flags the split rather than letting
+// it look like a bug. See "Known discrepancies" in docs/options.md.
 const TIER1_NOTES = {
   franchise_type:
-    "Diverges from the FranchiseType Enum, which has Anime and lacks Anime Movie. Preserved, not resolved.",
+    "Diverges from the FranchiseType Enum, which lacks Anime Movie. Preserved, not resolved.",
   anime_airing_type:
     "Carries a trailing Other that the AnimeAiringType Enum lacks. Preserved, not resolved.",
 };
 
-// Anchor id for a Tier 2 group heading ("Source & Platform" ->
-// opt-group-source-platform). Kept apart from the Tier 1 group ids because
-// both tiers end in a group called "Other".
-function optionGroupId(title) {
-  return `opt-group-${title
+const ENTITIES_TITLE = "Entities";
+
+// "Source & Platform" -> "source-platform", for fragment ids.
+function slug(text) {
+  return text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")}`;
+    .replace(/^-|-$/g, "");
 }
 
-// Anchor id for a Tier 2 category. Categories are human-written strings with
-// spaces and slashes ("Publisher / Distributor TW"), none of which belong in
-// a fragment id.
+// Anchor id for a group heading. Prefixed by tier, because two tiers can each
+// end in a group called "Other".
+function groupId(tierId, title) {
+  return `${tierId}-group-${slug(title)}`;
+}
+
+// Anchor id for one category. /aliases links here, through the same rule.
 function categoryId(category) {
-  return `opt-${category
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")}`;
-}
-
-// Anchor id for a Tier 1 group heading ("Airing Type" -> enum-group-airing-type).
-function groupId(title) {
-  return `enum-group-${title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")}`;
+  return `opt-${slug(category)}`;
 }
 
 // snake_case key -> the heading an admin recognises.
@@ -129,35 +149,21 @@ function prettifyKey(key) {
     .join(" ");
 }
 
-// The left title bar: an index of everything on the page, and the only
-// practical way to reach a section of it on a page this tall.
-//
-// One level per tier: the group headings, not the enums and categories inside
-// them. Listing every leaf ran to forty-odd links, taller than the viewport on
-// its own and impossible to scan, while a group heading lands close enough
-// that the card or table you wanted is already on screen when you arrive. The
-// leaves keep their ids, so a link someone saved to one still works.
-//
-// Jumping is plain fragment links, not scrollIntoView - the browser handles
-// smooth scrolling and the offset through CSS (scroll-mt-28 on each target,
-// clearing the sticky nav), and the URL keeps the section so a reload or a
-// shared link lands in the same place.
-function TitleBar({ tier1Sections, tier2Sections, activeId }) {
+// The left title bar: an index of the tiers and their group headings - not
+// every card and table, which would run taller than the viewport. Plain
+// fragment links: the browser scrolls (scroll-mt-28 clears the sticky nav) and
+// the URL keeps the section.
+function TitleBar({ tiers, activeId }) {
   const listRef = useRef(null);
   const activeRef = useRef(null);
 
-  // Keep the highlighted entry inside the bar's own scroll box. Without this
-  // the highlight is correct but invisible: the index is taller than the
-  // viewport, so scrolling into Tier 2 highlights an entry well below the
-  // bar's visible window. Scrolled by hand rather than with scrollIntoView,
-  // which would also scroll the page and fight the reader.
+  // Keep the highlighted entry inside the bar's own scroll box, by hand rather
+  // than with scrollIntoView, which would also scroll the page.
   useEffect(() => {
     const box = listRef.current;
     const link = activeRef.current;
     if (!box || !link) return;
-    // Rect deltas, not offsetTop: the bar is position:sticky, which makes it
-    // the links' own offsetParent, so subtracting box.offsetTop would double
-    // count and clamp every jump back to the top of the list.
+    // Rect deltas, not offsetTop: the sticky bar is the links' offsetParent.
     const top =
       link.getBoundingClientRect().top -
       box.getBoundingClientRect().top +
@@ -168,16 +174,17 @@ function TitleBar({ tier1Sections, tier2Sections, activeId }) {
       box.scrollTop = bottom - box.clientHeight;
   }, [activeId]);
 
-  const linkProps = (id) => ({
-    ref: activeId === id ? activeRef : undefined,
-  });
-
   const linkClass = (id) =>
     `block truncate rounded px-2 py-1 text-xs font-semibold transition ${
       activeId === id
         ? "bg-ink text-ink-text"
         : "text-text-faint hover:bg-surface-2 hover:text-text"
     }`;
+  const linkProps = (id) => ({
+    href: `#${id}`,
+    className: linkClass(id),
+    ref: activeId === id ? activeRef : undefined,
+  });
 
   return (
     <aside className="hidden lg:block w-60 shrink-0">
@@ -189,82 +196,26 @@ function TitleBar({ tier1Sections, tier2Sections, activeId }) {
         <p className="text-[10px] font-black text-text-faint px-2 mb-3">
           On this page
         </p>
-
-        <a
-          href="#tier-1"
-          className={linkClass("tier-1")}
-          {...linkProps("tier-1")}
-        >
-          Tier 1 · Closed Enums
-        </a>
-        <div className="ml-2 border-l border-border pl-2 mt-1 mb-3">
-          {tier1Sections.map((section) => (
-            <a
-              key={section.title}
-              href={`#${groupId(section.title)}`}
-              className={linkClass(groupId(section.title))}
-              {...linkProps(groupId(section.title))}
-              title={section.keys.map(prettifyKey).join(", ")}
-            >
-              {section.title}
+        {tiers.map((tier) => (
+          <div key={tier.id}>
+            <a {...linkProps(tier.id)}>
+              Tier {tier.number} · {tier.title}
             </a>
-          ))}
-        </div>
-
-        <a
-          href="#tier-2"
-          className={linkClass("tier-2")}
-          {...linkProps("tier-2")}
-        >
-          Tier 2 · Open Vocabularies
-        </a>
-        <div className="ml-2 border-l border-border pl-2 mt-1 mb-3">
-          {tier2Sections.length === 0 ? (
-            <span className="block px-2 py-1 text-xs text-text-faint/60">—</span>
-          ) : (
-            tier2Sections.map((section) => (
-              <a
-                key={section.title}
-                href={`#${optionGroupId(section.title)}`}
-                className={linkClass(optionGroupId(section.title))}
-                {...linkProps(optionGroupId(section.title))}
-                title={section.categories.map(([name]) => name).join(", ")}
-              >
-                {section.title}
-              </a>
-            ))
-          )}
-        </div>
-
-        <a
-          href="#tier-3"
-          className={linkClass("tier-3")}
-          {...linkProps("tier-3")}
-        >
-          Tier 3 · Entities
-        </a>
+            <div className="ml-2 border-l border-border pl-2 mt-1 mb-3">
+              {tier.groups.length === 0 ? (
+                <span className="block px-2 py-1 text-xs text-text-faint/60">—</span>
+              ) : (
+                tier.groups.map((g) => (
+                  <a key={g.title} {...linkProps(groupId(tier.id, g.title))}>
+                    {g.title}
+                  </a>
+                ))
+              )}
+            </div>
+          </div>
+        ))}
       </nav>
     </aside>
-  );
-}
-
-function SectionHeader({ tier, title, subtitle, source, children }) {
-  return (
-    <div className="border-b border-border pb-4 mb-6">
-      <div className="flex flex-wrap items-baseline gap-3">
-        <span className="bg-ink text-ink-text text-[10px] font-black px-2.5 py-1 rounded">
-          Tier {tier}
-        </span>
-        <h2 className="text-xl font-black text-text tracking-tight">
-          {title}
-        </h2>
-        <code className="text-xs font-mono text-text-faint">{source}</code>
-      </div>
-      <p className="text-sm text-text-faint font-medium mt-2 max-w-3xl">
-        {subtitle}
-      </p>
-      {children}
-    </div>
   );
 }
 
@@ -277,6 +228,38 @@ function ReadOnlyNote({ children }) {
   );
 }
 
+function TierSection({ tier, note, children }) {
+  return (
+    <section
+      id={tier.id}
+      data-section-anchor
+      className="scroll-mt-28 bg-surface rounded-2xl border border-border shadow-sm p-6"
+    >
+      <div className="border-b border-border pb-4 mb-6">
+        <div className="flex flex-wrap items-baseline gap-3">
+          <span className="bg-ink text-ink-text text-[10px] font-black px-2.5 py-1 rounded">
+            Tier {tier.number}
+          </span>
+          <h2 className="text-xl font-black text-text tracking-tight">{tier.title}</h2>
+          <code className="text-xs font-mono text-text-faint">{tier.source}</code>
+        </div>
+        <ReadOnlyNote>{note}</ReadOnlyNote>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function GroupHeading({ id, title, count }) {
+  return (
+    <div id={id} data-section-anchor className="scroll-mt-28 flex items-baseline gap-2 mb-3">
+      <h3 className="text-xs font-black text-text">{title}</h3>
+      <span className="text-[10px] font-bold text-text-faint">{count}</span>
+      <span className="flex-1 h-px bg-border" />
+    </div>
+  );
+}
+
 function ValueChip({ children }) {
   return (
     <span className="inline-block bg-surface-2 border border-border text-text-muted text-xs font-semibold rounded px-2 py-1">
@@ -285,7 +268,6 @@ function ValueChip({ children }) {
   );
 }
 
-// One enum card. Same markup whether it sits in a named group or under Other.
 function EnumCard({ enumKey, values }) {
   return (
     <div
@@ -294,9 +276,7 @@ function EnumCard({ enumKey, values }) {
     >
       <div className="flex items-baseline justify-between gap-2 mb-3">
         <h4 className="text-sm font-black text-text">{prettifyKey(enumKey)}</h4>
-        <span className="text-[10px] font-bold text-text-faint">
-          {values.length}
-        </span>
+        <span className="text-[10px] font-bold text-text-faint">{values.length}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {values.map((value) => (
@@ -313,63 +293,111 @@ function EnumCard({ enumKey, values }) {
   );
 }
 
-function Tier1({ constants, sections }) {
-  return (
-    <section
-      id="tier-1"
-      data-section-anchor
-      className="scroll-mt-28 bg-surface rounded-2xl border border-border shadow-sm p-6"
-    >
-      <SectionHeader
-        tier="1"
-        title="Closed Enums"
-        source="app/utils/constants.py"
-        subtitle="Values the business logic compares against — Not Yet Aired makes Fill skip mal_rating, 完結 gates the book volume checks. They live in code, not the database, so a rename cannot silently break a branch."
-      >
-        <ReadOnlyNote>
-          Not editable anywhere in the app. Changing one is a code change.
-        </ReadOnlyNote>
-      </SectionHeader>
+const countLabel = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
-      <div className="space-y-7">
-        {sections.map((section) => (
-          <div
-            key={section.title}
-            id={groupId(section.title)}
-            data-section-anchor
-            className="scroll-mt-28"
-          >
-            <div className="flex items-baseline gap-2 mb-3">
-              <h3 className="text-xs font-black text-text">
-                {section.title}
-              </h3>
-              <span className="text-[10px] font-bold text-text-faint">
-                {section.keys.length} list
-                {section.keys.length === 1 ? "" : "s"}
-              </span>
-              <span className="flex-1 h-px bg-border" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {section.keys.map((key) => (
-                <EnumCard key={key} enumKey={key} values={constants[key]} />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
+function EntitiesTable({ counts, loading, personRoles }) {
+  // A role the server does not count exists only for a gated type this
+  // session cannot see (club), so it is not drawn at all. Until the counts
+  // arrive, the served person_role list - viewer-scoped the same way - decides.
+  const known = loading ? new Set(personRoles) : new Set(Object.keys(counts.person_roles));
+  const rows = ENTITY_ROWS.filter((row) => !row.roleKey || known.has(row.roleKey));
+  const recordCount = (row) =>
+    row.roleKey ? (counts.person_roles[row.roleKey] ?? 0) : (counts[row.countKey] ?? 0);
+  return (
+    <div className="overflow-x-auto border border-border rounded-xl">
+      <table className="w-full text-sm">
+        <thead className="bg-surface-2 text-[10px] text-text-faint">
+          <tr>
+            <th className="text-left font-black px-3 py-2">Record</th>
+            <th className="text-left font-black px-3 py-2">Table</th>
+            <th className="text-left font-black px-3 py-2">Replaced categories</th>
+            <th className="text-left font-black px-3 py-2">Notes</th>
+            <th className="text-right font-black px-3 py-2 w-24">Records</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((row) => (
+            <tr key={row.roleKey ?? row.home}>
+              <td className="px-3 py-2 font-semibold text-text">{row.record}</td>
+              <td className="px-3 py-2">
+                <code className="text-xs font-mono text-text-muted">
+                  {row.home}
+                  {row.roleKey ? ` · ${row.roleKey}` : ""}
+                </code>
+              </td>
+              <td className="px-3 py-2 text-xs text-text-muted">
+                {row.replaced.length ? row.replaced.join(" · ") : "—"}
+              </td>
+              <td className="px-3 py-2 text-xs text-text-faint">{row.detail}</td>
+              <td className="px-3 py-2 text-right font-black text-text">
+                {loading ? "…" : recordCount(row)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
-// One category's values. Same markup whether it sits in a named group or
-// under Other.
+function InternalKeys({ tier, constants, counts, countsLoading }) {
+  return (
+    <TierSection
+      tier={tier}
+      note={
+        <>
+          Fixed in code: not editable anywhere in the app, and changing a value is a
+          code change. Entity records are added and edited on their own tabs of{" "}
+          <Link to="/add" className="underline font-bold">
+            Add
+          </Link>{" "}
+          and{" "}
+          <Link to="/modify" className="underline font-bold">
+            Modify
+          </Link>
+          .
+        </>
+      }
+    >
+      <div className="space-y-7">
+        {tier.groups.map((group) => (
+          <div key={group.title}>
+            <GroupHeading
+              id={groupId(tier.id, group.title)}
+              title={group.title}
+              count={
+                group.keys
+                  ? countLabel(group.keys.length, "list", "lists")
+                  : countLabel(ENTITY_ROWS.length, "kind", "kinds")
+              }
+            />
+            {group.keys ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {group.keys.map((key) => (
+                  <EnumCard key={key} enumKey={key} values={constants[key]} />
+                ))}
+              </div>
+            ) : (
+              <EntitiesTable
+                counts={counts}
+                loading={countsLoading}
+                personRoles={constants.person_role || []}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </TierSection>
+  );
+}
+
 function CategoryTable({ category, rows }) {
   return (
     <div id={categoryId(category)} className="scroll-mt-28">
       <div className="flex items-baseline gap-2 mb-2">
         <h4 className="text-sm font-black text-text">{category}</h4>
         <span className="text-[10px] font-bold text-text-faint">
-          {rows.length} value{rows.length === 1 ? "" : "s"}
+          {countLabel(rows.length, "value", "values")}
         </span>
       </div>
       <div className="overflow-x-auto border border-border rounded-xl">
@@ -386,17 +414,11 @@ function CategoryTable({ category, rows }) {
           <tbody className="divide-y divide-border">
             {rows.map((row) => (
               <tr key={row.system_id}>
-                <td className="px-3 py-2 text-text-faint font-mono text-xs">
-                  {row.sort_order}
-                </td>
-                <td className="px-3 py-2 font-semibold text-text">
-                  {row.value}
-                </td>
+                <td className="px-3 py-2 text-text-faint font-mono text-xs">{row.sort_order}</td>
+                <td className="px-3 py-2 font-semibold text-text">{row.value}</td>
                 <td className="px-3 py-2">
                   {row.scopes.length === 0 ? (
-                    <span className="text-xs text-text-faint italic">
-                      everywhere
-                    </span>
+                    <span className="text-xs text-text-faint italic">everywhere</span>
                   ) : (
                     <span className="flex flex-wrap gap-1">
                       {row.scopes.map((scope) => (
@@ -420,9 +442,7 @@ function CategoryTable({ category, rows }) {
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-xs text-text-faint">
-                  {row.remark || "—"}
-                </td>
+                <td className="px-3 py-2 text-xs text-text-faint">{row.remark || "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -432,21 +452,13 @@ function CategoryTable({ category, rows }) {
   );
 }
 
-function Tier2({ sections, loading }) {
+function OptionTier({ tier, subTabLabel, note, byCategory, loading }) {
   return (
-    <section
-      id="tier-2"
-      data-section-anchor
-      className="scroll-mt-28 bg-surface rounded-2xl border border-border shadow-sm p-6"
-    >
-      <SectionHeader
-        tier="2"
-        title="Open Vocabularies"
-        source="system_option / system_option_scope / system_option_alias"
-        subtitle="Values only humans read. Nothing in the code compares against them, so they are safe to add, rename and reorder. One vocabulary per category; each value carries the media types it is offered in — a value with no scopes is offered everywhere."
-      >
-        <ReadOnlyNote>
-          View only here. Add, edit and rescope these under System → System
+    <TierSection
+      tier={tier}
+      note={
+        <>
+          View only here. Edited on the {subTabLabel} sub-tab of System → System
           Option on{" "}
           <Link to="/add" className="underline font-bold">
             Add
@@ -455,163 +467,52 @@ function Tier2({ sections, loading }) {
           <Link to="/modify" className="underline font-bold">
             Modify
           </Link>
-          . A value can also carry the names external APIs know it by; those
-          are listed on{" "}
-          <Link to="/aliases" className="underline font-bold">
-            Alias Conversion
-          </Link>
-          .
-        </ReadOnlyNote>
-      </SectionHeader>
-
+          .{note}
+        </>
+      }
+    >
       {loading ? (
         <p className="text-sm text-text-faint font-medium">Loading options…</p>
-      ) : sections.length === 0 ? (
-        <p className="text-sm text-text-faint font-medium">
-          No system options recorded.
-        </p>
+      ) : tier.groups.length === 0 ? (
+        <p className="text-sm text-text-faint font-medium">No values recorded.</p>
       ) : (
         <div className="space-y-7">
-          {sections.map((section) => (
-            <div
-              key={section.title}
-              id={optionGroupId(section.title)}
-              data-section-anchor
-              className="scroll-mt-28"
-            >
-              <div className="flex items-baseline gap-2 mb-3">
-                <h3 className="text-xs font-black text-text">
-                  {section.title}
-                </h3>
-                <span className="text-[10px] font-bold text-text-faint">
-                  {section.categories.length} categor
-                  {section.categories.length === 1 ? "y" : "ies"}
-                </span>
-                <span className="flex-1 h-px bg-border" />
-              </div>
+          {tier.groups.map((group) => (
+            <div key={group.title}>
+              <GroupHeading
+                id={groupId(tier.id, group.title)}
+                title={group.title}
+                count={countLabel(group.categories.length, "category", "categories")}
+              />
               <div className="space-y-6">
-                {section.categories.map(([category, rows]) => (
-                  <CategoryTable key={category} category={category} rows={rows} />
+                {group.categories.map((category) => (
+                  <CategoryTable
+                    key={category}
+                    category={category}
+                    rows={byCategory.get(category)}
+                  />
                 ))}
               </div>
             </div>
           ))}
         </div>
       )}
-    </section>
+    </TierSection>
   );
 }
 
-function Tier3({ roleCounts, studioCount, loading }) {
-  return (
-    <section
-      id="tier-3"
-      data-section-anchor
-      className="scroll-mt-28 bg-surface rounded-2xl border border-border shadow-sm p-6"
-    >
-      <SectionHeader
-        tier="3"
-        title="Entities"
-        source="person / person_role / studio"
-        subtitle="Categories that named a person or a studio became real tables — a director needs multilingual names, a rating, a photo and a remark, none of which a flat (category, value) string could hold. Counts are of distinct records; a director scoped for all three of their media types is still one person."
-      >
-        <ReadOnlyNote>
-          View only here. People and studios are managed on their own forms in{" "}
-          <Link to="/add" className="underline font-bold">
-            Add
-          </Link>{" "}
-          and{" "}
-          <Link to="/modify" className="underline font-bold">
-            Modify
-          </Link>
-          .
-        </ReadOnlyNote>
-      </SectionHeader>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div className="border border-border rounded-xl p-4">
-          <div className="text-[10px] font-bold text-text-faint mb-1">
-            Studio records
-          </div>
-          <div className="text-3xl font-black text-text tracking-tight">
-            {loading ? "…" : studioCount}
-          </div>
-        </div>
-        <div className="border border-border rounded-xl p-4">
-          <div className="text-[10px] font-bold text-text-faint mb-1">
-            Person roles held
-          </div>
-          <div className="text-3xl font-black text-text tracking-tight">
-            {loading
-              ? "…"
-              : Object.values(roleCounts).reduce((a, b) => a + b, 0)}
-          </div>
-          <p className="text-[11px] text-text-faint mt-1">
-            Sum across roles — one person holding two roles counts twice.
-          </p>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto border border-border rounded-xl">
-        <table className="w-full text-sm">
-          <thead className="bg-surface-2 text-[10px] text-text-faint">
-            <tr>
-              <th className="text-left font-black px-3 py-2">
-                Old categories
-              </th>
-              <th className="text-left font-black px-3 py-2">New home</th>
-              <th className="text-left font-black px-3 py-2">Notes</th>
-              <th className="text-right font-black px-3 py-2 w-24">Records</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {TIER3_ROWS.map((row) => (
-              <tr key={row.roleKey ?? row.home}>
-                <td className="px-3 py-2 font-semibold text-text">
-                  {row.oldCategories.join(" · ")}
-                </td>
-                <td className="px-3 py-2">
-                  <code className="text-xs font-mono text-text-muted">
-                    {row.home}
-                    {row.roleKey ? ` · ${row.roleKey}` : ""}
-                  </code>
-                </td>
-                <td className="px-3 py-2 text-xs text-text-faint">
-                  {row.detail || "—"}
-                </td>
-                <td className="px-3 py-2 text-right font-black text-text">
-                  {loading
-                    ? "…"
-                    : row.roleKey
-                      ? (roleCounts[row.roleKey] ?? 0)
-                      : studioCount}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <p className="text-xs text-text-faint mt-4 leading-relaxed max-w-3xl">
-        <strong className="text-text-faint">Not built:</strong>{" "}
-        <code className="font-mono">character</code> and{" "}
-        <code className="font-mono">character_voice</code> were designed but
-        deferred.
-      </p>
-    </section>
-  );
-}
+const NO_COUNTS = { person_roles: {}, studios: 0, publishers: 0, characters: 0 };
 
 export default function SystemOptions() {
-  // Tier 1 arrives through the same hook the whole app uses, so this page can
-  // never show a different list than the dropdowns do.
+  // The enums arrive through the hook the whole app uses, so this page can
+  // never show a different list than the dropdowns do. It also fills
+  // TAG_CATEGORIES and COMMON_OPTION_CATEGORIES, which decide the tier split.
   const constants = useConstants();
 
   const [options, setOptions] = useState([]);
-  const [roleCounts, setRoleCounts] = useState({});
-  const [studioCount, setStudioCount] = useState(0);
-  const [tier2Loading, setTier2Loading] = useState(true);
-  const [tier3Loading, setTier3Loading] = useState(true);
+  const [counts, setCounts] = useState(NO_COUNTS);
+  const [optionsLoading, setOptionsLoading] = useState(true);
+  const [countsLoading, setCountsLoading] = useState(true);
 
   useEffect(() => {
     // limit=5000 is the endpoint's ceiling. The default 1000 would silently
@@ -622,63 +523,67 @@ export default function SystemOptions() {
       .then((r) => (r.ok ? r.json() : []))
       .then(setOptions)
       .catch(() => setOptions([]))
-      .finally(() => setTier2Loading(false));
+      .finally(() => setOptionsLoading(false));
 
-    // The page's own manage.options read, not /api/person/role-counts and
-    // /api/studio/: the admin reaches this page holding neither view key.
+    // The page's own manage.options read: the admin reaches this page holding
+    // none of the entity view keys.
     fetch(endpoints.options.recordCounts(), { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : { person_roles: {}, studios: 0 }))
-      .catch(() => ({ person_roles: {}, studios: 0 }))
-      .then((counts) => {
-        setRoleCounts(counts.person_roles);
-        setStudioCount(counts.studios);
-      })
-      .finally(() => setTier3Loading(false));
+      .then((r) => (r.ok ? r.json() : NO_COUNTS))
+      .catch(() => NO_COUNTS)
+      .then((c) => setCounts({ ...NO_COUNTS, ...c }))
+      .finally(() => setCountsLoading(false));
   }, []);
 
-  // Derived here, not inside the sections, so the title bar and the content
-  // can never disagree about what exists or in what order.
-  // Grouped, not alphabetical: enums an admin reads together (the two airing
-  // types, the three regions) belong side by side. See lib/optionsPageGroups.js.
-  const tier1Sections = useMemo(
-    () => groupTier1Keys(Object.keys(constants || {})),
-    [constants],
-  );
-
-  // The endpoint already sorts by category, then sort_order, then value, so
-  // bucketing in arrival order preserves the intended dropdown order within a
-  // category; the group definitions then decide the order of the categories
-  // themselves, which is why the Map is read through them rather than iterated.
-  const tier2Sections = useMemo(() => {
-    const byCategory = new Map();
+  // The endpoint sorts by category, then sort_order, then value, so bucketing
+  // in arrival order keeps each category's dropdown order.
+  const byCategory = useMemo(() => {
+    const map = new Map();
     options.forEach((option) => {
-      if (!byCategory.has(option.category)) byCategory.set(option.category, []);
-      byCategory.get(option.category).push(option);
+      if (!map.has(option.category)) map.set(option.category, []);
+      map.get(option.category).push(option);
     });
-    return groupTier2Categories([...byCategory.keys()]).map((section) => ({
-      title: section.title,
-      categories: section.categories.map((category) => [
-        category,
-        byCategory.get(category),
-      ]),
-    }));
+    return map;
   }, [options]);
 
+  // Derived once, so the title bar and the content never disagree about what
+  // exists or in what order. `constants` is a dependency because the tier
+  // split reads the category lists it fills.
+  const tiers = useMemo(() => {
+    const split = groupOptionTiers([...byCategory.keys()]);
+    return [
+      {
+        id: "tier-1",
+        number: 1,
+        title: "Internal Keys",
+        source: "app/utils/constants.py · entity tables",
+        groups: [
+          ...groupTier1Keys(Object.keys(constants || {})),
+          { title: ENTITIES_TITLE },
+        ],
+      },
+      {
+        id: "tier-2",
+        number: 2,
+        title: "System Options",
+        source: "system_option",
+        groups: split.options,
+      },
+      { id: "tier-3", number: 3, title: "Tags", source: "system_option", groups: split.tags },
+      {
+        id: "tier-4",
+        number: 4,
+        title: "Common Options",
+        source: "system_option",
+        groups: split.common,
+      },
+    ];
+  }, [constants, byCategory]);
+
   // Which title-bar entry to highlight: the last anchor whose top has passed
-  // under the sticky nav, which is the section you are actually reading.
-  //
-  // Deliberately a scroll handler rather than an IntersectionObserver. A
-  // group of category tables can be several screens tall, so the observer
-  // question ("is any part of it in a thin band?") answers a different
-  // question than the one being asked, and picks the wrong section whenever
-  // two anchors straddle the band. Reading positions directly is exact, and
-  // anchors are nested oldest-first in document order, so the last match is
-  // also the most specific one (a group, not just its tier).
-  //
-  // Only the tiers and their groups carry [data-section-anchor], because those
-  // are exactly the entries the index can highlight. Marking the individual
-  // cards and tables too would leave the highlight blank for most of the page:
-  // the spy would settle on an anchor no link in the bar points at.
+  // under the sticky nav. A scroll handler rather than an IntersectionObserver,
+  // because a group of tables can be several screens tall. Only the tiers and
+  // their group headings carry [data-section-anchor] - exactly the entries the
+  // index links to.
   const [activeId, setActiveId] = useState("tier-1");
   useEffect(() => {
     let frame = 0;
@@ -696,15 +601,10 @@ export default function SystemOptions() {
     }
 
     function onScroll() {
-      // One recompute per frame: wheel and momentum scrolling fire far more
-      // often than the highlight can meaningfully change.
       if (frame === 0) frame = requestAnimationFrame(recompute);
     }
 
-    // A fragment jump fires hashchange but NO scroll event, so the position
-    // spy alone would leave the highlight a click behind forever. Reading the
-    // hash is also exact - it is the section the reader just asked for - and
-    // sidesteps racing the browser's own jump, which lands after hashchange.
+    // A fragment jump fires hashchange but no scroll event.
     function onHashChange() {
       const id = window.location.hash.slice(1);
       if (id) setActiveId(id);
@@ -718,21 +618,14 @@ export default function SystemOptions() {
       window.removeEventListener("hashchange", onHashChange);
       if (frame !== 0) cancelAnimationFrame(frame);
     };
-    // Recompute once the fetched sections have rendered their anchors.
-  }, [tier1Sections, tier2Sections]);
+  }, [tiers]);
+
+  const [internal, systemOptions, tags, common] = tiers;
 
   return (
     <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8 pb-12">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-border pb-6">
-        <div>
-          <h1 className="text-3xl font-black text-text tracking-tight mb-2">
-            System Options
-          </h1>
-          <p className="text-text-faint font-medium max-w-3xl">
-            Every choice list in the app, in the three homes they live in. Read
-            only — this page is an inventory, not an editor.
-          </p>
-        </div>
+        <h1 className="text-3xl font-black text-text tracking-tight">System Options</h1>
         <Link
           to="/system"
           className="bg-surface border border-border-strong text-text-muted px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-surface-2 transition shadow-sm flex items-center self-start"
@@ -741,23 +634,47 @@ export default function SystemOptions() {
         </Link>
       </div>
 
-      {/* No items-start: the aside must stretch to the row's full height,
-          otherwise it collapses to the nav's own height and the sticky nav
-          runs out of track after one screen of scrolling. */}
+      {/* No items-start: the aside must stretch to the row's full height, or
+          the sticky nav runs out of track after one screen. */}
       <div className="flex gap-8">
-        <TitleBar
-          tier1Sections={tier1Sections}
-          tier2Sections={tier2Sections}
-          activeId={activeId}
-        />
+        <TitleBar tiers={tiers} activeId={activeId} />
 
         <div className="flex-1 min-w-0 space-y-8">
-          <Tier1 constants={constants} sections={tier1Sections} />
-          <Tier2 sections={tier2Sections} loading={tier2Loading} />
-          <Tier3
-            roleCounts={roleCounts}
-            studioCount={studioCount}
-            loading={tier3Loading}
+          <InternalKeys
+            tier={internal}
+            constants={constants}
+            counts={counts}
+            countsLoading={countsLoading}
+          />
+          <OptionTier
+            tier={systemOptions}
+            subTabLabel="Options"
+            byCategory={byCategory}
+            loading={optionsLoading}
+            note={
+              <>
+                {" "}
+                The names external APIs know a value by are on{" "}
+                <Link to="/aliases" className="underline font-bold">
+                  Alias Conversion
+                </Link>
+                .
+              </>
+            }
+          />
+          <OptionTier
+            tier={tags}
+            subTabLabel="Tags"
+            byCategory={byCategory}
+            loading={optionsLoading}
+            note={null}
+          />
+          <OptionTier
+            tier={common}
+            subTabLabel="Common Options"
+            byCategory={byCategory}
+            loading={optionsLoading}
+            note=" A common option's scope is its category's, set when the value is added."
           />
         </div>
       </div>

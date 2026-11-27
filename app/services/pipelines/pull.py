@@ -351,6 +351,12 @@ DERIVED_IDENTITY_KEYS: dict[str, tuple[str, ...]] = {
         "series_id",
         "label_id",
     ),  # uq_series_content_label_row
+    # The same again for a person, whose id - unlike a group's - is minted
+    # per database and translated through the Person tab before this runs.
+    "Person Content Label": (
+        "person_id",
+        "label_id",
+    ),  # uq_person_content_label_row
     # Its system_id is minted per database and the sheet carries a natural key
     # instead; resolve_user_media_list_key turns that into these two ids before
     # the match runs.
@@ -443,6 +449,10 @@ DERIVED_IDENTITY_PARENTS: dict[str, tuple[tuple[str, str], ...]] = {
     "Note Mark": (("note_id", "Note"),),
     "Collection Content Label": (("label_id", "Content Label"),),
     "Series Content Label": (("label_id", "Content Label"),),
+    "Person Content Label": (
+        ("person_id", "Person"),
+        ("label_id", "Content Label"),
+    ),
 }
 
 # Tabs whose PRIMARY KEY is itself minted per database and must be ignored as
@@ -1210,7 +1220,7 @@ def execute_pull_specific(
 
     `may_restore_authz` says whether the caller holds `admin.authz`. The tabs
     in AUTHZ_TABS carry authorization rather than catalogue data - Users,
-    Content Label, and the Media, Collection, Franchise and Series Content
+    Content Label, and the Media, Collection, Franchise, Series and Person Content
     Label tabs - and Pull writes the sheet INTO this database. Since the sheet is editable by anyone with Google access, a
     caller without that permission must not be able to restore them: otherwise
     typing `admin` into the Users tab's role column and running Pull is a

@@ -103,6 +103,57 @@ def attach_franchise_content_labels(db: Session, franchises) -> None:
     attach_group_content_labels(db, "franchise", franchises)
 
 
+def labels_by_person(
+    db: Session, person_ids: list[UUID]
+) -> dict[UUID, list[models.ContentLabel]]:
+    """{person id: the person's labels}, in one query - for the person list,
+    whose rows are built one by one from it."""
+    return _labels_by_owner(
+        db,
+        models.PersonContentLabel,
+        models.PersonContentLabel.person_id,
+        list(person_ids),
+    )
+
+
+def label_keys_for_person(db: Session, person_id: UUID) -> list[str]:
+    """The label keys one person carries, sorted - the write path's read."""
+    rows = (
+        db.query(models.ContentLabel.key)
+        .join(
+            models.PersonContentLabel,
+            models.PersonContentLabel.label_id == models.ContentLabel.system_id,
+        )
+        .filter(models.PersonContentLabel.person_id == person_id)
+        .all()
+    )
+    return sorted(key for (key,) in rows)
+
+
+def merge_person_labels(db: Session, keep_id: UUID, drop_id: UUID) -> None:
+    """
+    Move `drop_id`'s labels onto `keep_id` when the two people are merged,
+    so the survivor carries both sets. The union is the direction that
+    cannot leak: a label that hid the duplicate keeps hiding the person it
+    turned out to be. A label both carry is the survivor's row alone
+    (uq_person_content_label_row).
+    """
+    held = {
+        label_id
+        for (label_id,) in db.query(models.PersonContentLabel.label_id).filter(
+            models.PersonContentLabel.person_id == keep_id
+        )
+    }
+    for row in db.query(models.PersonContentLabel).filter(
+        models.PersonContentLabel.person_id == drop_id
+    ):
+        if row.label_id in held:
+            db.delete(row)
+        else:
+            row.person_id = keep_id
+    db.flush()
+
+
 def label_keys_for_group(db: Session, tier: str, group_id: UUID) -> list[str]:
     """The label keys one collection, franchise or series carries, sorted -
     the write path's read."""
@@ -143,4 +194,7 @@ __all__ = [
     "label_keys_for_entry",
     "label_keys_for_franchise",
     "label_keys_for_group",
+    "label_keys_for_person",
+    "labels_by_person",
+    "merge_person_labels",
 ]

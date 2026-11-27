@@ -13,7 +13,10 @@
 // (hooks/useCreditSort.js), shared with the studio and publisher pages,
 // orders every group alike.
 //
-// The names lead the Profile card; the person's links (IMDb, MAL, AniList and
+// The names lead the Profile card, two to a row - Chinese beside English,
+// Japanese beside Alternative - then the facts, then Affiliation beside the
+// person's content labels; a row whose fields are all unset is left out.
+// The person's links (IMDb, MAL, AniList and
 // their own pages) are the left column's links card, under My rating
 // (components/info/EntityLinksCard.jsx).
 //
@@ -41,6 +44,7 @@ import WorkGallery from "../../components/info/WorkGallery";
 import { personTypeLabel } from "../../components/forms/PersonSubTabBar";
 import NotesTemplate from "../notes/NotesTemplate";
 import InfoCard from "../../components/info/InfoCard";
+import ContentLabelChips from "../../components/info/ContentLabelChips";
 import { CreditSortControl } from "../../components/info/CompanyCredits";
 import EntityHeading, { creditedEntries } from "../../components/info/EntityHeading";
 import EntityLinksCard, { ENTITY_LINKS } from "../../components/info/EntityLinksCard";
@@ -89,6 +93,42 @@ function AffiliationLinks({ studios }) {
       })}
     </span>
   );
+}
+
+// The name rows of the Profile card, by NamingCard's labels. namingRows has
+// already dropped an unset name, so a pair with one name is a one-field row
+// and a pair with none is no row at all.
+const NAME_PAIRS = [
+  ["Chinese", "English"],
+  ["Japanese", "Alternative"],
+];
+
+function profileNameRows(person) {
+  const names = new Map(namingRows("person", person).map((f) => [f.label, f]));
+  return NAME_PAIRS.map((pair) => pair.map((label) => names.get(label)).filter(Boolean)).filter(
+    (row) => row.length > 0,
+  );
+}
+
+// Affiliation beside the content labels, each only when the person has one;
+// neither, and the row is gone.
+function affiliationAndLabelRow(person) {
+  return [
+    person.affiliations?.length && {
+      label: "Affiliation",
+      value: <AffiliationLinks studios={person.affiliations} />,
+    },
+    person.content_labels?.length && {
+      label: "Label",
+      value: (
+        <ContentLabelChips
+          labels={person.content_labels}
+          heading={null}
+          note="Hides this person."
+        />
+      ),
+    },
+  ].filter(Boolean);
 }
 
 export default function Person() {
@@ -243,23 +283,19 @@ export default function Person() {
         <div className="lg:col-span-3 space-y-6">
           <EntityHeading kind="Person" count={creditedEntries(creditTotal)} name={name} />
 
-          {/* The names lead the profile, one per line, then the facts. */}
+          {/* The names lead the profile, two to a row, then the facts,
+              then Affiliation beside the labels. */}
           <InfoCard
             title="Profile"
             fields={[
-              ...namingRows("person", person),
+              ...profileNameRows(person),
               [
                 { label: "Gender", value: person.gender },
                 { label: "Types", value: types.join(", ") || null },
                 { label: "Content rating", value: contentRatingLabel(person.content_rating) },
               ],
-              {
-                label: "Affiliation",
-                value: person.affiliations?.length ? (
-                  <AffiliationLinks studios={person.affiliations} />
-                ) : null,
-              },
-            ]}
+              affiliationAndLabelRow(person),
+            ].filter((row) => !Array.isArray(row) || row.length > 0)}
           />
 
           {/* The remark list, resources and personal notes

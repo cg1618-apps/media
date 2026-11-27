@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.dependencies import get_db
-from app.services.domain.credit_counts import person_role_counts, studio_count
+from app.services.domain.credit_counts import entity_count, person_role_counts, studio_count
 from app.services.rbac.resolver import (
     Viewer,
     get_viewer,
@@ -127,16 +127,15 @@ def get_all_system_options(
 @router.get(
     "/record-counts",
     response_model=schemas.OptionRecordCounts,
-    summary="Count the Records Tier 3 Lists",
+    summary="Count the Entity Records System Options Lists",
 )
 def get_record_counts(
     db: Session = Depends(get_db),
     viewer: Viewer = Depends(require_manage_options),
 ):
     """
-    How many people hold each person role, and how many studios exist: the
-    counts System Options' Tier 3 shows beside the categories those records
-    replaced.
+    How many people hold each person role, and how many studios, publishers
+    and characters exist: the counts System Options' Entities table shows.
 
     `manage.options` rather than `view.person` / `view.studio`, because it is
     the page's own key - the admin reaches System Options holding neither
@@ -149,6 +148,8 @@ def get_record_counts(
     return {
         "person_roles": person_role_counts(db, viewer),
         "studios": studio_count(db, viewer),
+        "publishers": entity_count(db, viewer, models.Publisher),
+        "characters": entity_count(db, viewer, models.Character),
     }
 
 

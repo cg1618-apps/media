@@ -1,6 +1,6 @@
 # Frontend: public pages
 
-Last verified: 2026-11-26
+Last verified: 2026-11-27
 
 **What this is for.** This is the map of every page outside the admin
 tabs — what a guest can open, what a member adds (see "The guest scope"
@@ -469,6 +469,17 @@ headers and the filter bar already pin under the nav):
 | `#watching` | Watching (Anime · Anime Movie · Movie · TV Show · Cartoon) | members only, like Reading and Playing and the filter bar above them. Sections `watching-active` Active Watching, `watching-passive` Passive Watching, `watching-paused` Paused, by `watching_status`. Each groups Anime → Anime Movie → Movie → TV Show → Cartoon, sorted by rating weight (S…F, unrated last), rendering `DashboardCard`. A film's card has no stepper - there is no episode to count - and shows **Paused at** (`time_fin`, a dash when unset) and its **Runtime** (`length_min`, in hours and minutes - `2hr 50min` - through `formatLength`) instead; in list view its progress cell reads `at <time_fin>`, or the runtime. The two film lists are the ones Coming Next already fetches for a member, outside the combined loading state, so the films join the division when they arrive. Shown when no type is picked or the picked type is one of its five. |
 | `#reading` | Reading (Manga · Book · Comics) | `reading-active`, `reading-passive`, `reading-paused` by `reading_status`. Manga → `DashboardCard`, Book → `BookDashboardCard`, Comic → `ComicDashboardCard`. Shown when no type is picked or the picked type is one of its three. |
 | `#playing` | Playing (Game) | `playing-active`, `playing-passive`, `playing-anytime`, `playing-paused` by `playing_status`, rendered by a local `PlayingSection` — simpler than `ReadingSection` because the division holds exactly one media type, so there is no per-type grouping and no progress callback. Cards are `GameDashboardCard`, whose playtime figure is read-only for everyone. Shown when no type is picked or the picked type is Game. |
+
+**The dashboard cards' chips.** No card names its type beside or over the
+cover; the type is the first chip on the row under the title. `DashboardCard`
+leads with an anime's airing type (`TV` when unset; TV shows, cartoons, manga
+and films have none), then the status. `GameDashboardCard` leads with
+`game_type` (Base Game, DLC, …), then the ownership only when it is not
+**Owned** - Owned is the usual case - then the completion level.
+`BookDashboardCard` leads with the book's `type` (輕小說, 小說, …), then its
+serialization status; the region is not shown. `ComicDashboardCard` shows
+`comic_type` alone. The line under a game card's title names its franchise alone: the
+hours estimate is already the playtime row's denominator.
 
 **Coming Next** shows what the viewer is waiting on or has planned, in two
 separate blocks that never share an entry:
@@ -1259,14 +1270,20 @@ of `self.list`) a **My rating** select, and the **Links** card → right column
 with the heading, a "Profile" `InfoCard`, the **Notes** block, **Club
 membership**, **Works**, then the credit sort and one section per group.
 
-The **Profile** card leads with the person's names, one per line — each of
-the four that is set (`namingRows`, the same list the Naming card draws
-elsewhere) — then gender and the types they are offered under, by their
-Chinese labels (`personTypeLabel`: 導演, 作曲, …, as the person library's
-Type filter names them) and the **Content rating** (`contentRatingLabel`:
-Normal, Borderline (15+), Unrestricted (18+); drawn always, Normal when the
-record carries none), then **Affiliation**, the studios they belong to as
-links.
+The **Profile** card leads with the person's names, two to a row: Chinese
+beside English, then Japanese beside Alternative. Only a name that is set is
+drawn (`namingRows`, the same list the Naming card draws elsewhere), so a
+pair with one name set is a one-field row and a pair with neither is no row.
+Then one row of gender, the types they are offered under, by their Chinese
+labels (`personTypeLabel`: 導演, 作曲, …, as the person library's Type filter
+names them), and the **Content rating** (`contentRatingLabel`: Normal,
+Borderline (15+), Unrestricted (18+); drawn always, Normal when the record
+carries none). Last comes a row of **Affiliation**, the studios they belong
+to as links, beside **Label**, the person's content labels as the danger
+chips `ContentLabelChips` draws on a franchise page (without its "Content"
+eyebrow, since the field is labelled). Each of the two is drawn only when the
+person has one - an unaffiliated person shows no Affiliation field, not a
+"—" - and with neither the row is gone.
 
 A person may hold several roles, so `/entries` groups by **(media type,
 role)**. Each section is titled by its person type in Chinese
@@ -1516,7 +1533,7 @@ so the first available tab is re-picked (Collection keeps "Franchises").
 | Hero badges | `TierBadge` with `franchise_type`, names, my_rating, "{x} Expectation" (these two, here and on the other two hubs, the viewer's own and drawn only for a holder of `self.list`), eyebrow "Franchise · {types} · {n} entries" (no completion percentage), a lineage row with the parent collection link only when there is one and "Series {n}" only when n > 0 (the row is gone when neither), "Plan Next: {type} ({bucket})", "To Redo · {type}" (the rewatch mark is called **To Redo** on the franchise hub only), the cover's completed/total footer | same shape with `series_expectation`, "To Rewatch/Reread/Replay" chips, parent franchise link | eyebrow "Collection", names, my_rating — no franchise count and no expectation chip; the expectation is edited in Personal Status |
 | Content labels | the franchise's OWN labels as `ContentLabelChips`, with a note that they hide its series and entries; no row when it carries none | the series' own, noting they hide its entries | the collection's own, noting they hide every franchise, series and entry in it |
 | Personal Status controls | Overall Rating and Expectation selects for a holder of `self.list` (`PUT /api/me/ratings/franchise/{id}`); for an admin, **Plan Next** `SizeGroupControls` (per-type checkbox + derived/manual size-group select → PATCH `size_group_manual`), one row per type the franchise's `franchise_type` offers, that it holds entries for, and that `scopesFor("next", type)` allows at franchise scope - the whole field is absent when none qualifies - and rewatch `PlanKindToggles` | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/series/{id}`); rewatch `PlanKindToggles scope="series"` for an admin (no size groups at series level) | Overall Rating and Expectation (`self.list`, `PUT /api/me/ratings/collection/{id}`) |
-| Related | **Related franchises** (`RelatedRecords type="franchise"`) under the hero: each related franchise as a link with this franchise's remark; an admin edits the list in place, and a franchise added there offers an **Also related to** tick for each franchise above it on the list, all ticked, so the new one can join the others in the same save (the studio and publisher pages' **Related companies** box does the same). Drawn for a reader only when something is related | **Related series** (`RelatedRecords type="series"`) under the hero, the franchise's box one tier down: related series only, each with this series' remark | none |
+| Related | **Related franchises** (`RelatedRecords type="franchise"`) under the hero: each related franchise as a link with this franchise's remark; an admin edits the list in place, and every franchise on it offers an **Also related to** tick for each franchise above it - all ticked on one added in this edit, and on one already there ticked where the two are related now - so a pair is related or unrelated in the same save (the studio and publisher pages' **Related companies** box does the same). Drawn for a reader only when something is related | **Related series** (`RelatedRecords type="series"`) under the hero, the franchise's box one tier down: related series only, each with this series' remark | none |
 | Tabs | "Media" (counted): Anime, Anime Movies, Manga, Book, Comic, Movies, TV Shows, Cartoons, **Game** (sorted by `release_date` ascending) - the last ungated tab - then **H-Comic**, **H-Game** and **Hentai** (each by `series_number`, then release date; the H-Comic, H-Game and Hentai tabs each allowed by any type of the restricted family) — shown when `franchise_type` allows *and* the list is non-empty; "Extras": Characters (only with `view.character`), Order, Relations, Notes. Every media tab's My rating sort is offered only with `self.list` | Media tabs by non-empty list only; same extras, and the Relations tab gives an admin "Edit relations" → `/relations?owner=series:{id}` | "Members" → Franchises (`FranchiseCard`s), sorted `title` (default) \| `my_rating` \| `expectation` through `compareGroups`, the last two only with `self.list`, by the shared `SortControl` with its direction button; extras Order, Relations, Notes |
 
 Plan toggles call `POST /api/plan-next/` `{ media_type, scope, kind, target_id }`
@@ -2108,8 +2125,7 @@ with prev/next season arrows, a `RatingDistributionBlock`, and sections
 Completed / Watching / Watch When Airs / Plan to Watch / Might Watch /
 Dropped. The hero's **Planned** figure is `entry_planned`, which still counts
 both of the two planned statuses together. Both render `DashboardCard`s with
-`showTypeSpine={false}` and `showMalScore` - every card is an anime, so the
-type spine beside the cover is dropped and the chip row carries **MAL
+`showMalScore`, so the chip row also carries **MAL
 {mal_rating}** (titled "MAL score", absent when the anime has none) - and the same
 optimistic `PUT /api/me/list/{id} { ep_fin }` (`putMyListRow`). **The
 viewer's own** (`useViewScope().ownData`): a "Seasonal Rating" select →

@@ -9,6 +9,7 @@
 // see at a glance which fields they've actually configured.
 
 import GameCopiesEditor from "./GameCopiesEditor";
+import { PersonRoleMatrix, useRoleScopes } from "../../pages/add-tabs/PersonAddTab";
 import MultiSelect from "./MultiSelect";
 import SourcesEditor from "./SourcesEditor";
 import { inputCls, selectCls } from "./FormField";
@@ -69,6 +70,15 @@ export default function DefaultValueControl({
     return (
       <GameCopiesEditor
         items={isOverridden ? value : field.builtIn}
+        onChange={onChange}
+      />
+    );
+  }
+
+  if (field.control === "personRoles") {
+    return (
+      <PersonRolesDefault
+        roles={isOverridden ? value : field.builtIn}
         onChange={onChange}
       />
     );
@@ -153,4 +163,10 @@ export default function DefaultValueControl({
       placeholder={`built-in: ${ghost}`}
     />
   );
+}
+
+// The person form's own role x scope matrix, fed the same legal scopes.
+function PersonRolesDefault({ roles, onChange }) {
+  const legalScopes = useRoleScopes();
+  return <PersonRoleMatrix roles={roles} setRoles={onChange} legalScopes={legalScopes} />;
 }
