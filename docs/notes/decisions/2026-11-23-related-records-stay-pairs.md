@@ -2,9 +2,11 @@
 
 Related records - `company_relation`, `franchise_relation` and `series_relation` - relate two
 records at a time. A related to B and to C says nothing about B and C. What
-the editor does instead is offer it: a record added to a list gets an **Also
-related to** tick for each record above it, all ticked, and each ticked one is
-written as an ordinary pair (`also_related_to` on the `PUT .../related` item).
+the editor does instead is offer it: every record on a list gets an **Also
+related to** tick for each record above it - all ticked on a record just
+added, and on one already there ticked where the pair is related now - and a
+changed tick is written as an ordinary pair (`also_related_to` or
+`not_related_to` on the `PUT .../related` item).
 
 ## Why not a group
 
@@ -26,7 +28,8 @@ make the second something to undo.
 
 The tick gives the group-by-default convenience at the moment of writing,
 where the person writing can see and untick each pair, and stores nothing but
-pairs. Unticking leaves no row, so there is nothing to apply on read.
+pairs. Unticking leaves no row - or removes the pair's two rows when it was
+related - so there is nothing to apply on read.
 
 ## Not this decision
 

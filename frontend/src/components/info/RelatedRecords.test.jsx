@@ -1,12 +1,17 @@
 // Frontend: tests for the related records on a studio's, a publisher's, a
 // franchise's or a series' page - and in their Modify forms, which render the
 // same box.
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import RelatedRecords, { alsoRelatedTargets, pickerItems, recordName } from "./RelatedRecords";
+import RelatedRecords, {
+  alsoRelatedTargets,
+  pickerItems,
+  recordName,
+  relationItem,
+} from "./RelatedRecords";
 
 vi.mock("../../hooks/useToast", () => ({
   useToast: () => ({ showToast: vi.fn() }),
@@ -138,9 +143,8 @@ describe("RelatedRecords on a studio", () => {
     await user.type(screen.getByPlaceholderText("Search to add…"), "Dee");
     await user.click(await screen.findByRole("option", { name: /Studio Dee/ }));
     const group = screen.getByRole("group", { name: "Also relate Studio Dee to" });
-    expect(screen.getByRole("checkbox", { name: "Studio Bee" })).toBeChecked();
-    expect(group).toContainElement(screen.getByRole("checkbox", { name: "Pub Pea" }));
-    await user.click(screen.getByRole("checkbox", { name: "Pub Pea" }));
+    expect(within(group).getByRole("checkbox", { name: "Studio Bee" })).toBeChecked();
+    await user.click(within(group).getByRole("checkbox", { name: "Pub Pea" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(putBodies).toHaveLength(1));
     expect(putBodies[0].body.relations).toEqual([
@@ -155,11 +159,55 @@ describe("RelatedRecords on a studio", () => {
     ]);
   });
 
-  it("offers no ticks on records that were already related", async () => {
+  it("ticks a pair already on the list from its stored state", async () => {
+    // Pub Pea is related to Studio Bee; a third record is related to neither.
+    related = [
+      { ...ref("studio", "b", "Studio Bee"), related_to: [{ kind: "publisher", id: "p" }] },
+      { ...ref("publisher", "p", "Pub Pea"), related_to: [{ kind: "studio", id: "b" }] },
+      { ...ref("studio", "c", "Studio Sea"), related_to: [] },
+    ];
     const user = userEvent.setup();
     mount(true);
     await user.click(await screen.findByRole("button", { name: "Edit" }));
-    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    const pea = screen.getByRole("group", { name: "Also relate Pub Pea to" });
+    const sea = screen.getByRole("group", { name: "Also relate Studio Sea to" });
+    expect(within(pea).getByRole("checkbox", { name: "Studio Bee" })).toBeChecked();
+    expect(within(sea).getByRole("checkbox", { name: "Studio Bee" })).not.toBeChecked();
+    expect(within(sea).getByRole("checkbox", { name: "Pub Pea" })).not.toBeChecked();
+    // The first record has nothing above it.
+    expect(screen.queryByRole("group", { name: "Also relate Studio Bee to" })).toBeNull();
+  });
+
+  it("unrelates an unticked pair and relates a newly ticked one", async () => {
+    related = [
+      { ...ref("studio", "b", "Studio Bee"), related_to: [{ kind: "publisher", id: "p" }] },
+      { ...ref("publisher", "p", "Pub Pea"), related_to: [{ kind: "studio", id: "b" }] },
+      { ...ref("studio", "c", "Studio Sea"), related_to: [] },
+    ];
+    const user = userEvent.setup();
+    mount(true);
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const pea = screen.getByRole("group", { name: "Also relate Pub Pea to" });
+    const sea = screen.getByRole("group", { name: "Also relate Studio Sea to" });
+    await user.click(within(pea).getByRole("checkbox", { name: "Studio Bee" }));
+    await user.click(within(sea).getByRole("checkbox", { name: "Pub Pea" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    expect(putBodies[0].body.relations).toEqual([
+      { kind: "studio", id: "b", remark: null },
+      {
+        kind: "publisher",
+        id: "p",
+        remark: null,
+        not_related_to: [{ kind: "studio", id: "b" }],
+      },
+      {
+        kind: "studio",
+        id: "c",
+        remark: null,
+        also_related_to: [{ kind: "publisher", id: "p" }],
+      },
+    ]);
   });
 
   it("asks both lists for candidates when editing starts", async () => {
@@ -235,21 +283,37 @@ describe("RelatedRecords on a series", () => {
 });
 
 describe("alsoRelatedTargets", () => {
-  // Two records added in one edit offer their pair once - on the later one -
-  // so one tick decides it and the two can never disagree.
-  it("offers an added record only the records above it", () => {
+  // Each pair is offered once - on the later row - so one tick decides it and
+  // the two rows can never disagree.
+  it("offers every record the records above it", () => {
     const draft = [
       ref("studio", "b", "Bee"),
-      { ...ref("studio", "c", "Sea"), isNew: true, unticked: [] },
-      { ...ref("studio", "d", "Dee"), isNew: true, unticked: [] },
+      ref("studio", "c", "Sea"),
+      { ...ref("studio", "d", "Dee"), isNew: true },
     ];
+    expect(alsoRelatedTargets(draft, 0)).toEqual([]);
     expect(alsoRelatedTargets(draft, 1).map((r) => r.system_id)).toEqual(["b"]);
     expect(alsoRelatedTargets(draft, 2).map((r) => r.system_id)).toEqual(["b", "c"]);
   });
+});
 
-  it("offers nothing on a record that was already related", () => {
-    const draft = [ref("studio", "b", "Bee"), ref("studio", "c", "Sea")];
-    expect(alsoRelatedTargets(draft, 1)).toEqual([]);
+describe("relationItem", () => {
+  const row = (id, extra = {}) => ({
+    ...ref("studio", id, id),
+    remark: "",
+    relatedTo: [],
+    ticks: {},
+    ...extra,
+  });
+
+  it("sends nothing about a pair left as it was", () => {
+    const draft = [row("b"), row("c", { relatedTo: ["studio:b"] })];
+    expect(relationItem(draft, 1)).toEqual({ kind: "studio", id: "c", remark: null });
+  });
+
+  it("names every ticked pair on a record added in this edit", () => {
+    const draft = [row("b"), row("c", { isNew: true })];
+    expect(relationItem(draft, 1).also_related_to).toEqual([{ kind: "studio", id: "b" }]);
   });
 });
 

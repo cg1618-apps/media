@@ -40,6 +40,7 @@ from dataclasses import dataclass
 from typing import Callable, Iterable, Optional
 from uuid import UUID
 
+import sqlalchemy as sa
 from fastapi import HTTPException
 from sqlalchemy.orm import Query, Session
 
@@ -142,6 +143,8 @@ class PeerRelations:
         rows = self._rows_of(db, owner)
         ends = [(row, self._end(row, "related")) for row in rows]
         visible = self._visible_records(db, viewer, (ref for _, ref in ends))
+        listed = [ref for _, ref in ends if ref in visible]
+        among = self._pairs_among(db, listed)
         out = [
             {
                 "kind": ref[0],
@@ -149,6 +152,11 @@ class PeerRelations:
                 "public_id": record.public_id,
                 "display_name": record.display_name,
                 "remark": row.remark,
+                "related_to": [
+                    {"kind": key, "id": record_id} for key, record_id in sorted(
+                        among.get(ref, ()), key=lambda r: (r[0], str(r[1]))
+                    )
+                ],
             }
             for row, ref in ends
             if (record := visible.get(ref)) is not None
@@ -157,6 +165,28 @@ class PeerRelations:
             out,
             key=lambda r: (r["display_name"].casefold(), r["kind"], str(r["system_id"])),
         )
+
+    def _pairs_among(self, db: Session, refs: list[Ref]) -> dict[Ref, set[Ref]]:
+        """{ref: the other refs among `refs` it is related to} - which records
+        on one list are related to each other, for the editor's ticks."""
+        wanted = set(refs)
+        if len(wanted) < 2:
+            return {}
+        by_kind: dict[str, set[UUID]] = defaultdict(set)
+        for key, record_id in wanted:
+            by_kind[key].add(record_id)
+        owner_filter = sa.or_(
+            *(
+                getattr(self.model, self.kind(key).owner_column).in_(ids)
+                for key, ids in by_kind.items()
+            )
+        )
+        out: dict[Ref, set[Ref]] = defaultdict(set)
+        for row in db.query(self.model).filter(owner_filter).all():
+            owner, related = self._end(row, "owner"), self._end(row, "related")
+            if related in wanted:
+                out[owner].add(related)
+        return out
 
     def related_counts(
         self, db: Session, viewer, owner_kind: str, owner_ids: list[UUID]
@@ -207,6 +237,9 @@ class PeerRelations:
             also_related=[
                 (ref(item), ref(other)) for item in items for other in item.also_related_to
             ],
+            not_related=[
+                (ref(item), ref(other)) for item in items for other in item.not_related_to
+            ],
         )
 
     def replace_related(
@@ -216,6 +249,7 @@ class PeerRelations:
         owner: Ref,
         relations: list[tuple[Ref, Optional[str]]],
         also_related: Iterable[tuple[Ref, Ref]] = (),
+        not_related: Iterable[tuple[Ref, Ref]] = (),
     ) -> None:
         """
         Make `relations` - (related ref, this side's remark) pairs - the
@@ -233,6 +267,11 @@ class PeerRelations:
         others on the list: it is still one pair at a time, so an unticked
         pair simply has no rows. A pair naming a record not in `relations`,
         or one record twice, is refused.
+
+        `not_related` pairs two records of `relations` that must NOT be
+        related: both sides of an existing pair are removed, remarks with
+        them. This is how the editor unticks a pair already on the list. The
+        same checks apply, and a pair named in both lists is refused.
         """
         wanted: dict[Ref, Optional[str]] = {}
         for ref, remark in relations:
@@ -243,7 +282,13 @@ class PeerRelations:
                 status_code=422, detail=f"A {owner[0]} cannot be related to itself."
             )
         also_related = list(also_related)
-        for one, other in also_related:
+        not_related = list(not_related)
+        if {frozenset(p) for p in also_related} & {frozenset(p) for p in not_related}:
+            raise HTTPException(
+                status_code=422,
+                detail=f"A pair of {self.plural or self.noun + 's'} cannot be both related and unrelated.",
+            )
+        for one, other in also_related + not_related:
             if one == other:
                 raise HTTPException(
                     status_code=422, detail=f"A {one[0]} cannot be related to itself."
@@ -294,6 +339,9 @@ class PeerRelations:
         for one, other in also_related:
             self._ensure_side(db, one, other)
             self._ensure_side(db, other, one)
+        for one, other in not_related:
+            self._mirror(db, one, other).delete(synchronize_session="fetch")
+            self._mirror(db, other, one).delete(synchronize_session="fetch")
         db.flush()
 
     def _ensure_side(self, db: Session, owner: Ref, related: Ref) -> None:

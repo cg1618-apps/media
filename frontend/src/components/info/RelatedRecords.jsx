@@ -15,12 +15,13 @@
 // gets no frame at all. The editor's candidates are the kinds' lists, which
 // are filtered the same way, so a hidden record is never offered either.
 //
-// A record added while editing offers a tick for each record above it on the
-// list, all ticked: "also relate the new one to these". Saving sends the ticked
-// ones as the item's `also_related_to`, and the server writes each as an
-// ordinary pair. Unticking one is how a pair is left unrelated - nothing about
-// it is stored. Only the records above are offered, so two records added in one
-// edit share one tick, on the later.
+// While editing, every record offers a tick for each record above it on the
+// list: "this one is also related to that one". Each pair is offered once, on
+// the later of the two, so one tick decides it. A record added in this edit
+// starts with every tick on; a record already on the list starts from the
+// pairs as they are (each row's `related_to`). Saving sends a newly ticked
+// pair as `also_related_to` and an unticked existing one as `not_related_to`,
+// which removes both its rows; a pair left as it was is not sent.
 //
 // The same component is the detail page's box and the Modify form's: it saves
 // through its own button either way, never with the form.
@@ -151,9 +152,36 @@ export function pickerItems(candidates, chosen, self) {
 }
 
 // The records the draft row at `index` may also be related to: the rows above
-// it, when it was added in this edit; none for a row that was already related.
+// it.
 export function alsoRelatedTargets(draft, index) {
-  return draft[index]?.isNew ? draft.slice(0, index) : [];
+  return draft.slice(0, index);
+}
+
+// Whether the draft row `row` is to be related to `other`, one of the rows
+// above it: the admin's tick when there is one, otherwise on for a row added
+// in this edit and the stored state for a row already on the list.
+export function isTicked(row, other) {
+  const otherKey = keyOf(other.kind, other.system_id);
+  if (otherKey in row.ticks) return row.ticks[otherKey];
+  return row.isNew || other.isNew || row.relatedTo.includes(otherKey);
+}
+
+// One draft row as the PUT sends it. A new row names every ticked pair; a row
+// already on the list names only the pairs that change, if any.
+export function relationItem(draft, index) {
+  const r = draft[index];
+  const item = { kind: r.kind, id: r.system_id, remark: r.remark.trim() || null };
+  const targets = alsoRelatedTargets(draft, index);
+  const target = (o) => ({ kind: o.kind, id: o.system_id });
+  const wasRelated = (o) => !r.isNew && !o.isNew && r.relatedTo.includes(keyOf(o.kind, o.system_id));
+  const also = targets.filter((o) => isTicked(r, o) && (r.isNew || !wasRelated(o)));
+  const not = targets.filter((o) => !isTicked(r, o) && wasRelated(o));
+  if (r.isNew) return { ...item, also_related_to: also.map(target) };
+  return {
+    ...item,
+    ...(also.length ? { also_related_to: also.map(target) } : {}),
+    ...(not.length ? { not_related_to: not.map(target) } : {}),
+  };
 }
 
 export default function RelatedRecords({ type, recordId, isAdmin }) {
@@ -177,7 +205,14 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
   }, [kind, recordId]);
 
   const start = () => {
-    setDraft(related.map((r) => ({ ...r, remark: r.remark ?? "" })));
+    setDraft(
+      related.map((r) => ({
+        ...r,
+        remark: r.remark ?? "",
+        relatedTo: (r.related_to || []).map((t) => keyOf(t.kind, t.id)),
+        ticks: {},
+      })),
+    );
     setEditing(true);
     // Fetched when editing starts, not before: it is every record.
     Promise.all(
@@ -192,16 +227,14 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
   const setRemark = (key, remark) =>
     setDraft(draft.map((r) => (keyOf(r.kind, r.system_id) === key ? { ...r, remark } : r)));
 
-  const toggleAlso = (key, otherKey) =>
+  const toggleAlso = (key, other) =>
     setDraft(
       draft.map((r) =>
         keyOf(r.kind, r.system_id) !== key
           ? r
           : {
               ...r,
-              unticked: r.unticked.includes(otherKey)
-                ? r.unticked.filter((k) => k !== otherKey)
-                : [...r.unticked, otherKey],
+              ticks: { ...r.ticks, [keyOf(other.kind, other.system_id)]: !isTicked(r, other) },
             },
       ),
     );
@@ -211,19 +244,7 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
     try {
       const rows = await fetchJson(kind.related(recordId), {
         method: "PUT",
-        ...jsonBody({
-          relations: draft.map((r, index) => {
-            const item = { kind: r.kind, id: r.system_id, remark: r.remark.trim() || null };
-            if (!r.isNew) return item;
-            const also = alsoRelatedTargets(draft, index).filter(
-              (o) => !r.unticked.includes(keyOf(o.kind, o.system_id)),
-            );
-            return {
-              ...item,
-              also_related_to: also.map((o) => ({ kind: o.kind, id: o.system_id })),
-            };
-          }),
-        }),
+        ...jsonBody({ relations: draft.map((_, index) => relationItem(draft, index)) }),
       });
       setRelated(rows || []);
       setEditing(false);
@@ -311,8 +332,8 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
                           <label key={otherKey} className="inline-flex items-center gap-1">
                             <input
                               type="checkbox"
-                              checked={!r.unticked.includes(otherKey)}
-                              onChange={() => toggleAlso(key, otherKey)}
+                              checked={isTicked(r, o)}
+                              onChange={() => toggleAlso(key, o)}
                             />
                             {recordName(o, o.kind)}
                           </label>
@@ -341,7 +362,8 @@ export default function RelatedRecords({ type, recordId, isAdmin }) {
                     display_name: recordName(record, pickedKind),
                     remark: "",
                     isNew: true,
-                    unticked: [],
+                    relatedTo: [],
+                    ticks: {},
                   },
                 ]);
               }

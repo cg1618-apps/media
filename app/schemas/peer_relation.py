@@ -11,6 +11,14 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
+class PeerRelationTarget(BaseModel):
+    """Another record on the same list, named the way an item names one."""
+
+    # Omitted, the kind of the record whose list this is.
+    kind: Optional[str] = None
+    id: UUID
+
+
 class PeerRelationRef(BaseModel):
     """One related record, as a page lists it, with the remark this side
     gives the relation (null when it gives none)."""
@@ -21,14 +29,9 @@ class PeerRelationRef(BaseModel):
     public_id: int
     display_name: str
     remark: Optional[str] = None
-
-
-class PeerRelationTarget(BaseModel):
-    """Another record on the same list, named the way an item names one."""
-
-    # Omitted, the kind of the record whose list this is.
-    kind: Optional[str] = None
-    id: UUID
+    # The other records on this same list this one is related to - what the
+    # editor's "also related to" ticks start from.
+    related_to: List[PeerRelationTarget] = []
 
 
 class PeerRelationItem(BaseModel):
@@ -44,6 +47,10 @@ class PeerRelationItem(BaseModel):
     # Records elsewhere on this same list to relate this one to as well, both
     # ways, with no remark. A pair already related is left as it is.
     also_related_to: List[PeerRelationTarget] = []
+    # Records elsewhere on this same list this one must NOT be related to:
+    # an existing pair loses both its rows. A pair not named in either list
+    # is left as it is.
+    not_related_to: List[PeerRelationTarget] = []
 
 
 class PeerRelationsReplace(BaseModel):
