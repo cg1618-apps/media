@@ -289,3 +289,20 @@ here and the incidents that produced them.
   `<ProtectedRoute permission=...>` blocks and `frontend/src/config/navigation.js`,
   which calls `has(...)` directly. Changing what a permission means reaches the
   first and not the second.
+- **Do not write a description for everything.** A title, a section or a group
+  carries no lead-in sentence that says what it is or how to read it; the
+  heading and the content say it. This holds for the app's pages and for
+  anything else written for the owner to read on screen, such as an artifact
+  or a review page. These are the kind to leave out:
+  - a page subtitle: "Every rule, check, derivation, pipeline step and
+    fallback found in the media app, grouped by area."
+  - a section lede: "Which source fills what, when it runs, conversions and
+    fallbacks. Review this first."
+  - a group intro: "Read these once; the per-source groups below only state
+    their exceptions."
+
+  A sentence stays only when it states a fact the content does not ("Editors
+  only", "One popup when both are new"), and then it is written as part of
+  the content, not as a description above it. The app's existing pages have
+  already been brought into line with this; it governs what is added from now
+  on.
