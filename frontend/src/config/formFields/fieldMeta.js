@@ -1558,6 +1558,8 @@ export const TYPE_FIELD_META = {
     collection_name_roman: { label: "Name (Romaji)", group: "Names" },
     collection_name_jp: { label: "Name (JP)", group: "Names" },
     collection_name_alt: { label: "Name (Alt)", group: "Names" },
+    // The viewer's own rating: nothing another record holds is theirs to copy.
+    my_rating: { autofillable: false },
   },
 
   franchise: {
@@ -1573,12 +1575,16 @@ export const TYPE_FIELD_META = {
       options: FRANCHISE_TYPES,
       group: "Classification",
     },
+    // The viewer's own rating: nothing another record holds is theirs to copy.
+    my_rating: { autofillable: false },
   },
 
   series: {
     series_name_en: { label: "Name (EN)", group: "Names" },
     series_name_cn: { label: "Name (CN)", group: "Names" },
     series_name_alt: { label: "Name (Alt)", group: "Names" },
+    // The viewer's own rating: nothing another record holds is theirs to copy.
+    my_rating: { autofillable: false },
   },
 
   // ---- Entity tabs -----------------------------------------------------
@@ -1590,6 +1596,7 @@ export const TYPE_FIELD_META = {
 
   studio: {
     name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    my_rating: { autofillable: false },
     name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
     name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
     name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
@@ -1654,6 +1661,7 @@ export const TYPE_FIELD_META = {
   // The studio block minus mal_id/mal_link/anilist_link: a publisher has no MAL record.
   publisher: {
     name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    my_rating: { autofillable: false },
     name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
     name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
     name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
@@ -1711,6 +1719,15 @@ export const TYPE_FIELD_META = {
 
   person: {
     name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    my_rating: { autofillable: false },
+    // The role x scope matrix, drawn on /defaults with the form's own
+    // PersonRoleMatrix. Always "on", like the repeaters.
+    roles: {
+      label: "Types & Scopes",
+      control: "personRoles",
+      group: "Classification",
+      autofillable: false,
+    },
     name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
     name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
     name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },
@@ -1756,6 +1773,7 @@ export const TYPE_FIELD_META = {
 
   character: {
     name_en: { label: "Name (EN)", group: "Names", autofillable: false },
+    my_rating: { autofillable: false },
     name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
     name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
     name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },

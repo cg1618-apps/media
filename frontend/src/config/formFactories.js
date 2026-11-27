@@ -599,6 +599,7 @@ export const defaultCollection = () => ({
   collection_name_roman: "",
   collection_name_jp: "",
   collection_name_alt: "",
+  my_rating: "",
 });
 
 export const defaultFranchise = () => ({
@@ -610,6 +611,7 @@ export const defaultFranchise = () => ({
   franchise_name_jp: "",
   franchise_name_alt: "",
   franchise_type: "",
+  my_rating: "",
 });
 
 export const defaultSeries = () => ({
@@ -621,11 +623,14 @@ export const defaultSeries = () => ({
   series_name_jp: "",
   series_name_alt: "",
   cover_entry_id: null,
+  my_rating: "",
 });
 
 // The three Entity-group forms. An entity is credited ON entries rather than
 // being an entry, so these carry none of the tracking fields above -- but they
 // are still Add forms whose starting values the admin configures on /defaults.
+// my_rating, here and on the grouping tiers, is the viewer's own rating,
+// saved through /api/me/ratings after the row itself (MyRatingFields).
 
 export const defaultStudio = () => ({
   name_en: "",
@@ -645,6 +650,7 @@ export const defaultStudio = () => ({
   mal_link: "",
   anilist_link: "",
   content_rating: CONTENT_RATING_NORMAL,
+  my_rating: "",
 });
 
 // A publisher carries the same shape as a studio minus the two MAL columns:
@@ -667,6 +673,7 @@ export const defaultPublisher = () => ({
   // everywhere - see PublisherScope in app/models/staff.py.
   scopes: [],
   content_rating: CONTENT_RATING_NORMAL,
+  my_rating: "",
 });
 
 export const defaultPerson = () => ({
@@ -691,6 +698,10 @@ export const defaultPerson = () => ({
   // normal | borderline | unrestricted (CONTENT_RATINGS): the lowest access
   // mode the person is shown in. Normal shows everywhere, safe included.
   content_rating: CONTENT_RATING_NORMAL,
+  // The types and scopes the person is offered under: {role, scope} rows, as
+  // PersonRoleMatrix edits them and POST /api/person takes them.
+  roles: [],
+  my_rating: "",
 });
 
 // Identical in shape to a person today, but kept separate: the two are
@@ -717,6 +728,7 @@ export const defaultCharacter = () => ({
   // into the arrays the API takes.
   appearance: "",
   trait: "",
+  my_rating: "",
 });
 
 // Keyed by the media-type slugs used in config/mediaRegistry.js, plus the

@@ -1,6 +1,6 @@
 # Admin Pages
 
-Last verified: 2026-11-26
+Last verified: 2026-11-27
 
 **What this is for.** Every administrative route behind `ProtectedRoute` in
 `frontend/src/App.jsx`: what each page loads, what it lets an admin do, and
@@ -1661,6 +1661,18 @@ templates, so `useFormDefaults` strips any `system_id` off them on read — a
 default row must insert, never update someone else's row. Modify is unaffected:
 it reads `sources` and `copies` off the saved entry and takes only scalar
 fallbacks from the defaults.
+
+**My Rating** takes a default on every tab whose Add form draws one - each
+media type, the three grouping tiers and the four Entity tabs - so a new
+record can start rated. On a tier or an entity it is the viewer's own rating,
+saved through `/api/me/ratings` once the record exists (`MyRatingFields`), and
+it is never auto-filled: another record's rating is not the new one's.
+
+**Types & Scopes (person).** The person tab's `roles` field is the person
+form's own `PersonRoleMatrix`, fed the same `GET /api/person/role-scopes`, and
+laid out across the full row like a repeater. A configured set is the roles a
+new person starts holding: the Add form keeps them in its person form
+(`personForm.roles`) and posts them as `roles`.
 
 The Entity tabs (studio, publisher, person, character) are defaults-only: their Add forms
 have no "auto-fill from an existing record" search, so every one of their
