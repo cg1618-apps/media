@@ -478,7 +478,8 @@ and films have none), then the status. `GameDashboardCard` leads with
 **Owned** - Owned is the usual case - then the completion level.
 `BookDashboardCard` leads with the book's `type` (輕小說, 小說, …), then its
 serialization status; the region is not shown. `ComicDashboardCard` shows
-`comic_type` alone.
+`comic_type` alone. The line under a game card's title names its franchise alone: the
+hours estimate is already the playtime row's denominator.
 
 **Coming Next** shows what the viewer is waiting on or has planned, in two
 separate blocks that never share an entry:
