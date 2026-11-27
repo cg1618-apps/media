@@ -99,7 +99,6 @@ export default function GameDashboardCard({ game, franchise, view = "card" }) {
           </h3>
           <p className="font-mono text-[10px] text-text-faint truncate mt-1 mb-2">
             {subTitle}
-            {hasEstimate ? ` · ~${estimate} h` : ""}
           </p>
           <div className="flex items-center flex-wrap gap-1.5 mt-auto">
             {game.game_type && (

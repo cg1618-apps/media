@@ -37,6 +37,18 @@ describe("GameDashboardCard chips", () => {
     ]);
   });
 
+  // The estimate is the playtime row's denominator; the franchise line does
+  // not repeat it.
+  it("names the franchise alone, without the hours estimate", () => {
+    renderIn(
+      <GameDashboardCard
+        game={{ ...GAME, hltb_main: 50, hours_played: 10 }}
+        franchise={{ franchise_name_en: "Souls" }}
+      />,
+    );
+    expect(screen.getByText("Souls")).toHaveTextContent(/^Souls$/);
+  });
+
   it("leaves Owned out", () => {
     renderIn(<GameDashboardCard game={{ ...GAME, ownership: "Owned" }} />);
     expect(screen.getByText("Base Game")).toBeInTheDocument();
