@@ -1269,14 +1269,20 @@ of `self.list`) a **My rating** select, and the **Links** card → right column
 with the heading, a "Profile" `InfoCard`, the **Notes** block, **Club
 membership**, **Works**, then the credit sort and one section per group.
 
-The **Profile** card leads with the person's names, one per line — each of
-the four that is set (`namingRows`, the same list the Naming card draws
-elsewhere) — then gender and the types they are offered under, by their
-Chinese labels (`personTypeLabel`: 導演, 作曲, …, as the person library's
-Type filter names them) and the **Content rating** (`contentRatingLabel`:
-Normal, Borderline (15+), Unrestricted (18+); drawn always, Normal when the
-record carries none), then **Affiliation**, the studios they belong to as
-links.
+The **Profile** card leads with the person's names, two to a row: Chinese
+beside English, then Japanese beside Alternative. Only a name that is set is
+drawn (`namingRows`, the same list the Naming card draws elsewhere), so a
+pair with one name set is a one-field row and a pair with neither is no row.
+Then one row of gender, the types they are offered under, by their Chinese
+labels (`personTypeLabel`: 導演, 作曲, …, as the person library's Type filter
+names them), and the **Content rating** (`contentRatingLabel`: Normal,
+Borderline (15+), Unrestricted (18+); drawn always, Normal when the record
+carries none). Last comes a row of **Affiliation**, the studios they belong
+to as links, beside **Label**, the person's content labels as the danger
+chips `ContentLabelChips` draws on a franchise page (without its "Content"
+eyebrow, since the field is labelled). Each of the two is drawn only when the
+person has one - an unaffiliated person shows no Affiliation field, not a
+"—" - and with neither the row is gone.
 
 A person may hold several roles, so `/entries` groups by **(media type,
 role)**. Each section is titled by its person type in Chinese

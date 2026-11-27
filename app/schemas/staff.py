@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from app.schemas.image_focus import ImageFocus
+from app.schemas.rbac import ContentLabelRef
 from app.utils.content_rating import check_optional_content_rating
 from app.utils.countries import clean_countries
 from app.utils.credit_roles import CREDIT_ROLES, PERSON_ROLES, legal_scopes
@@ -195,6 +196,11 @@ class PersonResponse(PersonBase):
     system_id: UUID
     # normal | borderline | unrestricted (app/utils/content_rating.py).
     content_rating: str = "normal"
+    # The person's own content labels (person_content_label), as
+    # FranchiseResponse carries a franchise's. Read-only and absent from the
+    # write schemas deliberately: the only writer is
+    # PUT /api/content-labels/person/{person_id}.
+    content_labels: List[ContentLabelRef] = []
     # The VIEWER'S own rating, from user_rating (services.domain.user_rating
     # .attach_ratings); null for a guest. Not on the Base: a catalogue write
     # does not carry it - PUT /api/me/ratings/... does.

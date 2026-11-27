@@ -572,6 +572,17 @@ SHEET_TABS: tuple[SheetTab, ...] = (
         f.parse_series_content_label_from_sheet,
         requires_authz=True,
     ),
+    # The same row for a person, after Content Label and Person. A person's
+    # uuid is minted per database, so person_id is translated through the
+    # Person tab as label_id is through Content Label (pull.py). Fails open
+    # like the others: a Pull without the tab restores every person
+    # unlabelled.
+    SheetTab(
+        "Person Content Label",
+        models.PersonContentLabel,
+        f.parse_person_content_label_from_sheet,
+        requires_authz=True,
+    ),
     # user_id is dropped for `username` for the same reason the Plan Next tab
     # drops it. seasonal's primary key is the (user_id, seasonal) pair, so the
     # user is not decoration here - without it a Pull updates whichever user's

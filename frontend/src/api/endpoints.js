@@ -123,6 +123,7 @@ export const endpoints = {
     forFranchise: (franchiseId) =>
       `/api/content-labels/franchise/${franchiseId}`,
     forSeries: (seriesId) => `/api/content-labels/series/${seriesId}`,
+    forPerson: (personId) => `/api/content-labels/person/${personId}`,
   },
 
   seasonal: {

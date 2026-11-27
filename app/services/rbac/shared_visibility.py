@@ -3,8 +3,8 @@ Which shared records a viewer may see.
 
 A shared record is one that entries point at rather than one that belongs to
 an entry: a person, a character, a studio, a publisher, a vocabulary value
-(`system_option`). None of them carries a content label, so none can be
-hidden by one directly. They are hidden by what they are connected to:
+(`system_option`). Only a person carries content labels of their own (see
+below); every one of them is hidden by what it is connected to:
 
     A shared record is hidden when it has at least one connection and every
     connection it has is hidden. A record with no connections at all stays
@@ -46,16 +46,23 @@ A person, a studio and a publisher also carry a CONTENT RATING of their own
     A record is hidden when its content rating is above the viewer's active
     access mode, OR when the connection rule above hides it.
 
-The rating only ever hides; it never reveals what the connections hide. No
-role is exempt, as no role is exempt from a content label: an admin in a
-narrow mode is narrowed. A viewer with no resolved mode is treated as `safe`,
-so it sees only `normal` records. A character and a vocabulary value carry no
-rating. Because a person credited on a visible entry is no longer visible by
-construction, every reader that names people, studios or publishers on
-something else's page - an entry's credits and cast, a character's seiyuu -
-leaves out the ones `hidden_ratings` names, and every writer that replaces
-such a list wholesale keeps them (credits.replace_credits_keeping,
-casting.replace_casting's `kept`).
+A person also carries CONTENT LABELS of their own (person_content_label), and
+they hide the person the way the rating does:
+
+    A person is hidden when they carry a label the viewer's active mode
+    does not, OR when the rating or the connection rule hides them.
+
+The rating and the labels only ever hide; they never reveal what the
+connections hide, and a person's label does not cascade to the entries they
+are credited on. No role is exempt, as no role is exempt from a content
+label: an admin in a narrow mode is narrowed. A viewer with no resolved mode
+is treated as `safe`, so it sees only `normal` records. A character and a
+vocabulary value carry no rating and no label. Because a person credited on a
+visible entry is no longer visible by construction, every reader that names
+people, studios or publishers on something else's page - an entry's credits
+and cast, a character's seiyuu - leaves out the ones `own_hiding` hides, and
+every writer that replaces such a list wholesale keeps them
+(credits.replace_credit_targets' `keep`, casting.replace_casting's `keep`).
 
 Everything is one SQL condition, built by `_hidden_condition`, applied as a
 filter on list and search queries and as a one-row probe on detail routes -
@@ -83,6 +90,7 @@ from app.services.rbac.gated_types import (
     gated_types,
     hidden_gated_types,
 )
+from app.services.rbac.own_hiding import LABELLED_MODELS, OwnHiding, labelled_out
 from app.services.rbac.seed_modes import MODE_SAFE, mode_rank
 from app.utils.content_rating import CONTENT_RATINGS, RATING_LOWEST_MODE
 
@@ -194,6 +202,16 @@ def hidden_ratings(viewer) -> frozenset[str]:
     )
 
 
+def own_hiding(db: Session, viewer) -> OwnHiding:
+    """
+    The viewer's OwnHiding: hidden_ratings, and the labels its active mode
+    does not carry. None - an internal call - hides nothing.
+    """
+    if viewer is None:
+        return OwnHiding()
+    return OwnHiding(hidden_ratings(viewer), tuple(hidden_label_ids(db, viewer)))
+
+
 @dataclass(frozen=True)
 class _Hiding:
     """What one viewer cannot see, resolved once per request."""
@@ -220,13 +238,16 @@ def _hiding(db: Session, viewer) -> _Hiding:
 
 def _hidden_condition(model, hiding: _Hiding):
     """
-    "This record is rated above the viewer's mode, or it has a connection and
-    none of its connections is visible", correlated on `model.system_id`.
+    "This record is rated above the viewer's mode, or carries a label the
+    mode lacks, or it has a connection and none of its connections is
+    visible", correlated on `model.system_id`.
     """
     condition = _hidden_by_connections(model, hiding)
     if model in RATED_MODELS and hiding.hidden_ratings:
         rated_out = model.content_rating.in_(sorted(hiding.hidden_ratings))
         condition = sa.or_(rated_out, condition)
+    if model in LABELLED_MODELS and hiding.hidden_labels:
+        condition = sa.or_(labelled_out(model, hiding.hidden_labels), condition)
     return condition
 
 

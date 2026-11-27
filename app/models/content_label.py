@@ -230,3 +230,47 @@ class SeriesContentLabel(Base):
     )
     position = Column(Integer, nullable=False, default=0, server_default="0")
     created_at = Column(DateTime, default=get_taipei_now)
+
+
+class PersonContentLabel(Base):
+    """
+    One content label attached to one person.
+
+    The same shape as FranchiseContentLabel, and a table of its own for the
+    same reason: a person is not a media entry and has no row in `media`.
+
+    Unlike a group's label it does NOT cascade. A person carrying a label the
+    viewer's mode lacks is hidden exactly where a person rated above that mode
+    is (app/services/rbac/shared_visibility.py): their own pages, every list
+    and picker, and every page that names them - an entry's credits, a cast's
+    seiyuu. The entries they are credited on stay visible.
+    """
+
+    __tablename__ = "person_content_label"
+    __table_args__ = (
+        UniqueConstraint(
+            "person_id", "label_id", name="uq_person_content_label_row"
+        ),
+        Index("ix_person_content_label_person", "person_id"),
+    )
+
+    system_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+        index=True,
+    )
+    person_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("person.system_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    label_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("content_label.system_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False, default=0, server_default="0")
+    created_at = Column(DateTime, default=get_taipei_now)

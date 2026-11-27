@@ -1728,6 +1728,9 @@ export const TYPE_FIELD_META = {
       group: "Classification",
       autofillable: false,
     },
+    // Saved through /api/content-labels after the person, like an entry's
+    // labels, which /defaults does not offer either.
+    content_labels: { hidden: true },
     name_cn: { label: "Name (CN)", group: "Names", autofillable: false },
     name_jp: { label: "Name (JP)", group: "Names", autofillable: false },
     name_alt: { label: "Name (Alt)", group: "Names", autofillable: false },

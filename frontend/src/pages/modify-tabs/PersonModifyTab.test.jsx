@@ -461,3 +461,53 @@ it("loads the content rating and sends the edited one on save", async () => {
   const [, init] = fetch.mock.calls.find(([, o]) => o?.method === "PUT");
   expect(JSON.parse(init.body)).toMatchObject({ content_rating: "borderline" });
 });
+
+
+// The content labels sit beside the content rating in the Profile section,
+// load from the person as stored, and are PUT to the person's label endpoint
+// after the person itself has saved.
+it("loads the person's content labels and saves the edited set after the person", async () => {
+  vi.stubGlobal("scrollTo", vi.fn());
+  const LABELS = [
+    { system_id: "l1", key: "nsfw", label: "NSFW", description: "" },
+    { system_id: "l2", key: "ecchi", label: "輕微色情", description: "" },
+    { system_id: "l3", key: "erotica", label: "擦邊肉番", description: "" },
+  ];
+  const labelled = { ...DIRECTORS[0], content_labels: [{ key: "nsfw", label: "NSFW" }] };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url, options = {}) => {
+      const path = String(url);
+      let body;
+      if (path === "/api/content-labels/") body = LABELS;
+      else if (path.startsWith("/api/content-labels/person/")) body = JSON.parse(options.body).label_keys;
+      else if (options.method === "PUT") body = { ...labelled, ...JSON.parse(options.body) };
+      else if (path.startsWith("/api/person/p1") && !path.endsWith("/entries")) body = labelled;
+      else body = respond(path);
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) });
+    }),
+  );
+  const user = userEvent.setup();
+  mount({ initialId: "p1" });
+
+  const erotica = await screen.findByRole("checkbox", { name: "擦邊肉番" });
+  expect(screen.getByRole("checkbox", { name: "NSFW" })).toBeChecked();
+  expect(erotica).not.toBeChecked();
+  // Beside the content rating, in the Profile section.
+  const rating = screen.getByLabelText("Content rating");
+  expect(rating.closest(".grid")).toContainElement(erotica);
+
+  await user.click(erotica);
+  await user.click(screen.getByRole("button", { name: /save changes/i }));
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      "/api/content-labels/person/p1",
+      expect.objectContaining({ method: "PUT" }),
+    ),
+  );
+  const puts = fetch.mock.calls.filter(([, o]) => o?.method === "PUT").map(([u]) => u);
+  expect(puts.indexOf("/api/person/p1")).toBeLessThan(puts.indexOf("/api/content-labels/person/p1"));
+  const [, init] = fetch.mock.calls.find(([u]) => u === "/api/content-labels/person/p1");
+  expect(JSON.parse(init.body).label_keys.sort()).toEqual(["erotica", "nsfw"]);
+  expect(await screen.findByRole("checkbox", { name: "擦邊肉番" })).toBeChecked();
+});

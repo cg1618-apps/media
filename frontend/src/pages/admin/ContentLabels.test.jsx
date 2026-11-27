@@ -2,7 +2,7 @@
 //
 // Labels are defined in code, so the page is a read-only table of what the
 // server says about each: which modes show it, what it also carries, and how
-// many entries, collections, franchises and series carry it.
+// many entries, collections, franchises, series and people carry it.
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,6 +20,7 @@ const LABELS = [
     collection_count: 3,
     franchise_count: 2,
     series_count: 5,
+    person_count: 7,
   },
   {
     system_id: "l2",
@@ -34,6 +35,7 @@ const LABELS = [
     collection_count: 0,
     franchise_count: 1,
     series_count: 0,
+    person_count: 0,
   },
 ];
 
@@ -74,22 +76,23 @@ describe("the label reference", () => {
     expect(within(row).getByText("2")).toBeInTheDocument();
   });
 
-  it("shows the counts in entry, collection, franchise, series order", async () => {
+  it("shows the counts in entry, collection, franchise, series, person order", async () => {
     const row = await rowFor("NSFW");
     const headers = screen
       .getAllByRole("columnheader")
       .map((el) => el.textContent);
-    expect(headers.slice(-4)).toEqual([
+    expect(headers.slice(-5)).toEqual([
       "Entries",
       "Collections",
       "Franchises",
       "Series",
+      "People",
     ]);
     const cells = within(row)
       .getAllByRole("cell")
-      .slice(-4)
+      .slice(-5)
       .map((el) => el.textContent);
-    expect(cells).toEqual(["12", "3", "2", "5"]);
+    expect(cells).toEqual(["12", "3", "2", "5", "7"]);
   });
 
   it("lists the modes that show a label, in order", async () => {

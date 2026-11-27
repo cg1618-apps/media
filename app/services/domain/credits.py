@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session, selectinload
 from app import models
 from app.schemas.link_fields import PersonRef, PublisherRef, StudioRef
 from app.services.domain.person_roles import grant_role
-from app.utils.content_rating import CONTENT_RATINGS
+from app.services.rbac.own_hiding import OwnHiding
 from app.utils.credit_roles import (
     CREDIT_ROLES,
     TAG_FIELDS,
@@ -391,7 +391,7 @@ def replace_credits(
     media_id: UUID,
     role: str,
     names: list[str],
-    keep_ratings: frozenset[str] = frozenset(),
+    keep: OwnHiding = OwnHiding(),
 ) -> None:
     """
     Make the entry's credits for one role exactly `names`, in that order.
@@ -400,9 +400,9 @@ def replace_credits(
     redundant: it is the SCOPE a resolved person or publisher is registered
     under. The row itself is keyed only by media_id.
 
-    `keep_ratings` is the writer's shared_visibility.hidden_ratings: credits
-    naming an entity rated one of them were never shown to the writer, so
-    their absence from `names` is not a removal (replace_credit_targets).
+    `keep` is the writer's shared_visibility.own_hiding: credits naming an
+    entity it hides were never shown to the writer, so their absence from
+    `names` is not a removal (replace_credit_targets).
     """
     spec = CREDIT_ROLES[role]
 
@@ -418,20 +418,22 @@ def replace_credits(
             targets.append(resolve_publisher(db, name, scope=media_type))
         else:
             targets.append(_RESOLVERS[spec.target](db, name))
-    replace_credit_targets(db, media_id, role, targets, keep_ratings)
+    replace_credit_targets(db, media_id, role, targets, keep)
 
 
-def _with_kept(db: Session, media_id: UUID, role: str, targets: list, keep_ratings) -> list:
+def _with_kept(db: Session, media_id: UUID, role: str, targets: list, keep: OwnHiding) -> list:
     """
-    `targets` with the stored credits rated one of `keep_ratings` put back at
+    `targets` with the stored credits `keep` hides put back at
     their stored positions, in stored order - so a writer saving the list it
     was shown leaves the ones it was not shown where they were. A kept entity
     the writer named itself is not repeated.
     """
     named = {target.system_id for target in targets}
     out = list(targets)
-    for position, entity in enumerate(_credited_entities(db, media_id, role)):
-        if entity.content_rating in keep_ratings and entity.system_id not in named:
+    stored = _credited_entities(db, media_id, role)
+    hidden = keep.hidden_ids(db, stored)
+    for position, entity in enumerate(stored):
+        if entity.system_id in hidden and entity.system_id not in named:
             out.insert(min(position, len(out)), entity)
     return out
 
@@ -441,7 +443,7 @@ def replace_credit_targets(
     media_id: UUID,
     role: str,
     targets: Sequence,
-    keep_ratings: frozenset[str] = frozenset(),
+    keep: OwnHiding = OwnHiding(),
 ) -> None:
     """
     Make the entry's credits for one role exactly `targets`, in that order -
@@ -449,12 +451,12 @@ def replace_credit_targets(
     the role's target says). replace_credits resolves names and lands here;
     the MAL autofills resolve by MAL id first and land here too.
 
-    Credits naming an entity rated one of `keep_ratings` are kept in place
-    (_with_kept); empty, the default, keeps nothing.
+    Credits naming an entity `keep` hides are kept in place (_with_kept);
+    empty, the default, keeps nothing.
     """
     column = _TARGET_COLUMNS[CREDIT_ROLES[role].target]
-    if keep_ratings:
-        targets = _with_kept(db, media_id, role, list(targets), keep_ratings)
+    if keep:
+        targets = _with_kept(db, media_id, role, list(targets), keep)
 
     db.query(models.MediaCredit).filter_by(
         media_id=media_id, role=role
@@ -531,7 +533,7 @@ def credit_existing(
     media_id: UUID,
     role: str,
     match: CreditMatch,
-    keep_ratings: frozenset[str] = frozenset(),
+    keep: OwnHiding = OwnHiding(),
 ) -> None:
     """
     Make the entry's credits for one role exactly the rows `match` found.
@@ -543,7 +545,7 @@ def credit_existing(
     if CREDIT_ROLES[role].target == "publisher":
         for publisher in match.found:
             _ensure_publisher_scope(db, publisher, media_type)
-    replace_credit_targets(db, media_id, role, match.found, keep_ratings)
+    replace_credit_targets(db, media_id, role, match.found, keep)
 
 
 def _credited_entities(db: Session, media_id: UUID, role: str) -> list:
@@ -664,20 +666,22 @@ def replace_tags(
 
 
 def credit_names(
-    db: Session, media_id: UUID, role: str, hidden: frozenset[str] = frozenset()
+    db: Session, media_id: UUID, role: str, hidden: OwnHiding = OwnHiding()
 ) -> list[str]:
     """
     The entry's credited names for one role, in stored order, leaving out an
-    entity rated one of `hidden` (a viewer's shared_visibility.hidden_ratings;
-    empty for the internal readers).
+    entity `hidden` hides (a viewer's shared_visibility.own_hiding; empty for
+    the internal readers).
     """
     # People and studios both choose their own shown name. This value reaches
     # the anime payload, the admin form and the Sheets column - all three
     # read the same string.
+    entities = _credited_entities(db, media_id, role)
+    unseen = hidden.hidden_ids(db, entities) if hidden else set()
     return [
         entity.display_name
-        for entity in _credited_entities(db, media_id, role)
-        if entity.content_rating not in hidden
+        for entity in entities
+        if entity.system_id not in unseen
     ]
 
 
@@ -1263,7 +1267,7 @@ def _link_rows_and_lookups(
     db: Session,
     media_type: str,
     entry_ids: list[UUID],
-    hidden: frozenset[str] = frozenset(),
+    hidden: OwnHiding = OwnHiding(),
 ):
     """
     One query each for the credit rows, tag rows, and the entities they
@@ -1273,10 +1277,9 @@ def _link_rows_and_lookups(
     `studio_refs` build, so having both read from the same batch costs no
     extra queries - five total regardless of how many entries are passed.
 
-    A person, studio or publisher rated one of `hidden` is not loaded, so
-    every reader of the lookups drops its credits as it drops a missing row.
+    A person, studio or publisher `hidden` hides is not loaded, so every
+    reader of the lookups drops its credits as it drops a missing row.
     """
-    rating_ok = sorted(set(CONTENT_RATINGS) - set(hidden))
     if not entry_ids:
         return [], [], {}, {}, {}, {}
 
@@ -1312,7 +1315,7 @@ def _link_rows_and_lookups(
             .options(selectinload(models.Person.roles))
             .filter(
                 models.Person.system_id.in_(person_ids),
-                models.Person.content_rating.in_(rating_ok),
+                ~hidden.condition(models.Person),
             )
             .all()
         }
@@ -1325,7 +1328,7 @@ def _link_rows_and_lookups(
             for s in db.query(models.Studio)
             .filter(
                 models.Studio.system_id.in_(studio_ids),
-                models.Studio.content_rating.in_(rating_ok),
+                ~hidden.condition(models.Studio),
             )
             .all()
         }
@@ -1338,7 +1341,7 @@ def _link_rows_and_lookups(
             for p in db.query(models.Publisher)
             .filter(
                 models.Publisher.system_id.in_(publisher_ids),
-                models.Publisher.content_rating.in_(rating_ok),
+                ~hidden.condition(models.Publisher),
             )
             .all()
         }
@@ -1432,14 +1435,15 @@ def attach_link_fields(db: Session, media_type: str, entries, viewer=None) -> No
     rest of this function, so adding them costs no extra query - still five
     total, regardless of how many entries are passed.
 
-    A person, studio or publisher rated above `viewer`'s access mode is left
-    out of every one of these, names and refs alike: the entry stays visible
-    and simply does not name them (shared_visibility.hidden_ratings). None,
-    an internal caller, leaves nobody out.
+    A person, studio or publisher rated above `viewer`'s access mode, and a
+    person carrying a label it lacks, is left out of every one of these,
+    names and refs alike: the entry stays visible and simply does not name
+    them (shared_visibility.own_hiding). None, an internal caller, leaves
+    nobody out.
     """
     # Imported here: shared_visibility reaches enforcement, which imports
     # this module.
-    from app.services.rbac.shared_visibility import hidden_ratings
+    from app.services.rbac.shared_visibility import own_hiding
 
     if entries is None:
         return
@@ -1459,7 +1463,7 @@ def attach_link_fields(db: Session, media_type: str, entries, viewer=None) -> No
         studios,
         publishers,
         options,
-    ) = _link_rows_and_lookups(db, media_type, entry_ids, hidden_ratings(viewer))
+    ) = _link_rows_and_lookups(db, media_type, entry_ids, own_hiding(db, viewer))
     values = _values_from_rows(
         entry_ids, credit_rows, tag_rows, people, studios, publishers, options
     )
@@ -1657,12 +1661,13 @@ def credit_usage(db: Session, viewer) -> dict[str, dict]:
     permission for is left out. Both are applied in SQL, so the answer is two
     GROUP BY queries - one over media_credit, one over media_tag - however
     many values there are. A person, studio or publisher rated above the
-    viewer's access mode is absent, as it is from every suggestion list.
+    viewer's access mode, and a person carrying a label it lacks, is absent,
+    as it is from every suggestion list.
     """
     # Imported here for the cycle credit_summaries avoids.
     from app.services.rbac.enforcement import _hidden_by_label, hidden_label_ids
     from app.services.rbac.permissions import media_type_perm
-    from app.services.rbac.shared_visibility import hidden_ratings
+    from app.services.rbac.shared_visibility import own_hiding
     from app.utils.media_resolver import MEDIA_TABLES
 
     allowed = [
@@ -1722,14 +1727,14 @@ def credit_usage(db: Session, viewer) -> dict[str, dict]:
             media_type, {"studio": {}, "publisher": {}, "person": {}, "option": {}}
         )
 
-    unseen = sorted(hidden_ratings(viewer))
+    unseen = own_hiding(db, viewer)
     rated_out: set = set()
     if unseen:
         for model in (models.Person, models.Studio, models.Publisher):
             rated_out |= {
                 system_id
                 for (system_id,) in db.query(model.system_id).filter(
-                    model.content_rating.in_(unseen)
+                    unseen.condition(model)
                 )
             }
 

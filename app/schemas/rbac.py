@@ -237,6 +237,7 @@ class ContentLabelResponse(BaseModel):
     collection_count: int = 0
     franchise_count: int = 0
     series_count: int = 0
+    person_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -28,6 +28,7 @@ from app.models.content_label import (
     ContentLabel,
     FranchiseContentLabel,
     MediaContentLabel,
+    PersonContentLabel,
     SeriesContentLabel,
 )
 from app.models.franchise import Franchise, FranchiseRelation, Series, SeriesRelation
@@ -162,6 +163,7 @@ __all__ = [
     "CollectionContentLabel",
     "FranchiseContentLabel",
     "SeriesContentLabel",
+    "PersonContentLabel",
     "MediaContentLabel",
     "AccessMode",
     "UserAccessModeDenial",

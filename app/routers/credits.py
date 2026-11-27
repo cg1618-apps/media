@@ -30,7 +30,7 @@ from app.services.domain.sources import (
 )
 from app.services.rbac.enforcement import entry_visible
 from app.services.rbac.resolver import Viewer, get_viewer, require_manage_catalog
-from app.services.rbac.shared_visibility import hidden_ratings
+from app.services.rbac.shared_visibility import own_hiding
 from app.utils.credit_roles import CREDIT_ROLES, credit_roles_for, tag_fields_for
 from app.utils.media_resolver import MEDIA_TABLES
 
@@ -112,12 +112,13 @@ def get_credits(
 ):
     """
     Returns only the roles and fields that actually have rows. A person,
-    studio or publisher rated above the viewer's access mode is left out
-    (shared_visibility.hidden_ratings); the entry itself stays visible.
+    studio or publisher rated above the viewer's access mode, and a person
+    carrying a label it lacks, is left out (shared_visibility.own_hiding);
+    the entry itself stays visible.
     """
     _resolve_entry(db, media_type, entry_id, viewer)
 
-    hidden = hidden_ratings(viewer)
+    hidden = own_hiding(db, viewer)
     credits_out: Dict[str, List[str]] = {}
     for role_spec in credit_roles_for(media_type):
         names = credits_service.credit_names(db, entry_id, role_spec.key, hidden)
@@ -144,12 +145,12 @@ def replace_credits(
     """
     Replaces only the roles and fields named in the payload.
 
-    A credit naming a person, studio or publisher rated above the editor's
-    access mode is kept where it is: GET never showed it, so leaving it out
-    of the payload is not a removal.
+    A credit naming a person, studio or publisher the editor's access mode
+    hides (its rating, or a person's labels) is kept where it is: GET never
+    showed it, so leaving it out of the payload is not a removal.
     """
     _resolve_entry(db, media_type, entry_id, admin)
-    kept = hidden_ratings(admin)
+    kept = own_hiding(db, admin)
 
     allowed_roles = {r.key for r in credit_roles_for(media_type)}
     allowed_fields = {f.key for f in tag_fields_for(media_type)}

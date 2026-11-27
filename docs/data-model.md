@@ -1,6 +1,6 @@
 # Data Model
 
-Last verified: 2026-11-26
+Last verified: 2026-11-27
 
 **What this is for.** This is the reference for every table the app stores, as
 declared by the SQLAlchemy models in `app/models/*.py`. It tells you what each
@@ -31,7 +31,7 @@ Enum values are **not** repeated here: every closed vocabulary lives in
 - [Requests and reports](#requests-and-reports): user_request
 - [Needs Work](#needs-work): needs_work
 - [Vocabulary and configuration](#vocabulary-and-configuration): system_option, system_option_scope, system_option_usage, system_option_alias, system_configs, seasonal
-- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, collection_content_label, series_content_label, access_mode, user_access_mode_denial
+- [Access control](#access-control): role, role_permission, users, content_label, media_content_label, franchise_content_label, collection_content_label, series_content_label, person_content_label, access_mode, user_access_mode_denial
 - [Logs](#logs): data_control_logs, deleted_record
 - [The `media` supertable](#the-media-supertable)
 - [Cross-table references without foreign keys](#cross-table-references-without-foreign-keys)
@@ -1211,7 +1211,7 @@ One human credited on a media entry (Tier 3 entity - see
 | `ig_link` | String | yes | | Their Instagram page, as `twitter_link` |
 | `pixiv_link` | String | yes | | Their pixiv page, as `twitter_link` |
 | `type_slots` | JSONB | yes | | Which favourite-entity 3×3 grid slot this person holds, as `{gridKey: 1..9}`. Eight grids are keyed here: Anime Director, Non-Anime Director, Composer, Manga Author, Book Author, Illustrator, Female Seiyuu, Male Seiyuu. Written only by the Fav 3x3 editor's PATCH; no form or PUT carries it |
-| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_person_content_rating`, `app/utils/content_rating.py`). Hides the person from an access mode below the rating, on top of the connection rule - see [authorization.md](authorization.md#shared-records). Restored by Pull, a blank or unknown cell as `normal` |
+| `content_rating` | String | no | `'normal'` | `normal`, `borderline` or `unrestricted` (CHECK `ck_person_content_rating`, `app/utils/content_rating.py`). Hides the person from an access mode below the rating, on top of the connection rule - see [authorization.md](authorization.md#shared-records). Restored by Pull, a blank or unknown cell as `normal`. A person's content labels, which hide them the same way, are rows of [`person_content_label`](#person_content_label) |
 | `created_at` / `updated_at` | DateTime | yes | now | |
 
 Constraints: `uq_person_name` UNIQUE (`name_en`, `name_cn`, `name_jp`,
@@ -2659,8 +2659,8 @@ resolution is a union. Kept out of
 access mode that shows it, and `hentai`, `h-game` and `h-comic` with the gated
 type that requires them. The rows exist because `media_content_label`, the
 three group join tables (`collection_content_label`,
-`franchise_content_label`, `series_content_label`) and
-`user_access_mode_denial` cite labels by id.
+`franchise_content_label`, `series_content_label`), `person_content_label`
+and `user_access_mode_denial` cite labels by id.
 `gated_labels.ensure_labels` keeps them a mirror of the code on every start:
 it inserts a missing label and rewrites `label`, `description` and
 `sort_order` (the label's position in `CONTENT_LABELS`) to the code's. It never
@@ -2686,7 +2686,7 @@ index `ix_media_content_label_entry` (`media_id`).
 constraint states it; every write path does, through
 `app/services/domain/label_rules.py` — see
 [authorization.md](authorization.md). The same holds for each of the three
-group join tables below.
+group join tables below, and for `person_content_label`.
 
 ### `franchise_content_label`
 
@@ -2761,6 +2761,29 @@ A collection or a series has **no required label**: the gated-type rule
 (a type's label kept on every entry of it and on a franchise whose type list
 names it) has no type to read on either. No group has a 標籤 `Label` tag
 field either — that vocabulary is on the entry tables only.
+
+### `person_content_label`
+
+One content label on one person, with `franchise_content_label`'s shape.
+Model: `PersonContentLabel`. A table of its own because a person has no row
+in `media`. The label does **not** cascade: a person carrying a label the
+viewer's mode lacks is hidden wherever a person rated above that mode is —
+their page, every list, search and picker, and every credit and voice naming
+them on an entry's page — while the entries they are credited on stay
+visible. See [authorization.md](authorization.md#shared-records). Merging
+two people gives the survivor both sets.
+
+| Column | Type | Null | Default | Description |
+|---|---|:-:|---|---|
+| `system_id` | UUID | no | uuid4 | PK |
+| `person_id` | UUID | no | | FK `person.system_id` ON DELETE CASCADE |
+| `label_id` | UUID | no | | FK `content_label` ON DELETE CASCADE, indexed |
+| `position` | Integer | no | `0` (server default) | |
+| `created_at` | DateTime | yes | now | |
+
+Constraints: `uq_person_content_label_row` UNIQUE (`person_id`, `label_id`);
+index `ix_person_content_label_person` (`person_id`). No person has a
+required label.
 
 ---
 
@@ -3000,7 +3023,8 @@ universal and nothing filters on their author at all. See
 ### Tables that hang off an entry or a group
 
 Each has a real FK to its owner (`media.system_id`, or a group's
-`system_id` for the group label tables), so the database cleans up after a
+`system_id` for the group label tables, `person.system_id` for
+`person_content_label`), so the database cleans up after a
 delete and no service call is involved. The rules differ on purpose:
 
 | Table | On delete | Why |
@@ -3012,6 +3036,7 @@ delete and no service call is involved. The rules differ on purpose:
 | `franchise_content_label` | CASCADE | A label on a deleted franchise means nothing |
 | `collection_content_label` | CASCADE | Same, for a deleted collection |
 | `series_content_label` | CASCADE | Same, for a deleted series |
+| `person_content_label` | CASCADE | Same, for a deleted person |
 | `quote` | **SET NULL** | A quote carries its own text, translation, speaker and episode. Deleting an entry must never destroy hand-written content, so the quote survives, unattached. Not confused with a deliberately general quote - that is its own flag, `is_general` |
 | `order_item` | CASCADE | A step is almost pure pointer: `ep_start`, `ep_end`, `position` and `section_id` only mean something relative to an entry |
 

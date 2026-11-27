@@ -2327,6 +2327,20 @@ def parse_series_content_label_from_sheet(raw: dict) -> dict:
     }
 
 
+def parse_person_content_label_from_sheet(raw: dict) -> dict:
+    """The Person Content Label row; the same shape as
+    parse_franchise_content_label_from_sheet. Unlike a franchise's, the
+    person_id is the other database's uuid, translated through the Person
+    tab by pull.py before the row is stored."""
+    return {
+        "system_id": parse_from_sheet(raw.get("system_id"), UUID),
+        "person_id": _uuid_or_none(raw.get("person_id")),
+        "label_id": _uuid_or_none(raw.get("label_id")),
+        "position": parse_from_sheet(raw.get("position"), int),
+        "created_at": parse_from_sheet(raw.get("created_at"), datetime),
+    }
+
+
 def parse_system_config_from_sheet(raw: dict) -> dict:
     """
     Parses a raw dictionary from the System Configs sheet into typed data ready for the Database.

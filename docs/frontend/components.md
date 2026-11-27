@@ -1,6 +1,6 @@
 # Frontend Components, Data Layer and Theming
 
-Last verified: 2026-11-26
+Last verified: 2026-11-27
 
 **What this is for.** The building blocks under `frontend/src/` that pages are
 assembled from: how data is fetched and cached, how auth and theme reach
@@ -685,7 +685,7 @@ columns.
   `/api/me/ratings` with `useFormRatingSaver`),
   `ContentLabelPicker` (one owner-agnostic control for both Add and Modify —
   it takes `owner={{kind, mediaType?, id}}`, `kind` being `entry`,
-  `collection`, `franchise` or `series`, and reads and writes that owner's
+  `collection`, `franchise`, `series` or `person`, and reads and writes that owner's
   label set through the one URL builder, so the two pages cannot drift;
   `GROUP_SCOPE_NOTES` holds each group tier's footnote - an entry's picker
   passes no `scopeNote` and draws none - and `GROUP_HIDES` the
@@ -696,7 +696,9 @@ columns.
   `saveEntryLabels` / `saveFranchiseLabels(id, keys, franchiseType)` add it
   back to the set they send; `saveCollectionLabels(id, keys)` and
   `saveSeriesLabels(id, keys)` add only `nsfw`, since no group but a franchise
-  has a required label. `onLoaded` reports the set as loaded, before any
+  has a required label, and so does `savePersonLabels(id, keys)`; the person
+  form renders the picker in its Profile section with no `owner`, holding the
+  set in the form itself. `onLoaded` reports the set as loaded, before any
   edit; `labelsAdded(loaded, chosen)` and
   `entryHiddenFromSession(type, id)` are what Modify's Save uses to confirm an
   added label and to report one that hid the entry — see `admin-pages.md`),

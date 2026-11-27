@@ -18,15 +18,16 @@ export default function ContentLabelChips({
   // What a group's chips say they cover - a collection, franchise or
   // series hides everything under it. The default reads for an entry.
   note,
+  // The eyebrow before the chips. A page that sets the chips under a label
+  // of its own (the person page's Profile card) passes null.
+  heading = "Content",
   className = "",
 }) {
   if (!labels?.length) return null;
 
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
-      <span className={eyebrowCls}>
-        Content
-      </span>
+      {heading && <span className={eyebrowCls}>{heading}</span>}
       {labels.map((row) => (
         <Chip key={row.key} tone="danger" title={row.description || note || ""}>
           {row.label}
