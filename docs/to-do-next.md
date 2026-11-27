@@ -1,6 +1,6 @@
 # To do next
 
-Last verified: 2026-11-26
+Last verified: 2026-11-27
 
 **Decided work that is not built yet, in the order it is to be built.** An
 item here has been settled with the owner — what to build is known — but
@@ -16,6 +16,47 @@ Each item is a short statement and the detail it needs. Where a design
 document exists — under `superpowers/specs/` while it is being built — the
 item points at it instead, and the present-tense pages take over once it
 ships.
+
+## Business-rule review
+
+The owner is reviewing every existing business rule, section by section:
+each rule is documented, checked for suggestions, and changed, fixed or
+built where the review decides. Work through it **in the inventory's
+section order**, starting with External sources:
+
+1. A. External sources: what each one fills
+2. B. Rules, fallbacks and checks
+3. C. Building blocks (Single replace, Fill, Replace, Post-processing, Sync,
+   Calculate All, Backup, Pull, Clean Orphans, Franchise and Series creation)
+4. D. Control Center
+5. E. Add page
+6. F. Modify page and Delete
+7. G. Entry pages and everyday actions
+8. H. Access
+9. I. Where docs and code disagree, resolved as each section above is settled
+
+Two artifacts on claude.ai carry the review. Both are private to the owner.
+Read them through the Artifact tool and the Claude Docs connector, never by
+fetching the URL:
+
+- **The inventory**, https://claude.ai/artifact/LKXnhUAHabEMaQXtuiyWJx. It is
+  the technical list of everything found in the code, organised by action,
+  with numbered steps, [GAP] / [FB] / [CC] tags and one checkbox per point.
+  The checkboxes are the review's progress: a point is ticked once it has
+  been reviewed. Its ticks live in the artifact's database (collection
+  `ticks`), readable with the ArtifactData tool.
+- **The reviewed rules**, the Claude Docs document "Media business rules",
+  https://claude.ai/artifact/23Apykz3E8s25JrR8LrMKn. It holds the rules as
+  they stand after review: readable, with details. **It is the source of
+  truth while the review runs**, above `docs/business-rules.md` and the
+  other pages. A section is written into it as that section is reviewed. It
+  may grow into more than one document where one gets too long.
+
+As each section is settled, the matching pages under `docs/` are updated or
+created from the reviewed document, and any fix the review decides lands
+with its doc change, as usual. The inventory was built from the code on
+2026-11-27. Re-check a point against the code before acting on it, since a
+later merge may have moved it.
 
 ## Page and entry-type walkthrough
 
