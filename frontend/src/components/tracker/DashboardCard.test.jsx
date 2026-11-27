@@ -83,34 +83,42 @@ describe("DashboardCard on a film", () => {
   });
 });
 
-// The seasonal pages' variant: no type spine, the MAL score on the chip row.
-// The default render is the mirror case for both, so a pass proves the props
-// did the hiding and the showing.
-describe("DashboardCard on the seasonal pages", () => {
+// The type leads the chip row; nothing names it beside the cover. The
+// seasonal pages add the MAL score on the same row, and the default render is
+// the mirror case for it.
+describe("DashboardCard chips", () => {
   const ANIME = {
     system_id: "a2",
     public_id: "ghi",
     anime_name_en: "Dandadan",
     _ui_type: "Anime",
+    airing_type: "ONA",
+    airing_status: "Airing",
     ep_fin: 1,
     ep_total: 12,
     mal_rating: 8.62,
   };
 
-  it("hides the type spine and shows the MAL score", () => {
-    renderCard(ANIME, { showTypeSpine: false, showMalScore: true });
+  it("leads the chip row with the airing type and draws no type spine", () => {
+    renderCard(ANIME);
     expect(screen.queryByText("Anime")).toBeNull();
+    const chips = screen.getByText("ONA").parentElement;
+    expect(chips.firstElementChild).toHaveTextContent("ONA");
+    expect(within(chips).getByText("Airing")).toBeInTheDocument();
+  });
+
+  it("shows the MAL score when asked", () => {
+    renderCard(ANIME, { showMalScore: true });
     expect(screen.getByTitle("MAL score")).toHaveTextContent("MAL 8.62");
   });
 
-  it("keeps the spine and no score by default", () => {
+  it("shows no score by default", () => {
     renderCard(ANIME);
-    expect(screen.getByText("Anime")).toBeInTheDocument();
     expect(screen.queryByTitle("MAL score")).toBeNull();
   });
 
   it("shows no score when the anime has none", () => {
-    renderCard({ ...ANIME, mal_rating: null }, { showTypeSpine: false, showMalScore: true });
+    renderCard({ ...ANIME, mal_rating: null }, { showMalScore: true });
     expect(screen.queryByTitle("MAL score")).toBeNull();
   });
 });

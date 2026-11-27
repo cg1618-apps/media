@@ -132,10 +132,11 @@ export default function DefaultsTab({
             <div className="space-y-3">
               {fields.map((field) => {
                 const isOverridden = field.key in defaults;
-                // A repeater (sources, game copies) is a block of rows, not a
-                // single control: it stacks under its label and takes the full
-                // width instead of being squeezed into the value column.
-                const isRepeater = field.control === "sources" || field.control === "copies";
+                // A repeater (sources, game copies) or the person's role
+                // matrix is a block of rows, not a single control: it stacks
+                // under its label and takes the full width instead of being
+                // squeezed into the value column.
+                const isRepeater = ["sources", "copies", "personRoles"].includes(field.control);
                 return (
                   <Fragment key={field.key}>
                     <div

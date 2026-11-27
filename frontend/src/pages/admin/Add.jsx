@@ -289,7 +289,6 @@ export default function Add() {
   // Options" nav entry. Person and Studio are top-level tabs under the Entity
   // group (see adminTabs.js), each with its own form state below.
   const [optionsSubTab, setOptionsSubTab] = useState("options");
-  const [personRoles, setPersonRoles] = useState([]);
   // The three entity forms start from their factories in config/formFactories.js
   // like every other tab, so the admin's /defaults overrides reach them through
   // the same freshForm() path.
@@ -1150,7 +1149,7 @@ export default function Add() {
         ig_link: personForm.ig_link?.trim() || null,
         pixiv_link: personForm.pixiv_link?.trim() || null,
         content_rating: personForm.content_rating || CONTENT_RATING_NORMAL,
-        roles: personRoles,
+        roles: personForm.roles,
         studio_ids: (personForm.affiliations || []).map((s) => s.system_id),
       }),
       credentials: "include",
@@ -1169,7 +1168,6 @@ export default function Add() {
       showToast("success", "Person appended successfully.");
       setLastAdded(created.display_name);
       setPersonForm(freshForm("person"));
-      setPersonRoles([]);
       setSources(await fetchAllSources());
     } else {
       showToast("error", "Failed to create person");
@@ -2636,8 +2634,8 @@ export default function Add() {
             <PersonAddTab
               personForm={personForm}
               upf={upf}
-              roles={personRoles}
-              setRoles={setPersonRoles}
+              roles={personForm.roles}
+              setRoles={(next) => upf("roles", next)}
               applyMalPick={applyPersonMalPick}
               applyImdbPick={applyPersonImdbPick}
             />
