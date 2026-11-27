@@ -1,5 +1,6 @@
-// How the /options page arranges its choice lists — the Tier 1 closed enums
-// and the Tier 2 open vocabularies both.
+// How the /options page arranges its choice lists — the Internal Keys (closed
+// enums) and the three system_option tiers: System Options, Tags and Common
+// Options.
 //
 // Each tier arrives as one flat list whose natural order scatters the entries
 // an admin reads together: alphabetically anime_airing_type sits three screens
@@ -12,6 +13,8 @@
 // registry's own order). Entries the page was not handed are skipped, so a
 // removed enum or an emptied category shrinks its group instead of printing a
 // blank card.
+
+import { categoriesForSubTab } from "./optionCategoryGroups";
 
 /** Tier 1 group definitions, in the order they appear on the page. */
 export const TIER1_GROUPS = [
@@ -73,8 +76,9 @@ export const TIER1_GROUPS = [
     title: "Franchise",
     keys: ["franchise_type", "franchise_expectation"],
   },
+  // Named apart from the tier itself, which /options calls Internal Keys.
   {
-    title: "Internal Keys",
+    title: "Media Types & Categories",
     keys: [
       "media_type",
       "person_role",
@@ -251,4 +255,21 @@ export function groupTier2Categories(categories) {
     title: s.title,
     categories: s.members,
   }));
+}
+
+/**
+ * Split the categories the database holds rows for into the page's three
+ * system_option tiers - the same split as the Options, Tags and Common Options
+ * sub-tabs of Add / Modify (lib/optionCategoryGroups.js) - each arranged by
+ * groupTier2Categories.
+ *
+ * Returns `{ options, tags, common }`, each `[{ title, categories }]`.
+ */
+export function groupOptionTiers(categories) {
+  return Object.fromEntries(
+    ["options", "tags", "common"].map((subTab) => [
+      subTab,
+      groupTier2Categories(categoriesForSubTab(categories, subTab)),
+    ]),
+  );
 }

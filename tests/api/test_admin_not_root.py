@@ -104,6 +104,9 @@ def credited_records(owner_client, db_session):
         )
         assert r.status_code in (200, 201), r.text
     db_session.add(models.Studio(name_en="MAPPA"))
+    db_session.add(models.Publisher(name_en="Kadokawa"))
+    db_session.add(models.Publisher(name_en="Shueisha"))
+    db_session.add(models.Character(name_en="Frieren"))
     db_session.flush()
 
 
@@ -115,6 +118,8 @@ def test_the_admin_sees_the_real_tier_3_counts(admin_client, credited_records):
     assert counts["person_roles"]["composer"] == 1
     assert counts["person_roles"]["producer"] == 0
     assert counts["studios"] == 1
+    assert counts["publishers"] == 2
+    assert counts["characters"] == 1
     # The view reads the page used to make are still not the admin's: the
     # counts reach it through manage.options alone.
     assert admin_client.get("/api/person/role-counts").status_code == 401

@@ -1,5 +1,6 @@
 """
-How many people and studios exist, as one viewer may count them.
+How many people, studios, publishers and characters exist, as one viewer
+may count them.
 
 Two readers share these tallies: the person list's header
 (`GET /api/person/role-counts`, a `view.person` read) and System Options'
@@ -45,8 +46,11 @@ def person_role_counts(db: Session, viewer) -> dict[str, int]:
     return {role: tallied.get(role, 0) for role in roles}
 
 
+def entity_count(db: Session, viewer, model) -> int:
+    """How many rows of one shared-record model (studio, publisher, character) this viewer may see."""
+    return apply_shared_visibility(db.query(model), model, db, viewer).count()
+
+
 def studio_count(db: Session, viewer) -> int:
     """How many studios this viewer may see."""
-    return apply_shared_visibility(
-        db.query(models.Studio), models.Studio, db, viewer
-    ).count()
+    return entity_count(db, viewer, models.Studio)

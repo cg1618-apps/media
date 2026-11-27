@@ -1,6 +1,6 @@
 # Options and Vocabularies
 
-Last verified: 2026-11-26
+Last verified: 2026-11-27
 
 ## What this is for
 
@@ -45,6 +45,12 @@ code.
 | 1 | Python constants and registries under `app/utils/`, `app/services/domain/`, `app/services/rbac/` | a code change | `GET /api/constants`, `GET /api/media-relation/kinds`, `GET /api/plan-next/kinds`, `/api/auth/me` (permissions) | `"Not Yet Aired"`, `"完結"`, `sequel`, `12ep`, `field_group.sources_restricted` |
 | 2 | `system_option` + `system_option_scope` tables | an admin, through the Options tab of Add / Modify | `GET /api/options[/{category}]?scope=` | `Genre Main` = `Action`, `Platform` = `Disney+` |
 | 3 | `person`, `person_role`, `studio`, linked through `media_credit` | an admin, through `/api/person` and `/api/studio` | the credits endpoints | a director with JP/EN names and a rating |
+
+The admin `/options` page shows these as four tiers of its own: **Internal
+Keys** (Tier 1 here, plus the Tier 3 entities), then Tier 2 split the way the
+Add / Modify sub-tabs split it - **System Options**, **Tags**
+(`TAG_CATEGORIES`) and **Common Options** (`COMMON_OPTION_CATEGORIES`). See
+[frontend/admin-pages.md](frontend/admin-pages.md#options-systemoptionsjsx).
 
 The reason Tier 1 is code: `"Not Yet Aired"` makes Fill skip `mal_rating`,
 `"完結"` gates the book volume checks, `Completed (解說)` must count as
@@ -1096,9 +1102,10 @@ for the `person`, `person_role`, `studio`, `publisher`, `publisher_scope` and
 `media_credit` tables.
 
 Keyed by the LIVE role, with the old categories that folded into it - the same
-shape as `TIER3_ROWS` in `frontend/src/pages/admin/SystemOptions.jsx`, whose
-comment asks that the two be kept in step. Seven rows: five person roles plus
-`studio` and `publisher`.
+shape as `ENTITY_ROWS` in `frontend/src/pages/admin/SystemOptions.jsx`, whose
+comment asks that the two be kept in step. The page lists these under its
+Internal Keys tier, with `club`, `seiyuu` and `character`, which replaced no
+category; the rows below are the ones that did.
 
 | Old option categories | New home | Notes |
 |---|---|---|

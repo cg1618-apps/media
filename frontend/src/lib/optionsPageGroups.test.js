@@ -5,6 +5,7 @@ import {
   TIER2_GROUPS,
   UNGROUPED_TITLE,
   groupTier1Keys,
+  groupOptionTiers,
   groupTier2Categories,
 } from "./optionsPageGroups";
 
@@ -312,5 +313,34 @@ describe("groupTier2Categories", () => {
 
   it("returns nothing when the database served nothing", () => {
     expect(groupTier2Categories([])).toEqual([]);
+  });
+});
+
+describe("groupOptionTiers", () => {
+  const STORED = [
+    "Genre Main",
+    "Genre Sub",
+    "Game Genre",
+    "Platform",
+    "Reference Source",
+    "Game Mode",
+    "Song Type",
+    "Needs Work Note",
+    "Country",
+  ];
+
+  it("splits the categories as the Add / Modify sub-tabs do", () => {
+    const tiers = groupOptionTiers(STORED);
+    // Membership, not order: the order within a tier is groupTier2Categories'.
+    const flat = (sections) => sections.flatMap((s) => s.categories).sort();
+    expect(flat(tiers.tags)).toEqual(["Game Genre", "Genre Main", "Genre Sub"]);
+    expect(flat(tiers.common)).toEqual(["Country", "Needs Work Note", "Song Type"]);
+    expect(flat(tiers.options)).toEqual(["Game Mode", "Platform", "Reference Source"]);
+  });
+
+  it("places every category in exactly one tier", () => {
+    const tiers = groupOptionTiers(STORED);
+    const all = Object.values(tiers).flatMap((t) => t.flatMap((s) => s.categories));
+    expect([...all].sort()).toEqual([...STORED].sort());
   });
 });

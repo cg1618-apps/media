@@ -9,15 +9,15 @@
 //
 // Read-only on purpose, like /options: aliases are edited on the admin
 // Add / Modify pages under System → Alias, and every section says so. The one
-// thing this page has that no form does is the gap column — the values sitting
-// in an aliased category that no external string can reach.
+// thing this page has that no form does is the gap: every value of an aliased
+// category is listed, so the ones no external string can reach show as rows
+// with no conversion.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { buildUrl } from "../../api/client";
 import { endpoints } from "../../api/endpoints";
-import { scopeChip } from "../../config/scopeColors";
-import { groupAliasesBySource } from "../../lib/aliasGroups";
+import { groupAliasesBySource, storedValues } from "../../lib/aliasGroups";
 
 import { eyebrowCls } from "../../components/ui/primitives";
 // Anchor id for a source's section. Sources are short lowercase keys, but the
@@ -36,13 +36,20 @@ function optionsAnchor(category) {
     .replace(/^-|-$/g, "")}`;
 }
 
-function CategoryTable({ category, rows, unaliased }) {
+// A Game Platform alias stores two values, not one: the console and its main
+// platform, main platform first (with_platform_families on the backend). The
+// table shows that, minus the value that only repeats the API's name.
+const GAME_PLATFORM = "Game Platform";
+
+function CategoryTable({ category, rows, aliased }) {
+  const unconverted = rows.length - aliased;
   return (
     <div className="mb-8 last:mb-0">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
         <h3 className="text-sm font-black text-text">{category}</h3>
         <span className={eyebrowCls}>
-          {rows.length} {rows.length === 1 ? "row" : "rows"}
+          {aliased} {aliased === 1 ? "conversion" : "conversions"}
+          {unconverted > 0 && ` · ${unconverted} without one`}
         </span>
         <Link
           to={optionsAnchor(category)}
@@ -51,6 +58,15 @@ function CategoryTable({ category, rows, unaliased }) {
           See the full vocabulary →
         </Link>
       </div>
+
+      {category === GAME_PLATFORM && (
+        <p className="mb-2 text-xs text-text-muted">
+          A console is stored together with its main platform, main platform
+          first: IGDB&rsquo;s <span className="font-mono">Android</span> is stored
+          as <span className="font-bold text-text">Mobile, Android</span>. What it
+          becomes leaves out the name the API already said.
+        </p>
+      )}
 
       {/* Wide tables scroll inside their own box; the page never scrolls
           sideways. */}
@@ -64,52 +80,33 @@ function CategoryTable({ category, rows, unaliased }) {
               <th className="text-left px-3 py-2 text-[10px] font-black text-text-faint">
                 What it becomes
               </th>
-              <th className="text-left px-3 py-2 text-[10px] font-black text-text-faint">
-                Scopes
-              </th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr
-                key={`${row.external}→${row.value}`}
+                key={`${row.external ?? ""}→${row.value}`}
                 className="border-b border-border last:border-0"
               >
                 <td className="px-3 py-2 font-mono text-xs text-text-muted">
-                  {row.external}
+                  {row.external ?? (
+                    <span className="font-sans text-text-faint italic">
+                      No conversion — set by hand
+                    </span>
+                  )}
                 </td>
-                <td className="px-3 py-2 font-bold text-text">{row.value}</td>
-                <td className="px-3 py-2">
-                  <div className="flex flex-wrap gap-1">
-                    {row.scopes.length === 0 ? (
-                      <span className="text-[10px] text-text-faint">
-                        everywhere
-                      </span>
-                    ) : (
-                      row.scopes.map((s) => (
-                        <span key={s} className={scopeChip(s)}>
-                          {s}
-                        </span>
-                      ))
-                    )}
-                  </div>
+                <td
+                  className={`px-3 py-2 font-bold ${
+                    row.external == null ? "text-text-faint" : "text-text"
+                  }`}
+                >
+                  {storedValues(row).join(", ")}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      {unaliased.length > 0 && (
-        <p className="mt-2 text-xs text-text-muted">
-          <span className="font-bold text-text">
-            Nothing maps to {unaliased.length}{" "}
-            {unaliased.length === 1 ? "value" : "values"} here:
-          </span>{" "}
-          {unaliased.join("、")}. These can only be set by hand — a Fill run
-          will never produce them.
-        </p>
-      )}
     </div>
   );
 }
@@ -201,7 +198,7 @@ export default function Aliases() {
                 {source.source}
               </h2>
               <span className={eyebrowCls}>
-                {source.total} alias {source.total === 1 ? "row" : "rows"} in{" "}
+                {source.total} {source.total === 1 ? "conversion" : "conversions"} in{" "}
                 {source.categories.length}{" "}
                 {source.categories.length === 1 ? "category" : "categories"}
               </span>
